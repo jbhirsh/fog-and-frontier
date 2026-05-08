@@ -21,6 +21,9 @@ export function Layout() {
             <NavLink to="/" end className={navClass}>
               Explore
             </NavLink>
+            <NavLink to="/map" className={navClass}>
+              Map
+            </NavLink>
             <NavLink to="/adventures" className={navClass}>
               Adventures
             </NavLink>
