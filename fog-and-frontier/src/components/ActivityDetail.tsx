@@ -67,7 +67,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
         if (e.target === dialogRef.current) onClose();
       }}
       ref={dialogRef}
-      className="fixed inset-0 z-[100] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
+      className="fixed inset-0 z-[1000] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
     >
       <div
         ref={scrollRef}

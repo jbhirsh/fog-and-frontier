@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HOME_LOCATION } from '../data/home';
 
 type Range = 'today' | 'tomorrow' | 'weekend' | 'week';
@@ -6,12 +6,55 @@ type Range = 'today' | 'tomorrow' | 'weekend' | 'week';
 type DiscoverEvent = {
   name: string;
   dateText: string;
+  startDate?: string;
+  endDate?: string;
   location: string;
   blurb: string;
   sourceUrl: string;
 };
 
 type DiscoverSource = { uri: string; title: string };
+
+type CacheShape = {
+  range: Range;
+  at: number;
+  events: DiscoverEvent[];
+  sources: DiscoverSource[];
+};
+
+const CACHE_KEY = 'fogandfrontier.discover.v1';
+
+function todayISO(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function isFutureOrToday(e: DiscoverEvent, today: string): boolean {
+  const end = e.endDate || e.startDate;
+  if (!end) return true;
+  return end >= today;
+}
+
+function readCache(): CacheShape | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CacheShape;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(c: CacheShape) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+  } catch {
+    /* quota */
+  }
+}
 
 const RANGES: { value: Range; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -27,6 +70,24 @@ export function Explore() {
   const [events, setEvents] = useState<DiscoverEvent[] | null>(null);
   const [sources, setSources] = useState<DiscoverSource[]>([]);
   const [lastFetched, setLastFetched] = useState<{ range: Range; at: number } | null>(null);
+
+  useEffect(() => {
+    const cached = readCache();
+    if (!cached) return;
+    const today = todayISO();
+    const fresh = cached.events.filter((e) => isFutureOrToday(e, today));
+    if (fresh.length === 0) {
+      localStorage.removeItem(CACHE_KEY);
+      return;
+    }
+    setRange(cached.range);
+    setEvents(fresh);
+    setSources(cached.sources);
+    setLastFetched({ range: cached.range, at: cached.at });
+    if (fresh.length !== cached.events.length) {
+      writeCache({ ...cached, events: fresh });
+    }
+  }, []);
 
   async function discover() {
     setLoading(true);
@@ -45,9 +106,13 @@ export function Explore() {
         events: DiscoverEvent[];
         sources: DiscoverSource[];
       };
-      setEvents(Array.isArray(data.events) ? data.events : []);
-      setSources(Array.isArray(data.sources) ? data.sources : []);
-      setLastFetched({ range, at: Date.now() });
+      const evs = Array.isArray(data.events) ? data.events : [];
+      const srcs = Array.isArray(data.sources) ? data.sources : [];
+      const at = Date.now();
+      setEvents(evs);
+      setSources(srcs);
+      setLastFetched({ range, at });
+      writeCache({ range, at, events: evs, sources: srcs });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load suggestions');
     } finally {
@@ -181,12 +246,12 @@ function EventCard({ event }: { event: DiscoverEvent }) {
 
 function LoadingState() {
   return (
-    <div className="text-center py-xl space-y-md">
+    <div className="text-center py-xl px-md space-y-md max-w-2xl mx-auto">
       <div className="w-12 h-12 mx-auto rounded-full border-4 border-primary border-t-transparent animate-spin" />
-      <p className="font-body-lg text-on-surface">
+      <p className="font-body-lg text-body-lg text-on-surface">
         Searching the web for upcoming events…
       </p>
-      <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
+      <p className="font-body-md text-body-md text-on-surface-variant">
         This can take 10–20 seconds while Gemini cross-references multiple
         sources.
       </p>
@@ -220,17 +285,16 @@ function ErrorState({
 
 function EmptyHero() {
   return (
-    <div className="text-center py-xl space-y-sm text-on-surface-variant max-w-xl mx-auto">
-      <span className="material-symbols-outlined text-display text-outline">
+    <div className="text-center py-xl px-md space-y-sm text-on-surface-variant max-w-2xl mx-auto">
+      <span
+        className="material-symbols-outlined text-outline block"
+        style={{ fontSize: 64, lineHeight: 1 }}
+      >
         explore
       </span>
-      <p className="font-body-lg">
+      <p className="font-body-lg text-body-lg">
         Pick a window above and tap <strong>Discover events</strong> to see
         what's happening.
-      </p>
-      <p className="font-body-sm">
-        Each search costs an API call, so results stick around until you
-        refresh.
       </p>
     </div>
   );

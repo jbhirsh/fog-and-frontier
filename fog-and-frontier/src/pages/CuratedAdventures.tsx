@@ -3,7 +3,7 @@ import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { AddActivity } from '../components/AddActivity';
-import type { Activity, Duration } from '../data/types';
+import type { Activity, Category, Duration } from '../data/types';
 import { useAllActivities } from '../lib/userActivities';
 
 const DISTANCE_OPTIONS = [
@@ -24,10 +24,24 @@ const DURATION_OPTIONS: ('Any' | Duration)[] = [
   'Multi-Day',
 ];
 
+const CATEGORY_OPTIONS: ('Any' | Category)[] = [
+  'Any',
+  'hiking',
+  'cycling',
+  'water',
+  'food',
+  'culture',
+  'scenic',
+  'climbing',
+  'camping',
+  'other',
+];
+
 export function CuratedAdventures() {
   const [search, setSearch] = useState('');
   const [maxDistance, setMaxDistance] = useState<number>(Infinity);
   const [duration, setDuration] = useState<'Any' | Duration>('Any');
+  const [category, setCategory] = useState<'Any' | Category>('Any');
   const [dogOnly, setDogOnly] = useState(false);
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
@@ -43,6 +57,7 @@ export function CuratedAdventures() {
       .filter(({ a, miles }) => {
         if (miles > maxDistance) return false;
         if (duration !== 'Any' && a.duration !== duration) return false;
+        if (category !== 'Any' && a.category !== category) return false;
         if (dogOnly && !a.dogFriendly) return false;
         if (q) {
           const hay = `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
@@ -52,7 +67,7 @@ export function CuratedAdventures() {
       })
       .sort((x, y) => x.miles - y.miles)
       .map(({ a }) => a);
-  }, [search, maxDistance, duration, dogOnly, all]);
+  }, [search, maxDistance, duration, category, dogOnly, all]);
 
   return (
     <>
@@ -106,6 +121,19 @@ export function CuratedAdventures() {
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={d}>
                   {d === 'Any' ? 'Any duration' : d}
+                </option>
+              ))}
+            </select>
+          </FilterPill>
+          <FilterPill icon="category">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
+              className="bg-transparent focus:outline-none cursor-pointer capitalize"
+            >
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c} className="capitalize">
+                  {c === 'Any' ? 'Any category' : c}
                 </option>
               ))}
             </select>

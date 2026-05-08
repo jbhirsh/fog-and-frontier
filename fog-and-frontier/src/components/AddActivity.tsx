@@ -168,7 +168,7 @@ export function AddActivity({ onClose }: Props) {
         if (e.target === dialogRef.current) onClose();
       }}
       ref={dialogRef}
-      className="fixed inset-0 z-[100] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
+      className="fixed inset-0 z-[1000] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
     >
       <div className="bg-surface-container-lowest w-full max-w-2xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl">
         <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
