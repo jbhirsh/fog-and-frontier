@@ -1,4 +1,5 @@
-import { createClient } from '@libsql/client';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@libsql/client/web';
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -16,7 +17,7 @@ async function ensureSchema() {
 
 type Body = { id?: unknown; v?: unknown };
 
-export default async function handler(req: Request): Promise<Response> {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   await ensureSchema();
 
   if (req.method === 'GET') {
@@ -25,18 +26,17 @@ export default async function handler(req: Request): Promise<Response> {
     for (const row of rs.rows) {
       map[String(row.id)] = Number(row.v) === 1;
     }
-    return Response.json(map);
+    res.status(200).json(map);
+    return;
   }
 
   if (req.method === 'POST') {
-    let body: Body;
-    try {
-      body = (await req.json()) as Body;
-    } catch {
-      return Response.json({ error: 'invalid json' }, { status: 400 });
-    }
+    const body = (req.body ?? {}) as Body;
     const id = typeof body.id === 'string' ? body.id : null;
-    if (!id) return Response.json({ error: 'missing id' }, { status: 400 });
+    if (!id) {
+      res.status(400).json({ error: 'missing id' });
+      return;
+    }
 
     if (body.v === null) {
       await db.execute({ sql: 'DELETE FROM c WHERE id = ?', args: [id] });
@@ -46,10 +46,12 @@ export default async function handler(req: Request): Promise<Response> {
         args: [id, body.v ? 1 : 0],
       });
     } else {
-      return Response.json({ error: 'invalid v' }, { status: 400 });
+      res.status(400).json({ error: 'invalid v' });
+      return;
     }
-    return Response.json({ ok: true });
+    res.status(200).json({ ok: true });
+    return;
   }
 
-  return Response.json({ error: 'method not allowed' }, { status: 405 });
+  res.status(405).json({ error: 'method not allowed' });
 }
