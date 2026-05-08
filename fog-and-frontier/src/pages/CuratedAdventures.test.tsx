@@ -12,17 +12,17 @@ vi.mock('../data/activities', () => ({
   activities: [muirWoods, completedHike, dogFriendlyTidepools],
 }));
 
-import { Explore } from './Explore';
+import { CuratedAdventures } from './CuratedAdventures';
 
 function renderExplore() {
   return render(
     <MemoryRouter>
-      <Explore />
+      <CuratedAdventures />
     </MemoryRouter>,
   );
 }
 
-describe('Explore page', () => {
+describe('Curated Adventures page', () => {
   beforeEach(() => {
     localStorage.clear();
   });

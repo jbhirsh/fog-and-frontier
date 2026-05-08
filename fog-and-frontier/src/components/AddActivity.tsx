@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type {
   Activity,
   Category,
@@ -29,6 +32,7 @@ type GeneratedFields = {
   hikeElevationFeet?: number;
   allTrailsUrl?: string;
   notes?: string;
+  coverImage?: string;
 };
 
 const PLACEHOLDER_IMAGE =
@@ -133,7 +137,7 @@ export function AddActivity({ onClose }: Props) {
         hikeElevationFeet: g.hikeElevationFeet,
         allTrailsUrl: g.allTrailsUrl,
         notes: g.notes,
-        coverImage: PLACEHOLDER_IMAGE,
+        coverImage: g.coverImage || PLACEHOLDER_IMAGE,
       };
       setDraft(activity);
       setStep('review');
@@ -287,15 +291,15 @@ function FormStep({
 
 function GeneratingStep({ title }: { title: string }) {
   return (
-    <div className="px-md py-xl flex flex-col items-center text-center gap-md">
-      <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+    <div className="px-md py-xl text-center space-y-md">
+      <div className="w-12 h-12 mx-auto rounded-full border-4 border-primary border-t-transparent animate-spin" />
       <div className="font-body-lg text-on-surface">
         Researching <span className="font-bold">{title}</span>…
       </div>
-      <div className="font-body-md text-on-surface-variant max-w-md">
-        Gemini is pulling together a description, location, duration, and trail
-        details. This usually takes a few seconds.
-      </div>
+      <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
+        Gemini is pulling together a description, location, duration, photo,
+        and trail details. This usually takes a few seconds.
+      </p>
     </div>
   );
 }
@@ -337,6 +341,19 @@ function ReviewStep({
 
   return (
     <div className="px-md py-md space-y-md">
+      {draft.coverImage && (
+        <div className="rounded-lg overflow-hidden aspect-video bg-surface-variant">
+          <img
+            src={draft.coverImage}
+            alt={draft.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+
       <Field label="Name">
         <input
           type="text"
@@ -450,25 +467,23 @@ function ReviewStep({
             <option value="yes">Yes</option>
           </select>
         </Field>
-        <Field label="Latitude">
-          <input
-            type="number"
-            step="0.0001"
-            value={draft.location.coords.lat}
-            onChange={(e) => patchLoc('lat', e.target.value)}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Longitude">
-          <input
-            type="number"
-            step="0.0001"
-            value={draft.location.coords.lng}
-            onChange={(e) => patchLoc('lng', e.target.value)}
-            className={inputCls}
-          />
-        </Field>
       </div>
+
+      <Field label="Pin location (drag or tap to reposition)">
+        <LocationPicker
+          lat={draft.location.coords.lat}
+          lng={draft.location.coords.lng}
+          onChange={(lat, lng) => {
+            onChange({
+              ...draft,
+              location: {
+                ...draft.location,
+                coords: { lat, lng },
+              },
+            });
+          }}
+        />
+      </Field>
 
       <Field label="Notes">
         <textarea
@@ -521,4 +536,106 @@ function Field({
       {children}
     </label>
   );
+}
+
+const pickerIcon = L.divIcon({
+  html: `<div style="
+    width: 28px; height: 28px;
+    background: #0ea5e9;
+    border: 2px solid white;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  "></div>`,
+  className: '',
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+});
+
+function LocationPicker({
+  lat,
+  lng,
+  onChange,
+}: {
+  lat: number;
+  lng: number;
+  onChange: (lat: number, lng: number) => void;
+}) {
+  const valid =
+    Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+  const center: [number, number] = valid ? [lat, lng] : [37.2872, -121.95];
+
+  return (
+    <div className="space-y-xs">
+      <div
+        className="rounded-md overflow-hidden border border-outline-variant"
+        style={{ height: '280px' }}
+      >
+        <MapContainer
+          center={center}
+          zoom={valid ? 11 : 8}
+          scrollWheelZoom
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <RecenterOnChange lat={lat} lng={lng} />
+          <ClickToPlace onPlace={onChange} />
+          {valid && (
+            <Marker
+              position={[lat, lng]}
+              icon={pickerIcon}
+              draggable
+              eventHandlers={{
+                dragend: (e) => {
+                  const m = e.target as L.Marker;
+                  const p = m.getLatLng();
+                  onChange(p.lat, p.lng);
+                },
+              }}
+            />
+          )}
+        </MapContainer>
+      </div>
+      <div className="font-body-sm text-on-surface-variant">
+        {valid
+          ? `${lat.toFixed(5)}, ${lng.toFixed(5)} — drag the pin or tap the map to adjust.`
+          : 'Tap the map to drop a pin.'}
+      </div>
+    </div>
+  );
+}
+
+function RecenterOnChange({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  const lastRef = useRef<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (lat === 0 && lng === 0) return;
+    const last = lastRef.current;
+    if (last && Math.abs(last.lat - lat) < 1e-6 && Math.abs(last.lng - lng) < 1e-6) {
+      return;
+    }
+    const c = map.getCenter();
+    if (Math.abs(c.lat - lat) > 0.5 || Math.abs(c.lng - lng) > 0.5) {
+      map.setView([lat, lng], Math.max(map.getZoom(), 11));
+    }
+    lastRef.current = { lat, lng };
+  }, [lat, lng, map]);
+  return null;
+}
+
+function ClickToPlace({
+  onPlace,
+}: {
+  onPlace: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onPlace(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
 }

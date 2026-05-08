@@ -166,5 +166,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const name = typeof parsed.name === 'string' ? parsed.name : title;
+  const city = typeof parsed.city === 'string' ? parsed.city : '';
+  const coverImage = await findWikipediaThumbnail(name, city);
+  if (coverImage) parsed.coverImage = coverImage;
+
   res.status(200).json(parsed);
+}
+
+async function findWikipediaThumbnail(
+  name: string,
+  city: string,
+): Promise<string | null> {
+  const queries = [name, city ? `${name} ${city}` : null].filter(
+    (q): q is string => Boolean(q),
+  );
+  for (const q of queries) {
+    try {
+      const url = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=thumbnail&pithumbsize=1200&generator=search&gsrsearch=${encodeURIComponent(
+        q,
+      )}&gsrlimit=1&origin=*`;
+      const r = await fetch(url, {
+        headers: { 'user-agent': 'fog-and-frontier/1.0' },
+      });
+      if (!r.ok) continue;
+      const data = (await r.json()) as {
+        query?: {
+          pages?: Record<string, { thumbnail?: { source?: string } }>;
+        };
+      };
+      const pages = data.query?.pages;
+      if (!pages) continue;
+      for (const id of Object.keys(pages)) {
+        const src = pages[id]?.thumbnail?.source;
+        if (src) return src;
+      }
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
 }

@@ -19,6 +19,9 @@ export function Layout() {
           </NavLink>
           <nav className="flex gap-gutter">
             <NavLink to="/" end className={navClass}>
+              Curated
+            </NavLink>
+            <NavLink to="/explore" className={navClass}>
               Explore
             </NavLink>
             <NavLink to="/map" className={navClass}>

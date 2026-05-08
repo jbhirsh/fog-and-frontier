@@ -24,10 +24,10 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'Adventures' })).toBeInTheDocument();
   });
 
-  it('marks the Explore link active on the home route', () => {
+  it('marks the Curated link active on the home route', () => {
     renderAt('/');
-    const explore = screen.getByRole('link', { name: 'Explore' });
-    expect(explore.className).toMatch(/border-secondary/);
+    const curated = screen.getByRole('link', { name: 'Curated' });
+    expect(curated.className).toMatch(/border-secondary/);
   });
 
   it('marks the Adventures link active on /adventures', () => {

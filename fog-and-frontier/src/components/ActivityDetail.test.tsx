@@ -13,7 +13,7 @@ describe('ActivityDetail', () => {
     expect(
       screen.getByText('A longer description of the redwoods loop.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Half Day')).toBeInTheDocument();
+    expect(screen.getAllByText('Half Day').length).toBeGreaterThan(0);
   });
 
   it('falls back to the short description when no long one is provided', () => {

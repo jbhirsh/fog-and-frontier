@@ -1,192 +1,246 @@
-import { useMemo, useState } from 'react';
-import { HOME_LOCATION, distanceMiles } from '../data/home';
-import { ActivityCard } from '../components/ActivityCard';
-import { ActivityDetail } from '../components/ActivityDetail';
-import { AddActivity } from '../components/AddActivity';
-import type { Activity, Duration } from '../data/types';
-import { useAllActivities } from '../lib/userActivities';
+import { useState } from 'react';
+import { HOME_LOCATION } from '../data/home';
 
-const DISTANCE_OPTIONS = [
-  { label: 'Any distance', value: Infinity },
-  { label: 'Within 25 mi', value: 25 },
-  { label: 'Within 50 mi', value: 50 },
-  { label: 'Within 100 mi', value: 100 },
-  { label: 'Within 250 mi', value: 250 },
-];
+type Range = 'today' | 'tomorrow' | 'weekend' | 'week';
 
-const DURATION_OPTIONS: ('Any' | Duration)[] = [
-  'Any',
-  '1-2 Hours',
-  '2-3 Hours',
-  'Half Day',
-  'Full Day',
-  'Weekend',
-  'Multi-Day',
+type DiscoverEvent = {
+  name: string;
+  dateText: string;
+  location: string;
+  blurb: string;
+  sourceUrl: string;
+};
+
+type DiscoverSource = { uri: string; title: string };
+
+const RANGES: { value: Range; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow' },
+  { value: 'weekend', label: 'This weekend' },
+  { value: 'week', label: 'Next 7 days' },
 ];
 
 export function Explore() {
-  const [search, setSearch] = useState('');
-  const [maxDistance, setMaxDistance] = useState<number>(Infinity);
-  const [duration, setDuration] = useState<'Any' | Duration>('Any');
-  const [dogOnly, setDogOnly] = useState(false);
-  const [selected, setSelected] = useState<Activity | null>(null);
-  const [adding, setAdding] = useState(false);
-  const all = useAllActivities();
+  const [range, setRange] = useState<Range>('weekend');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<DiscoverEvent[] | null>(null);
+  const [sources, setSources] = useState<DiscoverSource[]>([]);
+  const [lastFetched, setLastFetched] = useState<{ range: Range; at: number } | null>(null);
 
-  const results = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return all
-      .map((a) => ({
-        a,
-        miles: distanceMiles(HOME_LOCATION.coords, a.location.coords),
-      }))
-      .filter(({ a, miles }) => {
-        if (miles > maxDistance) return false;
-        if (duration !== 'Any' && a.duration !== duration) return false;
-        if (dogOnly && !a.dogFriendly) return false;
-        if (q) {
-          const hay = `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
-      })
-      .sort((x, y) => x.miles - y.miles)
-      .map(({ a }) => a);
-  }, [search, maxDistance, duration, dogOnly, all]);
+  async function discover() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/discover', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ range }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as {
+        events: DiscoverEvent[];
+        sources: DiscoverSource[];
+      };
+      setEvents(Array.isArray(data.events) ? data.events : []);
+      setSources(Array.isArray(data.sources) ? data.sources : []);
+      setLastFetched({ range, at: Date.now() });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load suggestions');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
-      <section className="relative px-margin py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
-        <div className="max-w-4xl mx-auto text-center space-y-lg">
-          <h1 className="font-display text-display text-primary">
-            Discover the Coast
-          </h1>
+      <section className="px-margin py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
+        <div className="max-w-4xl mx-auto text-center space-y-md">
+          <h1 className="font-display text-display text-primary">Explore</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
-            From misty redwoods to hidden coves — find your next adventure from{' '}
-            {HOME_LOCATION.label}.
+            What's happening around {HOME_LOCATION.label} right now? Pick a
+            window and let Gemini search for things to do.
           </p>
-          <div className="relative max-w-3xl mx-auto">
-            <div className="flex items-center bg-surface-container-lowest rounded-full border border-outline-variant focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20 transition-all shadow-sm pl-gutter pr-sm py-sm">
-              <span className="material-symbols-outlined text-outline">
-                search
-              </span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="flex-grow bg-transparent border-none focus:outline-none text-body-lg px-sm"
-                placeholder="Find your next adventure..."
-                type="text"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-b border-outline-variant/20 bg-surface px-margin py-md sticky top-20 z-40 backdrop-blur-xl">
-        <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-md">
-          <FilterPill icon="location_on">
-            <select
-              value={String(maxDistance)}
-              onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="bg-transparent focus:outline-none cursor-pointer"
-            >
-              {DISTANCE_OPTIONS.map((o) => (
-                <option key={o.label} value={String(o.value)}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <FilterPill icon="schedule">
-            <select
-              value={duration}
-              onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-              className="bg-transparent focus:outline-none cursor-pointer"
-            >
-              {DURATION_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d === 'Any' ? 'Any duration' : d}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <div className="flex items-center gap-md ml-auto">
-            <div className="flex items-center gap-sm">
-              <span className="font-body-md text-on-surface-variant">
-                Dog Friendly
-              </span>
+          <div className="flex flex-wrap justify-center gap-sm pt-sm">
+            {RANGES.map((r) => (
               <button
+                key={r.value}
                 type="button"
-                role="switch"
-                aria-checked={dogOnly}
-                onClick={() => setDogOnly((v) => !v)}
-                className={`w-11 h-6 rounded-full relative transition-colors ${
-                  dogOnly ? 'bg-secondary' : 'bg-surface-variant'
+                onClick={() => setRange(r.value)}
+                className={`px-md py-xs rounded-full font-body-md transition-colors border ${
+                  range === r.value
+                    ? 'bg-primary text-on-primary border-primary'
+                    : 'bg-surface-container-lowest text-on-surface border-outline-variant hover:bg-surface-variant'
                 }`}
               >
-                <div
-                  className={`w-4 h-4 rounded-full absolute top-1 transition-transform ${
-                    dogOnly
-                      ? 'bg-on-secondary translate-x-6'
-                      : 'bg-outline translate-x-1'
-                  }`}
-                />
+                {r.label}
               </button>
-            </div>
+            ))}
+          </div>
+          <div className="pt-md">
             <button
               type="button"
-              onClick={() => setAdding(true)}
-              className="flex items-center gap-xs bg-primary text-on-primary px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity"
+              onClick={discover}
+              disabled={loading}
+              className="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-sm rounded-full font-body-lg shadow-md hover:opacity-90 disabled:opacity-60 transition-opacity"
             >
-              <span className="material-symbols-outlined text-body-md">add</span>
-              Add activity
+              <span className="material-symbols-outlined">auto_awesome</span>
+              {loading ? 'Searching…' : events ? 'Refresh' : 'Discover events'}
             </button>
           </div>
+          {lastFetched && !loading && (
+            <p className="font-body-sm text-on-surface-variant pt-xs">
+              Last refreshed {timeAgo(lastFetched.at)} for{' '}
+              {RANGES.find((r) => r.value === lastFetched.range)?.label}
+            </p>
+          )}
         </div>
       </section>
 
       <section className="px-margin py-xl max-w-screen-2xl mx-auto">
-        {results.length === 0 ? (
+        {loading && <LoadingState />}
+        {!loading && error && <ErrorState message={error} onRetry={discover} />}
+        {!loading && !error && !events && <EmptyHero />}
+        {!loading && !error && events && events.length === 0 && (
           <div className="text-center py-xl text-on-surface-variant">
-            No activities match those filters.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-            {results.map((a) => (
-              <ActivityCard
-                key={a.id}
-                activity={a}
-                onClick={() => setSelected(a)}
-              />
-            ))}
+            Nothing surfaced for that window. Try a different range.
           </div>
         )}
+        {!loading && !error && events && events.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+              {events.map((e, i) => (
+                <EventCard key={`${e.name}-${i}`} event={e} />
+              ))}
+            </div>
+            {sources.length > 0 && (
+              <div className="mt-xl pt-md border-t border-outline-variant/30">
+                <p className="font-body-sm text-on-surface-variant mb-xs">
+                  Sources Gemini searched
+                </p>
+                <ul className="flex flex-wrap gap-xs">
+                  {sources.slice(0, 12).map((s) => (
+                    <li key={s.uri}>
+                      <a
+                        href={s.uri}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-body-sm text-primary underline hover:opacity-80"
+                      >
+                        {s.title || s.uri}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="mt-md font-body-sm text-on-surface-variant text-center">
+              AI-generated suggestions — verify dates and details with the
+              source before you go.
+            </p>
+          </>
+        )}
       </section>
-
-      {selected && (
-        <ActivityDetail
-          activity={selected}
-          onClose={() => setSelected(null)}
-          showUploads={!!selected.completed}
-        />
-      )}
-
-      {adding && <AddActivity onClose={() => setAdding(false)} />}
     </>
   );
 }
 
-function FilterPill({
-  icon,
-  children,
+function EventCard({ event }: { event: DiscoverEvent }) {
+  return (
+    <a
+      href={event.sourceUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="block rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-md hover:shadow-md transition-shadow"
+    >
+      <div className="font-body-sm text-secondary uppercase tracking-wide font-bold">
+        {event.dateText}
+      </div>
+      <h3 className="font-display text-headline-md text-primary mt-xs">
+        {event.name}
+      </h3>
+      <div className="font-body-md text-on-surface-variant mt-xs flex items-center gap-xs">
+        <span className="material-symbols-outlined text-body-md">
+          location_on
+        </span>
+        {event.location}
+      </div>
+      <p className="font-body-md text-on-surface mt-sm">{event.blurb}</p>
+      <div className="mt-md font-body-sm text-primary flex items-center gap-xs">
+        View source
+        <span className="material-symbols-outlined text-body-md">
+          open_in_new
+        </span>
+      </div>
+    </a>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="text-center py-xl space-y-md">
+      <div className="w-12 h-12 mx-auto rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      <p className="font-body-lg text-on-surface">
+        Searching the web for upcoming events…
+      </p>
+      <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
+        This can take 10–20 seconds while Gemini cross-references multiple
+        sources.
+      </p>
+    </div>
+  );
+}
+
+function ErrorState({
+  message,
+  onRetry,
 }: {
-  icon: string;
-  children: React.ReactNode;
+  message: string;
+  onRetry: () => void;
 }) {
   return (
-    <label className="flex items-center gap-xs text-on-surface-variant bg-surface-container-low px-sm py-xs rounded-full border border-outline-variant/30 cursor-pointer hover:bg-surface-variant transition-colors">
-      <span className="material-symbols-outlined text-body-md">{icon}</span>
-      {children}
-    </label>
+    <div className="text-center py-xl space-y-md">
+      <p className="font-body-lg text-error">Something went wrong.</p>
+      <p className="font-body-md text-on-surface-variant max-w-xl mx-auto">
+        {message}
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md"
+      >
+        Try again
+      </button>
+    </div>
   );
+}
+
+function EmptyHero() {
+  return (
+    <div className="text-center py-xl space-y-sm text-on-surface-variant max-w-xl mx-auto">
+      <span className="material-symbols-outlined text-display text-outline">
+        explore
+      </span>
+      <p className="font-body-lg">
+        Pick a window above and tap <strong>Discover events</strong> to see
+        what's happening.
+      </p>
+      <p className="font-body-sm">
+        Each search costs an API call, so results stick around until you
+        refresh.
+      </p>
+    </div>
+  );
+}
+
+function timeAgo(at: number): string {
+  const s = Math.floor((Date.now() - at) / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
 }

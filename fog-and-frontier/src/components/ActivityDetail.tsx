@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
+import { useAllActivities } from '../lib/userActivities';
 
 interface Props {
   activity: Activity;
@@ -10,11 +11,36 @@ interface Props {
   showUploads?: boolean;
 }
 
-export function ActivityDetail({ activity, onClose, showUploads }: Props) {
+const NEARBY_RADIUS_MILES = 15;
+const MAX_NEARBY = 6;
+
+export function ActivityDetail({ activity: initial, onClose, showUploads }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activity, setActivity] = useState<Activity>(initial);
+  useEffect(() => setActivity(initial), [initial]);
+
+  const allActivities = useAllActivities();
   const { photos, addPhotos, removePhoto } = useUserPhotos(activity.id);
   const { completed, toggle } = useCompleted(activity);
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
+
+  const nearby = useMemo(() => {
+    return allActivities
+      .filter((a) => a.id !== activity.id)
+      .map((a) => ({
+        a,
+        miles: distanceMiles(activity.location.coords, a.location.coords),
+      }))
+      .filter((x) => x.miles <= NEARBY_RADIUS_MILES)
+      .sort((x, y) => x.miles - y.miles)
+      .slice(0, MAX_NEARBY);
+  }, [allActivities, activity]);
+
+  function selectNearby(a: Activity) {
+    setActivity(a);
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,7 +69,10 @@ export function ActivityDetail({ activity, onClose, showUploads }: Props) {
       ref={dialogRef}
       className="fixed inset-0 z-[100] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
     >
-      <div className="bg-surface-container-lowest w-full max-w-3xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl">
+      <div
+        ref={scrollRef}
+        className="bg-surface-container-lowest w-full max-w-3xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl"
+      >
         <div className="relative aspect-video bg-surface-variant">
           <img
             alt={activity.name}
@@ -167,6 +196,47 @@ export function ActivityDetail({ activity, onClose, showUploads }: Props) {
                 {activity.notes}
               </p>
             </div>
+          )}
+
+          {nearby.length > 0 && (
+            <section className="space-y-sm">
+              <h3 className="font-headline-md text-headline-md text-primary">
+                Nearby — do at the same time
+              </h3>
+              <p className="font-body-sm text-on-surface-variant">
+                Other activities within {NEARBY_RADIUS_MILES} miles of{' '}
+                {activity.location.city}.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+                {nearby.map(({ a, miles: m }) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => selectNearby(a)}
+                    className="flex gap-sm items-stretch text-left rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container transition-colors"
+                  >
+                    <div className="w-24 shrink-0 bg-surface-variant">
+                      <img
+                        src={a.coverImage}
+                        alt={a.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 py-xs pr-sm">
+                      <div className="font-body-md font-bold text-on-surface truncate">
+                        {a.name}
+                      </div>
+                      <div className="font-body-sm text-on-surface-variant truncate">
+                        {a.location.city} · {m.toFixed(1)} mi away
+                      </div>
+                      <div className="font-body-sm text-on-surface-variant truncate">
+                        {a.duration}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
           )}
 
           {(completed || showUploads) && (
