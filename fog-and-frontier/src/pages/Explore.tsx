@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { activities } from '../data/activities';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
+import { AddActivity } from '../components/AddActivity';
 import type { Activity, Duration } from '../data/types';
+import { useAllActivities } from '../lib/userActivities';
 
 const DISTANCE_OPTIONS = [
   { label: 'Any distance', value: Infinity },
@@ -29,10 +30,12 @@ export function Explore() {
   const [duration, setDuration] = useState<'Any' | Duration>('Any');
   const [dogOnly, setDogOnly] = useState(false);
   const [selected, setSelected] = useState<Activity | null>(null);
+  const [adding, setAdding] = useState(false);
+  const all = useAllActivities();
 
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return activities
+    return all
       .map((a) => ({
         a,
         miles: distanceMiles(HOME_LOCATION.coords, a.location.coords),
@@ -49,7 +52,7 @@ export function Explore() {
       })
       .sort((x, y) => x.miles - y.miles)
       .map(({ a }) => a);
-  }, [search, maxDistance, duration, dogOnly]);
+  }, [search, maxDistance, duration, dogOnly, all]);
 
   return (
     <>
@@ -107,26 +110,36 @@ export function Explore() {
               ))}
             </select>
           </FilterPill>
-          <div className="flex items-center gap-sm ml-auto">
-            <span className="font-body-md text-on-surface-variant">
-              Dog Friendly
-            </span>
+          <div className="flex items-center gap-md ml-auto">
+            <div className="flex items-center gap-sm">
+              <span className="font-body-md text-on-surface-variant">
+                Dog Friendly
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={dogOnly}
+                onClick={() => setDogOnly((v) => !v)}
+                className={`w-11 h-6 rounded-full relative transition-colors ${
+                  dogOnly ? 'bg-secondary' : 'bg-surface-variant'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full absolute top-1 transition-transform ${
+                    dogOnly
+                      ? 'bg-on-secondary translate-x-6'
+                      : 'bg-outline translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
             <button
               type="button"
-              role="switch"
-              aria-checked={dogOnly}
-              onClick={() => setDogOnly((v) => !v)}
-              className={`w-11 h-6 rounded-full relative transition-colors ${
-                dogOnly ? 'bg-secondary' : 'bg-surface-variant'
-              }`}
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-xs bg-primary text-on-primary px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity"
             >
-              <div
-                className={`w-4 h-4 rounded-full absolute top-1 transition-transform ${
-                  dogOnly
-                    ? 'bg-on-secondary translate-x-6'
-                    : 'bg-outline translate-x-1'
-                }`}
-              />
+              <span className="material-symbols-outlined text-body-md">add</span>
+              Add activity
             </button>
           </div>
         </div>
@@ -157,6 +170,8 @@ export function Explore() {
           showUploads={!!selected.completed}
         />
       )}
+
+      {adding && <AddActivity onClose={() => setAdding(false)} />}
     </>
   );
 }

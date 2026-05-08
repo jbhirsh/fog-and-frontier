@@ -1,23 +1,24 @@
 import { useMemo, useState } from 'react';
-import { activities } from '../data/activities';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import type { Activity } from '../data/types';
 import { HOME_LOCATION } from '../data/home';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
+import { useAllActivities } from '../lib/userActivities';
 
 export function Adventures() {
   const [selected, setSelected] = useState<Activity | null>(null);
   const overrides = useOverrides();
+  const all = useAllActivities();
 
   const completed = useMemo(
     () =>
-      activities
+      all
         .filter((a) => isEffectivelyCompleted(a, overrides))
         .sort((a, b) =>
           (b.completedDate ?? '').localeCompare(a.completedDate ?? ''),
         ),
-    [overrides],
+    [overrides, all],
   );
 
   return (
