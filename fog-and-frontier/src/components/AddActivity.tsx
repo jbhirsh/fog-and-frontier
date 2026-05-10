@@ -83,7 +83,6 @@ function slugify(name: string): string {
 }
 
 export function AddActivity({ onClose }: Props) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<'form' | 'generating' | 'review'>('form');
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
@@ -164,13 +163,16 @@ export function AddActivity({ onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="Add activity"
-      onClick={(e) => {
-        if (e.target === dialogRef.current) onClose();
-      }}
-      ref={dialogRef}
-      className="fixed inset-0 z-[1000] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
+      className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-md"
     >
-      <div className="bg-surface-container-lowest w-full max-w-2xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl">
+      <button
+        type="button"
+        aria-label="Close dialog"
+        onClick={onClose}
+        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default"
+        tabIndex={-1}
+      />
+      <div className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl">
         <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
           <h2 className="font-display text-headline-md text-primary">
             {step === 'review' ? 'Review & save' : 'Add activity'}
@@ -231,6 +233,10 @@ function FormStep({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const titleRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
   return (
     <form
       onSubmit={(e) => {
@@ -246,10 +252,10 @@ function FormStep({
 
       <Field label="Title">
         <input
+          ref={titleRef}
           type="text"
           value={title}
           onChange={(e) => onChangeTitle(e.target.value)}
-          autoFocus
           placeholder="e.g. Año Nuevo elephant seal walk"
           className="w-full bg-surface-container-low rounded-md px-sm py-sm border border-outline-variant focus:border-primary focus:outline-none"
         />
@@ -348,7 +354,7 @@ function ReviewStep({
             alt={draft.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
+              e.currentTarget.style.display = 'none';
             }}
           />
         </div>

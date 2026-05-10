@@ -1,73 +1,28 @@
-# React + TypeScript + Vite
+# Fog and Frontier
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A personal map of Bay Area adventures — curated hikes, completed trips, and discoverable events. Built with React + Vite + Tailwind v4, deployed on Vercel, with a tiny Vercel Functions API backed by Turso.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Vite dev server |
+| `npm run build` | Lint, type-check (`tsc -b`), then production bundle |
+| `npm run lint` | Run ESLint + Stylelint |
+| `npm run lint:js` | ESLint only (TS/TSX) |
+| `npm run lint:css` | Stylelint only (`src/**/*.css`) |
+| `npm run lint:fix` | Auto-fix everything fixable |
+| `npm test` | Vitest run |
+| `npm run test:watch` | Vitest watch mode |
+| `npm run test:coverage` | Vitest with V8 coverage |
 
-## React Compiler
+`npm run build` runs `lint` first — a broken lint blocks a build.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## What each linter covers
 
-## Expanding the ESLint configuration
+- **ESLint** (`eslint.config.js`): TypeScript + React Hooks (`react-hooks`), accessibility (`jsx-a11y`), import hygiene (`import/no-cycle`, `import/no-unresolved`), and type-aware rules including `@typescript-eslint/no-floating-promises` and `no-misused-promises`. Uses the typescript-eslint *type-checked* preset.
+- **Stylelint** (`.stylelintrc.json`): `stylelint-config-standard` with Tailwind v4 at-rules (`@theme`, `@layer`, `@utility`, `@variant`, `@apply`, …) allowed.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## CI
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+`.github/workflows/ci.yml` runs `lint`, `test`, and `build` on every PR to `main` and every push to `main`. PRs cannot merge if any of those fail.

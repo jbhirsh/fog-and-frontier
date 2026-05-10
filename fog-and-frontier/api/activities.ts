@@ -24,8 +24,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rs = await db.execute('SELECT id, j FROM a ORDER BY t DESC');
     const out: Record<string, unknown> = {};
     for (const row of rs.rows) {
+      const id = row.id;
+      const j = row.j;
+      if (typeof id !== 'string' || typeof j !== 'string') continue;
       try {
-        out[String(row.id)] = JSON.parse(String(row.j));
+        out[id] = JSON.parse(j);
       } catch {
         /* skip malformed row */
       }

@@ -53,7 +53,7 @@ describe('ActivityDetail', () => {
     const file = new File(['x'], 'pic.png', { type: 'image/png' });
     await user.upload(input, file);
 
-    const img = await screen.findByAltText(/Test Completed Hike photo 1/);
+    const img = await screen.findByAltText(/Test Completed Hike 1/);
     expect(img).toBeInTheDocument();
 
     const removeBtn = screen.getByLabelText('Remove photo');
@@ -61,7 +61,7 @@ describe('ActivityDetail', () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByAltText(/Test Completed Hike photo 1/),
+        screen.queryByAltText(/Test Completed Hike 1/),
       ).not.toBeInTheDocument();
     });
   });
@@ -111,11 +111,10 @@ describe('ActivityDetail', () => {
     expect(screen.queryByText('TRAIL DETAILS')).not.toBeInTheDocument();
   });
 
-  it('calls onClose when the backdrop is clicked', () => {
+  it('calls onClose when the backdrop is clicked', async () => {
     const onClose = vi.fn();
     render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
-    const backdrop = screen.getByRole('dialog');
-    fireEvent.click(backdrop);
+    await userEvent.click(screen.getByLabelText('Close dialog'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

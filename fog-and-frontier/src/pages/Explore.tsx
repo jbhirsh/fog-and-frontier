@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { HOME_LOCATION } from '../data/home';
 
 type Range = 'today' | 'tomorrow' | 'weekend' | 'week';
@@ -63,31 +63,36 @@ const RANGES: { value: Range; label: string }[] = [
   { value: 'week', label: 'Next 7 days' },
 ];
 
+function loadInitialFromCache(): {
+  range: Range;
+  events: DiscoverEvent[];
+  sources: DiscoverSource[];
+  at: number;
+} | null {
+  const cached = readCache();
+  if (!cached) return null;
+  const today = todayISO();
+  const fresh = cached.events.filter((e) => isFutureOrToday(e, today));
+  if (fresh.length === 0) {
+    localStorage.removeItem(CACHE_KEY);
+    return null;
+  }
+  if (fresh.length !== cached.events.length) {
+    writeCache({ ...cached, events: fresh });
+  }
+  return { range: cached.range, events: fresh, sources: cached.sources, at: cached.at };
+}
+
 export function Explore() {
-  const [range, setRange] = useState<Range>('weekend');
+  const [initial] = useState(loadInitialFromCache);
+  const [range, setRange] = useState<Range>(initial?.range ?? 'weekend');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<DiscoverEvent[] | null>(null);
-  const [sources, setSources] = useState<DiscoverSource[]>([]);
-  const [lastFetched, setLastFetched] = useState<{ range: Range; at: number } | null>(null);
-
-  useEffect(() => {
-    const cached = readCache();
-    if (!cached) return;
-    const today = todayISO();
-    const fresh = cached.events.filter((e) => isFutureOrToday(e, today));
-    if (fresh.length === 0) {
-      localStorage.removeItem(CACHE_KEY);
-      return;
-    }
-    setRange(cached.range);
-    setEvents(fresh);
-    setSources(cached.sources);
-    setLastFetched({ range: cached.range, at: cached.at });
-    if (fresh.length !== cached.events.length) {
-      writeCache({ ...cached, events: fresh });
-    }
-  }, []);
+  const [events, setEvents] = useState<DiscoverEvent[] | null>(initial?.events ?? null);
+  const [sources, setSources] = useState<DiscoverSource[]>(initial?.sources ?? []);
+  const [lastFetched, setLastFetched] = useState<{ range: Range; at: number } | null>(
+    initial ? { range: initial.range, at: initial.at } : null,
+  );
 
   async function discover() {
     setLoading(true);
