@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
 
+defaults:
+  run:
+    working-directory: fog-and-frontier
+
 jobs:
   verify:
     runs-on: ubuntu-latest
