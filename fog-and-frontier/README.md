@@ -25,4 +25,6 @@ A personal map of Bay Area adventures — curated hikes, completed trips, and di
 
 ## CI
 
-`.github/workflows/ci.yml` runs `lint`, `test`, and `build` on every PR to `main` and every push to `main`. PRs cannot merge if any of those fail.
+`.github/workflows/ci.yml` (at the repo root, one level above this directory) runs `lint`, `test`, and `build` on every PR to `main` and every push to `main`. PRs cannot merge if any of those fail.
+
+`package-lock.json` is committed in this repo (the root `.gitignore` overrides the user's global lockfile ignore) so CI installs are deterministic via `npm ci`.

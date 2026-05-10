@@ -6,6 +6,8 @@ pnpm-debug.log*
 
 # Dependencies
 node_modules/
+# Commit lockfile in this repo (overrides global gitignore) so CI is deterministic.
+!package-lock.json
 
 # Build output
 dist/
