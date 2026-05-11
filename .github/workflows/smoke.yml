@@ -1,0 +1,88 @@
+name: Smoke gate
+
+# Runs on every PR and on every push to main. Waits for the Vercel deployment
+# matching the head SHA to be ready, then runs canary checks against it.
+# Branch protection should make this a required check.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: read
+      statuses: read
+    steps:
+      - name: Resolve SHA and environment
+        id: ctx
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "env=Preview" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "env=Production" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for Vercel deployment
+        id: wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.ctx.outputs.sha }}
+          ENV: ${{ steps.ctx.outputs.env }}
+        run: |
+          set -e
+          DEADLINE=$(( $(date +%s) + 600 ))   # 10-minute budget
+          URL=""
+
+          while [ $(date +%s) -lt $DEADLINE ]; do
+            # Find a deployment created by Vercel for this SHA in the target environment.
+            DEPLOYMENTS=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/deployments?sha=$SHA&environment=$ENV&per_page=20")
+
+            DEP_ID=$(echo "$DEPLOYMENTS" | jq -r '
+              [.[] | select(.creator.login=="vercel[bot]")] | .[0].id // empty
+            ')
+
+            if [ -n "$DEP_ID" ]; then
+              STATUSES=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${{ github.repository }}/deployments/$DEP_ID/statuses?per_page=10")
+
+              STATE=$(echo "$STATUSES" | jq -r '.[0].state // empty')
+              URL=$(echo "$STATUSES" | jq -r '.[0].environment_url // empty')
+
+              echo "Deployment $DEP_ID state=$STATE url=$URL"
+
+              if [ "$STATE" = "success" ] && [ -n "$URL" ] && [ "$URL" != "null" ]; then
+                echo "url=$URL" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+
+              if [ "$STATE" = "failure" ] || [ "$STATE" = "error" ]; then
+                echo "::error::Vercel deployment $DEP_ID reported state=$STATE"
+                exit 1
+              fi
+            fi
+
+            sleep 15
+          done
+
+          echo "::error::Timed out waiting for Vercel $ENV deployment of $SHA"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Run smoke gate
+        run: node fog-and-frontier/scripts/smoke.mjs "${{ steps.wait.outputs.url }}"
