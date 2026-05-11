@@ -94,6 +94,7 @@ jobs:
         env:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           PREVIEW_URL: ${{ steps.wait.outputs.url }}
+          SMOKE_ENV: ${{ steps.ctx.outputs.env }}
         run: |
           set +e
           DEADLINE=$(( $(date +%s) + 300 ))   # 5-minute budget after Vercel reports success
