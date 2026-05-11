@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { HOME_LOCATION } from '../data/home';
+import { useOwner } from '../lib/useOwner';
+import { authedFetch } from '../lib/authedFetch';
+import { useAuthState } from '../lib/authShim';
 
 type Range = 'today' | 'tomorrow' | 'weekend' | 'week';
 
@@ -63,14 +66,46 @@ const RANGES: { value: Range; label: string }[] = [
   { value: 'week', label: 'Next 7 days' },
 ];
 
+type HydratedCache = {
+  range: Range;
+  events: DiscoverEvent[];
+  sources: DiscoverSource[];
+  lastFetched: { range: Range; at: number };
+};
+
+function hydrateFromCache(): HydratedCache | null {
+  const cached = readCache();
+  if (!cached) return null;
+  const today = todayISO();
+  const fresh = cached.events.filter((e) => isFutureOrToday(e, today));
+  if (fresh.length === 0) return null;
+  return {
+    range: cached.range,
+    events: fresh,
+    sources: cached.sources,
+    lastFetched: { range: cached.range, at: cached.at },
+  };
+}
+
 export function Explore() {
-  const [range, setRange] = useState<Range>('weekend');
+  const { getToken } = useAuthState();
+  const { isOwner } = useOwner();
+  const [initial] = useState(hydrateFromCache);
+  const [range, setRange] = useState<Range>(initial?.range ?? 'weekend');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<DiscoverEvent[] | null>(null);
-  const [sources, setSources] = useState<DiscoverSource[]>([]);
-  const [lastFetched, setLastFetched] = useState<{ range: Range; at: number } | null>(null);
+  const [events, setEvents] = useState<DiscoverEvent[] | null>(
+    initial?.events ?? null,
+  );
+  const [sources, setSources] = useState<DiscoverSource[]>(
+    initial?.sources ?? [],
+  );
+  const [lastFetched, setLastFetched] = useState<
+    { range: Range; at: number } | null
+  >(initial?.lastFetched ?? null);
 
+  // One-time cache GC on mount: prune past-dated entries from localStorage so
+  // hydrateFromCache (above) and future reads don't have to re-filter them.
   useEffect(() => {
     const cached = readCache();
     if (!cached) return;
@@ -80,10 +115,6 @@ export function Explore() {
       localStorage.removeItem(CACHE_KEY);
       return;
     }
-    setRange(cached.range);
-    setEvents(fresh);
-    setSources(cached.sources);
-    setLastFetched({ range: cached.range, at: cached.at });
     if (fresh.length !== cached.events.length) {
       writeCache({ ...cached, events: fresh });
     }
@@ -93,11 +124,16 @@ export function Explore() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/discover', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ range }),
-      });
+      const token = await getToken();
+      const res = await authedFetch(
+        '/api/discover',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ range }),
+        },
+        token,
+      );
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || `HTTP ${res.status}`);
@@ -149,8 +185,9 @@ export function Explore() {
             <button
               type="button"
               onClick={discover}
-              disabled={loading}
-              className="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-sm rounded-full font-body-lg shadow-md hover:opacity-90 disabled:opacity-60 transition-opacity"
+              disabled={loading || !isOwner}
+              title={isOwner ? undefined : 'Sign in to edit'}
+              className="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-sm rounded-full font-body-lg shadow-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
             >
               <span className="material-symbols-outlined">auto_awesome</span>
               {loading ? 'Searching…' : events ? 'Refresh' : 'Discover events'}

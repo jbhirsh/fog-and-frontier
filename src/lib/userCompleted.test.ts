@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { isEffectivelyCompleted, useCompleted } from './userCompleted';
 import { completedHike, muirWoods } from '../test/fixtures';
 
@@ -34,7 +34,7 @@ describe('userCompleted', () => {
     ).toBe(false);
   });
 
-  it('toggle on a non-completed activity stores override and posts', () => {
+  it('toggle on a non-completed activity stores override and posts', async () => {
     const { result } = renderHook(() => useCompleted(muirWoods));
     expect(result.current.completed).toBe(false);
 
@@ -43,10 +43,12 @@ describe('userCompleted', () => {
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
     expect(stored[muirWoods.id]).toBe(true);
-    expect(fetch).toHaveBeenCalledWith(
-      '/api/completed',
-      expect.objectContaining({ method: 'POST' }),
-    );
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/completed',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
   });
 
   it('toggle back to baseline removes the override (saves storage)', () => {
