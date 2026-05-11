@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { ActivityDetail } from './ActivityDetail';
 import { completedHike, muirWoods } from '../test/fixtures';
 
+vi.mock('../lib/useOwner', () => ({
+  useOwner: () => ({ isOwner: true, isLoaded: true, email: 'owner@example.com' }),
+}));
+
 describe('ActivityDetail', () => {
   it('renders the activity name, description, and stats', () => {
     render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);

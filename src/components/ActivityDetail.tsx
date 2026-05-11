@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+
 import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { useAllActivities } from '../lib/userActivities';
+import { useOwner } from '../lib/useOwner';
 
 interface Props {
   activity: Activity;
@@ -17,12 +19,19 @@ const MAX_NEARBY = 6;
 export function ActivityDetail({ activity: initial, onClose, showUploads }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [activity, setActivity] = useState<Activity>(initial);
-  useEffect(() => setActivity(initial), [initial]);
+  const [override, setOverride] = useState<Activity | null>(null);
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (prevInitial !== initial) {
+    setPrevInitial(initial);
+    setOverride(null);
+  }
+  const activity = override ?? initial;
+  const setActivity = setOverride;
 
   const allActivities = useAllActivities();
   const { photos, addPhotos, removePhoto } = useUserPhotos(activity.id);
   const { completed, toggle } = useCompleted(activity);
+  const { isOwner } = useOwner();
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
 
   const nearby = useMemo(() => {
@@ -96,8 +105,10 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             <button
               type="button"
               onClick={toggle}
+              disabled={!isOwner}
+              title={isOwner ? undefined : 'Sign in to edit'}
               aria-pressed={completed}
-              className={`inline-flex items-center gap-xs px-sm py-xs rounded-full font-label-caps text-label-caps transition-colors ${
+              className={`inline-flex items-center gap-xs px-sm py-xs rounded-full font-label-caps text-label-caps transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-surface-variant ${
                 completed
                   ? 'bg-primary-fixed text-primary hover:bg-primary-fixed-dim'
                   : 'bg-surface-variant text-on-surface-variant hover:bg-surface-container-high'
@@ -245,7 +256,14 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                 <h3 className="font-headline-md text-headline-md text-primary">
                   Your Photos
                 </h3>
-                <label className="cursor-pointer bg-secondary text-on-secondary px-md py-sm rounded-full font-medium hover:opacity-90 transition-opacity flex items-center gap-xs">
+                <label
+                  title={isOwner ? undefined : 'Sign in to edit'}
+                  className={`bg-secondary text-on-secondary px-md py-sm rounded-full font-medium transition-opacity flex items-center gap-xs ${
+                    isOwner
+                      ? 'cursor-pointer hover:opacity-90'
+                      : 'opacity-60 cursor-not-allowed'
+                  }`}
+                >
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
                     add_a_photo
                   </span>
@@ -254,6 +272,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                     type="file"
                     accept="image/*"
                     multiple
+                    disabled={!isOwner}
                     className="hidden"
                     onChange={(e) => {
                       handleFiles(e.target.files);

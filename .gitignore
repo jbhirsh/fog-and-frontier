@@ -43,3 +43,15 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Claude Code per-session state (worktrees, scratch)
+.claude/
+
+# Leftover from pre-flatten directory layout
+fog-and-frontier/
+
+# Vite scratch
+.vite/
+
+# Planning scratch (not committed)
+PLAN_*.md

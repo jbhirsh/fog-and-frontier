@@ -5,6 +5,7 @@ import { ActivityDetail } from '../components/ActivityDetail';
 import { AddActivity } from '../components/AddActivity';
 import type { Activity, Category, Duration } from '../data/types';
 import { useAllActivities } from '../lib/userActivities';
+import { useOwner } from '../lib/useOwner';
 
 const DISTANCE_OPTIONS = [
   { label: 'Any distance', value: Infinity },
@@ -46,6 +47,7 @@ export function CuratedAdventures() {
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
   const all = useAllActivities();
+  const { isOwner } = useOwner();
 
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -164,7 +166,9 @@ export function CuratedAdventures() {
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="flex items-center gap-xs bg-primary text-on-primary px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity"
+              disabled={!isOwner}
+              title={isOwner ? undefined : 'Sign in to edit'}
+              className="flex items-center gap-xs bg-primary text-on-primary px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <span className="material-symbols-outlined text-body-md">add</span>
               Add activity

@@ -1,4 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+} from '@clerk/clerk-react';
+import { CLERK_ENABLED } from '../lib/authShim';
 
 function navClass({ isActive }: { isActive: boolean }) {
   return isActive
@@ -10,7 +17,7 @@ export function Layout() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/30">
-        <div className="flex justify-between items-center px-margin h-20 w-full max-w-screen-2xl mx-auto">
+        <div className="flex justify-between items-center gap-gutter px-margin h-20 w-full max-w-screen-2xl mx-auto">
           <NavLink
             to="/"
             className="font-display text-headline-md font-bold text-primary"
@@ -31,6 +38,25 @@ export function Layout() {
               Adventures
             </NavLink>
           </nav>
+          <div className="flex items-center">
+            {CLERK_ENABLED && (
+              <>
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button
+                      type="button"
+                      className="bg-primary text-on-primary px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity"
+                    >
+                      Sign in
+                    </button>
+                  </SignInButton>
+                </SignedOut>
+                <SignedIn>
+                  <UserButton afterSignOutUrl="/" />
+                </SignedIn>
+              </>
+            )}
+          </div>
         </div>
       </header>
       <main className="flex-grow">

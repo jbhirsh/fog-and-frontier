@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from './_db.js';
+import { requireOwner } from './_auth.js';
 
 let initialized = false;
 async function ensureSchema() {
@@ -30,6 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST') {
+    if (!(await requireOwner(req, res))) return;
     const body = (req.body ?? {}) as Body;
     const id = typeof body.id === 'string' ? body.id : null;
     if (!id) {
@@ -54,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'DELETE') {
+    if (!(await requireOwner(req, res))) return;
     const id =
       typeof req.query.id === 'string'
         ? req.query.id

@@ -10,6 +10,8 @@ import type {
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
+import { authedFetch } from '../lib/authedFetch';
+import { useAuthState } from '../lib/authShim';
 
 interface Props {
   onClose: () => void;
@@ -84,6 +86,7 @@ function slugify(name: string): string {
 
 export function AddActivity({ onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuthState();
   const [step, setStep] = useState<'form' | 'generating' | 'review'>('form');
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
@@ -111,11 +114,16 @@ export function AddActivity({ onClose }: Props) {
     setError(null);
     setStep('generating');
     try {
-      const res = await fetch('/api/generate-activity', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), notes: notes.trim() }),
-      });
+      const token = await getToken();
+      const res = await authedFetch(
+        '/api/generate-activity',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ title: title.trim(), notes: notes.trim() }),
+        },
+        token,
+      );
       if (!res.ok) {
         const t = await res.text();
         throw new Error(t || `HTTP ${res.status}`);
@@ -151,7 +159,8 @@ export function AddActivity({ onClose }: Props) {
     if (!draft) return;
     setSaving(true);
     try {
-      await saveUserActivity(draft);
+      const token = await getToken();
+      await saveUserActivity(draft, token);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
