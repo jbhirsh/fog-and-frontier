@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db } from './_db';
+import { db } from './_db.js';
 
 let initialized = false;
 async function ensureSchema() {
