@@ -20,7 +20,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rs = await db().execute('SELECT id, v FROM c');
     const map: Record<string, boolean> = {};
     for (const row of rs.rows) {
-      map[String(row.id)] = Number(row.v) === 1;
+      const id = row.id;
+      let idKey: string;
+      if (typeof id === 'string') idKey = id;
+      else if (typeof id === 'number' || typeof id === 'bigint') idKey = id.toString();
+      else continue;
+      map[idKey] = Number(row.v) === 1;
     }
     res.status(200).json(map);
     return;

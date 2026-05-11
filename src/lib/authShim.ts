@@ -20,7 +20,7 @@ export type AuthState = {
 const NO_AUTH: AuthState = {
   isLoaded: true,
   email: null,
-  getToken: async () => null,
+  getToken: () => Promise.resolve(null),
 };
 
 export const AuthCtx = createContext<AuthState>(NO_AUTH);
