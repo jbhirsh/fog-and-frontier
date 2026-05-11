@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Activity } from '../data/types';
+import { authedFetch } from './authedFetch';
+import { useAuthState } from './authShim';
 
 const STORAGE_KEY = 'fogandfrontier.completed.v1';
 const EVENT = 'fogandfrontier:completed-changed';
@@ -35,13 +37,17 @@ async function pullRemote() {
   }
 }
 
-async function pushRemote(id: string, v: boolean | null) {
+async function pushRemote(id: string, v: boolean | null, token: string | null) {
   try {
-    await fetch('/api/completed', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, v }),
-    });
+    await authedFetch(
+      '/api/completed',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, v }),
+      },
+      token,
+    );
   } catch {
     /* offline — local cache already updated */
   }
@@ -77,21 +83,24 @@ export function useOverrides(): Overrides {
 export function useCompleted(activity: Activity) {
   const overrides = useOverrides();
   const completed = isEffectivelyCompleted(activity, overrides);
+  const { getToken } = useAuthState();
 
   const toggle = useCallback(() => {
     const next = !completed;
     const baseline = !!activity.completed;
     const store = readLocal();
+    const send = (v: boolean | null) =>
+      void getToken().then((token) => pushRemote(activity.id, v, token));
     if (next === baseline) {
       delete store[activity.id];
       writeLocal(store);
-      void pushRemote(activity.id, null);
+      send(null);
     } else {
       store[activity.id] = next;
       writeLocal(store);
-      void pushRemote(activity.id, next);
+      send(next);
     }
-  }, [activity.id, activity.completed, completed]);
+  }, [activity.id, activity.completed, completed, getToken]);
 
   return { completed, toggle };
 }
