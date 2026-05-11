@@ -1,5 +1,12 @@
 import type { Activity } from '../data/types';
 
+const STORAGE_KEY = 'fogandfrontier.activities.v1';
+
+export function seedActivities(list: Activity[]): void {
+  const store = Object.fromEntries(list.map((a) => [a.id, a]));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
 export const muirWoods: Activity = {
   id: 'test-muir',
   name: 'Test Muir Woods',

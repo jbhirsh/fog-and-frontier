@@ -1,21 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { Activity } from '../data/types';
-import { completedHike, muirWoods } from '../test/fixtures';
-
-let mockList: Activity[] = [];
-
-vi.mock('../data/activities', () => ({
-  get activities() {
-    return mockList;
-  },
-}));
+import {
+  completedHike,
+  muirWoods,
+  seedActivities,
+} from '../test/fixtures';
 
 import { Adventures } from './Adventures';
 
-function renderAdventures() {
+function renderAdventures(list: Activity[]) {
+  seedActivities(list);
   return render(
     <MemoryRouter>
       <Adventures />
@@ -24,24 +21,19 @@ function renderAdventures() {
 }
 
 describe('Adventures page', () => {
-  beforeEach(() => {
-    mockList = [muirWoods, completedHike];
-  });
-
   it('shows only completed activities', () => {
-    renderAdventures();
+    renderAdventures([muirWoods, completedHike]);
     expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
     expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
   });
 
   it('shows the count in the header', () => {
-    renderAdventures();
+    renderAdventures([muirWoods, completedHike]);
     expect(screen.getByText(/1 trip/)).toBeInTheDocument();
   });
 
   it('opens the detail dialog with upload UI for a completed activity', async () => {
-    mockList = [completedHike];
-    renderAdventures();
+    renderAdventures([completedHike]);
     await userEvent.click(
       screen.getByRole('button', { name: /Test Completed Hike/ }),
     );
@@ -50,8 +42,7 @@ describe('Adventures page', () => {
   });
 
   it('shows an empty state when no completed activities exist', () => {
-    mockList = [muirWoods];
-    renderAdventures();
+    renderAdventures([muirWoods]);
     expect(screen.getByText(/No completed adventures yet/)).toBeInTheDocument();
   });
 
@@ -74,8 +65,7 @@ describe('Adventures page', () => {
       name: 'Newer Trip',
       completedDate: '2026-04-01',
     };
-    mockList = [undated, older, newer];
-    renderAdventures();
+    renderAdventures([undated, older, newer]);
     const cards = screen.getAllByRole('button');
     const labels = cards.map((b) => b.textContent ?? '');
     const newerIdx = labels.findIndex((l) => l.includes('Newer Trip'));
@@ -86,8 +76,7 @@ describe('Adventures page', () => {
   });
 
   it('closes the detail dialog when the close button is clicked', async () => {
-    mockList = [completedHike];
-    renderAdventures();
+    renderAdventures([completedHike]);
     await userEvent.click(
       screen.getByRole('button', { name: /Test Completed Hike/ }),
     );
@@ -97,17 +86,15 @@ describe('Adventures page', () => {
   });
 
   it('uses the singular "trip" for exactly one completed activity', () => {
-    mockList = [completedHike];
-    renderAdventures();
+    renderAdventures([completedHike]);
     expect(screen.getByText(/^1 trip /)).toBeInTheDocument();
   });
 
   it('uses the plural "trips" for multiple completed activities', () => {
-    mockList = [
+    renderAdventures([
       completedHike,
       { ...completedHike, id: 'second', name: 'Second' },
-    ];
-    renderAdventures();
+    ]);
     expect(screen.getByText(/^2 trips /)).toBeInTheDocument();
   });
 });

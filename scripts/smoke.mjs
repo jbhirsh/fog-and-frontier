@@ -19,6 +19,11 @@
 const SENTINEL_ACTIVITY_SLUG = 'the-horse-park-at-woodside';
 const TIMEOUT_MS = 15_000;
 
+// Regression floor for /api/activities (incident #24 follow-up). If a deploy
+// would publish fewer activities than the floor, fail closed. Override via
+// MIN_ACTIVITIES env when seeding new content legitimately raises the floor.
+const MIN_ACTIVITIES = Number(process.env.MIN_ACTIVITIES ?? 64);
+
 // On Preview, the deployed app reads from a Turso replica that may not match
 // Production's row set (same DB credentials, divergent reads observed in CI:
 // prod returns 4 activities, preview returns {}). Sentinel-by-slug is only
@@ -108,6 +113,14 @@ async function checkActivities() {
         record('GET /api/activities', false, 'response has zero activities (DB empty or rows dropped)');
         return;
       }
+      if (keys.length < MIN_ACTIVITIES) {
+        record(
+          'GET /api/activities',
+          false,
+          `regression: ${keys.length} activities < MIN_ACTIVITIES floor (${MIN_ACTIVITIES})`,
+        );
+        return;
+      }
       if (!(SENTINEL_ACTIVITY_SLUG in data)) {
         record(
           'GET /api/activities',
@@ -116,7 +129,7 @@ async function checkActivities() {
         );
         return;
       }
-      record('GET /api/activities', true, `${keys.length} activities including sentinel`);
+      record('GET /api/activities', true, `${keys.length} activities (≥${MIN_ACTIVITIES}), sentinel present`);
       return;
     }
     record('GET /api/activities', true, `${keys.length} activities (shape-only check on non-Production)`);

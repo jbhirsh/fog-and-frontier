@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { activities as staticActivities } from '../data/activities';
 import type { Activity } from '../data/types';
 import { authedFetch } from './authedFetch';
 
@@ -98,17 +97,5 @@ export function useUserActivities(): Activity[] {
 }
 
 export function useAllActivities(): Activity[] {
-  const userActivities = useUserActivities();
-  return useMemo(() => {
-    const userIds = new Set(userActivities.map((a) => a.id));
-    const merged: Activity[] = [
-      ...userActivities,
-      ...staticActivities.filter((a) => !userIds.has(a.id)),
-    ];
-    return merged;
-  }, [userActivities]);
-}
-
-export function isUserActivity(id: string): boolean {
-  return id in readLocal();
+  return useUserActivities();
 }
