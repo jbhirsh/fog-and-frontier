@@ -84,7 +84,61 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run smoke gate
+      # Vercel sometimes reports deployments/statuses state=success while
+      # actually serving a "Builds: [0ms]" no-build cached preview — no API
+      # routes, no built CSS. The smoke script exits 2 when it detects that
+      # signature (no /assets/*.css link AND APIs 404). Poll until either
+      # the preview looks built (exit 0 or 1), or we time out (~5 min) and
+      # fail with an actionable message.
+      - name: Smoke gate (with no-build-stub detection)
         env:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: node fog-and-frontier/scripts/smoke.mjs "${{ steps.wait.outputs.url }}"
+          PREVIEW_URL: ${{ steps.wait.outputs.url }}
+        run: |
+          set +e
+          DEADLINE=$(( $(date +%s) + 300 ))   # 5-minute budget after Vercel reports success
+          ATTEMPT=0
+          LAST_EXIT=0
+          while [ $(date +%s) -lt $DEADLINE ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "::group::Smoke attempt $ATTEMPT against $PREVIEW_URL"
+            node fog-and-frontier/scripts/smoke.mjs "$PREVIEW_URL"
+            LAST_EXIT=$?
+            echo "::endgroup::"
+            echo "smoke exit code: $LAST_EXIT"
+            case "$LAST_EXIT" in
+              0)
+                echo "Smoke gate passed."
+                exit 0
+                ;;
+              1)
+                echo "::error::Smoke gate detected a regression: the preview is built but one or more canary checks failed. See log above."
+                exit 1
+                ;;
+              2)
+                echo "Preview looks like an unbuilt/cached Vercel stub. Retrying in 20s..."
+                sleep 20
+                ;;
+              *)
+                echo "::error::Smoke script exited with unexpected code $LAST_EXIT"
+                exit "$LAST_EXIT"
+                ;;
+            esac
+          done
+          echo "::error::Vercel served a no-build cached preview for SHA ${{ steps.ctx.outputs.sha }} for the full 5-minute budget after GitHub reported state=success. The deployed artifact has no /assets/*.css link and 404s the API routes. Investigate the Vercel project's Ignored Build Step and Root Directory settings, or trigger a fresh deploy (e.g. empty commit / vercel --force)."
+          exit 1
+
+      # Best-effort diagnostic. Only runs if VERCEL_TOKEN is configured and
+      # only on failure of the smoke step above. Helps tell apart "Vercel
+      # really did skip the build" from "real build but our checks broke."
+      - name: Inspect Vercel deployment (best-effort)
+        if: failure() && env.VERCEL_TOKEN != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PREVIEW_URL: ${{ steps.wait.outputs.url }}
+        run: |
+          set +e
+          npm install -g vercel@latest >/dev/null 2>&1
+          echo "::group::vercel inspect $PREVIEW_URL"
+          vercel inspect "$PREVIEW_URL" --token="$VERCEL_TOKEN" || true
+          echo "::endgroup::"
