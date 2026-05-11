@@ -1,0 +1,72 @@
+name: Visual regression
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'Update baseline screenshots and commit'
+        required: false
+        default: 'false'
+
+defaults:
+  run:
+    working-directory: fog-and-frontier
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: fog-and-frontier/package-lock.json
+
+      - name: Install deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      # Bootstrap Linux baselines on first run (no *-linux.png in tree) or when
+      # workflow_dispatch is triggered with update_snapshots=true.
+      - name: Check for existing Linux baselines
+        id: baselines
+        working-directory: fog-and-frontier/tests/visual
+        run: |
+          if compgen -G "**/*-linux.png" > /dev/null; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Run visual tests
+        if: steps.baselines.outputs.present == 'true' && github.event.inputs.update_snapshots != 'true'
+        run: npm run test:visual
+
+      - name: Regenerate baselines
+        if: steps.baselines.outputs.present != 'true' || github.event.inputs.update_snapshots == 'true'
+        run: npm run test:visual:update
+
+      - name: Commit baselines
+        if: steps.baselines.outputs.present != 'true' || github.event.inputs.update_snapshots == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'chore(visual): update baseline screenshots'
+          file_pattern: 'fog-and-frontier/tests/visual/**/*.png'
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: fog-and-frontier/playwright-report/
+          retention-days: 14

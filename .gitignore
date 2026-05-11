@@ -7,6 +7,9 @@ pnpm-debug.log*
 # Dependencies
 node_modules/
 
+# Lockfiles (override the global ignore — npm ci needs these committed)
+!package-lock.json
+
 # Build output
 dist/
 dist-ssr/
@@ -34,3 +37,9 @@ coverage/
 # Local DB snapshot (run `npm run db:snapshot` to regenerate)
 dev-db.sqlite
 dev-db.sqlite-*
+
+# Playwright transient output. Baselines under tests/visual/**/*-snapshots ARE committed.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
