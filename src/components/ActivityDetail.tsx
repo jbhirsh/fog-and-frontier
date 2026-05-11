@@ -17,7 +17,6 @@ const NEARBY_RADIUS_MILES = 15;
 const MAX_NEARBY = 6;
 
 export function ActivityDetail({ activity: initial, onClose, showUploads }: Props) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [override, setOverride] = useState<Activity | null>(null);
   const [prevInitial, setPrevInitial] = useState(initial);
@@ -68,19 +67,19 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={activity.name}
-      onClick={(e) => {
-        if (e.target === dialogRef.current) onClose();
-      }}
-      ref={dialogRef}
-      className="fixed inset-0 z-[1000] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
-    >
+    <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-md">
+      <button
+        type="button"
+        aria-label="Close activity details"
+        onClick={onClose}
+        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default"
+      />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={activity.name}
         ref={scrollRef}
-        className="bg-surface-container-lowest w-full max-w-3xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl"
+        className="relative bg-surface-container-lowest w-full max-w-3xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl"
       >
         <div className="relative aspect-video bg-surface-variant">
           <img
@@ -294,7 +293,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                     >
                       <img
                         src={src}
-                        alt={`${activity.name} photo ${i + 1}`}
+                        alt={`${activity.name} ${i + 1}`}
                         className="w-full h-full object-cover"
                       />
                       <button

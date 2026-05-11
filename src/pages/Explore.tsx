@@ -184,7 +184,7 @@ export function Explore() {
           <div className="pt-md">
             <button
               type="button"
-              onClick={discover}
+              onClick={() => void discover()}
               disabled={loading || !isOwner}
               title={isOwner ? undefined : 'Sign in to edit'}
               className="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-sm rounded-full font-body-lg shadow-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
@@ -204,7 +204,7 @@ export function Explore() {
 
       <section className="px-margin py-xl max-w-screen-2xl mx-auto">
         {loading && <LoadingState />}
-        {!loading && error && <ErrorState message={error} onRetry={discover} />}
+        {!loading && error && <ErrorState message={error} onRetry={() => void discover()} />}
         {!loading && !error && !events && <EmptyHero />}
         {!loading && !error && events && events.length === 0 && (
           <div className="text-center py-xl text-on-surface-variant">
