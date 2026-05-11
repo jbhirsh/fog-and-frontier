@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "db:seed-preview": "node scripts/seed-preview-db.mjs"
+    "db:seed-preview": "node scripts/seed-preview-db.mjs",
+    "db:snapshot": "node scripts/snapshot-prod-db.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0",
