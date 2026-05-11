@@ -10,10 +10,6 @@ on:
         required: false
         default: 'false'
 
-defaults:
-  run:
-    working-directory: fog-and-frontier
-
 jobs:
   visual:
     runs-on: ubuntu-latest
@@ -28,7 +24,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: fog-and-frontier/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install deps
         run: npm ci --legacy-peer-deps
@@ -43,7 +39,7 @@ jobs:
       # unambiguous: exits 0 with output iff at least one match exists.
       - name: Check for existing Linux baselines
         id: baselines
-        working-directory: fog-and-frontier/tests/visual
+        working-directory: tests/visual
         run: |
           if find . -name '*-linux.png' -print -quit | grep -q .; then
             echo "present=true" >> "$GITHUB_OUTPUT"
@@ -58,7 +54,7 @@ jobs:
       - name: Fail if baselines missing on pull_request
         if: github.event_name == 'pull_request' && steps.baselines.outputs.present != 'true'
         run: |
-          echo "::error::No Linux baseline screenshots found under fog-and-frontier/tests/visual/."
+          echo "::error::No Linux baseline screenshots found under tests/visual/."
           echo "::error::Bootstrap them by running this workflow via workflow_dispatch with update_snapshots=true."
           echo "::error::Repo maintainer: Actions tab -> Visual regression -> Run workflow -> set 'update_snapshots' to 'true'."
           exit 1
@@ -79,11 +75,11 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: 'chore(visual): update baseline screenshots'
-          file_pattern: 'fog-and-frontier/tests/visual/**/*.png'
+          file_pattern: 'tests/visual/**/*.png'
 
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report-${{ github.run_id }}
-          path: fog-and-frontier/playwright-report/
+          path: playwright-report/
           retention-days: 14
