@@ -17,6 +17,19 @@ if (!baseUrl) {
   process.exit(2);
 }
 
+// Vercel preview URLs have deployment protection. Bypass via the
+// "Protection Bypass for Automation" secret. Sent both as a header and
+// as a query param so CDN edge auth doesn't strip it.
+const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+const bypassHeaders = bypass ? { 'x-vercel-protection-bypass': bypass } : {};
+function withBypass(url) {
+  if (!bypass) return url;
+  const u = new URL(url);
+  u.searchParams.set('x-vercel-protection-bypass', bypass);
+  u.searchParams.set('x-vercel-set-bypass-cookie', 'true');
+  return u.toString();
+}
+
 const results = [];
 let hadFailure = false;
 
@@ -31,7 +44,11 @@ async function fetchWithTimeout(url, opts = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, { ...opts, signal: ctrl.signal });
+    return await fetch(withBypass(url), {
+      ...opts,
+      headers: { ...bypassHeaders, ...(opts.headers ?? {}) },
+      signal: ctrl.signal,
+    });
   } finally {
     clearTimeout(t);
   }
