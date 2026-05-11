@@ -34,8 +34,22 @@ async function mockApis(page: Page) {
   // visual state regardless of remote latency. Without this, lazy-loaded cover
   // images keep mutating the page and `toHaveScreenshot` times out trying to
   // capture two consecutive identical frames.
+  //
+  // Also stub all Google Fonts requests (CSS + font binaries) with empty
+  // bodies. With no @font-face declarations, the page renders entirely with
+  // browser-default sans-serif. That makes the screenshots deterministic
+  // across environments — production uses webfonts, but tests should never
+  // depend on the font CDN being reachable from a CI runner.
   await page.route(/^https?:\/\/(?!localhost)/i, async (route) => {
     const url = route.request().url();
+    if (/fonts\.googleapis\.com|fonts\.gstatic\.com/.test(url)) {
+      await route.fulfill({
+        status: 200,
+        contentType: url.includes('.css') || url.includes('css2') ? 'text/css' : 'font/woff2',
+        body: '',
+      });
+      return;
+    }
     if (/\.(png|jpe?g|gif|webp|svg|avif)(\?|$)/i.test(url)) {
       await route.fulfill({
         status: 200,
@@ -50,7 +64,7 @@ async function mockApis(page: Page) {
 
 async function waitForVisualReady(page: Page) {
   await page.evaluate(() => document.fonts.ready);
-  // Settle any layout from late-loading fonts/icons
+  // Settle any layout from late-loading icons
   await page.waitForTimeout(200);
 }
 
