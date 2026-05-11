@@ -38,6 +38,9 @@ coverage/
 dev-db.sqlite
 dev-db.sqlite-*
 
+# Local Turso backups (incident #24). Never commit — may contain prod data.
+backups/
+
 # Playwright transient output. Baselines under tests/visual/**/*-snapshots ARE committed.
 test-results/
 playwright-report/
