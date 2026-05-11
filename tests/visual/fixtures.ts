@@ -7,50 +7,14 @@
 // Do NOT auto-generate from prod — adding an activity in prod must not change
 // visual baselines.
 //
-// IMPORTANT: these objects must be assignable to `Activity` (src/data/types.ts).
-// Missing required fields (e.g. `category`, `coverImage`, `duration`, `region`)
-// or invalid enum values (e.g. category: 'outdoor') cause ActivityCard to throw
-// at render time, which silently produces blank screenshots and lets unrelated
-// routes look identical. Keep them valid.
-//
 // 1x1 transparent PNG keeps fixtures self-contained — no network image needed
 // during tests, so screenshots are deterministic offline.
+import type { Activity } from '../../src/data/types';
+
 const BLANK_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
 
-type FixtureActivity = {
-  id: string;
-  name: string;
-  shortDescription: string;
-  longDescription: string;
-  category:
-    | 'hiking'
-    | 'cycling'
-    | 'water'
-    | 'food'
-    | 'culture'
-    | 'scenic'
-    | 'climbing'
-    | 'camping'
-    | 'other';
-  region: 'sf' | 'north-bay' | 'east-bay' | 'south-bay' | 'peninsula';
-  location: { city: string; coords: { lat: number; lng: number } };
-  duration:
-    | '1-2 Hours'
-    | '2-3 Hours'
-    | 'Half Day'
-    | 'Full Day'
-    | 'Weekend'
-    | 'Multi-Day';
-  difficulty?: 'easy' | 'moderate' | 'advanced';
-  dogFriendly?: boolean;
-  coverImage: string;
-  allTrailsRating?: number;
-  completed?: boolean;
-  completedDate?: string;
-};
-
-const FIXTURES: FixtureActivity[] = [
+const FIXTURES: Activity[] = [
   {
     id: 'fixture-long-name-hiking',
     name: 'A Deliberately Long Activity Name That Spans Multiple Lines on Narrow Layouts',
@@ -98,7 +62,7 @@ const FIXTURES: FixtureActivity[] = [
   },
 ];
 
-export const fixtureActivities: Record<string, FixtureActivity> =
+export const fixtureActivities: Record<string, Activity> =
   Object.fromEntries(FIXTURES.map((a) => [a.id, a]));
 
 // Overrides keyed by fixture ids only — never reference real static activity
