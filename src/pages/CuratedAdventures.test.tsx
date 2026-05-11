@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -6,11 +6,8 @@ import {
   completedHike,
   dogFriendlyTidepools,
   muirWoods,
+  seedActivities,
 } from '../test/fixtures';
-
-vi.mock('../data/activities', () => ({
-  activities: [muirWoods, completedHike, dogFriendlyTidepools],
-}));
 
 import { CuratedAdventures } from './CuratedAdventures';
 
@@ -24,7 +21,7 @@ function renderExplore() {
 
 describe('Curated Adventures page', () => {
   beforeEach(() => {
-    localStorage.clear();
+    seedActivities([muirWoods, completedHike, dogFriendlyTidepools]);
   });
 
   it('renders all activities by default, sorted by distance', () => {

@@ -40,9 +40,8 @@ export function Adventures() {
           <div className="text-center py-xl text-on-surface-variant">
             <p className="font-body-lg">No completed adventures yet.</p>
             <p className="font-body-md mt-sm">
-              Mark an activity as <code className="bg-surface-variant px-xs py-xs rounded">completed: true</code>{' '}
-              in <code className="bg-surface-variant px-xs py-xs rounded">src/data/activities.ts</code>{' '}
-              to see it here.
+              Open any activity from Discover and tap the heart to mark it
+              completed.
             </p>
           </div>
         ) : (
