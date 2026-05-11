@@ -19,33 +19,17 @@ jobs:
     steps:
       - name: Resolve SHA and environment
         id: ctx
-        env:
-          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "sha=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
             echo "env=Preview" >> "$GITHUB_OUTPUT"
-            # Vercel preview URLs are protected; the smoke script needs the
-            # bypass secret to bypass deployment protection. If it's not set
-            # in repo Actions secrets, the smoke would 401 on every route and
-            # block every PR. Surface a warning and skip rather than gate on
-            # a piece of config that lives outside the repo.
-            if [ -z "$BYPASS_SECRET" ]; then
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              echo "::warning::VERCEL_AUTOMATION_BYPASS_SECRET is not configured for this repo. Preview is Vercel-protected, so the smoke gate cannot reach it. Skipping the PR-level smoke check. To re-enable, copy the 'Protection Bypass for Automation' value from Vercel project settings into Settings → Secrets and variables → Actions → VERCEL_AUTOMATION_BYPASS_SECRET."
-            else
-              echo "skip=false" >> "$GITHUB_OUTPUT"
-            fi
           else
             echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
             echo "env=Production" >> "$GITHUB_OUTPUT"
-            # Production is public — no bypass secret needed.
-            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Wait for Vercel deployment
         id: wait
-        if: steps.ctx.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.ctx.outputs.sha }}
@@ -93,11 +77,9 @@ jobs:
           exit 1
 
       - name: Checkout
-        if: steps.ctx.outputs.skip != 'true'
         uses: actions/checkout@v5
 
       - name: Setup Node
-        if: steps.ctx.outputs.skip != 'true'
         uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -109,7 +91,6 @@ jobs:
       # the preview looks built (exit 0 or 1), or we time out (~5 min) and
       # fail with an actionable message.
       - name: Smoke gate (with no-build-stub detection)
-        if: steps.ctx.outputs.skip != 'true'
         env:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           PREVIEW_URL: ${{ steps.wait.outputs.url }}
@@ -152,7 +133,7 @@ jobs:
       # only on failure of the smoke step above. Helps tell apart "Vercel
       # really did skip the build" from "real build but our checks broke."
       - name: Inspect Vercel deployment (best-effort)
-        if: failure() && env.VERCEL_TOKEN != '' && steps.ctx.outputs.skip != 'true'
+        if: failure() && env.VERCEL_TOKEN != ''
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PREVIEW_URL: ${{ steps.wait.outputs.url }}
