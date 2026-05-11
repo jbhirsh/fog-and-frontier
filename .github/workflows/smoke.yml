@@ -85,4 +85,6 @@ jobs:
           node-version: '22'
 
       - name: Run smoke gate
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node fog-and-frontier/scripts/smoke.mjs "${{ steps.wait.outputs.url }}"
