@@ -75,7 +75,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: 'chore(visual): update baseline screenshots'
-          file_pattern: 'tests/visual/**/*.png'
+          file_pattern: 'tests/visual/**/*-linux.png'
 
       - uses: actions/upload-artifact@v4
         if: failure()
