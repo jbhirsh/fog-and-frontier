@@ -1,22 +1,103 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
+import importPlugin from 'eslint-plugin-import';
+import tseslint from 'typescript-eslint';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
+// Type-checked + a11y + import-cycle hardening, per Issue #1.
+// Three separate file groups, each with the right TS project for type-aware rules:
+//   - src/**/*.{ts,tsx}     → app code, parsed against tsconfig.app.json (DOM lib, jsx, vitest)
+//   - api/**/*.ts           → Vercel serverless handlers, parsed against tsconfig.api.json (Node, no DOM)
+//   - vite/playwright/scripts → tooling, parsed against tsconfig.node.json or untyped
+//
+// No rule suppressions anywhere in the codebase by policy (see PLAN.md, durable preference).
 export default defineConfig([
-  globalIgnores(['dist', '.claude/**', 'fog-and-frontier/**', 'tests/visual/**']),
+  globalIgnores([
+    'dist',
+    'node_modules',
+    '.claude/**',
+    'tests/visual/**',
+    'fog-and-frontier/**',
+    'playwright-report/**',
+    'public/**',
+    '**/*.sqlite',
+  ]),
+
+  // App code (browser + tests). Type-aware via tsconfig.app.json.
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
-      tseslint.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
+      jsxA11y.flatConfigs.recommended,
+      importPlugin.flatConfigs.recommended,
+      importPlugin.flatConfigs.typescript,
     ],
     languageOptions: {
       globals: globals.browser,
+      parserOptions: {
+        project: ['./tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    settings: {
+      'import/resolver': {
+        typescript: { project: './tsconfig.app.json' },
+      },
+    },
+    rules: {
+      'import/no-cycle': ['error', { ignoreExternal: true }],
+      'import/no-unresolved': ['error', { ignore: ['^virtual:'] }],
+      'import/no-named-as-default-member': 'off',
     },
   },
-])
+
+  // Vercel serverless handlers. Node lib, no DOM, no JSX. Type-aware via tsconfig.api.json.
+  {
+    files: ['api/**/*.ts'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
+      importPlugin.flatConfigs.recommended,
+      importPlugin.flatConfigs.typescript,
+    ],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        project: ['./tsconfig.api.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    settings: {
+      'import/resolver': {
+        // api/*.ts imports siblings with a `.js` extension (NodeNext-style),
+        // which the TS resolver handles automatically.
+        typescript: { project: './tsconfig.api.json' },
+      },
+    },
+    rules: {
+      'import/no-cycle': ['error', { ignoreExternal: true }],
+      'import/no-named-as-default-member': 'off',
+    },
+  },
+
+  // Tooling config files. Node globals, but not type-aware — these files aren't
+  // part of any tsconfig include and don't need cross-file project analysis.
+  {
+    files: ['vite.config.ts', 'playwright.config.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: { globals: globals.node },
+  },
+
+  // Plain Node scripts (smoke gate, db snapshot, seed). Untyped JS.
+  {
+    files: ['scripts/**/*.{js,mjs}', 'eslint.config.js'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.node },
+  },
+]);

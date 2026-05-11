@@ -19,10 +19,15 @@ function write(store: PhotoStore) {
 }
 
 export function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const r = reader.result;
+      if (typeof r === 'string') resolve(r);
+      else reject(new Error('FileReader returned non-string result'));
+    };
+    reader.onerror = () =>
+      reject(reader.error ?? new Error('FileReader failed'));
     reader.readAsDataURL(file);
   });
 }

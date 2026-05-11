@@ -85,7 +85,7 @@ function slugify(name: string): string {
 }
 
 export function AddActivity({ onClose }: Props) {
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const { getToken } = useAuthState();
   const [step, setStep] = useState<'form' | 'generating' | 'review'>('form');
   const [title, setTitle] = useState('');
@@ -100,6 +100,7 @@ export function AddActivity({ onClose }: Props) {
     };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
+    titleInputRef.current?.focus();
     return () => {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
@@ -169,17 +170,19 @@ export function AddActivity({ onClose }: Props) {
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Add activity"
-      onClick={(e) => {
-        if (e.target === dialogRef.current) onClose();
-      }}
-      ref={dialogRef}
-      className="fixed inset-0 z-[1000] bg-on-surface/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-md"
-    >
-      <div className="bg-surface-container-lowest w-full max-w-2xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl">
+    <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-md">
+      <button
+        type="button"
+        aria-label="Cancel adding activity"
+        onClick={onClose}
+        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add activity"
+        className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl"
+      >
         <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
           <h2 className="font-display text-headline-md text-primary">
             {step === 'review' ? 'Review & save' : 'Add activity'}
@@ -199,9 +202,10 @@ export function AddActivity({ onClose }: Props) {
             title={title}
             notes={notes}
             error={error}
+            titleInputRef={titleInputRef}
             onChangeTitle={setTitle}
             onChangeNotes={setNotes}
-            onSubmit={generate}
+            onSubmit={() => void generate()}
             onCancel={onClose}
           />
         )}
@@ -215,7 +219,7 @@ export function AddActivity({ onClose }: Props) {
             saving={saving}
             onChange={setDraft}
             onBack={() => setStep('form')}
-            onSave={save}
+            onSave={() => void save()}
           />
         )}
       </div>
@@ -227,6 +231,7 @@ function FormStep({
   title,
   notes,
   error,
+  titleInputRef,
   onChangeTitle,
   onChangeNotes,
   onSubmit,
@@ -235,6 +240,7 @@ function FormStep({
   title: string;
   notes: string;
   error: string | null;
+  titleInputRef: React.RefObject<HTMLInputElement | null>;
   onChangeTitle: (v: string) => void;
   onChangeNotes: (v: string) => void;
   onSubmit: () => void;
@@ -258,7 +264,7 @@ function FormStep({
           type="text"
           value={title}
           onChange={(e) => onChangeTitle(e.target.value)}
-          autoFocus
+          ref={titleInputRef}
           placeholder="e.g. Año Nuevo elephant seal walk"
           className="w-full bg-surface-container-low rounded-md px-sm py-sm border border-outline-variant focus:border-primary focus:outline-none"
         />
@@ -357,7 +363,7 @@ function ReviewStep({
             alt={draft.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
+              e.currentTarget.style.display = 'none';
             }}
           />
         </div>

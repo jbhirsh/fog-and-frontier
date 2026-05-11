@@ -41,7 +41,9 @@ describe('userCompleted', () => {
     act(() => result.current.toggle());
     expect(result.current.completed).toBe(true);
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    const stored = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? '{}',
+    ) as Record<string, boolean>;
     expect(stored[muirWoods.id]).toBe(true);
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
@@ -56,7 +58,9 @@ describe('userCompleted', () => {
     act(() => result.current.toggle());
     act(() => result.current.toggle());
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    const stored = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? '{}',
+    ) as Record<string, boolean>;
     expect(stored[muirWoods.id]).toBeUndefined();
   });
 
@@ -67,7 +71,9 @@ describe('userCompleted', () => {
     act(() => result.current.toggle());
     expect(result.current.completed).toBe(false);
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    const stored = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? '{}',
+    ) as Record<string, boolean>;
     expect(stored[completedHike.id]).toBe(false);
   });
 });

@@ -49,12 +49,12 @@ describe('ActivityCard', () => {
     expect(screen.getByText('4.7')).toBeInTheDocument();
   });
 
-  it('shows user photo count when showUserPhotoCount is set and photos exist', async () => {
+  it('shows user photo count when showUserPhotoCount is set and photos exist', () => {
     localStorage.setItem(
       'fogandfrontier.userPhotos.v1',
       JSON.stringify({ [completedHike.id]: ['data:image/png;base64,x', 'data:image/png;base64,y'] }),
     );
-    await act(async () => {
+    act(() => {
       window.dispatchEvent(new CustomEvent('fogandfrontier:photos-changed'));
     });
     render(<ActivityCard activity={completedHike} showUserPhotoCount />);
