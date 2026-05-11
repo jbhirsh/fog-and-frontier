@@ -5,16 +5,29 @@
  *   node scripts/smoke.mjs <baseUrl>
  *   SMOKE_BASE_URL=https://... node scripts/smoke.mjs
  *
- * Exits 0 on success, nonzero on any failed check. Logs every check.
+ * Exit codes:
+ *   0 — all checks passed
+ *   1 — regression: build looks real (CSS link present) but some check failed
+ *   2 — not-yet-built: the preview Vercel served has no built CSS link AND APIs 404
+ *       (typical "Builds: [0ms]" cached/no-build preview). Caller can retry.
+ *   3 — usage error
+ *
+ * Designed to be re-runnable from a polling loop in CI: when exit=2, the workflow
+ * keeps waiting; when exit=1, it fails fast.
  */
 
 const SENTINEL_ACTIVITY_SLUG = 'the-horse-park-at-woodside';
 const TIMEOUT_MS = 15_000;
 
+const EXIT_OK = 0;
+const EXIT_REGRESSION = 1;
+const EXIT_NOT_BUILT = 2;
+const EXIT_USAGE = 3;
+
 const baseUrl = process.argv[2] ?? process.env.SMOKE_BASE_URL;
 if (!baseUrl) {
   console.error('usage: node scripts/smoke.mjs <baseUrl>');
-  process.exit(2);
+  process.exit(EXIT_USAGE);
 }
 
 // Vercel preview URLs have deployment protection. Bypass via the
@@ -32,6 +45,15 @@ function withBypass(url) {
 
 const results = [];
 let hadFailure = false;
+
+// Build-presence signals. We use these to decide between "regression" and
+// "not yet built" when something fails. A no-build cached preview returns
+// HTML without a hashed /assets/*.css link and 404s the API routes.
+const signals = {
+  cssLinkPresent: false,
+  apiActivitiesStatus: null,
+  apiCompletedStatus: null,
+};
 
 function record(name, ok, detail) {
   results.push({ name, ok, detail });
@@ -58,6 +80,7 @@ async function checkActivities() {
   const url = new URL('/api/activities', baseUrl).toString();
   try {
     const res = await fetchWithTimeout(url);
+    signals.apiActivitiesStatus = res.status;
     if (res.status !== 200) {
       record('GET /api/activities', false, `expected 200, got ${res.status}`);
       return;
@@ -95,6 +118,7 @@ async function checkCompleted() {
   const url = new URL('/api/completed', baseUrl).toString();
   try {
     const res = await fetchWithTimeout(url);
+    signals.apiCompletedStatus = res.status;
     if (res.status !== 200) {
       record('GET /api/completed', false, `expected 200, got ${res.status}`);
       return;
@@ -141,6 +165,7 @@ async function checkHtmlAndCss() {
     record('Locate built CSS asset', false, 'no /assets/*.css link in HTML');
     return;
   }
+  signals.cssLinkPresent = true;
   const cssPath = cssMatch[1];
   record('Locate built CSS asset', true, cssPath);
 
@@ -175,4 +200,31 @@ const passed = results.filter((r) => r.ok).length;
 const total = results.length;
 console.log(`\n${passed}/${total} checks passed`);
 
-process.exit(hadFailure ? 1 : 0);
+if (!hadFailure) {
+  process.exit(EXIT_OK);
+}
+
+// Decide between regression and not-yet-built. Vercel's no-build cached
+// preview signature: HTML served (so we got past GET /) but no hashed CSS
+// link AND both API routes return 404. If we see that combination, tell
+// the caller this is a stub, not a regression.
+const apiActivities404 = signals.apiActivitiesStatus === 404;
+const apiCompleted404 = signals.apiCompletedStatus === 404;
+const looksUnbuilt = !signals.cssLinkPresent && apiActivities404 && apiCompleted404;
+
+if (looksUnbuilt) {
+  console.log(
+    '\n[SMOKE_UNBUILT] preview looks like a Vercel no-build cached stub ' +
+      '(no /assets/*.css link in HTML AND /api/activities + /api/completed both 404). ' +
+      'Not treating as a regression yet — caller should retry or escalate.',
+  );
+  process.exit(EXIT_NOT_BUILT);
+}
+
+console.log(
+  '\n[SMOKE_REGRESSION] preview appears to be a real build but at least one check failed. ' +
+    `Signals: cssLinkPresent=${signals.cssLinkPresent}, ` +
+    `apiActivitiesStatus=${signals.apiActivitiesStatus}, ` +
+    `apiCompletedStatus=${signals.apiCompletedStatus}.`,
+);
+process.exit(EXIT_REGRESSION);
