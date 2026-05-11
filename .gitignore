@@ -30,3 +30,7 @@ coverage/
 .DS_Store
 *.swp
 .vercel
+
+# Local DB snapshot (run `npm run db:snapshot` to regenerate)
+dev-db.sqlite
+dev-db.sqlite-*

@@ -1,15 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@libsql/client/web';
-
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL!,
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+import { db } from './_db';
 
 let initialized = false;
 async function ensureSchema() {
   if (initialized) return;
-  await db.execute(
+  await db().execute(
     'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
   );
   initialized = true;
@@ -21,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await ensureSchema();
 
   if (req.method === 'GET') {
-    const rs = await db.execute('SELECT id, j FROM a ORDER BY t DESC');
+    const rs = await db().execute('SELECT id, j FROM a ORDER BY t DESC');
     const out: Record<string, unknown> = {};
     for (const row of rs.rows) {
       try {
@@ -50,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).json({ error: 'activity too large' });
       return;
     }
-    await db.execute({
+    await db().execute({
       sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET j = excluded.j, t = excluded.t',
       args: [id, json, Date.now()],
     });
@@ -69,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).json({ error: 'missing id' });
       return;
     }
-    await db.execute({ sql: 'DELETE FROM a WHERE id = ?', args: [id] });
+    await db().execute({ sql: 'DELETE FROM a WHERE id = ?', args: [id] });
     res.status(200).json({ ok: true });
     return;
   }
