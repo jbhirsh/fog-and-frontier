@@ -36,29 +36,46 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit
 
-      # Bootstrap Linux baselines on first run (no *-linux.png in tree) or when
-      # workflow_dispatch is triggered with update_snapshots=true.
+      # Detect Linux baselines anywhere under tests/visual. `compgen -G "**/*.png"`
+      # does NOT recurse into subdirectories unless `shopt -s globstar` is set,
+      # so it silently returned "no baselines" for files inside
+      # `pages.spec.ts-snapshots/`. `find` walks the tree explicitly and is
+      # unambiguous: exits 0 with output iff at least one match exists.
       - name: Check for existing Linux baselines
         id: baselines
         working-directory: fog-and-frontier/tests/visual
         run: |
-          if compgen -G "**/*-linux.png" > /dev/null; then
+          if find . -name '*-linux.png' -print -quit | grep -q .; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
 
+      # On PRs we never auto-mutate the contributor's branch. If baselines are
+      # missing, fail loudly with instructions instead of silently regenerating
+      # and force-committing back onto the head ref.
+      - name: Fail if baselines missing on pull_request
+        if: github.event_name == 'pull_request' && steps.baselines.outputs.present != 'true'
+        run: |
+          echo "::error::No Linux baseline screenshots found under fog-and-frontier/tests/visual/."
+          echo "::error::Bootstrap them by running this workflow via workflow_dispatch with update_snapshots=true."
+          echo "::error::Repo maintainer: Actions tab -> Visual regression -> Run workflow -> set 'update_snapshots' to 'true'."
+          exit 1
+
       - name: Run visual tests
         if: steps.baselines.outputs.present == 'true' && github.event.inputs.update_snapshots != 'true'
         run: npm run test:visual
 
+      # Regenerate ONLY on explicit workflow_dispatch with update_snapshots=true.
+      # Never on pull_request: that path would auto-commit to the PR branch and
+      # overwrite contributor changes.
       - name: Regenerate baselines
-        if: steps.baselines.outputs.present != 'true' || github.event.inputs.update_snapshots == 'true'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.update_snapshots == 'true'
         run: npm run test:visual:update
 
       - name: Commit baselines
-        if: steps.baselines.outputs.present != 'true' || github.event.inputs.update_snapshots == 'true'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.update_snapshots == 'true'
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: 'chore(visual): update baseline screenshots'
