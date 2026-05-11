@@ -9,19 +9,17 @@
  */
 
 import { createClient } from '@libsql/client';
-import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { resolve } from 'node:path';
 
-// Load .env.local if present (Vercel env pull writes to this path)
+// Load .env.local if present (Vercel env pull writes to this path). Use the
+// built-in Node parser (added in 21.7+, available in our Node 22 CI) so values
+// containing '=' or quotes round-trip correctly.
 const envPath = resolve(process.cwd(), '.env.local');
 if (existsSync(envPath)) {
-  const raw = readFileSync(envPath, 'utf8');
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^([A-Z_]+)="?([^"]*)"?$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
-  }
+  process.loadEnvFile(envPath);
 }
 
 const sourceUrl = process.env.TURSO_DATABASE_URL;
