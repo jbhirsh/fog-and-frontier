@@ -102,7 +102,7 @@ jobs:
           while [ $(date +%s) -lt $DEADLINE ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "::group::Smoke attempt $ATTEMPT against $PREVIEW_URL"
-            node fog-and-frontier/scripts/smoke.mjs "$PREVIEW_URL"
+            node scripts/smoke.mjs "$PREVIEW_URL"
             LAST_EXIT=$?
             echo "::endgroup::"
             echo "smoke exit code: $LAST_EXIT"
