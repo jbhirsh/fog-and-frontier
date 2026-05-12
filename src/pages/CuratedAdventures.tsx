@@ -99,7 +99,9 @@ export function CuratedAdventures() {
         </div>
       </section>
 
-      <section className="border-b border-outline-variant/20 bg-surface px-margin py-md sticky top-20 z-40 backdrop-blur-xl">
+      {/* Sticky only on md+; on mobile the header wraps to two rows so a
+          second sticky bar would eat too much vertical space. */}
+      <section className="border-b border-outline-variant/20 bg-surface px-margin py-md md:sticky md:top-20 z-40 backdrop-blur-xl">
         <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-md">
           <FilterPill icon="location_on">
             <select
@@ -140,7 +142,7 @@ export function CuratedAdventures() {
               ))}
             </select>
           </FilterPill>
-          <div className="flex items-center gap-md ml-auto">
+          <div className="flex items-center gap-md w-full md:w-auto md:ml-auto justify-between md:justify-start">
             <div className="flex items-center gap-sm">
               <span className="font-body-md text-on-surface-variant">
                 Dog Friendly

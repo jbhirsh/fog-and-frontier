@@ -20,6 +20,7 @@ vi.mock('@clerk/clerk-react', () => ({
   SignInButton: ({ children }: { children: ReactNode }) =>
     createElement(Fragment, null, children),
   UserButton: () => null,
+  AuthenticateWithRedirectCallback: () => null,
 }));
 
 // useUserActivities pulls /api/activities once on mount. In tests we don't
