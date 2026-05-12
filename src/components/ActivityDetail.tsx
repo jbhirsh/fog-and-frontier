@@ -79,7 +79,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
         aria-modal="true"
         aria-label={activity.name}
         ref={scrollRef}
-        className="relative bg-surface-container-lowest w-full max-w-3xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl"
+        className="relative bg-surface-container-lowest w-full max-w-3xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
       >
         <div className="relative aspect-video bg-surface-variant">
           <img

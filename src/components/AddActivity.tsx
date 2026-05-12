@@ -181,7 +181,7 @@ export function AddActivity({ onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="Add activity"
-        className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95vh] overflow-y-auto md:rounded-xl shadow-2xl"
+        className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
       >
         <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
           <h2 className="font-display text-headline-md text-primary">
