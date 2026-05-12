@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Activity } from '../data/types';
+import { activities as STATIC_ACTIVITIES } from '../data/activities';
 import { authedFetch } from './authedFetch';
 
 const STORAGE_KEY = 'fogandfrontier.activities.v1';
 const EVENT = 'fogandfrontier:activities-changed';
 
 type Store = Record<string, Activity>;
+
+const STATIC_IDS = new Set(STATIC_ACTIVITIES.map((a) => a.id));
+
+// Built-in activities ship in src/data/activities.ts and are not deletable
+// through the UI; only user-added rows (anything not in the seed list) can
+// be removed. See issue #3.
+export function isUserActivity(id: string): boolean {
+  return !STATIC_IDS.has(id);
+}
 
 function readLocal(): Store {
   try {

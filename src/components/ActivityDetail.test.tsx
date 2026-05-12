@@ -1,12 +1,34 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ActivityDetail } from './ActivityDetail';
 import { completedHike, muirWoods } from '../test/fixtures';
+import { activities as STATIC_ACTIVITIES } from '../data/activities';
+
+const ownerState = vi.hoisted(() => ({ isOwner: true }));
 
 vi.mock('../lib/useOwner', () => ({
-  useOwner: () => ({ isOwner: true, isLoaded: true, email: 'owner@example.com' }),
+  useOwner: () => ({
+    isOwner: ownerState.isOwner,
+    isLoaded: true,
+    email: 'owner@example.com',
+  }),
 }));
+
+const deleteSpy = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
+vi.mock('../lib/userActivities', async () => {
+  const actual =
+    await vi.importActual<typeof import('../lib/userActivities')>(
+      '../lib/userActivities',
+    );
+  return { ...actual, deleteUserActivity: deleteSpy };
+});
+
+beforeEach(() => {
+  ownerState.isOwner = true;
+  deleteSpy.mockClear();
+});
 
 describe('ActivityDetail', () => {
   it('renders the activity name, description, and stats', () => {
@@ -120,5 +142,65 @@ describe('ActivityDetail', () => {
     render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Close activity details'));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  describe('delete', () => {
+    it('shows a Delete button on user-added activities', () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(
+        screen.getByRole('button', { name: /delete activity/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('does not show a Delete button on built-in activities', () => {
+      const builtIn = STATIC_ACTIVITIES[0];
+      render(<ActivityDetail activity={builtIn} onClose={() => {}} />);
+      expect(
+        screen.queryByRole('button', { name: /delete activity/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('confirms, calls deleteUserActivity, and closes when an owner confirms', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const onClose = vi.fn();
+      render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /delete activity/i }),
+      );
+
+      expect(confirmSpy).toHaveBeenCalledWith(
+        expect.stringContaining(muirWoods.name),
+      );
+      await waitFor(() => {
+        expect(deleteSpy).toHaveBeenCalledWith(muirWoods.id, null);
+      });
+      expect(onClose).toHaveBeenCalledTimes(1);
+
+      confirmSpy.mockRestore();
+    });
+
+    it('does nothing when the owner cancels the confirm dialog', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+      const onClose = vi.fn();
+      render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /delete activity/i }),
+      );
+
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+
+      confirmSpy.mockRestore();
+    });
+
+    it('renders the Delete button disabled with a tooltip for non-owners', () => {
+      ownerState.isOwner = false;
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      const btn = screen.getByRole('button', { name: /delete activity/i });
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute('title', 'Sign in as owner to delete');
+    });
   });
 });
