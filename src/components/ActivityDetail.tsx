@@ -4,7 +4,12 @@ import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
-import { useAllActivities } from '../lib/userActivities';
+import {
+  deleteUserActivity,
+  isUserActivity,
+  useAllActivities,
+} from '../lib/userActivities';
+import { useAuthState } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 
 interface Props {
@@ -31,7 +36,9 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const { photos, addPhotos, removePhoto } = useUserPhotos(activity.id);
   const { completed, toggle } = useCompleted(activity);
   const { isOwner } = useOwner();
+  const { getToken } = useAuthState();
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
+  const canDelete = isUserActivity(activity.id);
 
   const nearby = useMemo(() => {
     return allActivities
@@ -65,6 +72,17 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const handleFiles = (files: FileList | null) => {
     if (files && files.length) void addPhotos(files);
   };
+
+  async function handleDelete() {
+    if (!isOwner) return;
+    const ok = window.confirm(
+      `Delete "${activity.name}"? This can't be undone.`,
+    );
+    if (!ok) return;
+    const token = await getToken();
+    await deleteUserActivity(activity.id, token);
+    onClose();
+  }
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-md">
@@ -314,6 +332,26 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                 </div>
               )}
             </section>
+          )}
+
+          {canDelete && (
+            <div className="pt-md mt-md border-t border-outline-variant/40 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={!isOwner}
+                title={isOwner ? undefined : 'Sign in as owner to delete'}
+                className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 14 }}
+                >
+                  delete
+                </span>
+                DELETE ACTIVITY
+              </button>
+            </div>
           )}
         </div>
       </div>
