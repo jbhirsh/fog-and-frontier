@@ -91,7 +91,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-sm right-sm bg-surface-container-lowest/90 backdrop-blur-sm rounded-full w-10 h-10 flex items-center justify-center hover:bg-surface-container-lowest transition-colors"
+            className="absolute top-sm right-sm bg-surface-container-lowest/90 backdrop-blur-sm rounded-full w-11 h-11 flex items-center justify-center hover:bg-surface-container-lowest transition-colors"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -107,7 +107,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
               disabled={!isOwner}
               title={isOwner ? undefined : 'Sign in to edit'}
               aria-pressed={completed}
-              className={`inline-flex items-center gap-xs px-sm py-xs rounded-full font-label-caps text-label-caps transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-surface-variant ${
+              className={`inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-surface-variant ${
                 completed
                   ? 'bg-primary-fixed text-primary hover:bg-primary-fixed-dim'
                   : 'bg-surface-variant text-on-surface-variant hover:bg-surface-container-high'
@@ -300,7 +300,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                         type="button"
                         onClick={() => removePhoto(i)}
                         aria-label="Remove photo"
-                        className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-11 h-11 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                       >
                         <span
                           className="material-symbols-outlined"
