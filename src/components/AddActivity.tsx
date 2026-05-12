@@ -191,7 +191,7 @@ export function AddActivity({ onClose }: Props) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full w-9 h-9 flex items-center justify-center hover:bg-surface-variant transition-colors"
+            className="rounded-full w-11 h-11 flex items-center justify-center hover:bg-surface-variant transition-colors"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -276,7 +276,7 @@ function FormStep({
           onChange={(e) => onChangeNotes(e.target.value)}
           rows={5}
           placeholder="Anything specific you know about it — links, who recommended it, what you want to do there."
-          className="w-full bg-surface-container-low rounded-md px-sm py-sm border border-outline-variant focus:border-primary focus:outline-none font-mono text-body-sm"
+          className="w-full bg-surface-container-low rounded-md px-sm py-sm border border-outline-variant focus:border-primary focus:outline-none font-mono text-body-md"
         />
       </Field>
 
