@@ -171,7 +171,7 @@ export function Explore() {
                 key={r.value}
                 type="button"
                 onClick={() => setRange(r.value)}
-                className={`px-md py-xs rounded-full font-body-md transition-colors border ${
+                className={`px-md py-sm rounded-full font-body-md transition-colors border ${
                   range === r.value
                     ? 'bg-primary text-on-primary border-primary'
                     : 'bg-surface-container-lowest text-on-surface border-outline-variant hover:bg-surface-variant'

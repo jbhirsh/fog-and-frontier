@@ -15,7 +15,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 
 export function Layout() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <header className="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/30">
         {/* Mobile (default): two-row wrap — [logo, auth] on top, nav full-width
             below. Desktop (md+): single 80px row with logo, nav, auth spread by
@@ -35,7 +35,7 @@ export function Layout() {
                   <SignInButton mode="modal">
                     <button
                       type="button"
-                      className="bg-primary text-on-primary px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity"
+                      className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
                     >
                       Sign in
                     </button>

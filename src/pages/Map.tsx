@@ -83,7 +83,7 @@ export function Map() {
       <section className="px-margin py-md max-w-screen-2xl mx-auto">
         <div
           className="rounded-xl overflow-hidden border border-outline-variant/30 shadow-sm"
-          style={{ height: 'calc(100vh - 260px)', minHeight: '500px' }}
+          style={{ height: 'calc(100dvh - 260px)', minHeight: '500px' }}
         >
           <MapContainer
             center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
@@ -119,7 +119,7 @@ export function Map() {
                     <button
                       type="button"
                       onClick={() => setSelected(a)}
-                      className="text-primary font-bold underline cursor-pointer"
+                      className="inline-flex items-center min-h-11 text-primary font-bold underline cursor-pointer"
                     >
                       View details →
                     </button>
