@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import importPlugin from 'eslint-plugin-import';
+import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
@@ -27,6 +28,13 @@ export default defineConfig([
   ]),
 
   // App code (browser + tests). Type-aware via tsconfig.app.json.
+  // Tailwind v4 class-conflict linting via eslint-plugin-better-tailwindcss
+  // (Phase C of Issue #1). We deliberately do NOT enable
+  // `enforce-consistent-class-order` — that's a Prettier-flavored rule and
+  // we don't use Prettier in this repo. Instead we run the correctness rules
+  // (`no-conflicting-classes`, `no-duplicate-classes`) which catch the cases
+  // the issue called out: `text-sm text-lg`, `p-3 p-4`, duplicated classes.
+  // The v4 entry point is `src/index.css` (CSS-based config, no JS config file).
   {
     files: ['src/**/*.{ts,tsx}'],
     extends: [
@@ -38,6 +46,9 @@ export default defineConfig([
       importPlugin.flatConfigs.recommended,
       importPlugin.flatConfigs.typescript,
     ],
+    plugins: {
+      'better-tailwindcss': betterTailwindcss,
+    },
     languageOptions: {
       globals: globals.browser,
       parserOptions: {
@@ -49,11 +60,16 @@ export default defineConfig([
       'import/resolver': {
         typescript: { project: './tsconfig.app.json' },
       },
+      'better-tailwindcss': {
+        entryPoint: 'src/index.css',
+      },
     },
     rules: {
       'import/no-cycle': ['error', { ignoreExternal: true }],
       'import/no-unresolved': ['error', { ignore: ['^virtual:'] }],
       'import/no-named-as-default-member': 'off',
+      'better-tailwindcss/no-conflicting-classes': 'error',
+      'better-tailwindcss/no-duplicate-classes': 'error',
     },
   },
 
