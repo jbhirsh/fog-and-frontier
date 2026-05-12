@@ -44,6 +44,25 @@ auto-fix pass on this file produced broken output in production (see PLAN.md).
 If you run `lint:fix`, eyeball the CSS diff and verify the built CSS in
 `dist/assets/*.css` against the visual regression suite before merging.
 
+## Performance
+
+Real-user Core Web Vitals are collected via [Vercel Speed Insights](https://vercel.com/docs/speed-insights).
+`<SpeedInsights />` is mounted inside the router (`src/App.tsx`) and receives
+the current pathname as its `route` prop so each SPA route reports separately.
+
+Dashboard: Vercel project → **Speed Insights** in the sidebar.
+
+Budget (mobile, p75):
+
+| Metric | Target |
+| ------ | ------ |
+| LCP    | < 2.5s |
+| INP    | < 200ms |
+| CLS    | < 0.1  |
+
+After a deploy, check `/`, `/explore`, `/map`, and `/adventures` against these
+budgets. Issue #1 tracks the baseline and the post-responsiveness-sweep deltas.
+
 ## Architecture notes
 
 - API handlers use Node-style `(req, res)` signatures (`@vercel/node`). Web-API

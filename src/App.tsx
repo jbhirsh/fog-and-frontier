@@ -1,14 +1,30 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Layout } from './components/Layout';
 import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
 import { Adventures } from './pages/Adventures';
 import { Map } from './pages/Map';
 
+// Speed Insights' `route` prop is only auto-set for Next/Nuxt/SvelteKit/Remix.
+// In our Vite + react-router SPA we feed it the current pathname so each route
+// reports as a distinct page instead of collapsing under "/".
+function RouteAwareSpeedInsights() {
+  const location = useLocation();
+  return <SpeedInsights route={location.pathname} />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <RouteAwareSpeedInsights />
       <Routes>
         {/* Clerk OAuth (e.g., "Sign in with Google") sends the browser to
             <site>/sso-callback after the identity provider hands control back
