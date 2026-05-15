@@ -14,6 +14,9 @@
  *
  * Designed to be re-runnable from a polling loop in CI: when exit=2, the workflow
  * keeps waiting; when exit=1, it fails fast.
+ *
+ * /api/* checks retry transient 5xx internally (Turso libSQL cold-start can
+ * 500 the first request after a fresh Preview deploy). See fetchApiOk.
  */
 
 const SENTINEL_ACTIVITY_SLUG = 'the-horse-park-at-woodside';
@@ -88,10 +91,28 @@ async function fetchWithTimeout(url, opts = {}) {
   }
 }
 
+// On Preview, /api/* can 5xx during Turso cold-start (libSQL serverless
+// instances pause when idle and take a few seconds to wake on first hit).
+// Retry transient 5xx a few times before declaring a regression. Worst-case
+// extra latency: ~15s per API check.
+async function fetchApiOk(url) {
+  const backoffsMs = [1000, 2000, 4000, 8000];
+  let res = await fetchWithTimeout(url);
+  for (let i = 0; i < backoffsMs.length; i++) {
+    if (res.status < 500) return res;
+    console.log(
+      `  [retry] ${url} → ${res.status}; waiting ${backoffsMs[i]}ms (attempt ${i + 2}/${1 + backoffsMs.length})`,
+    );
+    await new Promise((r) => setTimeout(r, backoffsMs[i]));
+    res = await fetchWithTimeout(url);
+  }
+  return res;
+}
+
 async function checkActivities() {
   const url = new URL('/api/activities', baseUrl).toString();
   try {
-    const res = await fetchWithTimeout(url);
+    const res = await fetchApiOk(url);
     signals.apiActivitiesStatus = res.status;
     if (res.status !== 200) {
       record('GET /api/activities', false, `expected 200, got ${res.status}`);
@@ -141,7 +162,7 @@ async function checkActivities() {
 async function checkCompleted() {
   const url = new URL('/api/completed', baseUrl).toString();
   try {
-    const res = await fetchWithTimeout(url);
+    const res = await fetchApiOk(url);
     signals.apiCompletedStatus = res.status;
     if (res.status !== 200) {
       record('GET /api/completed', false, `expected 200, got ${res.status}`);
