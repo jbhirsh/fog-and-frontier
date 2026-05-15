@@ -135,7 +135,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-md text-on-surface-variant">
+          <div className="flex flex-wrap gap-sm md:gap-md text-on-surface-variant">
             <Stat icon="location_on" label={`${miles.toFixed(1)} mi from ${HOME_LOCATION.label}`} />
             <Stat
               icon="schedule"
