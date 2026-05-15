@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireOwner } from './_auth.js';
+import { BudgetExceededError, enforceDailyBudget } from './_gemini_budget.js';
 
 const MODEL = 'gemini-2.5-flash';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
@@ -117,6 +118,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!apiKey) {
     res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
     return;
+  }
+
+  try {
+    await enforceDailyBudget('generate');
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      res
+        .status(429)
+        .json({ error: 'daily budget exceeded', resetsAt: err.resetsAt });
+      return;
+    }
+    throw err;
   }
 
   const body = (req.body ?? {}) as Body;

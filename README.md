@@ -54,3 +54,25 @@ If you run `lint:fix`, eyeball the CSS diff and verify the built CSS in
   Buffers to `"[object ArrayBuffer]"`.
 - Owner-gated routes live behind `requireOwner` in `api/_auth.ts` (Clerk).
   Client-side, `useOwner()` is a UI hint only — the server is the gate.
+
+## Environment variables
+
+Server-side env vars (set in Vercel Project Settings, or via `vercel env pull`):
+
+| Variable                          | Required | Purpose                                                                 |
+| --------------------------------- | -------- | ----------------------------------------------------------------------- |
+| `TURSO_DATABASE_URL`              | yes      | libsql URL for the environment's Turso DB.                              |
+| `TURSO_AUTH_TOKEN`                | yes      | Turso auth token.                                                       |
+| `CLERK_SECRET_KEY`                | yes      | Clerk backend secret for `requireOwner`.                                |
+| `OWNER_EMAILS`                    | yes      | Comma-separated owner allow-list.                                       |
+| `GEMINI_API_KEY`                  | yes      | Used by `/api/discover` and `/api/generate-activity`.                   |
+| `GEMINI_DISCOVER_DAILY_LIMIT`     | no       | Max Gemini calls to `/api/discover` per UTC day. Default: 50 (issue #23). |
+| `GEMINI_GENERATE_DAILY_LIMIT`     | no       | Max Gemini calls to `/api/generate-activity` per UTC day. Default: 200. |
+| `DEV_DB_PATH`                     | no       | Local SQLite snapshot for offline dev (see `scripts/snapshot-prod-db.mjs`). |
+
+The Gemini per-day counter is server-enforced in Turso (`gemini_usage` table)
+so it survives Fluid Compute scale-out. The "day" key is UTC `YYYY-MM-DD` so
+all instances roll over together and match Google Cloud's billing day.
+Exceeding the limit returns `429 { error: "daily budget exceeded", resetsAt }`.
+Each call logs `[gemini-budget] key=… count=… limit=… day=…` so today's usage
+is queryable from Vercel logs without an admin endpoint.
