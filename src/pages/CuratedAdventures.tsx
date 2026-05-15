@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
@@ -6,6 +6,7 @@ import { AddActivity } from '../components/AddActivity';
 import type { Activity, Category, Duration } from '../data/types';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
+import { exportActivitiesToCsv } from '../lib/exportCsv';
 
 const DISTANCE_OPTIONS = [
   { label: 'Any distance', value: Infinity },
@@ -175,6 +176,12 @@ export function CuratedAdventures() {
               <span className="material-symbols-outlined text-body-md">add</span>
               Add activity
             </button>
+            {isOwner && (
+              <OwnerOverflowMenu
+                onExport={() => exportActivitiesToCsv(all)}
+                disabled={all.length === 0}
+              />
+            )}
           </div>
         </div>
       </section>
@@ -222,5 +229,76 @@ function FilterPill({
       <span className="material-symbols-outlined text-body-md">{icon}</span>
       {children}
     </label>
+  );
+}
+
+function OwnerOverflowMenu({
+  onExport,
+  disabled,
+}: {
+  onExport: () => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (!wrapperRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="w-9 h-9 flex items-center justify-center rounded-full border border-outline-variant/40 bg-surface-container-low text-on-surface-variant hover:bg-surface-variant transition-colors"
+      >
+        <span className="material-symbols-outlined text-body-lg">more_vert</span>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 mt-xs w-64 rounded-lg border border-outline-variant/40 bg-surface-container-lowest shadow-lg z-50 py-xs"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            disabled={disabled}
+            onClick={() => {
+              setOpen(false);
+              onExport();
+            }}
+            title="Image columns hold URLs; locally-uploaded photos aren't embedded."
+            className="w-full text-left px-md py-sm flex items-start gap-sm font-body-md text-on-surface hover:bg-surface-variant disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-body-lg text-primary mt-[2px]">
+              download
+            </span>
+            <span className="flex-1">
+              <span className="block">Export CSV</span>
+              <span className="block font-body-sm text-on-surface-variant">
+                All activities, current state. URLs only — local photo uploads
+                aren't included.
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
