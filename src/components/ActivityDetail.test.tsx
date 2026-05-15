@@ -5,6 +5,13 @@ import { ActivityDetail } from './ActivityDetail';
 import { completedHike, muirWoods } from '../test/fixtures';
 import { activities as STATIC_ACTIVITIES } from '../data/activities';
 
+const BUILT_IN_ID = 'mt-diablo-summit';
+function builtInActivity() {
+  const a = STATIC_ACTIVITIES.find((x) => x.id === BUILT_IN_ID);
+  if (!a) throw new Error(`built-in fixture ${BUILT_IN_ID} missing from seed`);
+  return a;
+}
+
 const ownerState = vi.hoisted(() => ({ isOwner: true }));
 
 vi.mock('../lib/useOwner', () => ({
@@ -153,7 +160,7 @@ describe('ActivityDetail', () => {
     });
 
     it('shows a Delete button on built-in activities too', () => {
-      const builtIn = STATIC_ACTIVITIES[0];
+      const builtIn = builtInActivity();
       render(<ActivityDetail activity={builtIn} onClose={() => {}} />);
       expect(
         screen.getByRole('button', { name: /delete activity/i }),
@@ -162,7 +169,7 @@ describe('ActivityDetail', () => {
 
     it.each([
       ['user-added', muirWoods],
-      ['built-in seed', STATIC_ACTIVITIES[0]],
+      ['built-in seed', builtInActivity()],
     ])(
       'confirms, calls deleteUserActivity, and closes when an owner confirms (%s)',
       async (_label, activity) => {
