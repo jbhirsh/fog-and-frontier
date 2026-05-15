@@ -94,14 +94,14 @@ async function fetchWithTimeout(url, opts = {}) {
 // On Preview, /api/* can 5xx during Turso cold-start (libSQL serverless
 // instances pause when idle and take a few seconds to wake on first hit).
 // Retry transient 5xx a few times before declaring a regression. Worst-case
-// extra latency: ~15s per API check.
+// budget per check: ~15s of sleep across 4 retries + 5 fetch RTTs.
 async function fetchApiOk(url) {
   const backoffsMs = [1000, 2000, 4000, 8000];
   let res = await fetchWithTimeout(url);
   for (let i = 0; i < backoffsMs.length; i++) {
     if (res.status < 500) return res;
     console.log(
-      `  [retry] ${url} → ${res.status}; waiting ${backoffsMs[i]}ms (attempt ${i + 2}/${1 + backoffsMs.length})`,
+      `  [retry ${i + 1}/${backoffsMs.length}] ${url} → ${res.status}; waiting ${backoffsMs[i]}ms`,
     );
     await new Promise((r) => setTimeout(r, backoffsMs[i]));
     res = await fetchWithTimeout(url);
