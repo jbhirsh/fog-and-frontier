@@ -89,7 +89,10 @@ test.describe('visual regression — mobile', () => {
     // so the popup has a "View details" link that we want to verify tap-target
     // sizing for.
     const markers = page.locator('.leaflet-marker-icon');
-    await markers.nth(1).click();
+    // Force-click — Leaflet markers carry the leaflet-zoom-animated class
+    // during pan/zoom and Playwright's actionability check fails them as
+    // "non-actionable" even though they're clickable HTML buttons.
+    await markers.nth(1).click({ force: true });
     await page.locator('.leaflet-popup').waitFor();
     await page.waitForTimeout(200);
     await expect(page).toHaveScreenshot('map-popup-mobile.png', {
