@@ -72,8 +72,10 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/map');
     await waitForVisualReady(page);
     // Leaflet renders its tile layer asynchronously — wait for the container
-    // and let tiles fade in before snapshotting.
-    await page.locator('.leaflet-container').waitFor();
+    // to mount (the new flex layout keeps it briefly "hidden" by Playwright's
+    // heuristic before layout settles, so wait for attached + give tiles a
+    // moment to fade in).
+    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
     await page.waitForTimeout(400);
     await expect(page).toHaveScreenshot('map-mobile.png', { fullPage: true });
   });
@@ -81,7 +83,7 @@ test.describe('visual regression — mobile', () => {
   test('map popup', async ({ page }) => {
     await page.goto('/map');
     await waitForVisualReady(page);
-    await page.locator('.leaflet-container').waitFor();
+    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
     await page.waitForTimeout(400);
     // Marker order: 0 = HOME, 1+ = activities. Click the first activity marker
     // so the popup has a "View details" link that we want to verify tap-target
