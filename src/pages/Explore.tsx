@@ -158,9 +158,9 @@ export function Explore() {
 
   return (
     <>
-      <section className="px-margin py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
+      <section className="px-margin py-lg md:py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
         <div className="max-w-4xl mx-auto text-center space-y-md">
-          <h1 className="font-display text-display text-primary">Explore</h1>
+          <h1 className="font-display text-headline-lg md:text-display text-primary">Explore</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
             What's happening around {HOME_LOCATION.label} right now? Pick a
             window and let Gemini search for things to do.
@@ -283,7 +283,7 @@ function EventCard({ event }: { event: DiscoverEvent }) {
 
 function LoadingState() {
   return (
-    <div className="text-center py-xl px-md space-y-md max-w-2xl mx-auto">
+    <div className="text-center py-lg md:py-xl px-md space-y-md max-w-2xl mx-auto">
       <div className="w-12 h-12 mx-auto rounded-full border-4 border-primary border-t-transparent animate-spin" />
       <p className="font-body-lg text-body-lg text-on-surface">
         Searching the web for upcoming events…
@@ -304,7 +304,7 @@ function ErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="text-center py-xl space-y-md">
+    <div className="text-center px-md py-lg md:py-xl space-y-md">
       <p className="font-body-lg text-error">Something went wrong.</p>
       <p className="font-body-md text-on-surface-variant max-w-xl mx-auto">
         {message}
@@ -322,7 +322,7 @@ function ErrorState({
 
 function EmptyHero() {
   return (
-    <div className="text-center py-xl px-md space-y-sm text-on-surface-variant max-w-2xl mx-auto">
+    <div className="text-center py-lg md:py-xl px-md space-y-sm text-on-surface-variant max-w-2xl mx-auto">
       <span
         className="material-symbols-outlined text-outline block"
         style={{ fontSize: 64, lineHeight: 1 }}

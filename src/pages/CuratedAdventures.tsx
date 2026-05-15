@@ -73,9 +73,9 @@ export function CuratedAdventures() {
 
   return (
     <>
-      <section className="relative px-margin py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
+      <section className="relative px-margin py-lg md:py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
         <div className="max-w-4xl mx-auto text-center space-y-lg">
-          <h1 className="font-display text-display text-primary">
+          <h1 className="font-display text-headline-lg md:text-display text-primary">
             Curated Adventures
           </h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
@@ -102,7 +102,7 @@ export function CuratedAdventures() {
       {/* Sticky only on md+; on mobile the header wraps to two rows so a
           second sticky bar would eat too much vertical space. */}
       <section className="border-b border-outline-variant/20 bg-surface px-margin py-md md:sticky md:top-20 z-40 backdrop-blur-xl">
-        <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-md">
+        <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-sm md:gap-md">
           <FilterPill icon="location_on">
             <select
               value={String(maxDistance)}

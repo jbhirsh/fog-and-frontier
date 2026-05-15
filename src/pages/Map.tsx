@@ -65,7 +65,7 @@ export function Map() {
       <section className="px-margin py-lg bg-surface-container-low border-b border-outline-variant/20">
         <div className="max-w-screen-2xl mx-auto flex items-baseline justify-between flex-wrap gap-md">
           <div>
-            <h1 className="font-display text-display text-primary">Map</h1>
+            <h1 className="font-display text-headline-lg md:text-display text-primary">Map</h1>
             <p className="font-body-md text-on-surface-variant">
               {all.length} place{all.length === 1 ? '' : 's'} ·{' '}
               {completedCount} completed · home base{' '}
