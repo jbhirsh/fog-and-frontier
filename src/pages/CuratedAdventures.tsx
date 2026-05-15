@@ -241,26 +241,44 @@ function OwnerOverflowMenu({
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const firstItemRef = useRef<HTMLButtonElement>(null);
+  const returnFocusOnCloseRef = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      if (returnFocusOnCloseRef.current) {
+        triggerRef.current?.focus();
+        returnFocusOnCloseRef.current = false;
+      }
+      return;
+    }
     function onDocClick(e: MouseEvent) {
       if (!wrapperRef.current?.contains(e.target as Node)) setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        returnFocusOnCloseRef.current = true;
+        setOpen(false);
+      }
     }
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
+    // Move focus to the first menu item once the menu has rendered.
+    const raf = requestAnimationFrame(() => {
+      firstItemRef.current?.focus();
+    });
     return () => {
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
+      cancelAnimationFrame(raf);
     };
   }, [open]);
 
   return (
     <div ref={wrapperRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         aria-label="More actions"
         aria-haspopup="menu"
@@ -276,10 +294,13 @@ function OwnerOverflowMenu({
           className="absolute right-0 mt-xs w-64 rounded-lg border border-outline-variant/40 bg-surface-container-lowest shadow-lg z-50 py-xs"
         >
           <button
+            ref={firstItemRef}
             type="button"
             role="menuitem"
             disabled={disabled}
-            onClick={() => {
+            onClick={(e) => {
+              // Keyboard activations (Enter/Space) report detail === 0.
+              if (e.detail === 0) returnFocusOnCloseRef.current = true;
               setOpen(false);
               onExport();
             }}
