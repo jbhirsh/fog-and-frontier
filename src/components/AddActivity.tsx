@@ -524,9 +524,32 @@ function ReviewStep({
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity disabled:opacity-50"
+          aria-busy={saving}
+          className="grid bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-50"
         >
-          {saving ? 'Saving…' : 'Save activity'}
+          {/* Stack both labels in the same grid cell so the button reserves
+              the wider label's width and the swap doesn't shift layout or
+              cross-fade. Only the active label is visible. */}
+          <span
+            aria-hidden={saving}
+            className={`col-start-1 row-start-1 flex items-center justify-center gap-xs ${
+              saving ? 'invisible' : ''
+            }`}
+          >
+            Save activity
+          </span>
+          <span
+            aria-hidden={!saving}
+            className={`col-start-1 row-start-1 flex items-center justify-center gap-xs ${
+              saving ? '' : 'invisible'
+            }`}
+          >
+            <span
+              className="w-4 h-4 rounded-full border-2 border-on-primary border-t-transparent animate-spin"
+              aria-hidden="true"
+            />
+            Saving
+          </span>
         </button>
       </div>
     </div>
