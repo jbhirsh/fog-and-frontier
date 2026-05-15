@@ -42,7 +42,12 @@ export function Layout() {
                   </SignInButton>
                 </SignedOut>
                 <SignedIn>
-                  <UserButton afterSignOutUrl="/" />
+                  <UserButton
+                    afterSignOutUrl="/"
+                    appearance={{
+                      elements: { userButtonAvatarBox: 'w-11 h-11' },
+                    }}
+                  />
                 </SignedIn>
               </>
             )}
