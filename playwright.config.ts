@@ -20,7 +20,12 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run build && npm run preview -- --port 4173 --strictPort',
+    // Build in --mode test so import.meta.env.MODE === 'test' in the bundle.
+    // That gates the dev/test-only owner override in src/lib/useOwner.ts on
+    // (DEV || MODE === 'test'); production deployments use the default
+    // (`production`) mode and the override branch is dead-code-eliminated.
+    command:
+      'npx vite build --mode test && npm run preview -- --port 4173 --strictPort',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
@@ -28,10 +33,12 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
+      testMatch: /pages\.desktop\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
     {
       name: 'mobile',
+      testMatch: /pages\.mobile\.spec\.ts/,
       use: { ...devices['iPhone 14'], viewport: { width: 390, height: 844 } },
     },
   ],

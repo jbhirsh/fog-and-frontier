@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { fixtureActivities, fixtureCompleted } from './fixtures';
 
 // 1x1 transparent PNG. Returned for every external image so screenshots don't
@@ -8,7 +8,12 @@ const BLANK_PNG_BYTES = Buffer.from(
   'base64',
 );
 
-async function mockApis(page: Page) {
+// Same blank PNG as a data URL — used by `seedPhotos` when we want the user
+// photo store pre-populated before the page boots.
+const BLANK_PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
+
+export async function mockApis(page: Page) {
   await page.route('**/api/activities', async (route) => {
     await route.fulfill({
       status: 200,
@@ -62,32 +67,38 @@ async function mockApis(page: Page) {
   });
 }
 
-async function waitForVisualReady(page: Page) {
+export async function waitForVisualReady(page: Page) {
   await page.evaluate(() => document.fonts.ready);
   // Settle any layout from late-loading icons
   await page.waitForTimeout(200);
 }
 
-test.describe('visual regression', () => {
-  test.beforeEach(async ({ page }) => {
-    await mockApis(page);
-  });
+// Pre-populate the user-photo store so the "Your Photos" section renders with
+// real thumbnails on first paint. Storage key must match src/lib/userPhotos.ts.
+export async function seedPhotos(page: Page, activityId: string, count = 2) {
+  await page.addInitScript(
+    ([id, n, png]) => {
+      const store = {
+        [id as string]: Array.from({ length: n as number }, () => png as string),
+      };
+      localStorage.setItem(
+        'fogandfrontier.userPhotos.v1',
+        JSON.stringify(store),
+      );
+    },
+    [activityId, count, BLANK_PNG_DATA_URL],
+  );
+}
 
-  test('home / curated list', async ({ page }) => {
-    await page.goto('/');
-    await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('home.png', { fullPage: true });
-  });
-
-  test('adventures list', async ({ page }) => {
-    await page.goto('/adventures');
-    await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('adventures.png', { fullPage: true });
-  });
-
-  test('explore empty state', async ({ page }) => {
-    await page.goto('/explore');
-    await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('explore-empty.png', { fullPage: true });
-  });
-});
+// Fails the test if anything in the page extends past the viewport on the x
+// axis — the cheapest reliable way to catch the "filter pill row makes the
+// whole page scroll sideways at 390px" class of mobile regression.
+export async function assertNoHorizontalOverflow(page: Page) {
+  const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+  }));
+  expect(scrollWidth, 'no element should extend past viewport width').toBe(
+    innerWidth,
+  );
+}
