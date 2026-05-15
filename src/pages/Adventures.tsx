@@ -23,9 +23,9 @@ export function Adventures() {
 
   return (
     <>
-      <section className="px-margin py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
+      <section className="px-margin py-lg md:py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
         <div className="max-w-4xl mx-auto text-center space-y-md">
-          <h1 className="font-display text-display text-primary">
+          <h1 className="font-display text-headline-lg md:text-display text-primary">
             Our Adventures
           </h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">

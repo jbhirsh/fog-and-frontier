@@ -405,7 +405,7 @@ function ReviewStep({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-md">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
         <Field label="Category">
           <select
             value={draft.category}
