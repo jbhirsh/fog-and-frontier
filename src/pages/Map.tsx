@@ -61,7 +61,7 @@ export function Map() {
   ).length;
 
   return (
-    <>
+    <div className="flex flex-col min-h-dvh">
       <section className="px-margin py-lg bg-surface-container-low border-b border-outline-variant/20">
         <div className="max-w-screen-2xl mx-auto flex items-baseline justify-between flex-wrap gap-md">
           <div>
@@ -80,11 +80,8 @@ export function Map() {
         </div>
       </section>
 
-      <section className="px-margin py-md max-w-screen-2xl mx-auto">
-        <div
-          className="rounded-xl overflow-hidden border border-outline-variant/30 shadow-sm"
-          style={{ height: 'calc(100dvh - 260px)', minHeight: '500px' }}
-        >
+      <section className="flex-1 flex flex-col px-margin py-md w-full max-w-screen-2xl mx-auto">
+        <div className="flex-1 min-h-[500px] rounded-xl overflow-hidden border border-outline-variant/30 shadow-sm">
           <MapContainer
             center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
             zoom={8}
@@ -138,7 +135,7 @@ export function Map() {
           showUploads={!!selected.completed}
         />
       )}
-    </>
+    </div>
   );
 }
 
