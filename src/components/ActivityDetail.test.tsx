@@ -160,25 +160,34 @@ describe('ActivityDetail', () => {
       ).toBeInTheDocument();
     });
 
-    it('confirms, calls deleteUserActivity, and closes when an owner confirms', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-      const onClose = vi.fn();
-      render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
+    it.each([
+      ['user-added', muirWoods],
+      ['built-in seed', STATIC_ACTIVITIES[0]],
+    ])(
+      'confirms, calls deleteUserActivity, and closes when an owner confirms (%s)',
+      async (_label, activity) => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const onClose = vi.fn();
+        render(<ActivityDetail activity={activity} onClose={onClose} />);
 
-      await userEvent.click(
-        screen.getByRole('button', { name: /delete activity/i }),
-      );
+        await userEvent.click(
+          screen.getByRole('button', { name: /delete activity/i }),
+        );
 
-      expect(confirmSpy).toHaveBeenCalledWith(
-        expect.stringContaining(muirWoods.name),
-      );
-      await waitFor(() => {
-        expect(deleteSpy).toHaveBeenCalledWith(muirWoods.id, null);
-      });
-      expect(onClose).toHaveBeenCalledTimes(1);
+        expect(confirmSpy).toHaveBeenCalledWith(
+          expect.stringContaining(activity.name),
+        );
+        expect(confirmSpy).toHaveBeenCalledWith(
+          expect.stringContaining('for everyone'),
+        );
+        await waitFor(() => {
+          expect(deleteSpy).toHaveBeenCalledWith(activity.id, null);
+        });
+        expect(onClose).toHaveBeenCalledTimes(1);
 
-      confirmSpy.mockRestore();
-    });
+        confirmSpy.mockRestore();
+      },
+    );
 
     it('does nothing when the owner cancels the confirm dialog', async () => {
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
