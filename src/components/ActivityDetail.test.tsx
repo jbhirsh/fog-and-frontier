@@ -152,12 +152,12 @@ describe('ActivityDetail', () => {
       ).toBeInTheDocument();
     });
 
-    it('does not show a Delete button on built-in activities', () => {
+    it('shows a Delete button on built-in activities too', () => {
       const builtIn = STATIC_ACTIVITIES[0];
       render(<ActivityDetail activity={builtIn} onClose={() => {}} />);
       expect(
-        screen.queryByRole('button', { name: /delete activity/i }),
-      ).not.toBeInTheDocument();
+        screen.getByRole('button', { name: /delete activity/i }),
+      ).toBeInTheDocument();
     });
 
     it('confirms, calls deleteUserActivity, and closes when an owner confirms', async () => {
