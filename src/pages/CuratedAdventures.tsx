@@ -152,14 +152,14 @@ export function CuratedAdventures() {
                 role="switch"
                 aria-checked={dogOnly}
                 onClick={() => setDogOnly((v) => !v)}
-                className={`w-11 h-6 rounded-full relative transition-colors ${
+                className={`w-12 h-7 rounded-full relative transition-colors ${
                   dogOnly ? 'bg-secondary' : 'bg-surface-variant'
                 }`}
               >
                 <div
-                  className={`w-4 h-4 rounded-full absolute top-1 transition-transform ${
+                  className={`w-4 h-4 rounded-full absolute top-1.5 transition-transform ${
                     dogOnly
-                      ? 'bg-on-secondary translate-x-6'
+                      ? 'bg-on-secondary translate-x-7'
                       : 'bg-outline translate-x-1'
                   }`}
                 />
