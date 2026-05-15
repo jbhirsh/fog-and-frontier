@@ -71,7 +71,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   async function handleDelete() {
     if (!isOwner) return;
     const ok = window.confirm(
-      `Delete "${activity.name}"? This can't be undone.`,
+      `Delete "${activity.name}" for everyone? This removes it from the shared catalog for all viewers. This can't be undone.`,
     );
     if (!ok) return;
     const token = await getToken();
