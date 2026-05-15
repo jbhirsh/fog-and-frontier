@@ -76,3 +76,9 @@ all instances roll over together and match Google Cloud's billing day.
 Exceeding the limit returns `429 { error: "daily budget exceeded", resetsAt }`.
 Each call logs `[gemini-budget] key=… count=… limit=… day=…` so today's usage
 is queryable from Vercel logs without an admin endpoint.
+
+The counter is incremented *before* the Gemini call, so a Gemini API failure
+still consumes a budget slot. This is a deliberate fail-closed choice —
+undercounting is the dangerous direction — but the practical effect is that
+flaky Gemini days will burn through the daily limit faster than successful
+days. Bump `GEMINI_*_DAILY_LIMIT` if that becomes a problem.
