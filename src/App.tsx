@@ -5,11 +5,17 @@ import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
 import { Adventures } from './pages/Adventures';
 import { Map } from './pages/Map';
+import { Sentry } from './lib/sentry';
+
+// Wrap once at module scope so Sentry can attach route-change spans for
+// pageload + navigation transactions. A no-op when initSentry didn't run
+// (no DSN, e.g. local dev).
+const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <SentryRoutes>
         {/* Clerk OAuth (e.g., "Sign in with Google") sends the browser to
             <site>/sso-callback after the identity provider hands control back
             to Clerk. This route lets Clerk finish the handshake and then
@@ -26,7 +32,7 @@ export default function App() {
           <Route path="/map" element={<Map />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
-      </Routes>
+      </SentryRoutes>
     </BrowserRouter>
   );
 }
