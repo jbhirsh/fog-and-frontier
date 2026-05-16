@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireOwner } from './_auth.js';
+import { logServerError, withErrorLogging } from './_log.js';
 
 const MODEL = 'gemini-2.5-flash';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
@@ -46,7 +47,10 @@ function stripJsonFence(text: string): string {
     .trim();
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withErrorLogging(async function handler(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method not allowed' });
     return;
@@ -54,6 +58,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!(await requireOwner(req, res))) return;
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
+    logServerError(new Error('GEMINI_API_KEY not configured'), {
+      route: '/api/discover',
+      method: req.method,
+      status: 500,
+    });
     res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
     return;
   }
@@ -75,6 +84,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!r.ok) {
     const text = await r.text();
+    logServerError(new Error(`gemini request failed: ${r.status}`), {
+      route: '/api/discover',
+      method: req.method,
+      status: 502,
+      detail: text.slice(0, 500),
+    });
     res.status(502).json({ error: 'gemini request failed', detail: text });
     return;
   }
@@ -89,6 +104,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {
+    logServerError(new Error('no content in gemini response'), {
+      route: '/api/discover',
+      method: req.method,
+      status: 502,
+    });
     res.status(502).json({ error: 'no content in gemini response' });
     return;
   }
@@ -96,7 +116,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let events: unknown;
   try {
     events = JSON.parse(stripJsonFence(text));
-  } catch {
+  } catch (err) {
+    logServerError(err, {
+      route: '/api/discover',
+      method: req.method,
+      status: 502,
+      detail: text.slice(0, 500),
+    });
     res.status(502).json({
       error: 'gemini returned non-JSON',
       raw: text.slice(0, 500),
@@ -112,4 +138,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ) ?? [];
 
   res.status(200).json({ events, sources, range });
-}
+});
