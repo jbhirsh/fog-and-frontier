@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from './_db.js';
 import { requireOwner } from './_auth.js';
+import { withErrorLogging } from './_log.js';
 
 let initialized = false;
 async function ensureSchema() {
@@ -13,7 +14,10 @@ async function ensureSchema() {
 
 type Body = { id?: unknown; v?: unknown };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withErrorLogging(async function handler(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
   await ensureSchema();
 
   if (req.method === 'GET') {
@@ -56,4 +60,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   res.status(405).json({ error: 'method not allowed' });
-}
+});
