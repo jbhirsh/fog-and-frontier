@@ -81,12 +81,12 @@ export function Map() {
       </section>
 
       <section className="flex-1 flex flex-col px-margin py-md w-full max-w-screen-2xl mx-auto">
-        <div className="flex-1 min-h-[500px] rounded-xl overflow-hidden border border-outline-variant/30 shadow-sm">
+        <div className="flex-1 flex flex-col min-h-[500px] rounded-xl overflow-hidden border border-outline-variant/30 shadow-sm">
           <MapContainer
             center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
             zoom={8}
             scrollWheelZoom
-            style={{ height: '100%', width: '100%' }}
+            style={{ flex: 1, width: '100%' }}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
