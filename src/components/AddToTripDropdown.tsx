@@ -5,10 +5,17 @@ import { addActivityToTrip, useTripsList } from '../lib/userTrips';
 
 type Props = {
   activityId: string;
+  disabled?: boolean;
+  disabledTooltip?: string;
   onAdded?: (message: string) => void;
 };
 
-export function AddToTripDropdown({ activityId, onAdded }: Props) {
+export function AddToTripDropdown({
+  activityId,
+  disabled,
+  disabledTooltip,
+  onAdded,
+}: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -25,10 +32,10 @@ export function AddToTripDropdown({ activityId, onAdded }: Props) {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
     }
-    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('click', onDocClick, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('click', onDocClick, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
@@ -39,20 +46,22 @@ export function AddToTripDropdown({ activityId, onAdded }: Props) {
         type="button"
         onClick={(e) => {
           e.stopPropagation();
+          if (disabled) return;
           setOpen((v) => !v);
         }}
+        disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Add to trip"
-        title="Add to trip"
-        className="inline-flex items-center gap-xs px-sm py-xs bg-surface-container-lowest/95 backdrop-blur-sm border border-outline-variant/40 rounded-full text-on-surface-variant hover:bg-surface-variant font-body-md text-sm shadow-sm"
+        title={disabled ? disabledTooltip : 'Add to trip'}
+        className="inline-flex items-center gap-xs px-sm py-xs bg-primary text-on-primary border border-primary rounded-full hover:opacity-90 font-body-md text-sm shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-surface-container-lowest disabled:text-on-surface-variant disabled:border-outline-variant/40"
       >
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
           {open ? 'close' : 'add_circle'}
         </span>
         Trip
       </button>
-      {open && (
+      {open && !disabled && (
         <DropdownMenu
           activityId={activityId}
           onClose={() => setOpen(false)}

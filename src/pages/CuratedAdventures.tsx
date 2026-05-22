@@ -309,10 +309,12 @@ export function CuratedAdventures() {
                     }
                   }}
                 />
-                {isOwner && !selectionMode && (
+                {!selectionMode && (
                   <div className="absolute top-sm right-sm z-10">
                     <AddToTripDropdown
                       activityId={a.id}
+                      disabled={!isOwner}
+                      disabledTooltip="Sign in as an owner to add to trips"
                       onAdded={(msg) => {
                         setTripAddedToast(msg);
                         window.setTimeout(() => setTripAddedToast(null), 3000);
