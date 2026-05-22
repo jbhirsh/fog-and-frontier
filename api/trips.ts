@@ -129,6 +129,19 @@ async function createTrip(
     return { error: 'invalid cover_image_url', status: 400 };
   }
 
+  // Cap initial-activity bulk-add before any INSERT so a malformed request
+  // can't orphan a trip row.
+  const MAX_INITIAL_ACTIVITIES = 50;
+  if (
+    Array.isArray(body.initial_activity_ids) &&
+    body.initial_activity_ids.length > MAX_INITIAL_ACTIVITIES
+  ) {
+    return {
+      error: `too many initial_activity_ids (max ${MAX_INITIAL_ACTIVITIES})`,
+      status: 400,
+    };
+  }
+
   const id = newId();
   const created_at = Date.now();
   await db().execute({
@@ -172,6 +185,14 @@ async function createTrip(
   return { trip };
 }
 
+// Inclusive day count between start_date and end_date.
+function tripDateRangeDayCount(start_date: string, end_date: string): number {
+  const start = Date.parse(`${start_date}T00:00:00Z`);
+  const end = Date.parse(`${end_date}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 1;
+  return Math.round((end - start) / 86_400_000) + 1;
+}
+
 async function patchTrip(
   tripId: string,
   body: PatchBody,
@@ -180,13 +201,31 @@ async function patchTrip(
   if (!existing) return { error: 'not found', status: 404 };
   const isPast = existing.status === 'past';
 
+  // Validate each field against the existing row first; compose a proposed
+  // row before touching the DB so a failed validation never leaves a partial
+  // write behind (the previous write-then-rollback approach left non-date
+  // fields mutated when the date-range check failed).
   const sets: string[] = [];
   const args: (string | null)[] = [];
+  const proposed: {
+    title: string;
+    description: string | null;
+    start_date: string;
+    end_date: string;
+    cover_image_url: string | null;
+  } = {
+    title: existing.title,
+    description: existing.description,
+    start_date: existing.start_date,
+    end_date: existing.end_date,
+    cover_image_url: existing.cover_image_url,
+  };
 
   if (body.title !== undefined) {
     if (isPast) return { error: 'trip is past', status: 409 };
     const title = trimmedString(body.title, 200);
     if (!title) return { error: 'invalid title', status: 400 };
+    proposed.title = title;
     sets.push('title = ?');
     args.push(title);
   }
@@ -198,18 +237,21 @@ async function patchTrip(
     if (body.description !== null && description === null) {
       return { error: 'invalid description', status: 400 };
     }
+    proposed.description = description;
     sets.push('description = ?');
     args.push(description);
   }
   if (body.start_date !== undefined) {
     if (isPast) return { error: 'trip is past', status: 409 };
     if (!isIsoDate(body.start_date)) return { error: 'invalid start_date', status: 400 };
+    proposed.start_date = body.start_date;
     sets.push('start_date = ?');
     args.push(body.start_date);
   }
   if (body.end_date !== undefined) {
     if (isPast) return { error: 'trip is past', status: 409 };
     if (!isIsoDate(body.end_date)) return { error: 'invalid end_date', status: 400 };
+    proposed.end_date = body.end_date;
     sets.push('end_date = ?');
     args.push(body.end_date);
   }
@@ -221,28 +263,45 @@ async function patchTrip(
     if (body.cover_image_url !== null && cover === null) {
       return { error: 'invalid cover_image_url', status: 400 };
     }
+    proposed.cover_image_url = cover;
     sets.push('cover_image_url = ?');
     args.push(cover);
   }
 
   if (sets.length === 0) return existing;
 
+  // Pre-write validation of the merged row.
+  if (proposed.end_date < proposed.start_date) {
+    return { error: 'end_date must be on or after start_date', status: 400 };
+  }
+
   await db().execute({
     sql: `UPDATE trips SET ${sets.join(', ')} WHERE id = ?`,
     args: [...args, tripId],
   });
 
-  // Re-validate dates if either changed.
+  // If the date range changed, any slotted activity whose day_index now
+  // falls outside the new range would render nowhere (bucketByDay only
+  // iterates [0, dayCount-1]). Slide those back to Unscheduled so the
+  // owner can re-slot or remove them.
+  const dateChanged =
+    proposed.start_date !== existing.start_date ||
+    proposed.end_date !== existing.end_date;
+  if (dateChanged) {
+    const newDayCount = tripDateRangeDayCount(
+      proposed.start_date,
+      proposed.end_date,
+    );
+    await db().execute({
+      sql: `UPDATE trip_activities
+            SET day_index = NULL, start_time = NULL
+            WHERE trip_id = ? AND (day_index < 0 OR day_index >= ?)`,
+      args: [tripId, newDayCount],
+    });
+  }
+
   const updated = await getTripRow(tripId);
   if (!updated) return { error: 'not found', status: 404 };
-  if (updated.end_date < updated.start_date) {
-    // Roll back date change.
-    await db().execute({
-      sql: 'UPDATE trips SET start_date = ?, end_date = ? WHERE id = ?',
-      args: [existing.start_date, existing.end_date, tripId],
-    });
-    return { error: 'end_date must be on or after start_date', status: 400 };
-  }
   return updated;
 }
 

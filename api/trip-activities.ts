@@ -125,7 +125,7 @@ export default withErrorLogging(async function handler(
     return;
   }
   if (trip.status === 'past') {
-    res.status(409).json({ error: 'trip is past' });
+    res.status(409).json({ error: 'trip is past', code: 'trip_past' });
     return;
   }
 

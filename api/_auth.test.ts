@@ -91,6 +91,19 @@ describe('api/_auth', () => {
     expect(res.body).toEqual({ error: 'unauthorized' });
   });
 
+  it('requireOwner writes 403 (not 401) when caller is signed in but not an owner', async () => {
+    verifyToken.mockResolvedValueOnce({ sub: 'user_123' });
+    getUser.mockResolvedValueOnce({
+      primaryEmailAddressId: 'eid_1',
+      emailAddresses: [{ id: 'eid_1', emailAddress: 'rando@example.com' }],
+    });
+    const res = fakeRes();
+    const result = await requireOwner(fakeReq('Bearer xxx'), res);
+    expect(result).toBeNull();
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ error: 'forbidden' });
+  });
+
   it('requireOwner returns email when caller is an owner', async () => {
     verifyToken.mockResolvedValueOnce({ sub: 'user_123' });
     getUser.mockResolvedValueOnce({
