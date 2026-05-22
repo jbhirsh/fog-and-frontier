@@ -270,19 +270,14 @@ describe('ActivityDetail', () => {
   });
 
   describe('edit', () => {
-    it('shows an Edit button on user-added activities', () => {
-      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    it.each([
+      ['user-added', muirWoods],
+      ['built-in seed', builtInActivity()],
+    ])('shows an Edit button on %s activities', (_label, activity) => {
+      render(<ActivityDetail activity={activity} onClose={() => {}} />);
       expect(
         screen.getByRole('button', { name: /edit activity/i }),
       ).toBeInTheDocument();
-    });
-
-    it('hides the Edit button on built-in seed activities', () => {
-      const builtIn = builtInActivity();
-      render(<ActivityDetail activity={builtIn} onClose={() => {}} />);
-      expect(
-        screen.queryByRole('button', { name: /edit activity/i }),
-      ).not.toBeInTheDocument();
     });
 
     it('renders the Edit button disabled with a tooltip for non-owners', () => {

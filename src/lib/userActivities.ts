@@ -1,23 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Activity } from '../data/types';
-import { activities as STATIC_ACTIVITIES } from '../data/activities';
 import { authedFetch } from './authedFetch';
 
 const STORAGE_KEY = 'fogandfrontier.activities.v1';
 const EVENT = 'fogandfrontier:activities-changed';
 
 type Store = Record<string, Activity>;
-
-const STATIC_IDS = new Set(STATIC_ACTIVITIES.map((a) => a.id));
-
-// Curated activities ship in src/data/activities.ts and are only editable by
-// changing source. Anything not in that seed list was added through the app
-// and can be edited through the UI (issue #49). Delete is unrestricted —
-// see ActivityDetail — but Edit is gated on this so we don't accidentally
-// surface an in-place editor for entries whose canonical copy lives in code.
-export function isUserActivity(id: string): boolean {
-  return !STATIC_IDS.has(id);
-}
 
 function readLocal(): Store {
   try {
