@@ -71,7 +71,16 @@ export default withErrorLogging(async function handler(
       .filter((a) => a.activity_id !== null && a.day_index !== null)
       .map((a) => a.activity_id as string),
   );
-  const toMark = rawIds.filter((aid) => eligibleIds.has(aid));
+  const checkedSet = new Set(rawIds.filter((aid) => eligibleIds.has(aid)));
+  const toMark = Array.from(checkedSet);
+  // Scheduled items the user explicitly *un*-checked: write v=0 so the
+  // "we didn't actually do this" decision overrides any stale completion
+  // baseline. Otherwise an activity completed in a separate flow stays
+  // checked across the rest of the UI even though the trip retrospection
+  // says otherwise.
+  const toUnmark = Array.from(eligibleIds).filter(
+    (aid) => !checkedSet.has(aid),
+  );
 
   const marked_past_at = Date.now();
   await db().execute({
@@ -88,10 +97,18 @@ export default withErrorLogging(async function handler(
       args: [aid],
     });
   }
+  for (const aid of toUnmark) {
+    await db().execute({
+      sql: `INSERT INTO c (id, v) VALUES (?, 0)
+            ON CONFLICT(id) DO UPDATE SET v = excluded.v`,
+      args: [aid],
+    });
+  }
 
   res.status(200).json({
     ok: true,
     marked_past_at,
     completed_activity_ids: toMark,
+    uncompleted_activity_ids: toUnmark,
   });
 });

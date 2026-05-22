@@ -70,7 +70,7 @@ export default withErrorLogging(async function handler(
       return;
     }
     if (trip.status === 'past') {
-      res.status(409).json({ error: 'trip is past' });
+      res.status(409).json({ error: 'trip is past', code: 'trip_past' });
       return;
     }
     const existing = await db().execute({
@@ -78,7 +78,9 @@ export default withErrorLogging(async function handler(
       args: [tripId, activityId],
     });
     if (existing.rows.length > 0) {
-      res.status(409).json({ error: 'activity already on trip' });
+      res
+        .status(409)
+        .json({ error: 'activity already on trip', code: 'duplicate' });
       return;
     }
     const snapshotJson = await fetchActivitySnapshot(activityId);

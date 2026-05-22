@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Activity } from '../data/types';
 import { authedFetch } from './authedFetch';
 import { useAuthState } from './authShim';
-import { markCompletedLocally } from './userCompleted';
+import { applyCompletionMirror } from './userCompleted';
 
 export type TripStatus = 'planning' | 'past';
 
@@ -231,16 +231,16 @@ export async function addActivityToTrip(
     token,
   );
   if (res.status === 409) {
-    // Both "duplicate" and "past trip" are 409. Distinguish by error body so
-    // callers can surface the right message.
-    let error = '';
+    // Both "duplicate" and "past trip" are 409. Switch on the server's
+    // `code` discriminator so wording changes don't silently flip flows.
+    let code = '';
     try {
-      const body = (await res.json()) as { error?: string };
-      error = body.error ?? '';
+      const body = (await res.json()) as { code?: string };
+      code = body.code ?? '';
     } catch {
       /* ignore */
     }
-    if (error.includes('past')) {
+    if (code === 'trip_past') {
       return { alreadyOnTrip: false, tripPast: true };
     }
     return { alreadyOnTrip: true, tripPast: false };
@@ -288,7 +288,11 @@ export async function markTripPast(
   tripId: string,
   completedActivityIds: string[],
   token: string | null,
-): Promise<{ marked_past_at: number; completed_activity_ids: string[] }> {
+): Promise<{
+  marked_past_at: number;
+  completed_activity_ids: string[];
+  uncompleted_activity_ids: string[];
+}> {
   const res = await authedFetch(
     `/api/trip-mark-past?id=${encodeURIComponent(tripId)}`,
     {
@@ -302,11 +306,18 @@ export async function markTripPast(
     ok: boolean;
     marked_past_at: number;
     completed_activity_ids: string[];
+    uncompleted_activity_ids?: string[];
   }>(res, 'mark trip past');
+  const uncompleted = result.uncompleted_activity_ids ?? [];
   // Mirror the server-side completion write-through into the local cache so
   // badges on Curated / Map / Adventures update without a hard refresh.
-  markCompletedLocally(result.completed_activity_ids);
-  return result;
+  // Unchecked-but-eligible activities get v=0 to override stale baselines.
+  applyCompletionMirror(result.completed_activity_ids, uncompleted);
+  return {
+    marked_past_at: result.marked_past_at,
+    completed_activity_ids: result.completed_activity_ids,
+    uncompleted_activity_ids: uncompleted,
+  };
 }
 
 // Pure helpers usable by tests and components.

@@ -15,6 +15,7 @@ import {
   patchTrip,
   removeTripActivity,
   useTrip,
+  type PatchTripInput,
   type Trip,
   type TripActivity,
 } from '../lib/userTrips';
@@ -123,19 +124,20 @@ export function TripDetail() {
 
   async function handleSaveHeader(input: HeaderEditInput) {
     if (!trip) return;
-    await runWithToken((token) =>
-      patchTrip(
-        trip.id,
-        {
-          title: input.title,
-          start_date: input.start_date,
-          end_date: input.end_date,
-          description: input.description || null,
-          cover_image_url: input.cover_image_url || null,
-        },
-        token,
-      ),
-    );
+    // On past trips, title and dates are disabled in the form; only send
+    // the still-editable fields so the server doesn't 409 on the disabled
+    // ones (the patch handler rejects any title/start_date/end_date in the
+    // body when status === 'past', even if the value hasn't changed).
+    const body: PatchTripInput = {
+      description: input.description || null,
+      cover_image_url: input.cover_image_url || null,
+    };
+    if (trip.status !== 'past') {
+      body.title = input.title;
+      body.start_date = input.start_date;
+      body.end_date = input.end_date;
+    }
+    await runWithToken((token) => patchTrip(trip.id, body, token));
     setEditingHeader(false);
   }
 

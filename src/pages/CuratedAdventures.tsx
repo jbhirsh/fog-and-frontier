@@ -110,8 +110,14 @@ export function CuratedAdventures() {
           token,
         );
         if (tripPast) {
-          setTripAddedToast(`"${targetTrip.title}" is now past — try again.`);
-          window.setTimeout(() => setTripAddedToast(null), 3000);
+          // Trip flipped to past between the navigation and now (e.g. a
+          // second tab). Drop the target so the action bar reverts to
+          // generic mode and the user can pick a different trip.
+          setTripAddedToast(
+            `"${targetTrip.title}" is now past — pick a different trip.`,
+          );
+          window.setTimeout(() => setTripAddedToast(null), 3500);
+          setTargetTrip(null);
           return;
         }
         if (alreadyOnTrip) skipped++;
