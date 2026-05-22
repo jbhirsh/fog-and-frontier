@@ -5,6 +5,9 @@ import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
 import { Adventures } from './pages/Adventures';
 import { Map } from './pages/Map';
+import { Trips } from './pages/Trips';
+import { NewTrip } from './pages/NewTrip';
+import { TripDetail } from './pages/TripDetail';
 import { Sentry } from './lib/sentry';
 
 // Wrap once at module scope so Sentry can attach route-change spans for
@@ -30,6 +33,9 @@ export default function App() {
           <Route path="/explore" element={<Explore />} />
           <Route path="/adventures" element={<Adventures />} />
           <Route path="/map" element={<Map />} />
+          <Route path="/trips" element={<Trips />} />
+          <Route path="/trips/new" element={<NewTrip />} />
+          <Route path="/trips/:id" element={<TripDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </SentryRoutes>
