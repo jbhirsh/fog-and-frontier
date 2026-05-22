@@ -212,11 +212,32 @@ export function TripDetail() {
       <section className="px-margin py-lg max-w-screen-2xl mx-auto space-y-lg">
         <TripMap trip={trip} />
 
+        <div className="flex items-center justify-between gap-md flex-wrap">
+          <h2 className="font-headline-md text-headline-md text-on-surface">
+            Itinerary
+          </h2>
+          <button
+            type="button"
+            onClick={() => {
+              if (isPast) return;
+              void navigate('/', {
+                state: {
+                  target_trip_id: trip.id,
+                  target_trip_title: trip.title,
+                },
+              });
+            }}
+            disabled={isPast}
+            title={isPast ? PAST_TOOLTIP : undefined}
+            className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-body-md">add</span>
+            Add activity
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
           <div className="lg:col-span-2 space-y-md">
-            <h2 className="font-headline-md text-headline-md text-on-surface">
-              Itinerary
-            </h2>
             {buckets.map((bucket) => (
               <DaySection
                 key={bucket.dayIndex}
@@ -236,6 +257,15 @@ export function TripDetail() {
             onDrop={handleDropOnUnscheduled}
             onAssign={(a) => handleAssignOrEdit(a)}
             onRemove={(a) => handleRemove(a)}
+            onAddFromCurated={() => {
+              if (isPast) return;
+              void navigate('/', {
+                state: {
+                  target_trip_id: trip.id,
+                  target_trip_title: trip.title,
+                },
+              });
+            }}
           />
         </div>
       </section>
@@ -340,7 +370,9 @@ function TripHeader({
             value={draft.title}
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
             required
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-display text-headline-md"
+            disabled={isPast}
+            title={isPast ? 'This trip is past' : undefined}
+            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-display text-headline-md disabled:opacity-60"
           />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
             <input
@@ -349,7 +381,9 @@ function TripHeader({
               onChange={(e) =>
                 setDraft({ ...draft, start_date: e.target.value })
               }
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
+              disabled={isPast}
+              title={isPast ? 'This trip is past' : undefined}
+              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm disabled:opacity-60"
             />
             <input
               type="date"
@@ -358,7 +392,9 @@ function TripHeader({
                 setDraft({ ...draft, end_date: e.target.value })
               }
               min={draft.start_date || undefined}
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
+              disabled={isPast}
+              title={isPast ? 'This trip is past' : undefined}
+              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm disabled:opacity-60"
             />
           </div>
           <textarea
@@ -441,9 +477,8 @@ function TripHeader({
           <button
             type="button"
             onClick={onEdit}
-            disabled={isPast}
-            title={editTooltip}
-            className="font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant disabled:opacity-60 disabled:cursor-not-allowed"
+            title={isPast ? 'Past trip — only cover and description are editable' : editTooltip}
+            className="font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
           >
             Edit
           </button>
@@ -590,12 +625,14 @@ function UnscheduledPanel({
   onDrop,
   onAssign,
   onRemove,
+  onAddFromCurated,
 }: {
   trip: Trip;
   isPast: boolean;
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   onAssign: (a: TripActivity) => void;
   onRemove: (a: TripActivity) => void;
+  onAddFromCurated: () => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const items = trip.activities.filter((a) => a.day_index === null);
@@ -618,16 +655,32 @@ function UnscheduledPanel({
           : 'border-outline-variant/30 bg-surface-container-low'
       }`}
     >
-      <h2 className="font-headline-md text-headline-md text-on-surface">
-        Unscheduled
-      </h2>
+      <div className="flex items-center justify-between gap-sm">
+        <h2 className="font-headline-md text-headline-md text-on-surface">
+          Unscheduled
+        </h2>
+        <button
+          type="button"
+          onClick={onAddFromCurated}
+          disabled={isPast}
+          title={isPast ? PAST_TOOLTIP : undefined}
+          className="font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          + Add
+        </button>
+      </div>
       {items.length === 0 ? (
         <p className="font-body-md text-sm text-on-surface-variant">
-          Add activities from{' '}
-          <Link to="/" className="text-primary underline">
-            Curated
-          </Link>{' '}
-          using multi-select.
+          Use{' '}
+          <button
+            type="button"
+            onClick={onAddFromCurated}
+            disabled={isPast}
+            className="text-primary underline disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Add activity
+          </button>{' '}
+          to multi-select from the curated catalog into this trip.
         </p>
       ) : (
         items.map((a) => (
@@ -775,7 +828,6 @@ function MarkPastModal({
           {scheduled.map((a) => {
             const aid = a.activity_id ?? '';
             const inputId = `mp-${a.id}`;
-            const label = `${a.snapshot?.name ?? 'activity'} on ${dayLabel(trip, a.day_index ?? 0)} at ${formatHHMM(a.start_time)}`;
             return (
               <div
                 key={a.id}
@@ -786,7 +838,6 @@ function MarkPastModal({
                   type="checkbox"
                   checked={!!checked[aid]}
                   onChange={() => toggle(aid)}
-                  aria-label={label}
                   className="mt-1 accent-primary"
                 />
                 <label
@@ -889,7 +940,7 @@ function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative w-full max-w-lg bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
+        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">
           {title}

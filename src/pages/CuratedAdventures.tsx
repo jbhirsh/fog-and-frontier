@@ -1,12 +1,23 @@
 import { useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
+import { AddToTripDropdown } from '../components/AddToTripDropdown';
 import type { Activity, Category, Duration } from '../data/types';
+import { useAuthState } from '../lib/authShim';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
+import { addActivityToTrip } from '../lib/userTrips';
+
+type TargetTrip = { id: string; title: string };
+
+type LocationState = {
+  target_trip_id?: string;
+  target_trip_title?: string;
+} | null;
 
 const DISTANCE_OPTIONS = [
   { label: 'Any distance', value: Infinity },
@@ -40,6 +51,18 @@ const CATEGORY_OPTIONS: ('Any' | Category)[] = [
 ];
 
 export function CuratedAdventures() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { getToken } = useAuthState();
+  const incomingState = location.state as LocationState;
+  const initialTarget: TargetTrip | null =
+    incomingState?.target_trip_id && incomingState.target_trip_title
+      ? {
+          id: incomingState.target_trip_id,
+          title: incomingState.target_trip_title,
+        }
+      : null;
+
   const [search, setSearch] = useState('');
   const [maxDistance, setMaxDistance] = useState<number>(Infinity);
   const [duration, setDuration] = useState<'Any' | Duration>('Any');
@@ -47,12 +70,14 @@ export function CuratedAdventures() {
   const [dogOnly, setDogOnly] = useState(false);
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
-  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(initialTarget !== null);
   const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
     () => new Set(),
   );
   const [tripDialogOpen, setTripDialogOpen] = useState(false);
   const [tripAddedToast, setTripAddedToast] = useState<string | null>(null);
+  const [targetTrip, setTargetTrip] = useState<TargetTrip | null>(initialTarget);
+  const [submittingTarget, setSubmittingTarget] = useState(false);
   const all = useAllActivities();
   const { isOwner } = useOwner();
 
@@ -68,6 +93,43 @@ export function CuratedAdventures() {
   function clearSelection() {
     setSelectionMode(false);
     setSelectedForTrip(new Set());
+    setTargetTrip(null);
+  }
+
+  async function handleAddToTarget() {
+    if (!targetTrip || submittingTarget) return;
+    setSubmittingTarget(true);
+    try {
+      const token = await getToken();
+      let added = 0;
+      let skipped = 0;
+      for (const id of selectedForTrip) {
+        const { alreadyOnTrip, tripPast } = await addActivityToTrip(
+          targetTrip.id,
+          id,
+          token,
+        );
+        if (tripPast) {
+          setTripAddedToast(`"${targetTrip.title}" is now past — try again.`);
+          window.setTimeout(() => setTripAddedToast(null), 3000);
+          return;
+        }
+        if (alreadyOnTrip) skipped++;
+        else added++;
+      }
+      const parts: string[] = [];
+      if (added > 0) parts.push(`Added ${added} to "${targetTrip.title}"`);
+      if (skipped > 0) parts.push(`${skipped} already on trip`);
+      if (parts.length > 0) setTripAddedToast(parts.join(' · '));
+      void navigate(`/trips/${targetTrip.id}`);
+    } catch (err) {
+      setTripAddedToast(
+        err instanceof Error ? err.message : 'Failed to add to trip.',
+      );
+      window.setTimeout(() => setTripAddedToast(null), 3000);
+    } finally {
+      setSubmittingTarget(false);
+    }
   }
 
   const results = useMemo(() => {
@@ -228,30 +290,51 @@ export function CuratedAdventures() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
             {results.map((a) => (
-              <ActivityCard
-                key={a.id}
-                activity={a}
-                selectionMode={selectionMode}
-                selected={selectedForTrip.has(a.id)}
-                onClick={() => {
-                  if (selectionMode) {
-                    toggleSelected(a.id);
-                  } else {
-                    setSelected(a);
-                  }
-                }}
-              />
+              <div key={a.id} className="relative">
+                <ActivityCard
+                  activity={a}
+                  selectionMode={selectionMode}
+                  selected={selectedForTrip.has(a.id)}
+                  onClick={() => {
+                    if (selectionMode) {
+                      toggleSelected(a.id);
+                    } else {
+                      setSelected(a);
+                    }
+                  }}
+                />
+                {isOwner && !selectionMode && (
+                  <div className="absolute top-sm right-sm z-10">
+                    <AddToTripDropdown
+                      activityId={a.id}
+                      onAdded={(msg) => {
+                        setTripAddedToast(msg);
+                        window.setTimeout(() => setTripAddedToast(null), 3000);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
       </section>
 
-      {selectionMode && selectedForTrip.size > 0 && (
+      {selectionMode && (
         <div className="fixed bottom-0 inset-x-0 z-40 px-margin py-md bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30">
           <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-md flex-wrap">
-            <span className="font-body-md text-on-surface">
-              {selectedForTrip.size} selected
-            </span>
+            <div className="font-body-md text-on-surface">
+              {targetTrip ? (
+                <>
+                  Adding to{' '}
+                  <span className="font-bold">&quot;{targetTrip.title}&quot;</span>
+                  {' · '}
+                  {selectedForTrip.size} selected
+                </>
+              ) : (
+                <>{selectedForTrip.size} selected</>
+              )}
+            </div>
             <div className="flex items-center gap-md">
               <button
                 type="button"
@@ -262,10 +345,21 @@ export function CuratedAdventures() {
               </button>
               <button
                 type="button"
-                onClick={() => setTripDialogOpen(true)}
-                className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+                onClick={() => {
+                  if (targetTrip) {
+                    void handleAddToTarget();
+                  } else {
+                    setTripDialogOpen(true);
+                  }
+                }}
+                disabled={selectedForTrip.size === 0 || submittingTarget}
+                className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Add to trip
+                {submittingTarget
+                  ? 'Adding…'
+                  : targetTrip
+                    ? `Add to "${targetTrip.title}"`
+                    : 'Add to trip'}
               </button>
             </div>
           </div>

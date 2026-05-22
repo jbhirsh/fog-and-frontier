@@ -40,11 +40,17 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
       let added = 0;
       let skipped = 0;
       for (const activityId of activityIds) {
-        const { alreadyOnTrip } = await addActivityToTrip(
+        const { alreadyOnTrip, tripPast } = await addActivityToTrip(
           trip.id,
           activityId,
           token,
         );
+        if (tripPast) {
+          setError(
+            `"${trip.title}" was just marked past — refresh and pick a different trip.`,
+          );
+          return;
+        }
         if (alreadyOnTrip) skipped++;
         else added++;
       }
@@ -69,7 +75,7 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="Add to trip"
-        className="relative w-full max-w-lg bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md max-h-[80vh] overflow-y-auto"
+        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md max-h-[80vh] overflow-y-auto"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">
           Add {activityIds.length} activit{activityIds.length === 1 ? 'y' : 'ies'} to a trip

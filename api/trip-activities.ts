@@ -37,6 +37,15 @@ async function getTripActivityRow(taId: string): Promise<TripActivity | null> {
   return row ? rowToTripActivity(row) : null;
 }
 
+// Inclusive day count between trip.start_date and trip.end_date (server-side
+// mirror of the client `dayCount` helper). Used to bound PATCH day_index.
+function tripDateRangeDayCount(trip: { start_date: string; end_date: string }): number {
+  const start = Date.parse(`${trip.start_date}T00:00:00Z`);
+  const end = Date.parse(`${trip.end_date}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 1;
+  return Math.round((end - start) / 86_400_000) + 1;
+}
+
 export default withErrorLogging(async function handler(
   req: VercelRequest,
   res: VercelResponse,
@@ -130,14 +139,16 @@ export default withErrorLogging(async function handler(
       const nextDay = body.day_index === undefined ? day_index : body.day_index;
       const nextTime = body.start_time === undefined ? start_time : body.start_time;
       const bothNull = nextDay === null && nextTime === null;
+      const dayCount = tripDateRangeDayCount(trip);
       const bothSet =
         typeof nextDay === 'number' &&
         Number.isInteger(nextDay) &&
         nextDay >= 0 &&
+        nextDay < dayCount &&
         isHHMM(nextTime);
       if (!bothNull && !bothSet) {
         res.status(400).json({
-          error: 'day_index and start_time must be set together (both null or both valid)',
+          error: `day_index and start_time must be set together (both null, or day_index in 0..${dayCount - 1} and start_time HH:MM)`,
         });
         return;
       }

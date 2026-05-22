@@ -220,7 +220,7 @@ export async function addActivityToTrip(
   tripId: string,
   activityId: string,
   token: string | null,
-): Promise<{ alreadyOnTrip: boolean }> {
+): Promise<{ alreadyOnTrip: boolean; tripPast: boolean }> {
   const res = await authedFetch(
     '/api/trip-activities',
     {
@@ -231,12 +231,22 @@ export async function addActivityToTrip(
     token,
   );
   if (res.status === 409) {
-    // Activity is already on the trip — treat as no-op for the multi-select
-    // "add to existing trip" flow rather than an error.
-    return { alreadyOnTrip: true };
+    // Both "duplicate" and "past trip" are 409. Distinguish by error body so
+    // callers can surface the right message.
+    let error = '';
+    try {
+      const body = (await res.json()) as { error?: string };
+      error = body.error ?? '';
+    } catch {
+      /* ignore */
+    }
+    if (error.includes('past')) {
+      return { alreadyOnTrip: false, tripPast: true };
+    }
+    return { alreadyOnTrip: true, tripPast: false };
   }
   await jsonOrThrow<unknown>(res, 'add activity to trip');
-  return { alreadyOnTrip: false };
+  return { alreadyOnTrip: false, tripPast: false };
 }
 
 export type SlotInput = {
