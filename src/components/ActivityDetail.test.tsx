@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { Activity } from '../data/types';
 import { ActivityDetail } from './ActivityDetail';
 import { completedHike, muirWoods } from '../test/fixtures';
 import { activities as STATIC_ACTIVITIES } from '../data/activities';
@@ -32,9 +33,57 @@ vi.mock('../lib/userActivities', async () => {
   return { ...actual, deleteUserActivity: deleteSpy };
 });
 
+// AddActivity pulls in react-leaflet, which doesn't render under jsdom. Stub
+// it with a marker that exposes the props the edit flow cares about so we
+// can assert pre-population and exercise Save/Cancel without booting Leaflet.
+const addActivityProps = vi.hoisted(() => ({
+  current: null as null | {
+    onClose: () => void;
+    editActivity?: Activity;
+    onSaved?: (a: Activity) => void;
+  },
+}));
+
+vi.mock('./AddActivity', () => ({
+  AddActivity: (props: {
+    onClose: () => void;
+    editActivity?: Activity;
+    onSaved?: (a: Activity) => void;
+  }) => {
+    addActivityProps.current = props;
+    return (
+      <div
+        data-testid="add-activity-modal"
+        data-edit-id={props.editActivity?.id ?? ''}
+        data-edit-name={props.editActivity?.name ?? ''}
+      >
+        <button type="button" onClick={props.onClose}>
+          stub-cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!props.editActivity) return;
+            const updated: Activity = {
+              ...props.editActivity,
+              name: 'Updated name',
+              shortDescription: 'Updated short.',
+            };
+            props.onSaved?.(updated);
+            props.onClose();
+          }}
+        >
+          stub-save
+        </button>
+      </div>
+    );
+  },
+}));
+
 beforeEach(() => {
   ownerState.isOwner = true;
   deleteSpy.mockClear();
+  addActivityProps.current = null;
 });
 
 describe('ActivityDetail', () => {
@@ -217,6 +266,88 @@ describe('ActivityDetail', () => {
       const btn = screen.getByRole('button', { name: /delete activity/i });
       expect(btn).toBeDisabled();
       expect(btn).toHaveAttribute('title', 'Sign in as owner to delete');
+    });
+  });
+
+  describe('edit', () => {
+    it('shows an Edit button on user-added activities', () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(
+        screen.getByRole('button', { name: /edit activity/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('hides the Edit button on built-in seed activities', () => {
+      const builtIn = builtInActivity();
+      render(<ActivityDetail activity={builtIn} onClose={() => {}} />);
+      expect(
+        screen.queryByRole('button', { name: /edit activity/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('renders the Edit button disabled with a tooltip for non-owners', () => {
+      ownerState.isOwner = false;
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      const btn = screen.getByRole('button', { name: /edit activity/i });
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute('title', 'Sign in as owner to edit');
+    });
+
+    it('opens the edit form pre-populated with the activity when an owner clicks Edit', async () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /edit activity/i }),
+      );
+
+      const modal = await screen.findByTestId('add-activity-modal');
+      expect(modal).toHaveAttribute('data-edit-id', muirWoods.id);
+      expect(modal).toHaveAttribute('data-edit-name', muirWoods.name);
+      expect(addActivityProps.current?.editActivity).toEqual(muirWoods);
+    });
+
+    it('updates the displayed activity after Save and closes only the edit form', async () => {
+      const onClose = vi.fn();
+      render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /edit activity/i }),
+      );
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'stub-save' }),
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId('add-activity-modal'),
+        ).not.toBeInTheDocument();
+      });
+      // Detail modal stays open showing the updated name; outer onClose
+      // is not called.
+      expect(
+        screen.getByRole('heading', { name: 'Updated name' }),
+      ).toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('cancel discards changes and returns to the unchanged detail view', async () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /edit activity/i }),
+      );
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'stub-cancel' }),
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId('add-activity-modal'),
+        ).not.toBeInTheDocument();
+      });
+      expect(
+        screen.getByRole('heading', { name: muirWoods.name }),
+      ).toBeInTheDocument();
     });
   });
 });

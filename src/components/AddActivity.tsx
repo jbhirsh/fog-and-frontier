@@ -15,6 +15,13 @@ import { useAuthState } from '../lib/authShim';
 
 interface Props {
   onClose: () => void;
+  // When provided, the form opens in "edit mode": skips the title/notes
+  // generate step, seeds the review form from this activity, and upserts
+  // against the same id on save. See issue #49.
+  editActivity?: Activity;
+  // Called with the saved activity right before onClose so the parent can
+  // refresh any cached copy (e.g. ActivityDetail's displayed activity).
+  onSaved?: (activity: Activity) => void;
 }
 
 type GeneratedFields = {
@@ -84,14 +91,17 @@ function slugify(name: string): string {
   );
 }
 
-export function AddActivity({ onClose }: Props) {
+export function AddActivity({ onClose, editActivity, onSaved }: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const { getToken } = useAuthState();
-  const [step, setStep] = useState<'form' | 'generating' | 'review'>('form');
+  const mode: 'create' | 'edit' = editActivity ? 'edit' : 'create';
+  const [step, setStep] = useState<'form' | 'generating' | 'review'>(
+    editActivity ? 'review' : 'form',
+  );
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Activity | null>(null);
+  const [draft, setDraft] = useState<Activity | null>(editActivity ?? null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -99,11 +109,16 @@ export function AddActivity({ onClose }: Props) {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
+    // Save and restore the previous overflow value so we don't unlock the
+    // body when this is rendered on top of another modal (e.g. ActivityDetail
+    // opens the editor — closing the editor should leave the underlying
+    // detail modal's scroll lock intact).
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     titleInputRef.current?.focus();
     return () => {
       window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
     };
   }, [onClose]);
 
@@ -162,6 +177,7 @@ export function AddActivity({ onClose }: Props) {
     try {
       const token = await getToken();
       await saveUserActivity(draft, token);
+      onSaved?.(draft);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
@@ -180,12 +196,16 @@ export function AddActivity({ onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Add activity"
+        aria-label={mode === 'edit' ? 'Edit activity' : 'Add activity'}
         className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
       >
         <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
           <h2 className="font-display text-headline-md text-primary">
-            {step === 'review' ? 'Review & save' : 'Add activity'}
+            {mode === 'edit'
+              ? 'Edit activity'
+              : step === 'review'
+                ? 'Review & save'
+                : 'Add activity'}
           </h2>
           <button
             type="button"
@@ -217,8 +237,9 @@ export function AddActivity({ onClose }: Props) {
             draft={draft}
             error={error}
             saving={saving}
+            mode={mode}
             onChange={setDraft}
-            onBack={() => setStep('form')}
+            onBack={mode === 'edit' ? onClose : () => setStep('form')}
             onSave={() => void save()}
           />
         )}
@@ -323,6 +344,7 @@ function ReviewStep({
   draft,
   error,
   saving,
+  mode,
   onChange,
   onBack,
   onSave,
@@ -330,6 +352,7 @@ function ReviewStep({
   draft: Activity;
   error: string | null;
   saving: boolean;
+  mode: 'create' | 'edit';
   onChange: (a: Activity) => void;
   onBack: () => void;
   onSave: () => void;
@@ -500,14 +523,19 @@ function ReviewStep({
         />
       </Field>
 
-      <Field label="Notes">
-        <textarea
-          value={draft.notes ?? ''}
-          onChange={(e) => patch('notes', e.target.value)}
-          rows={2}
-          className={inputCls}
-        />
-      </Field>
+      {/* Completion notes are owned by the completion log (#5) — don't let
+          edits overwrite them. The original value still round-trips because
+          we patch a copy of the existing activity. */}
+      {mode === 'create' && (
+        <Field label="Notes">
+          <textarea
+            value={draft.notes ?? ''}
+            onChange={(e) => patch('notes', e.target.value)}
+            rows={2}
+            className={inputCls}
+          />
+        </Field>
+      )}
 
       {error && <div className="text-error font-body-md">{error}</div>}
 
@@ -518,7 +546,7 @@ function ReviewStep({
           disabled={saving}
           className="px-md py-sm rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-50"
         >
-          Back
+          {mode === 'edit' ? 'Cancel' : 'Back'}
         </button>
         <button
           type="button"
