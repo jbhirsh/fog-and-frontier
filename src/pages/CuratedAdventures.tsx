@@ -63,6 +63,12 @@ export function CuratedAdventures() {
         }
       : null;
 
+  const { isOwner } = useOwner();
+  // Target-trip mode is only meaningful for owners (non-owners can't add
+  // to trips and shouldn't even see the action bar). If a non-owner somehow
+  // arrives via location.state, fall back to vanilla Curated.
+  const acceptTarget = isOwner && initialTarget !== null;
+
   const [search, setSearch] = useState('');
   const [maxDistance, setMaxDistance] = useState<number>(Infinity);
   const [duration, setDuration] = useState<'Any' | Duration>('Any');
@@ -70,16 +76,20 @@ export function CuratedAdventures() {
   const [dogOnly, setDogOnly] = useState(false);
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
-  const [selectionMode, setSelectionMode] = useState(initialTarget !== null);
+  const [selectionMode, setSelectionMode] = useState(acceptTarget);
   const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
     () => new Set(),
   );
   const [tripDialogOpen, setTripDialogOpen] = useState(false);
   const [tripAddedToast, setTripAddedToast] = useState<string | null>(null);
-  const [targetTrip, setTargetTrip] = useState<TargetTrip | null>(initialTarget);
+  const [targetTrip, setTargetTrip] = useState<TargetTrip | null>(
+    acceptTarget ? initialTarget : null,
+  );
   const [submittingTarget, setSubmittingTarget] = useState(false);
   const all = useAllActivities();
-  const { isOwner } = useOwner();
+
+  const MAX_BULK_ADD = 50;
+  const overBulkCap = selectedForTrip.size > MAX_BULK_ADD;
 
   function toggleSelected(id: string) {
     setSelectedForTrip((prev) => {
@@ -342,6 +352,11 @@ export function CuratedAdventures() {
               ) : (
                 <>{selectedForTrip.size} selected</>
               )}
+              {overBulkCap && (
+                <span className="ml-sm text-error font-body-md text-sm">
+                  Pick at most {MAX_BULK_ADD} at a time.
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-md">
               <button
@@ -360,7 +375,10 @@ export function CuratedAdventures() {
                     setTripDialogOpen(true);
                   }
                 }}
-                disabled={selectedForTrip.size === 0 || submittingTarget}
+                disabled={
+                  selectedForTrip.size === 0 || submittingTarget || overBulkCap
+                }
+                title={overBulkCap ? `Pick at most ${MAX_BULK_ADD}` : undefined}
                 className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {submittingTarget

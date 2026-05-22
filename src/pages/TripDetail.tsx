@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { TripActivityCard } from '../components/TripActivityCard';
 import { TripMap } from '../components/TripMap';
@@ -356,6 +356,27 @@ function TripHeader({
     cover_image_url: trip.cover_image_url ?? '',
   });
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the overflow menu on outside click or Escape — matches the
+  // AddToTripDropdown pattern.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocClick, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   if (editing) {
     return (
@@ -484,10 +505,13 @@ function TripHeader({
           >
             Edit
           </button>
-          <div className="relative">
+          <div ref={menuRef} className="relative">
             <button
               type="button"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((v) => !v);
+              }}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               className="w-9 h-9 inline-flex items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
@@ -496,7 +520,6 @@ function TripHeader({
             </button>
             {menuOpen && (
               <div
-                role="menu"
                 className="absolute right-0 mt-xs w-56 bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-lg z-10 overflow-hidden"
               >
                 <MenuItem
