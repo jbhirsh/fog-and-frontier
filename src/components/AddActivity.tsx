@@ -468,6 +468,17 @@ function ReviewStep({
             ))}
           </select>
         </Field>
+        <Field label="Duration detail">
+          <input
+            type="text"
+            value={draft.durationDetail ?? ''}
+            placeholder="e.g. ~1.5h drive each way; quick summit walk"
+            onChange={(e) =>
+              patch('durationDetail', e.target.value || undefined)
+            }
+            className={inputCls}
+          />
+        </Field>
         <Field label="Difficulty">
           <select
             value={draft.difficulty ?? ''}
@@ -506,6 +517,71 @@ function ReviewStep({
           </select>
         </Field>
       </div>
+
+      <fieldset className="space-y-md border border-outline-variant/40 rounded-lg p-md">
+        <legend className="px-xs font-label-caps text-label-caps text-on-surface-variant">
+          Trail details
+        </legend>
+        <Field label="AllTrails URL">
+          <input
+            type="url"
+            value={draft.allTrailsUrl ?? ''}
+            placeholder="https://www.alltrails.com/trail/…"
+            onChange={(e) =>
+              patch('allTrailsUrl', e.target.value || undefined)
+            }
+            className={inputCls}
+          />
+        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
+          <Field label="AllTrails rating">
+            <input
+              type="number"
+              min={0}
+              max={5}
+              step={0.1}
+              value={draft.allTrailsRating ?? ''}
+              onChange={(e) =>
+                patch(
+                  'allTrailsRating',
+                  e.target.value === '' ? undefined : Number(e.target.value),
+                )
+              }
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Distance (mi)">
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={draft.hikeDistanceMiles ?? ''}
+              onChange={(e) =>
+                patch(
+                  'hikeDistanceMiles',
+                  e.target.value === '' ? undefined : Number(e.target.value),
+                )
+              }
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Elevation gain (ft)">
+            <input
+              type="number"
+              min={0}
+              step={10}
+              value={draft.hikeElevationFeet ?? ''}
+              onChange={(e) =>
+                patch(
+                  'hikeElevationFeet',
+                  e.target.value === '' ? undefined : Number(e.target.value),
+                )
+              }
+              className={inputCls}
+            />
+          </Field>
+        </div>
+      </fieldset>
 
       <Field label="Pin location (drag or tap to reposition)">
         <LocationPicker

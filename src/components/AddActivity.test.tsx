@@ -102,6 +102,63 @@ describe('AddActivity — edit mode', () => {
     );
     expect(screen.getByLabelText('Category')).toHaveValue('hiking');
     expect(screen.getByLabelText('City')).toHaveValue('Mill Valley, CA');
+    expect(screen.getByLabelText('AllTrails URL')).toHaveValue(
+      'https://www.alltrails.com/trail/test',
+    );
+    expect(screen.getByLabelText('AllTrails rating')).toHaveValue(4.5);
+    expect(screen.getByLabelText('Distance (mi)')).toHaveValue(4.2);
+    expect(screen.getByLabelText('Elevation gain (ft)')).toHaveValue(850);
+  });
+
+  it('round-trips edits to trail-detail fields through Save', async () => {
+    const onClose = vi.fn();
+    render(<AddActivity onClose={onClose} editActivity={baseActivity} />);
+
+    const url = screen.getByLabelText('AllTrails URL');
+    await userEvent.clear(url);
+    await userEvent.type(url, 'https://www.alltrails.com/trail/new');
+
+    const rating = screen.getByLabelText('AllTrails rating');
+    await userEvent.clear(rating);
+    await userEvent.type(rating, '4.8');
+
+    const distance = screen.getByLabelText('Distance (mi)');
+    await userEvent.clear(distance);
+    await userEvent.type(distance, '5.6');
+
+    const elev = screen.getByLabelText('Elevation gain (ft)');
+    await userEvent.clear(elev);
+    await userEvent.type(elev, '1200');
+
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    const call = saveSpy.mock.calls[0] as [Activity, string | null];
+    expect(call[0]).toMatchObject({
+      id: 'test-edit-activity',
+      allTrailsUrl: 'https://www.alltrails.com/trail/new',
+      allTrailsRating: 4.8,
+      hikeDistanceMiles: 5.6,
+      hikeElevationFeet: 1200,
+    });
+  });
+
+  it('clears optional trail fields back to undefined when emptied', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+
+    await userEvent.clear(screen.getByLabelText('AllTrails URL'));
+    await userEvent.clear(screen.getByLabelText('AllTrails rating'));
+    await userEvent.clear(screen.getByLabelText('Distance (mi)'));
+    await userEvent.clear(screen.getByLabelText('Elevation gain (ft)'));
+
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    const saved = (saveSpy.mock.calls[0] as [Activity, string | null])[0];
+    expect(saved.allTrailsUrl).toBeUndefined();
+    expect(saved.allTrailsRating).toBeUndefined();
+    expect(saved.hikeDistanceMiles).toBeUndefined();
+    expect(saved.hikeElevationFeet).toBeUndefined();
   });
 
   it('hides the Notes field in edit mode (owned by the completion log)', () => {
