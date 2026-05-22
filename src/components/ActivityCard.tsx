@@ -25,9 +25,17 @@ interface Props {
   activity: Activity;
   onClick?: () => void;
   showUserPhotoCount?: boolean;
+  selected?: boolean;
+  selectionMode?: boolean;
 }
 
-export function ActivityCard({ activity, onClick, showUserPhotoCount }: Props) {
+export function ActivityCard({
+  activity,
+  onClick,
+  showUserPhotoCount,
+  selected,
+  selectionMode,
+}: Props) {
   const cat = categoryLabels[activity.category];
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
   const { photos } = useUserPhotos(activity.id);
@@ -43,7 +51,12 @@ export function ActivityCard({ activity, onClick, showUserPhotoCount }: Props) {
     <button
       type="button"
       onClick={onClick}
-      className="text-left group bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden hover:shadow-lg hover:shadow-primary-container/5 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
+      aria-pressed={selectionMode ? !!selected : undefined}
+      className={`text-left group bg-surface-container-lowest rounded-xl border overflow-hidden hover:shadow-lg hover:shadow-primary-container/5 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container ${
+        selected
+          ? 'border-primary ring-2 ring-primary'
+          : 'border-outline-variant/20'
+      }`}
     >
       <div className="relative aspect-video bg-surface-variant">
         <img
@@ -52,6 +65,22 @@ export function ActivityCard({ activity, onClick, showUserPhotoCount }: Props) {
           src={cover}
           loading="lazy"
         />
+        {selectionMode && (
+          <div
+            className={`absolute bottom-sm left-sm w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+              selected
+                ? 'bg-primary border-primary text-on-primary'
+                : 'bg-surface-container-lowest/90 border-outline-variant/60 text-on-surface-variant'
+            }`}
+            aria-hidden="true"
+          >
+            {selected && (
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+                check
+              </span>
+            )}
+          </div>
+        )}
         {activity.dogFriendly && (
           <div className="absolute top-sm left-sm bg-secondary-fixed text-secondary px-sm py-xs rounded-full flex items-center gap-xs">
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>

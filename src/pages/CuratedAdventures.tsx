@@ -3,6 +3,7 @@ import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { AddActivity } from '../components/AddActivity';
+import { AddToTripDialog } from '../components/AddToTripDialog';
 import type { Activity, Category, Duration } from '../data/types';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
@@ -46,8 +47,28 @@ export function CuratedAdventures() {
   const [dogOnly, setDogOnly] = useState(false);
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [tripDialogOpen, setTripDialogOpen] = useState(false);
+  const [tripAddedToast, setTripAddedToast] = useState<string | null>(null);
   const all = useAllActivities();
   const { isOwner } = useOwner();
+
+  function toggleSelected(id: string) {
+    setSelectedForTrip((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectionMode(false);
+    setSelectedForTrip(new Set());
+  }
 
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -167,6 +188,24 @@ export function CuratedAdventures() {
             </div>
             <button
               type="button"
+              onClick={() => {
+                if (selectionMode) {
+                  clearSelection();
+                } else {
+                  setSelectionMode(true);
+                }
+              }}
+              disabled={!isOwner && !selectionMode}
+              title={isOwner ? undefined : 'Sign in to plan trips'}
+              className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-body-md">
+                {selectionMode ? 'close' : 'check_box'}
+              </span>
+              {selectionMode ? 'Cancel select' : 'Select for trip'}
+            </button>
+            <button
+              type="button"
               onClick={() => setAdding(true)}
               disabled={!isOwner}
               title={isOwner ? undefined : 'Sign in to edit'}
@@ -179,7 +218,9 @@ export function CuratedAdventures() {
         </div>
       </section>
 
-      <section className="px-margin py-xl max-w-screen-2xl mx-auto">
+      <section className={`px-margin py-xl max-w-screen-2xl mx-auto ${
+        selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
+      }`}>
         {results.length === 0 ? (
           <div className="text-center py-xl text-on-surface-variant">
             No activities match those filters.
@@ -190,12 +231,71 @@ export function CuratedAdventures() {
               <ActivityCard
                 key={a.id}
                 activity={a}
-                onClick={() => setSelected(a)}
+                selectionMode={selectionMode}
+                selected={selectedForTrip.has(a.id)}
+                onClick={() => {
+                  if (selectionMode) {
+                    toggleSelected(a.id);
+                  } else {
+                    setSelected(a);
+                  }
+                }}
               />
             ))}
           </div>
         )}
       </section>
+
+      {selectionMode && selectedForTrip.size > 0 && (
+        <div className="fixed bottom-0 inset-x-0 z-40 px-margin py-md bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30">
+          <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-md flex-wrap">
+            <span className="font-body-md text-on-surface">
+              {selectedForTrip.size} selected
+            </span>
+            <div className="flex items-center gap-md">
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="font-body-md text-on-surface-variant"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setTripDialogOpen(true)}
+                className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+              >
+                Add to trip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tripAddedToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-surface-container-lowest border border-outline-variant/30 px-md py-sm rounded-lg shadow-lg font-body-md"
+        >
+          {tripAddedToast}
+        </div>
+      )}
+
+      {tripDialogOpen && (
+        <AddToTripDialog
+          activityIds={Array.from(selectedForTrip)}
+          onClose={() => setTripDialogOpen(false)}
+          onAdded={(trip, added, skipped) => {
+            const parts: string[] = [];
+            if (added > 0) parts.push(`Added ${added} to "${trip.title}"`);
+            if (skipped > 0) parts.push(`${skipped} already on trip`);
+            setTripAddedToast(parts.join(' · '));
+            window.setTimeout(() => setTripAddedToast(null), 3000);
+            clearSelection();
+          }}
+        />
+      )}
 
       {selected && (
         <ActivityDetail
