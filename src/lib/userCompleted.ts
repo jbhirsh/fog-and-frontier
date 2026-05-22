@@ -22,6 +22,19 @@ function writeLocal(store: Overrides) {
   window.dispatchEvent(new CustomEvent(EVENT));
 }
 
+// Used by the Trips mark-past flow to mirror server-side completion writes
+// into the local cache so badges across other pages update without a refresh.
+export function applyCompletionMirror(
+  completed: string[],
+  uncompleted: string[] = [],
+): void {
+  if (completed.length === 0 && uncompleted.length === 0) return;
+  const store = readLocal();
+  for (const id of completed) store[id] = true;
+  for (const id of uncompleted) store[id] = false;
+  writeLocal(store);
+}
+
 let pulled = false;
 async function pullRemote() {
   if (pulled) return;

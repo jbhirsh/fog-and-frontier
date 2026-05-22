@@ -62,6 +62,9 @@ export function Layout() {
             <NavLink to="/map" className={navClass}>
               Map
             </NavLink>
+            <NavLink to="/trips" className={navClass}>
+              Trips
+            </NavLink>
             <NavLink to="/adventures" className={navClass}>
               Adventures
             </NavLink>

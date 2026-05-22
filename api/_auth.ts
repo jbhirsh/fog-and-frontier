@@ -23,18 +23,27 @@ function bearerToken(req: VercelRequest): string | null {
   return h.slice('Bearer '.length).trim() || null;
 }
 
-export async function getOwnerEmail(req: VercelRequest): Promise<string | null> {
-  if (!secretKey || ownerEmails.size === 0) return null;
+// Tri-state caller status so `requireOwner` can distinguish anon (401) from
+// signed-in non-owner (403) per #50 AC. Clerk/network failures collapse to
+// `anon` since we can't trust the identity — same conservative posture as
+// the prior boolean helper.
+export type CallerStatus =
+  | { state: 'anon' }
+  | { state: 'non_owner'; email: string }
+  | { state: 'owner'; email: string };
+
+export async function getCallerStatus(req: VercelRequest): Promise<CallerStatus> {
+  if (!secretKey || ownerEmails.size === 0) return { state: 'anon' };
   const token = bearerToken(req);
-  if (!token) return null;
+  if (!token) return { state: 'anon' };
 
   let userId: string;
   try {
     const payload = await verifyToken(token, { secretKey });
-    if (typeof payload.sub !== 'string') return null;
+    if (typeof payload.sub !== 'string') return { state: 'anon' };
     userId = payload.sub;
   } catch {
-    return null;
+    return { state: 'anon' };
   }
 
   let email: string | null;
@@ -45,20 +54,30 @@ export async function getOwnerEmail(req: VercelRequest): Promise<string | null> 
     );
     email = primary?.emailAddress?.trim().toLowerCase() ?? null;
   } catch {
-    return null;
+    return { state: 'anon' };
   }
 
-  return email && ownerEmails.has(email) ? email : null;
+  if (!email) return { state: 'anon' };
+  return ownerEmails.has(email)
+    ? { state: 'owner', email }
+    : { state: 'non_owner', email };
+}
+
+export async function getOwnerEmail(req: VercelRequest): Promise<string | null> {
+  const status = await getCallerStatus(req);
+  return status.state === 'owner' ? status.email : null;
 }
 
 export async function requireOwner(
   req: VercelRequest,
   res: VercelResponse,
 ): Promise<string | null> {
-  const email = await getOwnerEmail(req);
-  if (!email) {
+  const status = await getCallerStatus(req);
+  if (status.state === 'owner') return status.email;
+  if (status.state === 'non_owner') {
+    res.status(403).json({ error: 'forbidden' });
+  } else {
     res.status(401).json({ error: 'unauthorized' });
-    return null;
   }
-  return email;
+  return null;
 }
