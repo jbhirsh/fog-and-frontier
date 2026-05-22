@@ -42,6 +42,11 @@ vi.mock('../lib/userActivities', async () => {
   return { ...actual, saveUserActivity: saveSpy };
 });
 
+const lookupSpy = vi.hoisted(() => vi.fn());
+vi.mock('../lib/alltrails', () => ({
+  lookupAllTrails: lookupSpy,
+}));
+
 import { AddActivity } from './AddActivity';
 
 const baseActivity: Activity = {
@@ -71,6 +76,7 @@ const baseActivity: Activity = {
 beforeEach(() => {
   ownerState.isOwner = true;
   saveSpy.mockClear();
+  lookupSpy.mockReset();
 });
 
 describe('AddActivity — edit mode', () => {
@@ -86,7 +92,7 @@ describe('AddActivity — edit mode', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('seeds every editable field from the activity', () => {
+  it('seeds the editable fields from the activity', () => {
     render(
       <AddActivity onClose={() => {}} editActivity={baseActivity} />,
     );
@@ -105,60 +111,102 @@ describe('AddActivity — edit mode', () => {
     expect(screen.getByLabelText('AllTrails URL')).toHaveValue(
       'https://www.alltrails.com/trail/test',
     );
-    expect(screen.getByLabelText('AllTrails rating')).toHaveValue(4.5);
-    expect(screen.getByLabelText('Distance (mi)')).toHaveValue(4.2);
-    expect(screen.getByLabelText('Elevation gain (ft)')).toHaveValue(850);
   });
 
-  it('round-trips edits to trail-detail fields through Save', async () => {
-    const onClose = vi.fn();
-    render(<AddActivity onClose={onClose} editActivity={baseActivity} />);
+  it('does not expose AllTrails rating / distance / elevation as inputs', () => {
+    render(
+      <AddActivity onClose={() => {}} editActivity={baseActivity} />,
+    );
+    expect(screen.queryByLabelText('AllTrails rating')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Distance (mi)')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Elevation gain/)).not.toBeInTheDocument();
+  });
 
+  it('skips the AllTrails lookup when the URL is unchanged on save', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    const name = screen.getByLabelText('Name');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Edited Name');
+
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect(lookupSpy).not.toHaveBeenCalled();
+    const saved = (saveSpy.mock.calls[0] as [Activity, string | null])[0];
+    expect(saved).toMatchObject({
+      allTrailsUrl: baseActivity.allTrailsUrl,
+      allTrailsRating: baseActivity.allTrailsRating,
+      hikeDistanceMiles: baseActivity.hikeDistanceMiles,
+      hikeElevationFeet: baseActivity.hikeElevationFeet,
+    });
+  });
+
+  it('refreshes rating / distance / elevation from AllTrails when the URL changes', async () => {
+    lookupSpy.mockResolvedValue({
+      allTrailsRating: 4.9,
+      hikeDistanceMiles: 6.1,
+      hikeElevationFeet: 1450,
+    });
+
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     const url = screen.getByLabelText('AllTrails URL');
     await userEvent.clear(url);
     await userEvent.type(url, 'https://www.alltrails.com/trail/new');
 
-    const rating = screen.getByLabelText('AllTrails rating');
-    await userEvent.clear(rating);
-    await userEvent.type(rating, '4.8');
-
-    const distance = screen.getByLabelText('Distance (mi)');
-    await userEvent.clear(distance);
-    await userEvent.type(distance, '5.6');
-
-    const elev = screen.getByLabelText('Elevation gain (ft)');
-    await userEvent.clear(elev);
-    await userEvent.type(elev, '1200');
-
     await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
 
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
-    const call = saveSpy.mock.calls[0] as [Activity, string | null];
-    expect(call[0]).toMatchObject({
-      id: 'test-edit-activity',
+    expect(lookupSpy).toHaveBeenCalledWith(
+      'https://www.alltrails.com/trail/new',
+      null,
+    );
+    const saved = (saveSpy.mock.calls[0] as [Activity, string | null])[0];
+    expect(saved).toMatchObject({
       allTrailsUrl: 'https://www.alltrails.com/trail/new',
-      allTrailsRating: 4.8,
-      hikeDistanceMiles: 5.6,
-      hikeElevationFeet: 1200,
+      allTrailsRating: 4.9,
+      hikeDistanceMiles: 6.1,
+      hikeElevationFeet: 1450,
     });
   });
 
-  it('clears optional trail fields back to undefined when emptied', async () => {
+  it('clears derived trail fields when the AllTrails URL is removed', async () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
-
     await userEvent.clear(screen.getByLabelText('AllTrails URL'));
-    await userEvent.clear(screen.getByLabelText('AllTrails rating'));
-    await userEvent.clear(screen.getByLabelText('Distance (mi)'));
-    await userEvent.clear(screen.getByLabelText('Elevation gain (ft)'));
 
     await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
 
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect(lookupSpy).not.toHaveBeenCalled();
     const saved = (saveSpy.mock.calls[0] as [Activity, string | null])[0];
     expect(saved.allTrailsUrl).toBeUndefined();
     expect(saved.allTrailsRating).toBeUndefined();
     expect(saved.hikeDistanceMiles).toBeUndefined();
     expect(saved.hikeElevationFeet).toBeUndefined();
+  });
+
+  it('blocks save and surfaces an error when the AllTrails lookup fails', async () => {
+    lookupSpy.mockRejectedValue(new Error('lookup failed'));
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    render(
+      <AddActivity
+        onClose={onClose}
+        editActivity={baseActivity}
+        onSaved={onSaved}
+      />,
+    );
+    const url = screen.getByLabelText('AllTrails URL');
+    await userEvent.clear(url);
+    await userEvent.type(url, 'https://www.alltrails.com/trail/broken');
+
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/lookup failed/i)).toBeInTheDocument();
+    });
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('hides the Notes field in edit mode (owned by the completion log)', () => {

@@ -11,6 +11,7 @@ import type {
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
 import { authedFetch } from '../lib/authedFetch';
+import { lookupAllTrails } from '../lib/alltrails';
 import { useAuthState } from '../lib/authShim';
 
 interface Props {
@@ -79,6 +80,39 @@ const DURATIONS: Duration[] = [
   'Multi-Day',
 ];
 const DIFFICULTIES: Difficulty[] = ['easy', 'moderate', 'advanced'];
+
+// When the AllTrails URL changes (or is newly added), refresh rating /
+// distance / elevation from the lookup endpoint. When it's cleared, drop
+// the derived fields so we don't keep stale data. When it's unchanged,
+// pass through untouched. `previousUrl` is the URL on the activity before
+// the user opened the editor — undefined in create mode means anything
+// non-empty triggers a lookup.
+async function refreshTrailDetails(
+  draft: Activity,
+  previousUrl: string | undefined,
+  token: string | null,
+): Promise<Activity> {
+  const next = (draft.allTrailsUrl ?? '').trim();
+  const prev = (previousUrl ?? '').trim();
+  if (next === prev) return draft;
+  if (!next) {
+    return {
+      ...draft,
+      allTrailsUrl: undefined,
+      allTrailsRating: undefined,
+      hikeDistanceMiles: undefined,
+      hikeElevationFeet: undefined,
+    };
+  }
+  const fresh = await lookupAllTrails(next, token);
+  return {
+    ...draft,
+    allTrailsUrl: next,
+    allTrailsRating: fresh.allTrailsRating,
+    hikeDistanceMiles: fresh.hikeDistanceMiles,
+    hikeElevationFeet: fresh.hikeElevationFeet,
+  };
+}
 
 function slugify(name: string): string {
   return (
@@ -174,10 +208,16 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
   async function save() {
     if (!draft) return;
     setSaving(true);
+    setError(null);
     try {
       const token = await getToken();
-      await saveUserActivity(draft, token);
-      onSaved?.(draft);
+      const finalDraft = await refreshTrailDetails(
+        draft,
+        editActivity?.allTrailsUrl,
+        token,
+      );
+      await saveUserActivity(finalDraft, token);
+      onSaved?.(finalDraft);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
@@ -518,70 +558,23 @@ function ReviewStep({
         </Field>
       </div>
 
-      <fieldset className="space-y-md border border-outline-variant/40 rounded-lg p-md">
-        <legend className="px-xs font-label-caps text-label-caps text-on-surface-variant">
-          Trail details
-        </legend>
+      <div className="space-y-xs">
         <Field label="AllTrails URL">
           <input
             type="url"
             value={draft.allTrailsUrl ?? ''}
             placeholder="https://www.alltrails.com/trail/…"
-            onChange={(e) =>
-              patch('allTrailsUrl', e.target.value || undefined)
-            }
+            onChange={(e) => patch('allTrailsUrl', e.target.value || undefined)}
             className={inputCls}
           />
         </Field>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
-          <Field label="AllTrails rating">
-            <input
-              type="number"
-              min={0}
-              max={5}
-              step={0.1}
-              value={draft.allTrailsRating ?? ''}
-              onChange={(e) =>
-                patch(
-                  'allTrailsRating',
-                  e.target.value === '' ? undefined : Number(e.target.value),
-                )
-              }
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Distance (mi)">
-            <input
-              type="number"
-              min={0}
-              step={0.1}
-              value={draft.hikeDistanceMiles ?? ''}
-              onChange={(e) =>
-                patch(
-                  'hikeDistanceMiles',
-                  e.target.value === '' ? undefined : Number(e.target.value),
-                )
-              }
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Elevation gain (ft)">
-            <input
-              type="number"
-              min={0}
-              step={10}
-              value={draft.hikeElevationFeet ?? ''}
-              onChange={(e) =>
-                patch(
-                  'hikeElevationFeet',
-                  e.target.value === '' ? undefined : Number(e.target.value),
-                )
-              }
-              className={inputCls}
-            />
-          </Field>
-        </div>
-      </fieldset>
+        {/* Rating, distance, and elevation are fetched from AllTrails on save
+            when the URL changes — there are no manual inputs for them. */}
+        <p className="font-body-sm text-on-surface-variant">
+          On save, rating, distance, and elevation will be refreshed from
+          AllTrails when the URL changes.
+        </p>
+      </div>
 
       <Field label="Pin location (drag or tap to reposition)">
         <LocationPicker
