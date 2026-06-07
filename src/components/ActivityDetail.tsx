@@ -7,6 +7,7 @@ import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useAuthState } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
+import { AddActivity } from './AddActivity';
 
 interface Props {
   activity: Activity;
@@ -34,6 +35,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const { isOwner } = useOwner();
   const { getToken } = useAuthState();
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
+  const [editing, setEditing] = useState(false);
 
   const nearby = useMemo(() => {
     return allActivities
@@ -54,7 +56,9 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // When the edit form is layered on top, let it own Escape — don't
+      // collapse both modals in one keystroke.
+      if (e.key === 'Escape' && !editing) onClose();
     };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -62,7 +66,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [onClose]);
+  }, [onClose, editing]);
 
   const handleFiles = (files: FileList | null) => {
     if (files && files.length) void addPhotos(files);
@@ -329,7 +333,22 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             </section>
           )}
 
-          <div className="pt-md mt-md border-t border-outline-variant/40 flex justify-end">
+          <div className="pt-md mt-md border-t border-outline-variant/40 flex flex-wrap justify-end gap-sm">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              disabled={!isOwner}
+              title={isOwner ? undefined : 'Sign in as owner to edit'}
+              className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 14 }}
+              >
+                edit
+              </span>
+              EDIT ACTIVITY
+            </button>
             <button
               type="button"
               onClick={() => void handleDelete()}
@@ -348,6 +367,13 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
           </div>
         </div>
       </div>
+      {editing && (
+        <AddActivity
+          editActivity={activity}
+          onClose={() => setEditing(false)}
+          onSaved={(updated) => setActivity(updated)}
+        />
+      )}
     </div>
   );
 }
