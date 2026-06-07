@@ -263,7 +263,7 @@ export function CuratedAdventures() {
               />
             </button>
           </div>
-          <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto md:ml-auto justify-end">
+          <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto md:ml-auto justify-center md:justify-end">
             <button
               type="button"
               onClick={() => {
