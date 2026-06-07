@@ -3,6 +3,7 @@ import { useOwner } from '../lib/useOwner';
 import {
   useTripsList,
   type TripListItem,
+  type TripStatus,
 } from '../lib/userTrips';
 
 export function Trips() {
@@ -131,7 +132,7 @@ function StatusBadge({
   status,
   markedPastAt,
 }: {
-  status: 'planning' | 'past';
+  status: TripStatus;
   markedPastAt: number | null;
 }) {
   if (status === 'past') {
@@ -144,6 +145,13 @@ function StatusBadge({
     return (
       <div className="absolute top-sm right-sm bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface-variant px-sm py-xs rounded-full font-label-caps text-label-caps">
         Past{date ? ` · ${date}` : ''}
+      </div>
+    );
+  }
+  if (status === 'voting') {
+    return (
+      <div className="absolute top-sm right-sm bg-tertiary-container text-on-tertiary-container px-sm py-xs rounded-full font-label-caps text-label-caps">
+        Voting
       </div>
     );
   }

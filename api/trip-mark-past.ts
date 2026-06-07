@@ -1,8 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from './_db.js';
-import { requireOwner } from './_auth.js';
 import { withErrorLogging } from './_log.js';
-import { ensureTripsSchema, getTripRow, getTripActivities } from './_trips.js';
+import {
+  ensureTripsSchema,
+  getTripRow,
+  getTripActivities,
+  requireCreator,
+} from './_trips.js';
 
 // `c` is the existing completed table (api/completed.ts). We INSERT through
 // here so checked items show up as completed across every owner's view.
@@ -31,9 +35,6 @@ export default withErrorLogging(async function handler(
   await ensureTripsSchema();
   await ensureCompletedSchema();
 
-  const ownerEmail = await requireOwner(req, res);
-  if (!ownerEmail) return;
-
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method not allowed' });
     return;
@@ -44,6 +45,11 @@ export default withErrorLogging(async function handler(
     res.status(400).json({ error: 'missing id' });
     return;
   }
+
+  // Marking past is creator-only (#51). 404 for non-members hides existence;
+  // 403 for non-creator members.
+  const ctx = await requireCreator(req, res, id);
+  if (!ctx) return;
 
   const trip = await getTripRow(id);
   if (!trip) {
