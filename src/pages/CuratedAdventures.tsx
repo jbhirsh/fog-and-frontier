@@ -241,29 +241,29 @@ export function CuratedAdventures() {
               ))}
             </select>
           </FilterPill>
-          <div className="flex items-center gap-md w-full md:w-auto md:ml-auto justify-between md:justify-start">
-            <div className="flex items-center gap-sm">
-              <span className="font-body-md text-on-surface-variant">
-                Dog Friendly
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={dogOnly}
-                onClick={() => setDogOnly((v) => !v)}
-                className={`w-12 h-7 rounded-full relative transition-colors ${
-                  dogOnly ? 'bg-secondary' : 'bg-surface-variant'
+          <div className="flex items-center gap-sm shrink-0">
+            <span className="font-body-md text-on-surface-variant">
+              Dog Friendly
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={dogOnly}
+              onClick={() => setDogOnly((v) => !v)}
+              className={`w-12 h-7 rounded-full relative transition-colors ${
+                dogOnly ? 'bg-secondary' : 'bg-surface-variant'
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full absolute top-1.5 transition-transform ${
+                  dogOnly
+                    ? 'bg-on-secondary translate-x-7'
+                    : 'bg-outline translate-x-1'
                 }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full absolute top-1.5 transition-transform ${
-                    dogOnly
-                      ? 'bg-on-secondary translate-x-7'
-                      : 'bg-outline translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
+              />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto md:ml-auto justify-center md:justify-end">
             <button
               type="button"
               onClick={() => {
@@ -275,7 +275,7 @@ export function CuratedAdventures() {
               }}
               disabled={!isOwner && !selectionMode}
               title={isOwner ? undefined : 'Sign in to plan trips'}
-              className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-sm md:px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
             >
               <span className="material-symbols-outlined text-body-md">
                 {selectionMode ? 'close' : 'check_box'}
@@ -287,7 +287,7 @@ export function CuratedAdventures() {
               onClick={() => setAdding(true)}
               disabled={!isOwner}
               title={isOwner ? undefined : 'Sign in to edit'}
-              className="flex items-center gap-xs bg-primary text-on-primary px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center gap-xs bg-primary text-on-primary px-sm md:px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
             >
               <span className="material-symbols-outlined text-body-md">add</span>
               Add activity
