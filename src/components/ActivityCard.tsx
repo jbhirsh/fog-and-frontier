@@ -52,7 +52,7 @@ export function ActivityCard({
       type="button"
       onClick={onClick}
       aria-pressed={selectionMode ? !!selected : undefined}
-      className={`text-left group bg-surface-container-lowest rounded-xl border overflow-hidden hover:shadow-lg hover:shadow-primary-container/5 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container ${
+      className={`w-full text-left group bg-surface-container-lowest rounded-xl border overflow-hidden hover:shadow-lg hover:shadow-primary-container/5 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container ${
         selected
           ? 'border-primary ring-2 ring-primary'
           : 'border-outline-variant/20'
