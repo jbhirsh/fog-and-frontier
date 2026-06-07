@@ -6,9 +6,13 @@ import {
   defaultStartTimeForDay,
   derivedEndTime,
   formatHHMM,
+  myVote,
   parseHHMM,
+  sortByNetScore,
+  tallyFor,
   type TripActivity,
   type TripActivitySnapshot,
+  type TripVote,
 } from './userTrips';
 
 function snapshot(
@@ -177,5 +181,124 @@ describe('defaultStartTimeForDay', () => {
   it('caps the start time at 23:45', () => {
     const existing = [ta({ start_time: '23:00' }, { duration: 'Full Day' })];
     expect(defaultStartTimeForDay(existing)).toBe('23:45');
+  });
+});
+
+// ── Vote aggregation helpers ──────────────────────────────────────────────────
+
+function vote(
+  trip_activity_id: string,
+  member_email: string,
+  value: -1 | 1,
+): TripVote {
+  return { trip_activity_id, member_email, value };
+}
+
+describe('tallyFor', () => {
+  it('counts ups and downs and computes net', () => {
+    const votes = [
+      vote('a1', 'alice@x.com', 1),
+      vote('a1', 'bob@x.com', 1),
+      vote('a1', 'carol@x.com', -1),
+    ];
+    expect(tallyFor(votes, 'a1')).toEqual({ up: 2, down: 1, net: 1 });
+  });
+
+  it('returns zero tally when no votes exist for the activity', () => {
+    expect(tallyFor([], 'a1')).toEqual({ up: 0, down: 0, net: 0 });
+    expect(tallyFor([vote('a2', 'alice@x.com', 1)], 'a1')).toEqual({ up: 0, down: 0, net: 0 });
+  });
+
+  it('handles all-down votes correctly', () => {
+    const votes = [vote('a1', 'alice@x.com', -1), vote('a1', 'bob@x.com', -1)];
+    expect(tallyFor(votes, 'a1')).toEqual({ up: 0, down: 2, net: -2 });
+  });
+
+  it('ignores votes for other activities', () => {
+    const votes = [vote('a1', 'alice@x.com', 1), vote('a2', 'bob@x.com', 1)];
+    expect(tallyFor(votes, 'a1')).toEqual({ up: 1, down: 0, net: 1 });
+  });
+});
+
+describe('myVote', () => {
+  const votes = [
+    vote('a1', 'alice@x.com', 1),
+    vote('a1', 'bob@x.com', -1),
+  ];
+
+  it('returns the caller\'s vote value', () => {
+    expect(myVote(votes, 'a1', 'alice@x.com')).toBe(1);
+    expect(myVote(votes, 'a1', 'bob@x.com')).toBe(-1);
+  });
+
+  it('returns 0 when the user has no vote (neutral)', () => {
+    expect(myVote(votes, 'a1', 'carol@x.com')).toBe(0);
+  });
+
+  it('returns 0 when email is null', () => {
+    expect(myVote(votes, 'a1', null)).toBe(0);
+  });
+
+  it('matches email case-insensitively', () => {
+    expect(myVote(votes, 'a1', 'Alice@X.COM')).toBe(1);
+    expect(myVote(votes, 'a1', 'BOB@X.COM')).toBe(-1);
+  });
+
+  it('returns 0 when there are no votes at all', () => {
+    expect(myVote([], 'a1', 'alice@x.com')).toBe(0);
+  });
+});
+
+describe('sortByNetScore', () => {
+  function act(id: string): { id: string } {
+    return { id };
+  }
+
+  it('sorts by net score descending', () => {
+    const activities = [act('low'), act('mid'), act('high')];
+    const votes = [
+      vote('high', 'a@x.com', 1),
+      vote('high', 'b@x.com', 1),
+      vote('mid', 'a@x.com', 1),
+      vote('low', 'a@x.com', -1),
+    ];
+    const result = sortByNetScore(activities, votes);
+    expect(result.map((a) => a.id)).toEqual(['high', 'mid', 'low']);
+  });
+
+  it('breaks net ties by raw up-count descending', () => {
+    // 'many': 3 up, 2 down → net 1; 'few': 1 up, 0 down → net 1. many wins.
+    const activities = [act('few'), act('many')];
+    const votes = [
+      vote('many', 'a@x.com', 1),
+      vote('many', 'b@x.com', 1),
+      vote('many', 'c@x.com', 1),
+      vote('many', 'd@x.com', -1),
+      vote('many', 'e@x.com', -1),
+      vote('few', 'a@x.com', 1),
+    ];
+    const result = sortByNetScore(activities, votes);
+    expect(result.map((a) => a.id)).toEqual(['many', 'few']);
+  });
+
+  it('preserves original order on full ties (stable sort)', () => {
+    const activities = [act('x'), act('y'), act('z')];
+    // No votes → all 0/0/0; original order must be preserved.
+    const result = sortByNetScore(activities, []);
+    expect(result.map((a) => a.id)).toEqual(['x', 'y', 'z']);
+  });
+
+  it('does NOT mutate the input array', () => {
+    const activities = [act('b'), act('a')];
+    const votes = [vote('a', 'u@x.com', 1), vote('a', 'v@x.com', 1)];
+    const original = [...activities];
+    sortByNetScore(activities, votes);
+    expect(activities).toEqual(original);
+  });
+
+  it('returns a new array even when order is unchanged', () => {
+    const activities = [act('a')];
+    const result = sortByNetScore(activities, []);
+    expect(result).not.toBe(activities);
   });
 });

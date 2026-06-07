@@ -10,6 +10,7 @@ import {
   getTripInvites,
   getTripMembers,
   getTripRow,
+  getTripVotes,
   isIsoDate,
   newId,
   requireCreator,
@@ -27,6 +28,7 @@ type CreateBody = {
   end_date?: unknown;
   cover_image_url?: unknown;
   initial_activity_ids?: unknown;
+  status?: unknown;
 };
 
 type PatchBody = {
@@ -102,12 +104,13 @@ async function listTrips(callerEmail: string): Promise<TripListItem[]> {
 async function getTripDetail(tripId: string): Promise<Trip | null> {
   const trip = await getTripRow(tripId);
   if (!trip) return null;
-  const [activities, members, invites] = await Promise.all([
+  const [activities, members, invites, votes] = await Promise.all([
     getTripActivities(tripId),
     getTripMembers(tripId, trip.creator_email),
     getTripInvites(tripId),
+    getTripVotes(tripId),
   ]);
-  return { ...trip, activities, members, invites };
+  return { ...trip, activities, members, invites, votes };
 }
 
 async function createTrip(
@@ -155,6 +158,12 @@ async function createTrip(
     };
   }
 
+  // Initial status (#51 c3): a v1 trip can open in `voting` (collaborative
+  // shortlisting first) or skip straight to `planning`. Anything else, or
+  // absent, defaults to `planning`. Creation is owner-only, so editors can
+  // never reach this.
+  const status = body.status === 'voting' ? 'voting' : 'planning';
+
   const id = newId();
   const created_at = Date.now();
   await db().execute({
@@ -162,7 +171,7 @@ async function createTrip(
             id, creator_email, title, description,
             start_date, end_date, cover_image_url,
             status, created_at, marked_past_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'planning', ?, NULL)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
     args: [
       id,
       creatorEmail,
@@ -171,6 +180,7 @@ async function createTrip(
       start_date,
       end_date,
       cover_image_url,
+      status,
       created_at,
     ],
   });

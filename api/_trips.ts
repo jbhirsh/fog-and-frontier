@@ -41,6 +41,13 @@ export type TripInvite = {
   invited_at: number;
 };
 
+// One member's vote on one candidate. Neutral = no row. value is -1 or 1.
+export type TripVote = {
+  trip_activity_id: string;
+  member_email: string;
+  value: -1 | 1;
+};
+
 // Membership context returned by the guards below.
 export type MemberContext = {
   email: string;
@@ -68,6 +75,7 @@ export type Trip = TripRow & {
   activities: TripActivity[];
   members: TripMember[];
   invites: TripInvite[];
+  votes: TripVote[];
 };
 
 export type TripListItem = TripRow & {
@@ -378,6 +386,21 @@ export async function getTripInvites(tripId: string): Promise<TripInvite[]> {
     invited_email: asOptionalString(r.invited_email),
     invited_by_email: asString(r.invited_by_email),
     invited_at: asNumber(r.invited_at),
+  }));
+}
+
+export async function getTripVotes(tripId: string): Promise<TripVote[]> {
+  const rs = await db().execute({
+    sql: `SELECT trip_activity_id, member_email, value
+          FROM trip_votes
+          WHERE trip_id = ?`,
+    args: [tripId],
+  });
+  return rs.rows.map((r) => ({
+    trip_activity_id: asString(r.trip_activity_id),
+    member_email: asString(r.member_email),
+    // Stored as -1 or 1; neutral never has a row.
+    value: asNumber(r.value) < 0 ? -1 : 1,
   }));
 }
 

@@ -137,6 +137,20 @@ export default withErrorLogging(async function handler(
   if (req.method === 'PATCH') {
     const body = (req.body ?? {}) as PatchBody;
 
+    // Slot assignment is disabled during voting (#51 c8): day_index/start_time
+    // changes 409, but a display_order-only PATCH (drag-reorder of candidate
+    // cards) is allowed.
+    if (
+      trip.status === 'voting' &&
+      (body.day_index !== undefined || body.start_time !== undefined)
+    ) {
+      res.status(409).json({
+        error: 'voting in progress — finalize to start scheduling',
+        code: 'voting_locked',
+      });
+      return;
+    }
+
     // Decide on the new (day_index, start_time) pair. Either both set or both null.
     // The client passes nulls to unschedule; passing both as new values rescues a slot.
     let day_index = tripActivity.day_index;

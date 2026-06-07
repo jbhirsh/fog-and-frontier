@@ -21,6 +21,7 @@ export function NewTrip() {
   const [endDate, setEndDate] = useState('');
   const [description, setDescription] = useState('');
   const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [openVotingFirst, setOpenVotingFirst] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,6 +78,7 @@ export function NewTrip() {
       if (initialActivityIds.length > 0) {
         body.initial_activity_ids = initialActivityIds;
       }
+      if (openVotingFirst) body.status = 'voting';
       const token = await getToken();
       const trip = await createTrip(body, token);
       void navigate(`/trips/${trip.id}`);
@@ -167,6 +169,26 @@ export function NewTrip() {
             placeholder="https://…"
           />
         </Field>
+
+        <div className="flex items-start gap-sm bg-surface-container-low rounded-lg px-md py-sm">
+          <input
+            id="trip-open-voting"
+            type="checkbox"
+            checked={openVotingFirst}
+            onChange={(e) => setOpenVotingFirst(e.target.checked)}
+            className="mt-1 accent-primary"
+          />
+          <label htmlFor="trip-open-voting" className="space-y-xs cursor-pointer">
+            <span className="block font-body-md text-on-surface">
+              Open voting first
+            </span>
+            <span className="block font-body-md text-sm text-on-surface-variant">
+              Collect up/down votes on candidates before scheduling. You can
+              finalize voting later to move into the itinerary. Leave off to skip
+              straight to planning.
+            </span>
+          </label>
+        </div>
 
         {error && (
           <div className="bg-error-container text-on-error-container px-md py-sm rounded-lg font-body-md">

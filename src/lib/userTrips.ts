@@ -56,10 +56,13 @@ type TripMeta = {
   marked_past_at: number | null;
 };
 
+export type TripVote = { trip_activity_id: string; member_email: string; value: -1 | 1 };
+
 export type Trip = TripMeta & {
   activities: TripActivity[];
   members: TripMember[];
   invites: TripInvite[];
+  votes: TripVote[];
 };
 
 export type TripListItem = TripMeta & {
@@ -171,6 +174,9 @@ export type CreateTripInput = {
   description?: string;
   cover_image_url?: string;
   initial_activity_ids?: string[];
+  // 'voting' opens collaborative voting first; omitted/'planning' skips to the
+  // itinerary stage. Server defaults to 'planning' (#51 c3).
+  status?: 'voting' | 'planning';
 };
 
 async function jsonOrThrow<T>(res: Response, label: string): Promise<T> {
@@ -308,6 +314,26 @@ export async function removeTripActivity(
   await jsonOrThrow<unknown>(res, 'remove activity');
 }
 
+// display_order-only PATCH for drag-reordering candidate cards during voting.
+// Unlike assignSlot it sends NO day_index/start_time, so it isn't blocked by
+// the voting-phase slot lock (#51 c8).
+export async function setDisplayOrder(
+  taId: string,
+  displayOrder: number,
+  token: string | null,
+): Promise<void> {
+  const res = await authedFetch(
+    `/api/trip-activities?ta_id=${encodeURIComponent(taId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ display_order: displayOrder }),
+    },
+    token,
+  );
+  await jsonOrThrow<unknown>(res, 'reorder candidate');
+}
+
 export async function markTripPast(
   tripId: string,
   completedActivityIds: string[],
@@ -342,6 +368,53 @@ export async function markTripPast(
     completed_activity_ids: result.completed_activity_ids,
     uncompleted_activity_ids: uncompleted,
   };
+}
+
+export async function castVote(
+  tripId: string,
+  tripActivityId: string,
+  value: -1 | 0 | 1,
+  token: string | null,
+): Promise<void> {
+  const res = await authedFetch(
+    '/api/trip-votes',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ trip_id: tripId, trip_activity_id: tripActivityId, value }),
+    },
+    token,
+  );
+  await jsonOrThrow<unknown>(res, 'cast vote');
+}
+
+export async function transitionToPlanning(
+  tripId: string,
+  keptActivityIds: string[],
+  token: string | null,
+): Promise<void> {
+  const res = await authedFetch(
+    `/api/trip-transition-planning?id=${encodeURIComponent(tripId)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kept_activity_ids: keptActivityIds }),
+    },
+    token,
+  );
+  await jsonOrThrow<unknown>(res, 'transition to planning');
+}
+
+export async function revertToVoting(
+  tripId: string,
+  token: string | null,
+): Promise<void> {
+  const res = await authedFetch(
+    `/api/trip-revert-to-voting?id=${encodeURIComponent(tripId)}`,
+    { method: 'POST' },
+    token,
+  );
+  await jsonOrThrow<unknown>(res, 'revert to voting');
 }
 
 // Pure helpers usable by tests and components.
@@ -450,4 +523,58 @@ export function dayLabel(trip: Pick<Trip, 'start_date'>, dayIndex: number): stri
     timeZone: 'UTC',
   });
   return `Day ${dayIndex + 1} · ${fmt.format(start)}`;
+}
+
+// Vote-aggregation pure helpers. Net score = ups − downs; tiebreak by raw
+// up-count descending. Stable-sort relative order preserved on full ties.
+
+export type VoteTally = { up: number; down: number; net: number };
+
+export function tallyFor(votes: TripVote[], tripActivityId: string): VoteTally {
+  let up = 0;
+  let down = 0;
+  for (const v of votes) {
+    if (v.trip_activity_id !== tripActivityId) continue;
+    if (v.value === 1) up++;
+    else if (v.value === -1) down++;
+  }
+  return { up, down, net: up - down };
+}
+
+export function myVote(
+  votes: TripVote[],
+  tripActivityId: string,
+  email: string | null,
+): -1 | 0 | 1 {
+  if (!email) return 0;
+  const lower = email.toLowerCase();
+  const v = votes.find(
+    (r) => r.trip_activity_id === tripActivityId && r.member_email.toLowerCase() === lower,
+  );
+  return v ? v.value : 0;
+}
+
+export function sortByNetScore<T extends { id: string }>(
+  activities: T[],
+  votes: TripVote[],
+): T[] {
+  // Pre-compute tallies once per activity to avoid O(n²) inner loops.
+  const tallies = new Map<string, VoteTally>();
+  for (const a of activities) {
+    tallies.set(a.id, tallyFor(votes, a.id));
+  }
+  // Stable sort: build index-tagged array, sort, strip tags.
+  return activities
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => {
+      const tx = tallies.get(x.a.id)!;
+      const ty = tallies.get(y.a.id)!;
+      // Primary: net score descending.
+      if (ty.net !== tx.net) return ty.net - tx.net;
+      // Secondary: raw up-count descending.
+      if (ty.up !== tx.up) return ty.up - tx.up;
+      // Tertiary: original order (stable).
+      return x.i - y.i;
+    })
+    .map(({ a }) => a);
 }

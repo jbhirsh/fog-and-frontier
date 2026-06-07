@@ -2,23 +2,36 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { TripActivityCard } from '../components/TripActivityCard';
 import { TripMap } from '../components/TripMap';
+import { VotingCandidateCard } from '../components/VotingCandidateCard';
+import { PromoteToPlanningModal } from '../components/PromoteToPlanningModal';
+import { InlineError } from '../components/InlineError';
 import { useAuthState } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
+import { useVisibilityInterval } from '../lib/useVisibilityInterval';
 import {
   assignSlot,
+  castVote,
   dayCount,
   dayLabel,
   defaultStartTimeForDay,
   deleteTrip,
   formatHHMM,
   markTripPast,
+  myVote,
   patchTrip,
   removeTripActivity,
+  revertToVoting,
+  setDisplayOrder,
+  sortByNetScore,
+  tallyFor,
+  transitionToPlanning,
   useTrip,
   type PatchTripInput,
   type Trip,
   type TripActivity,
 } from '../lib/userTrips';
+
+const TALLY_REFRESH_MS = 30_000;
 
 const DRAG_MIME = 'application/x-fnf-trip-activity-id';
 const PAST_TOOLTIP = 'This trip is past';
@@ -26,7 +39,7 @@ const PAST_TOOLTIP = 'This trip is past';
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isOwner, isLoaded: ownerLoaded } = useOwner();
+  const { isOwner, isLoaded: ownerLoaded, email } = useOwner();
   const { getToken } = useAuthState();
   const { trip, isLoading, error, reload } = useTrip(id);
 
@@ -35,8 +48,15 @@ export function TripDetail() {
   const [slotDialog, setSlotDialog] = useState<SlotDialogState | null>(null);
   const [markPastOpen, setMarkPastOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [confirmingRevert, setConfirmingRevert] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const isPast = trip?.status === 'past';
+  const isVoting = trip?.status === 'voting';
+  // In this PR the only members are owners, so creator === owner-who-created.
+  // PR3 refines membership-based gating; creator-only controls are gated here.
+  const isCreator = !!trip && !!email && trip.creator_email === email;
 
   const buckets = useMemo(() => bucketByDay(trip), [trip]);
 
@@ -44,18 +64,66 @@ export function TripDetail() {
     async (fn: (token: string | null) => Promise<unknown>) => {
       if (busy) return;
       setBusy(true);
+      setActionError(null);
       try {
         const token = await getToken();
         await fn(token);
         reload();
       } catch (err) {
         console.error(err);
+        // Resync on failure so a stale view corrects itself — e.g. a vote that
+        // 409s because the creator just closed voting out from under us.
+        setActionError(
+          "That didn't go through — the trip may have changed. We've refreshed it.",
+        );
+        reload();
       } finally {
         setBusy(false);
       }
     },
     [busy, getToken, reload],
   );
+
+  // Poll for fresh vote tallies while voting is open (#51 c14): every 30s,
+  // paused while the tab is hidden, and immediately on regaining
+  // visibility/focus. reload() is the existing useTrip refetch.
+  useVisibilityInterval(reload, TALLY_REFRESH_MS, isVoting);
+
+  function handleVote(taId: string, value: -1 | 0 | 1) {
+    if (!trip || !isVoting) return;
+    void runWithToken((token) => castVote(trip.id, taId, value, token));
+  }
+
+  function handleFinalize(keptActivityIds: string[]) {
+    if (!trip) return;
+    setPromoteOpen(false);
+    void runWithToken((token) =>
+      transitionToPlanning(trip.id, keptActivityIds, token),
+    );
+  }
+
+  function handleRevert() {
+    if (!trip) return;
+    setConfirmingRevert(false);
+    void runWithToken((token) => revertToVoting(trip.id, token));
+  }
+
+  // Drag-reorder candidates during voting: rebuild the ordered id list with the
+  // dragged card moved before the drop target, then renumber display_order.
+  function handleReorderCandidate(draggedId: string, targetId: string) {
+    if (!trip || draggedId === targetId) return;
+    const ordered = trip.activities.map((a) => a.id);
+    const from = ordered.indexOf(draggedId);
+    const to = ordered.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    ordered.splice(from, 1);
+    ordered.splice(ordered.indexOf(targetId), 0, draggedId);
+    void runWithToken(async (token) => {
+      for (let i = 0; i < ordered.length; i++) {
+        await setDisplayOrder(ordered[i], i, token);
+      }
+    });
+  }
 
   function handleDropOnDay(dayIndex: number) {
     return (e: React.DragEvent<HTMLDivElement>) => {
@@ -203,74 +271,108 @@ export function TripDetail() {
       <TripHeader
         trip={trip}
         isPast={isPast}
+        isVoting={isVoting}
+        isCreator={isCreator}
         editing={editingHeader}
         onEdit={() => setEditingHeader(true)}
         onCancelEdit={() => setEditingHeader(false)}
         onSave={(input) => void handleSaveHeader(input)}
         onMarkPast={() => setMarkPastOpen(true)}
         onDelete={() => setConfirmingDelete(true)}
+        onRevert={() => setConfirmingRevert(true)}
       />
 
-      <section className="px-margin py-lg max-w-screen-2xl mx-auto space-y-lg">
-        <TripMap trip={trip} />
-
-        <div className="flex items-center justify-between gap-md flex-wrap">
-          <h2 className="font-headline-md text-headline-md text-on-surface">
-            Itinerary
-          </h2>
-          <button
-            type="button"
-            onClick={() => {
-              if (isPast) return;
-              void navigate('/', {
-                state: {
-                  target_trip_id: trip.id,
-                  target_trip_title: trip.title,
-                },
-              });
-            }}
-            disabled={isPast}
-            title={isPast ? PAST_TOOLTIP : undefined}
-            className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined text-body-md">add</span>
-            Add activity
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-          <div className="lg:col-span-2 space-y-md">
-            {buckets.map((bucket) => (
-              <DaySection
-                key={bucket.dayIndex}
-                trip={trip}
-                bucket={bucket}
-                isPast={isPast}
-                onDropOnDay={handleDropOnDay(bucket.dayIndex)}
-                onEditTime={(a) => handleAssignOrEdit(a)}
-                onMoveToUnscheduled={(a) => handleMoveToUnscheduled(a)}
-                onRemove={(a) => handleRemove(a)}
-              />
-            ))}
-          </div>
-          <UnscheduledPanel
-            trip={trip}
-            isPast={isPast}
-            onDrop={handleDropOnUnscheduled}
-            onAssign={(a) => handleAssignOrEdit(a)}
-            onRemove={(a) => handleRemove(a)}
-            onAddFromCurated={() => {
-              if (isPast) return;
-              void navigate('/', {
-                state: {
-                  target_trip_id: trip.id,
-                  target_trip_title: trip.title,
-                },
-              });
-            }}
+      {actionError && (
+        <div className="px-margin pt-md max-w-screen-2xl mx-auto">
+          <InlineError
+            message={actionError}
+            onDismiss={() => setActionError(null)}
           />
         </div>
-      </section>
+      )}
+
+      {isVoting ? (
+        <VotingView
+          trip={trip}
+          email={email}
+          isCreator={isCreator}
+          busy={busy}
+          onVote={handleVote}
+          onRemove={(a) => handleRemove(a)}
+          onReorder={handleReorderCandidate}
+          onFinalize={() => setPromoteOpen(true)}
+          onAddFromCurated={() =>
+            void navigate('/', {
+              state: { target_trip_id: trip.id, target_trip_title: trip.title },
+            })
+          }
+        />
+      ) : (
+        <section className="px-margin py-lg max-w-screen-2xl mx-auto space-y-lg">
+          <TripMap trip={trip} />
+
+          <div className="flex items-center justify-between gap-md flex-wrap">
+            <h2 className="font-headline-md text-headline-md text-on-surface">
+              Itinerary
+            </h2>
+            <button
+              type="button"
+              onClick={() => {
+                if (isPast) return;
+                void navigate('/', {
+                  state: {
+                    target_trip_id: trip.id,
+                    target_trip_title: trip.title,
+                  },
+                });
+              }}
+              disabled={isPast}
+              title={isPast ? PAST_TOOLTIP : undefined}
+              className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-body-md">add</span>
+              Add activity
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+            <div className="lg:col-span-2 space-y-md">
+              {buckets.map((bucket) => (
+                <DaySection
+                  key={bucket.dayIndex}
+                  trip={trip}
+                  bucket={bucket}
+                  isPast={isPast}
+                  onDropOnDay={handleDropOnDay(bucket.dayIndex)}
+                  onEditTime={(a) => handleAssignOrEdit(a)}
+                  onMoveToUnscheduled={(a) => handleMoveToUnscheduled(a)}
+                  onRemove={(a) => handleRemove(a)}
+                />
+              ))}
+            </div>
+            <UnscheduledPanel
+              trip={trip}
+              isPast={isPast}
+              onDrop={handleDropOnUnscheduled}
+              onAssign={(a) => handleAssignOrEdit(a)}
+              onRemove={(a) => handleRemove(a)}
+              onAddFromCurated={() => {
+                if (isPast) return;
+                void navigate('/', {
+                  state: {
+                    target_trip_id: trip.id,
+                    target_trip_title: trip.title,
+                  },
+                });
+              }}
+            />
+          </div>
+
+          {/* Final vote tallies stay visible after voting closes, as
+              historical context (#51). */}
+          <VotingResults trip={trip} />
+        </section>
+      )}
 
       {slotDialog && trip && (
         <SlotDialog
@@ -300,7 +402,162 @@ export function TripDetail() {
           onConfirm={handleConfirmDelete}
         />
       )}
+
+      {promoteOpen && trip && (
+        <PromoteToPlanningModal
+          candidates={sortByNetScore(trip.activities, trip.votes).map((a) => ({
+            activity: a,
+            tally: tallyFor(trip.votes, a.id),
+          }))}
+          onCancel={() => setPromoteOpen(false)}
+          onConfirm={handleFinalize}
+        />
+      )}
+
+      {confirmingRevert && (
+        <ConfirmDialog
+          title="Reopen voting?"
+          message="This moves the trip back to voting. All day/time assignments are cleared; votes are kept. You can finalize again afterward."
+          confirmLabel="Reopen voting"
+          onCancel={() => setConfirmingRevert(false)}
+          onConfirm={handleRevert}
+        />
+      )}
     </>
+  );
+}
+
+// Voting-phase body: candidate list with vote controls + live tallies, drag to
+// reorder, and the creator's "Finalize voting" action. Itinerary scheduling is
+// intentionally absent here — it unlocks once voting is finalized (#51).
+function VotingView({
+  trip,
+  email,
+  isCreator,
+  busy,
+  onVote,
+  onRemove,
+  onReorder,
+  onFinalize,
+  onAddFromCurated,
+}: {
+  trip: Trip;
+  email: string | null;
+  isCreator: boolean;
+  busy: boolean;
+  onVote: (taId: string, value: -1 | 0 | 1) => void;
+  onRemove: (a: TripActivity) => void;
+  onReorder: (draggedId: string, targetId: string) => void;
+  onFinalize: () => void;
+  onAddFromCurated: () => void;
+}) {
+  const candidates = trip.activities;
+  return (
+    <section className="px-margin py-lg max-w-screen-2xl mx-auto space-y-lg">
+      <div className="rounded-xl bg-tertiary-container/40 border border-outline-variant/20 px-md py-sm font-body-md text-on-surface-variant">
+        Voting is open — react to each candidate. Scheduling unlocks once the
+        trip creator finalizes voting.
+      </div>
+
+      <div className="flex items-center justify-between gap-md flex-wrap">
+        <h2 className="font-headline-md text-headline-md text-on-surface">
+          Candidates
+        </h2>
+        <div className="flex items-center gap-sm">
+          <button
+            type="button"
+            onClick={onAddFromCurated}
+            className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 text-on-surface-variant px-md py-sm font-body-md hover:bg-surface-variant"
+          >
+            <span className="material-symbols-outlined text-body-md">add</span>
+            Add candidate
+          </button>
+          <button
+            type="button"
+            onClick={onFinalize}
+            disabled={!isCreator || busy || candidates.length === 0}
+            title={
+              !isCreator
+                ? 'Only the trip creator can finalize voting'
+                : candidates.length === 0
+                  ? 'Add candidates before finalizing'
+                  : undefined
+            }
+            className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-body-md">
+              how_to_vote
+            </span>
+            Finalize voting
+          </button>
+        </div>
+      </div>
+
+      {candidates.length === 0 ? (
+        <p className="font-body-md text-on-surface-variant">
+          No candidates yet.{' '}
+          <button
+            type="button"
+            onClick={onAddFromCurated}
+            className="text-primary underline"
+          >
+            Add some from the curated catalog
+          </button>{' '}
+          to start voting.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+          {candidates.map((a) => (
+            <VotingCandidateCard
+              key={a.id}
+              activity={a}
+              tally={tallyFor(trip.votes, a.id)}
+              myVote={myVote(trip.votes, a.id, email)}
+              votingOpen
+              canRemove
+              onVote={(value) => onVote(a.id, value)}
+              onRemove={() => onRemove(a)}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DRAG_MIME, a.id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const draggedId = e.dataTransfer.getData(DRAG_MIME);
+                if (draggedId) onReorder(draggedId, a.id);
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Read-only final tallies shown under the itinerary once voting has closed.
+function VotingResults({ trip }: { trip: Trip }) {
+  if (trip.votes.length === 0) return null;
+  const ranked = sortByNetScore(trip.activities, trip.votes);
+  return (
+    <div className="space-y-md pt-md border-t border-outline-variant/20">
+      <h2 className="font-headline-md text-headline-md text-on-surface">
+        Voting results
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        {ranked.map((a) => (
+          <VotingCandidateCard
+            key={a.id}
+            activity={a}
+            tally={tallyFor(trip.votes, a.id)}
+            myVote={0}
+            votingOpen={false}
+            canRemove={false}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -332,21 +589,27 @@ type HeaderEditInput = {
 function TripHeader({
   trip,
   isPast,
+  isVoting,
+  isCreator,
   editing,
   onEdit,
   onCancelEdit,
   onSave,
   onMarkPast,
   onDelete,
+  onRevert,
 }: {
   trip: Trip;
   isPast: boolean;
+  isVoting: boolean;
+  isCreator: boolean;
   editing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
   onSave: (input: HeaderEditInput) => void;
   onMarkPast: () => void;
   onDelete: () => void;
+  onRevert: () => void;
 }) {
   const [draft, setDraft] = useState<HeaderEditInput>({
     title: trip.title,
@@ -492,6 +755,10 @@ function TripHeader({
                   )}`
                 : 'Past'}
             </span>
+          ) : isVoting ? (
+            <span className="font-label-caps text-label-caps text-on-tertiary-container bg-tertiary-container px-sm py-xs rounded-full">
+              Voting
+            </span>
           ) : (
             <span className="font-label-caps text-label-caps text-primary bg-primary-fixed px-sm py-xs rounded-full">
               Planning
@@ -522,13 +789,35 @@ function TripHeader({
               <div
                 className="absolute right-0 mt-xs w-56 bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-lg z-10 overflow-hidden"
               >
+                {!isPast && !isVoting && (
+                  <MenuItem
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onRevert();
+                    }}
+                    disabled={!isCreator}
+                    tooltip={
+                      !isCreator
+                        ? 'Only the trip creator can reopen voting'
+                        : undefined
+                    }
+                  >
+                    Reopen voting…
+                  </MenuItem>
+                )}
                 <MenuItem
                   onClick={() => {
                     setMenuOpen(false);
                     onMarkPast();
                   }}
-                  disabled={isPast}
-                  tooltip={isPast ? 'Already past' : undefined}
+                  disabled={isPast || !isCreator}
+                  tooltip={
+                    isPast
+                      ? 'Already past'
+                      : !isCreator
+                        ? 'Only the trip creator can mark a trip past'
+                        : undefined
+                  }
                 >
                   Mark as past…
                 </MenuItem>
@@ -537,6 +826,12 @@ function TripHeader({
                     setMenuOpen(false);
                     onDelete();
                   }}
+                  disabled={!isCreator}
+                  tooltip={
+                    !isCreator
+                      ? 'Only the trip creator can delete this trip'
+                      : undefined
+                  }
                   destructive
                 >
                   Delete trip…
