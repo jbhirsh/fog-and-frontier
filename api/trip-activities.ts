@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from './_db.js';
-import { requireOwner } from './_auth.js';
 import { withErrorLogging } from './_log.js';
 import {
   ensureTripsSchema,
@@ -9,6 +8,7 @@ import {
   getTripRow,
   isHHMM,
   newId,
+  requireMember,
   rowToTripActivity,
   type TripActivity,
 } from './_trips.js';
@@ -52,9 +52,6 @@ export default withErrorLogging(async function handler(
 ) {
   await ensureTripsSchema();
 
-  const ownerEmail = await requireOwner(req, res);
-  if (!ownerEmail) return;
-
   if (req.method === 'POST') {
     const body = (req.body ?? {}) as AddBody;
     const tripId = typeof body.trip_id === 'string' ? body.trip_id : null;
@@ -64,6 +61,10 @@ export default withErrorLogging(async function handler(
       res.status(400).json({ error: 'missing trip_id or activity_id' });
       return;
     }
+    // Any member can add a candidate. requireMember also 404s a missing trip
+    // and hides existence from non-members.
+    const ctx = await requireMember(req, res, tripId);
+    if (!ctx) return;
     const trip = await getTripRow(tripId);
     if (!trip) {
       res.status(404).json({ error: 'trip not found' });
@@ -95,7 +96,7 @@ export default withErrorLogging(async function handler(
               id, trip_id, activity_id, snapshot_json,
               added_by_email, added_at, day_index, start_time, display_order
             ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
-      args: [id, tripId, activityId, snapshotJson, ownerEmail, added_at],
+      args: [id, tripId, activityId, snapshotJson, ctx.email, added_at],
     });
     const activities = await getTripActivities(tripId);
     const created = activities.find((a) => a.id === id);
@@ -124,6 +125,10 @@ export default withErrorLogging(async function handler(
     res.status(404).json({ error: 'trip not found' });
     return;
   }
+  // Any member can mutate a candidate row. (PR2 adds voting-phase rules for
+  // slot fields; here we keep v0's past-trip lock.)
+  const ctx = await requireMember(req, res, trip.id);
+  if (!ctx) return;
   if (trip.status === 'past') {
     res.status(409).json({ error: 'trip is past', code: 'trip_past' });
     return;
@@ -179,10 +184,16 @@ export default withErrorLogging(async function handler(
   }
 
   if (req.method === 'DELETE') {
-    await db().execute({
-      sql: 'DELETE FROM trip_activities WHERE id = ?',
-      args: [taId],
-    });
+    // Cascade: drop the candidate and any votes cast on it, in one
+    // transaction (#51 c9). transition-planning's cull relies on this path
+    // to keep votes from being orphaned.
+    await db().batch(
+      [
+        { sql: 'DELETE FROM trip_votes WHERE trip_activity_id = ?', args: [taId] },
+        { sql: 'DELETE FROM trip_activities WHERE id = ?', args: [taId] },
+      ],
+      'write',
+    );
     res.status(200).json({ ok: true });
     return;
   }
