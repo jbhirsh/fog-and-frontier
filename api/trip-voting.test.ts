@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Endpoint tests for the voting lifecycle (#51 PR2): trip-votes,
-// trip-transition-planning, trip-revert-to-voting. We mock @clerk/backend and
+// trip-lifecycle (transition/revert via ?to=). We mock @clerk/backend and
 // _db. Because every handler runs ensureTripsSchema() first (which issues many
 // CREATE TABLE / backfill statements), we route db().execute by SQL substring
 // rather than by call order, and assert on the meaningful calls.
@@ -26,9 +26,9 @@ process.env.CLERK_SECRET_KEY = 'sk_test_dummy';
 process.env.OWNER_EMAILS = 'owner@example.com';
 
 const votesHandler = (await import('./trip-votes.js')).default;
-const transitionHandler = (await import('./trip-transition-planning.js'))
-  .default;
-const revertHandler = (await import('./trip-revert-to-voting.js')).default;
+// transition-planning + revert-to-voting are consolidated into trip-lifecycle
+// (dispatch on ?to=) to stay under Vercel's function cap.
+const lifecycleHandler = (await import('./trip-lifecycle.js')).default;
 
 const OWNER = 'owner@example.com';
 
@@ -200,12 +200,15 @@ describe('POST /api/trip-votes', () => {
   });
 });
 
-describe('POST /api/trip-transition-planning', () => {
+describe('POST /api/trip-lifecycle?to=planning', () => {
   it('409s when the trip is not in voting', async () => {
     setup({ trip: tripRow({ status: 'planning' }) });
     const res = fakeRes();
-    await transitionHandler(
-      fakeReq({ query: { id: 'trip1' }, body: { kept_activity_ids: [] } }),
+    await lifecycleHandler(
+      fakeReq({
+        query: { id: 'trip1', to: 'planning' },
+        body: { kept_activity_ids: [] },
+      }),
       res,
     );
     expect(res.statusCode).toBe(409);
@@ -215,8 +218,11 @@ describe('POST /api/trip-transition-planning', () => {
   it('403s when caller is a member but not the creator', async () => {
     setup({ trip: tripRow({ creator_email: 'someone@else.com' }) });
     const res = fakeRes();
-    await transitionHandler(
-      fakeReq({ query: { id: 'trip1' }, body: { kept_activity_ids: [] } }),
+    await lifecycleHandler(
+      fakeReq({
+        query: { id: 'trip1', to: 'planning' },
+        body: { kept_activity_ids: [] },
+      }),
       res,
     );
     expect(res.statusCode).toBe(403);
@@ -225,8 +231,11 @@ describe('POST /api/trip-transition-planning', () => {
   it('culls unselected candidates + their votes and flips status in one batch', async () => {
     setup({ activities: [{ id: 'a' }, { id: 'b' }] });
     const res = fakeRes();
-    await transitionHandler(
-      fakeReq({ query: { id: 'trip1' }, body: { kept_activity_ids: ['a'] } }),
+    await lifecycleHandler(
+      fakeReq({
+        query: { id: 'trip1', to: 'planning' },
+        body: { kept_activity_ids: ['a'] },
+      }),
       res,
     );
     expect(res.statusCode).toBe(200);
@@ -244,11 +253,11 @@ describe('POST /api/trip-transition-planning', () => {
   });
 });
 
-describe('POST /api/trip-revert-to-voting', () => {
+describe('POST /api/trip-lifecycle?to=voting', () => {
   it('409s when the trip is not in planning (e.g. still voting)', async () => {
     setup({ trip: tripRow({ status: 'voting' }) });
     const res = fakeRes();
-    await revertHandler(fakeReq({ query: { id: 'trip1' } }), res);
+    await lifecycleHandler(fakeReq({ query: { id: 'trip1', to: 'voting' } }), res);
     expect(res.statusCode).toBe(409);
     expect((res.body as { code?: string }).code).toBe('not_planning');
   });
@@ -256,14 +265,14 @@ describe('POST /api/trip-revert-to-voting', () => {
   it('409s on a past trip', async () => {
     setup({ trip: tripRow({ status: 'past' }) });
     const res = fakeRes();
-    await revertHandler(fakeReq({ query: { id: 'trip1' } }), res);
+    await lifecycleHandler(fakeReq({ query: { id: 'trip1', to: 'voting' } }), res);
     expect(res.statusCode).toBe(409);
   });
 
   it('clears slot fields and flips to voting WITHOUT touching votes', async () => {
     setup({ trip: tripRow({ status: 'planning' }), activities: [{ id: 'a' }] });
     const res = fakeRes();
-    await revertHandler(fakeReq({ query: { id: 'trip1' } }), res);
+    await lifecycleHandler(fakeReq({ query: { id: 'trip1', to: 'voting' } }), res);
     expect(res.statusCode).toBe(200);
     const sqls = batchStmtSqls();
     expect(
@@ -276,5 +285,50 @@ describe('POST /api/trip-revert-to-voting', () => {
     );
     // Votes are preserved on revert.
     expect(sqls.some((s) => /DELETE FROM trip_votes/.test(s))).toBe(false);
+  });
+});
+
+describe('POST /api/trip-lifecycle?to=past (mark past) + dispatch', () => {
+  it('flips an active trip to past', async () => {
+    setup({ trip: tripRow({ status: 'planning' }) });
+    const res = fakeRes();
+    await lifecycleHandler(
+      fakeReq({
+        query: { id: 'trip1', to: 'past' },
+        body: { completed_activity_ids: [] },
+      }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect((res.body as { marked_past_at?: number }).marked_past_at).toBeTruthy();
+    const sqls = execute.mock.calls.map((c) =>
+      typeof c[0] === 'string' ? c[0] : (c[0] as { sql: string }).sql,
+    );
+    expect(sqls.some((s) => /UPDATE trips\s+SET status = 'past'/.test(s))).toBe(
+      true,
+    );
+  });
+
+  it('409s when the trip is already past', async () => {
+    setup({ trip: tripRow({ status: 'past' }) });
+    const res = fakeRes();
+    await lifecycleHandler(
+      fakeReq({
+        query: { id: 'trip1', to: 'past' },
+        body: { completed_activity_ids: [] },
+      }),
+      res,
+    );
+    expect(res.statusCode).toBe(409);
+  });
+
+  it('400s on an unknown ?to value', async () => {
+    setup({});
+    const res = fakeRes();
+    await lifecycleHandler(
+      fakeReq({ query: { id: 'trip1', to: 'sideways' } }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
   });
 });

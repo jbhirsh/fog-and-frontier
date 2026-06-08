@@ -6,12 +6,15 @@ import {
   defaultStartTimeForDay,
   derivedEndTime,
   formatHHMM,
+  inviteLinkPath,
+  memberVoteBreakdown,
   myVote,
   parseHHMM,
   sortByNetScore,
   tallyFor,
   type TripActivity,
   type TripActivitySnapshot,
+  type TripMember,
   type TripVote,
 } from './userTrips';
 
@@ -181,6 +184,122 @@ describe('defaultStartTimeForDay', () => {
   it('caps the start time at 23:45', () => {
     const existing = [ta({ start_time: '23:00' }, { duration: 'Full Day' })];
     expect(defaultStartTimeForDay(existing)).toBe('23:45');
+  });
+});
+
+// ── Members + invite pure helpers ────────────────────────────────────────────
+
+function member(
+  email: string,
+  display_name: string | null = null,
+  overrides: Partial<TripMember> = {},
+): TripMember {
+  return {
+    email,
+    display_name,
+    added_by_email: 'creator@x.com',
+    added_at: 0,
+    is_creator: false,
+    ...overrides,
+  };
+}
+
+describe('inviteLinkPath', () => {
+  it('returns the correct path with encoded params', () => {
+    expect(inviteLinkPath('trip-1', 'tok-abc')).toBe('/trips/trip-1?invite=tok-abc');
+  });
+
+  it('encodes special characters in tripId', () => {
+    expect(inviteLinkPath('trip/with/slashes', 'tok')).toBe(
+      '/trips/trip%2Fwith%2Fslashes?invite=tok',
+    );
+  });
+
+  it('encodes special characters in inviteToken', () => {
+    expect(inviteLinkPath('trip-1', 'tok=abc&x=1')).toBe(
+      '/trips/trip-1?invite=tok%3Dabc%26x%3D1',
+    );
+  });
+
+  it('encodes both params when both contain special characters', () => {
+    expect(inviteLinkPath('a b', 'c d')).toBe('/trips/a%20b?invite=c%20d');
+  });
+});
+
+describe('memberVoteBreakdown', () => {
+  const ACTIVITY_ID = 'act-1';
+
+  it('returns an upvote entry with display_name joined from members (leftTrip false)', () => {
+    const votes = [vote(ACTIVITY_ID, 'alice@x.com', 1)];
+    const members = [member('alice@x.com', 'Alice')];
+    const result = memberVoteBreakdown(votes, members, ACTIVITY_ID);
+    expect(result).toEqual([
+      { email: 'alice@x.com', display_name: 'Alice', value: 1, leftTrip: false },
+    ]);
+  });
+
+  it('returns a downvote entry correctly', () => {
+    const votes = [vote(ACTIVITY_ID, 'bob@x.com', -1)];
+    const members = [member('bob@x.com', 'Bob')];
+    const result = memberVoteBreakdown(votes, members, ACTIVITY_ID);
+    expect(result).toEqual([
+      { email: 'bob@x.com', display_name: 'Bob', value: -1, leftTrip: false },
+    ]);
+  });
+
+  it('marks a voter not in members as leftTrip true with display_name null', () => {
+    const votes = [vote(ACTIVITY_ID, 'ghost@x.com', 1)];
+    const result = memberVoteBreakdown(votes, [], ACTIVITY_ID);
+    expect(result).toEqual([
+      { email: 'ghost@x.com', display_name: null, value: 1, leftTrip: true },
+    ]);
+  });
+
+  it('sorts upvotes before downvotes, then email ascending', () => {
+    const votes = [
+      vote(ACTIVITY_ID, 'zoe@x.com', -1),
+      vote(ACTIVITY_ID, 'alice@x.com', 1),
+      vote(ACTIVITY_ID, 'bob@x.com', -1),
+      vote(ACTIVITY_ID, 'carol@x.com', 1),
+    ];
+    const members = [
+      member('alice@x.com'),
+      member('bob@x.com'),
+      member('carol@x.com'),
+      member('zoe@x.com'),
+    ];
+    const result = memberVoteBreakdown(votes, members, ACTIVITY_ID);
+    expect(result.map((r) => r.email)).toEqual([
+      'alice@x.com',
+      'carol@x.com',
+      'bob@x.com',
+      'zoe@x.com',
+    ]);
+    expect(result.map((r) => r.value)).toEqual([1, 1, -1, -1]);
+  });
+
+  it('joins members case-insensitively', () => {
+    const votes = [vote(ACTIVITY_ID, 'ALICE@X.COM', 1)];
+    const members = [member('alice@x.com', 'Alice')];
+    const result = memberVoteBreakdown(votes, members, ACTIVITY_ID);
+    expect(result[0].display_name).toBe('Alice');
+    expect(result[0].leftTrip).toBe(false);
+  });
+
+  it('returns empty array for a candidate with no votes', () => {
+    const votes = [vote('other-act', 'alice@x.com', 1)];
+    const result = memberVoteBreakdown(votes, [], ACTIVITY_ID);
+    expect(result).toEqual([]);
+  });
+
+  it('ignores votes for other trip_activity_ids', () => {
+    const votes = [
+      vote(ACTIVITY_ID, 'alice@x.com', 1),
+      vote('other-act', 'bob@x.com', 1),
+    ];
+    const result = memberVoteBreakdown(votes, [], ACTIVITY_ID);
+    expect(result).toHaveLength(1);
+    expect(result[0].email).toBe('alice@x.com');
   });
 });
 

@@ -22,7 +22,9 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const planningTrips = trips.filter((t) => t.status === 'planning');
+  // Any non-past trip can take candidates — both voting and planning trips
+  // (#51 c12). The list is already member-scoped server-side.
+  const activeTrips = trips.filter((t) => t.status !== 'past');
 
   function handleCreateNew() {
     onClose();
@@ -97,19 +99,19 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
 
         <div className="space-y-xs">
           <h3 className="font-headline-md text-body-md text-on-surface">
-            Or add to an existing planning trip
+            Or add to an existing trip
           </h3>
           {isLoading ? (
             <p className="font-body-md text-sm text-on-surface-variant">
               Loading trips…
             </p>
-          ) : planningTrips.length === 0 ? (
+          ) : activeTrips.length === 0 ? (
             <p className="font-body-md text-sm text-on-surface-variant">
-              No planning trips yet.
+              No active trips yet.
             </p>
           ) : (
             <ul className="space-y-xs">
-              {planningTrips.map((trip) => (
+              {activeTrips.map((trip) => (
                 <li key={trip.id}>
                   <button
                     type="button"

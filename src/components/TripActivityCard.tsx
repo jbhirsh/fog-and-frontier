@@ -14,6 +14,8 @@ type Props = {
   onMoveToUnscheduled?: () => void;
   onAssignToDay?: () => void;
   onRemove?: () => void;
+  // Opens the activity detail view. Omitted for orphaned (deleted) snapshots.
+  onOpen?: () => void;
   // Day-bucket cards show the time range across the top.
   showTimeRange?: boolean;
 };
@@ -29,6 +31,7 @@ export function TripActivityCard({
   onMoveToUnscheduled,
   onAssignToDay,
   onRemove,
+  onOpen,
   showTimeRange,
 }: Props) {
   const snapshot = activity.snapshot;
@@ -57,75 +60,107 @@ export function TripActivityCard({
           {end ? ` – ${formatHHMM(end)}` : ''}
         </div>
       )}
-      <div className="flex gap-md p-sm">
-        <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-surface-variant flex items-center justify-center">
-          {cover ? (
-            <img alt="" src={cover} className="w-full h-full object-cover" />
-          ) : (
-            <span
-              className="material-symbols-outlined text-outline"
-              style={{ fontSize: 28 }}
+      <div className="p-sm space-y-sm">
+        {/* Cover + title — a button when openable, so clicking the card (but
+            not the action buttons or drag) opens the detail view. */}
+        {onOpen && !orphaned ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="flex gap-md w-full text-left rounded-lg hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
+          >
+            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+          </button>
+        ) : (
+          <div className="flex gap-md">
+            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+          </div>
+        )}
+        <div className="flex flex-wrap gap-xs">
+          {onAssignToDay && (
+            <ActionButton
+              onClick={onAssignToDay}
+              disabled={disabled}
+              tooltip={disabled ? pastTooltip : undefined}
             >
-              landscape
-            </span>
+              Assign to day
+            </ActionButton>
           )}
-        </div>
-        <div className="flex-1 min-w-0 space-y-xs">
-          <div className="font-headline-md text-body-lg text-on-surface line-clamp-1">
-            {name}
-          </div>
-          {cityLine && (
-            <div className="font-body-md text-sm text-on-surface-variant line-clamp-1">
-              {cityLine}
-            </div>
+          {onEditTime && (
+            <ActionButton
+              onClick={onEditTime}
+              disabled={disabled}
+              tooltip={disabled ? pastTooltip : undefined}
+            >
+              Edit time
+            </ActionButton>
           )}
-          {orphaned && (
-            <div className="font-body-md text-xs text-error">
-              Original activity was deleted.
-            </div>
+          {onMoveToUnscheduled && (
+            <ActionButton
+              onClick={onMoveToUnscheduled}
+              disabled={disabled}
+              tooltip={disabled ? pastTooltip : undefined}
+            >
+              Unschedule
+            </ActionButton>
           )}
-          <div className="flex flex-wrap gap-xs pt-xs">
-            {onAssignToDay && (
-              <ActionButton
-                onClick={onAssignToDay}
-                disabled={disabled}
-                tooltip={disabled ? pastTooltip : undefined}
-              >
-                Assign to day
-              </ActionButton>
-            )}
-            {onEditTime && (
-              <ActionButton
-                onClick={onEditTime}
-                disabled={disabled}
-                tooltip={disabled ? pastTooltip : undefined}
-              >
-                Edit time
-              </ActionButton>
-            )}
-            {onMoveToUnscheduled && (
-              <ActionButton
-                onClick={onMoveToUnscheduled}
-                disabled={disabled}
-                tooltip={disabled ? pastTooltip : undefined}
-              >
-                Unschedule
-              </ActionButton>
-            )}
-            {onRemove && (
-              <ActionButton
-                onClick={onRemove}
-                disabled={disabled}
-                tooltip={disabled ? pastTooltip : undefined}
-                destructive
-              >
-                Remove
-              </ActionButton>
-            )}
-          </div>
+          {onRemove && (
+            <ActionButton
+              onClick={onRemove}
+              disabled={disabled}
+              tooltip={disabled ? pastTooltip : undefined}
+              destructive
+            >
+              Remove
+            </ActionButton>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function CardBody({
+  cover,
+  name,
+  cityLine,
+  orphaned,
+}: {
+  cover: string | null;
+  name: string;
+  cityLine: string;
+  orphaned: boolean;
+}) {
+  return (
+    <>
+      <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-surface-variant flex items-center justify-center">
+        {cover ? (
+          <img alt="" src={cover} className="w-full h-full object-cover" />
+        ) : (
+          <span
+            className="material-symbols-outlined text-outline"
+            style={{ fontSize: 28 }}
+          >
+            landscape
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 space-y-xs">
+        <div className="font-headline-md text-body-lg text-on-surface line-clamp-1">
+          {name}
+        </div>
+        {cityLine && (
+          <div className="font-body-md text-sm text-on-surface-variant line-clamp-1">
+            {cityLine}
+          </div>
+        )}
+        {orphaned && (
+          <div className="font-body-md text-xs text-error">
+            Original activity was deleted.
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 

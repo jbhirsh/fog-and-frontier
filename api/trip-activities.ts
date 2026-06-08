@@ -198,6 +198,12 @@ export default withErrorLogging(async function handler(
   }
 
   if (req.method === 'DELETE') {
+    // Only the member who added the candidate, or the trip creator, may
+    // remove it (#51).
+    if (tripActivity.added_by_email !== ctx.email && !ctx.isCreator) {
+      res.status(403).json({ error: 'forbidden', code: 'not_adder' });
+      return;
+    }
     // Cascade: drop the candidate and any votes cast on it, in one
     // transaction (#51 c9). transition-planning's cull relies on this path
     // to keep votes from being orphaned.

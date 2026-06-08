@@ -8,6 +8,10 @@ type Props = {
   onVote?: (value: -1 | 0 | 1) => void;
 };
 
+// YouTube-style segmented control: [👍 up | 👎 down] in one pill, each thumb
+// showing its own count. No separate aggregate/net pill — the per-thumb counts
+// are the whole story. The active vote is filled + colored; click it again to
+// clear to neutral.
 export function VoteControls({
   tally,
   myVote,
@@ -25,64 +29,74 @@ export function VoteControls({
     onVote(myVote === -1 ? 0 : -1);
   }
 
-  const netLabel =
-    tally.net > 0 ? `+${tally.net}` : tally.net < 0 ? `${tally.net}` : '0';
-
   return (
-    <div className="flex items-center gap-sm">
-      {/* Upvote */}
-      <button
-        type="button"
-        aria-label="Upvote"
-        aria-pressed={myVote === 1}
+    <div className="inline-flex items-center rounded-full border border-outline-variant/40 overflow-hidden">
+      <ThumbButton
+        label="Upvote"
+        icon="thumb_up"
+        count={tally.up}
+        active={myVote === 1}
+        activeClass="text-primary"
         disabled={disabled}
-        title={disabled ? disabledTooltip : undefined}
+        disabledTooltip={disabledTooltip}
         onClick={handleUp}
-        className={`flex items-center gap-xs px-sm py-xs rounded-full border font-body-md text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-          myVote === 1
-            ? 'bg-primary text-on-primary border-primary'
-            : 'border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant'
-        }`}
-      >
-        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-          thumb_up
-        </span>
-        <span>{tally.up}</span>
-      </button>
-
-      {/* Net score pill */}
-      <span
-        className={`px-sm py-xs rounded-full font-body-md text-sm font-medium ${
-          tally.net > 0
-            ? 'bg-tertiary-container text-on-tertiary-container'
-            : tally.net < 0
-              ? 'bg-error-container text-error'
-              : 'bg-surface-variant text-on-surface-variant'
-        }`}
-        aria-label={`Net score ${netLabel}`}
-      >
-        {netLabel}
-      </span>
-
-      {/* Downvote */}
-      <button
-        type="button"
-        aria-label="Downvote"
-        aria-pressed={myVote === -1}
+      />
+      <span className="w-px self-stretch bg-outline-variant/40" aria-hidden="true" />
+      <ThumbButton
+        label="Downvote"
+        icon="thumb_down"
+        count={tally.down}
+        active={myVote === -1}
+        activeClass="text-error"
         disabled={disabled}
-        title={disabled ? disabledTooltip : undefined}
+        disabledTooltip={disabledTooltip}
         onClick={handleDown}
-        className={`flex items-center gap-xs px-sm py-xs rounded-full border font-body-md text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-          myVote === -1
-            ? 'bg-error text-on-error border-error'
-            : 'border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant'
-        }`}
-      >
-        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-          thumb_down
-        </span>
-        <span>{tally.down}</span>
-      </button>
+      />
     </div>
+  );
+}
+
+function ThumbButton({
+  label,
+  icon,
+  count,
+  active,
+  activeClass,
+  disabled,
+  disabledTooltip,
+  onClick,
+}: {
+  label: string;
+  icon: 'thumb_up' | 'thumb_down';
+  count: number;
+  active: boolean;
+  activeClass: string;
+  disabled: boolean;
+  disabledTooltip?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={active}
+      disabled={disabled}
+      title={disabled ? disabledTooltip : undefined}
+      onClick={onClick}
+      className={`flex items-center gap-xs px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed ${
+        active ? `${activeClass} font-medium` : 'text-on-surface-variant'
+      } ${disabled ? '' : 'hover:bg-surface-variant'}`}
+    >
+      <span
+        className="material-symbols-outlined"
+        style={{
+          fontSize: 18,
+          fontVariationSettings: active ? "'FILL' 1" : undefined,
+        }}
+      >
+        {icon}
+      </span>
+      <span>{count}</span>
+    </button>
   );
 }

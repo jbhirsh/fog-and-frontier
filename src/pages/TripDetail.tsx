@@ -1,26 +1,43 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { TripActivityCard } from '../components/TripActivityCard';
 import { TripMap } from '../components/TripMap';
 import { VotingCandidateCard } from '../components/VotingCandidateCard';
 import { PromoteToPlanningModal } from '../components/PromoteToPlanningModal';
 import { InlineError } from '../components/InlineError';
-import { useAuthState } from '../lib/authShim';
+import { MembersStrip } from '../components/MembersStrip';
+import { InviteModal } from '../components/InviteModal';
+import { ActivityDetail } from '../components/ActivityDetail';
+import type { Activity } from '../data/types';
+import { SignInButton } from '@clerk/clerk-react';
+import { useAuthState, CLERK_ENABLED } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 import { useVisibilityInterval } from '../lib/useVisibilityInterval';
 import {
   assignSlot,
   castVote,
+  claimInvite,
   dayCount,
   dayLabel,
   defaultStartTimeForDay,
   deleteTrip,
+  fetchUsers,
   formatHHMM,
+  inviteLinkPath,
+  inviteMember,
   markTripPast,
+  memberVoteBreakdown,
   myVote,
   patchTrip,
+  removeMember,
   removeTripActivity,
   revertToVoting,
+  revokeInvite,
   setDisplayOrder,
   sortByNetScore,
   tallyFor,
@@ -29,6 +46,7 @@ import {
   type PatchTripInput,
   type Trip,
   type TripActivity,
+  type UserSummary,
 } from '../lib/userTrips';
 
 const TALLY_REFRESH_MS = 30_000;
@@ -39,9 +57,10 @@ const PAST_TOOLTIP = 'This trip is past';
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isOwner, isLoaded: ownerLoaded, email } = useOwner();
+  const { isLoaded: ownerLoaded, email } = useOwner();
   const { getToken } = useAuthState();
-  const { trip, isLoading, error, reload } = useTrip(id);
+  const { trip, isLoading, error, reload, setTrip } = useTrip(id);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [editingHeader, setEditingHeader] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,14 +70,46 @@ export function TripDetail() {
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [confirmingRevert, setConfirmingRevert] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [detail, setDetail] = useState<Activity | null>(null);
 
   const isPast = trip?.status === 'past';
   const isVoting = trip?.status === 'voting';
-  // In this PR the only members are owners, so creator === owner-who-created.
-  // PR3 refines membership-based gating; creator-only controls are gated here.
   const isCreator = !!trip && !!email && trip.creator_email === email;
 
   const buckets = useMemo(() => bucketByDay(trip), [trip]);
+
+  // Invite claim (#51 c2): a SIGNED-IN visitor opening /trips/:id?invite=<token>
+  // claims it (token IS the credential — no email match), becoming a member.
+  // Signed-out visitors are handled in render (prompted to sign in; the ?invite
+  // token stays in the URL so this fires once they authenticate). Runs once,
+  // strips the param, then refetches so the (previously 404) trip resolves.
+  const inviteToken = searchParams.get('invite');
+  const claimStartedRef = useRef(false);
+  const [claimDone, setClaimDone] = useState(false);
+  // True from a signed-in invitee's arrival until the claim resolves — keeps the
+  // page in "Loading…" instead of flashing the not-found / sign-in screens.
+  const claimInProgress = inviteToken !== null && email !== null && !claimDone;
+  useEffect(() => {
+    if (!inviteToken || !ownerLoaded || !email) return;
+    if (claimStartedRef.current) return;
+    claimStartedRef.current = true;
+    void (async () => {
+      try {
+        const token = await getToken();
+        await claimInvite(inviteToken, token);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        const next = new URLSearchParams(searchParams);
+        next.delete('invite');
+        setSearchParams(next, { replace: true });
+        setClaimDone(true);
+        reload();
+      }
+    })();
+  }, [inviteToken, ownerLoaded, email, getToken, reload, searchParams, setSearchParams]);
 
   const runWithToken = useCallback(
     async (fn: (token: string | null) => Promise<unknown>) => {
@@ -89,9 +140,47 @@ export function TripDetail() {
   // visibility/focus. reload() is the existing useTrip refetch.
   useVisibilityInterval(reload, TALLY_REFRESH_MS, isVoting);
 
+  // Optimistic voting: update the local tally immediately so the thumb feels
+  // instant, then persist in the background. No busy-guard (rapid toggles are
+  // fine) and no full reload on success — the 30s poll reconciles other
+  // members' votes. On failure, resync + surface the error.
   function handleVote(taId: string, value: -1 | 0 | 1) {
-    if (!trip || !isVoting) return;
-    void runWithToken((token) => castVote(trip.id, taId, value, token));
+    if (!trip || !isVoting || !email) return;
+    const myEmail = email.toLowerCase();
+    setTrip((prev) => {
+      if (!prev) return prev;
+      const others = prev.votes.filter(
+        (v) =>
+          !(
+            v.trip_activity_id === taId &&
+            v.member_email.toLowerCase() === myEmail
+          ),
+      );
+      const next =
+        value === 0
+          ? others
+          : [
+              ...others,
+              { trip_activity_id: taId, member_email: myEmail, value },
+            ];
+      return { ...prev, votes: next };
+    });
+    void (async () => {
+      try {
+        const token = await getToken();
+        await castVote(trip.id, taId, value, token);
+      } catch (err) {
+        console.error(err);
+        setActionError(
+          "Your vote didn't save — the trip may have changed. We've refreshed it.",
+        );
+        reload();
+      }
+    })();
+  }
+
+  function handleOpenActivity(a: TripActivity) {
+    if (a.snapshot) setDetail(a.snapshot);
   }
 
   function handleFinalize(keptActivityIds: string[]) {
@@ -123,6 +212,50 @@ export function TripDetail() {
         await setDisplayOrder(ordered[i], i, token);
       }
     });
+  }
+
+  async function handleOpenInvite() {
+    setInviteOpen(true);
+    // Lazy-load the global account list for the picker autocomplete.
+    try {
+      const token = await getToken();
+      setUsers(await fetchUsers(token));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleCreateInvite(inviteEmail: string) {
+    if (!trip) throw new Error('no trip');
+    const token = await getToken();
+    const invite = await inviteMember(trip.id, inviteEmail, token);
+    reload(); // surface the new pending-invite chip
+    return { invite_token: invite.invite_token };
+  }
+
+  function handleRemoveMember(memberEmail: string) {
+    if (!trip) return;
+    void runWithToken((token) => removeMember(trip.id, memberEmail, token));
+  }
+
+  function handleRevokeInvite(token: string) {
+    if (!trip) return;
+    void runWithToken((t) => revokeInvite(trip.id, token, t));
+  }
+
+  function handleLeave() {
+    if (!trip || !email) return;
+    const tripEmail = email;
+    void (async () => {
+      try {
+        const token = await getToken();
+        await removeMember(trip.id, tripEmail, token);
+        void navigate('/trips');
+      } catch (err) {
+        console.error(err);
+        setActionError("Couldn't leave the trip. Try again.");
+      }
+    })();
   }
 
   function handleDropOnDay(dayIndex: number) {
@@ -229,7 +362,7 @@ export function TripDetail() {
     void runWithToken((token) => markTripPast(trip.id, ids, token));
   }
 
-  if (!ownerLoaded || isLoading) {
+  if (!ownerLoaded || isLoading || claimInProgress) {
     return (
       <section className="px-margin py-xl text-center text-on-surface-variant">
         Loading…
@@ -237,12 +370,45 @@ export function TripDetail() {
     );
   }
 
-  if (!isOwner) {
+  // Signed-out visitor arriving via an invite link: prompt them to sign in so
+  // the claim can run (the ?invite token stays in the URL through the modal
+  // sign-in, then the claim effect fires once they're authenticated).
+  if (inviteToken && !email) {
+    return (
+      <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
+        <h1 className="font-display text-headline-lg text-primary">
+          You&apos;re invited
+        </h1>
+        <p className="font-body-lg text-on-surface-variant">
+          Sign in to accept your invitation and join this trip.
+        </p>
+        {CLERK_ENABLED ? (
+          <SignInButton mode="modal">
+            <button
+              type="button"
+              className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+            >
+              Sign in to accept
+            </button>
+          </SignInButton>
+        ) : (
+          <p className="font-body-md text-on-surface-variant">
+            Sign-in isn&apos;t available right now — try again later.
+          </p>
+        )}
+      </section>
+    );
+  }
+
+  // Anonymous callers get 401 from the API. Members (owners or invited editors)
+  // get the trip; non-members get 404 (existence hidden) and fall through to the
+  // not-found branch below.
+  if (error === 'unauthorized') {
     return (
       <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
         <h1 className="font-display text-headline-lg text-primary">Trip</h1>
         <p className="font-body-lg text-on-surface-variant">
-          Sign in with an owner account to view trips.
+          Sign in to view this trip.
         </p>
         <Link to="/trips" className="text-primary underline">
           Back to trips
@@ -291,6 +457,19 @@ export function TripDetail() {
         </div>
       )}
 
+      <div className="px-margin pt-md max-w-screen-2xl mx-auto">
+        <MembersStrip
+          members={trip.members}
+          invites={trip.invites}
+          currentEmail={email}
+          isCreator={isCreator}
+          onInvite={() => void handleOpenInvite()}
+          onRemoveMember={handleRemoveMember}
+          onRevokeInvite={handleRevokeInvite}
+          onLeave={handleLeave}
+        />
+      </div>
+
       {isVoting ? (
         <VotingView
           trip={trip}
@@ -299,6 +478,7 @@ export function TripDetail() {
           busy={busy}
           onVote={handleVote}
           onRemove={(a) => handleRemove(a)}
+          onOpen={handleOpenActivity}
           onReorder={handleReorderCandidate}
           onFinalize={() => setPromoteOpen(true)}
           onAddFromCurated={() =>
@@ -347,6 +527,7 @@ export function TripDetail() {
                   onEditTime={(a) => handleAssignOrEdit(a)}
                   onMoveToUnscheduled={(a) => handleMoveToUnscheduled(a)}
                   onRemove={(a) => handleRemove(a)}
+                  onOpen={handleOpenActivity}
                 />
               ))}
             </div>
@@ -356,6 +537,7 @@ export function TripDetail() {
               onDrop={handleDropOnUnscheduled}
               onAssign={(a) => handleAssignOrEdit(a)}
               onRemove={(a) => handleRemove(a)}
+              onOpen={handleOpenActivity}
               onAddFromCurated={() => {
                 if (isPast) return;
                 void navigate('/', {
@@ -370,7 +552,7 @@ export function TripDetail() {
 
           {/* Final vote tallies stay visible after voting closes, as
               historical context (#51). */}
-          <VotingResults trip={trip} />
+          <VotingResults trip={trip} onOpen={handleOpenActivity} />
         </section>
       )}
 
@@ -423,6 +605,25 @@ export function TripDetail() {
           onConfirm={handleRevert}
         />
       )}
+
+      {inviteOpen && trip && (
+        <InviteModal
+          users={users}
+          excludeEmails={[
+            ...trip.members.map((m) => m.email),
+            ...trip.invites.map((i) => i.invited_email ?? ''),
+          ].filter(Boolean)}
+          onClose={() => setInviteOpen(false)}
+          onCreateInvite={handleCreateInvite}
+          buildLink={(token) =>
+            `${window.location.origin}${inviteLinkPath(trip.id, token)}`
+          }
+        />
+      )}
+
+      {detail && (
+        <ActivityDetail activity={detail} onClose={() => setDetail(null)} />
+      )}
     </>
   );
 }
@@ -437,6 +638,7 @@ function VotingView({
   busy,
   onVote,
   onRemove,
+  onOpen,
   onReorder,
   onFinalize,
   onAddFromCurated,
@@ -447,6 +649,7 @@ function VotingView({
   busy: boolean;
   onVote: (taId: string, value: -1 | 0 | 1) => void;
   onRemove: (a: TripActivity) => void;
+  onOpen: (a: TripActivity) => void;
   onReorder: (draggedId: string, targetId: string) => void;
   onFinalize: () => void;
   onAddFromCurated: () => void;
@@ -508,27 +711,30 @@ function VotingView({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
           {candidates.map((a) => (
-            <VotingCandidateCard
-              key={a.id}
-              activity={a}
-              tally={tallyFor(trip.votes, a.id)}
-              myVote={myVote(trip.votes, a.id, email)}
-              votingOpen
-              canRemove
-              onVote={(value) => onVote(a.id, value)}
-              onRemove={() => onRemove(a)}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(DRAG_MIME, a.id);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const draggedId = e.dataTransfer.getData(DRAG_MIME);
-                if (draggedId) onReorder(draggedId, a.id);
-              }}
-            />
+            <div key={a.id} className="space-y-xs">
+              <VotingCandidateCard
+                activity={a}
+                tally={tallyFor(trip.votes, a.id)}
+                myVote={myVote(trip.votes, a.id, email)}
+                votingOpen
+                canRemove
+                onVote={(value) => onVote(a.id, value)}
+                onRemove={() => onRemove(a)}
+                onOpen={() => onOpen(a)}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(DRAG_MIME, a.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const draggedId = e.dataTransfer.getData(DRAG_MIME);
+                  if (draggedId) onReorder(draggedId, a.id);
+                }}
+              />
+              <VoteBreakdown trip={trip} tripActivityId={a.id} />
+            </div>
           ))}
         </div>
       )}
@@ -536,8 +742,49 @@ function VotingView({
   );
 }
 
+// Per-candidate by-member breakdown (#51 c5). A member who voted then left the
+// trip still appears here, labeled "(left trip)" — their vote keeps counting.
+function VoteBreakdown({
+  trip,
+  tripActivityId,
+}: {
+  trip: Trip;
+  tripActivityId: string;
+}) {
+  const rows = memberVoteBreakdown(trip.votes, trip.members, tripActivityId);
+  if (rows.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-xs px-sm">
+      {rows.map((r) => (
+        <span
+          key={r.email}
+          className="inline-flex items-center gap-xs text-sm font-body-md text-on-surface-variant bg-surface-container-low rounded-full px-sm py-xs"
+        >
+          <span
+            className={`material-symbols-outlined text-body-md ${
+              r.value === 1 ? 'text-primary' : 'text-error'
+            }`}
+          >
+            {r.value === 1 ? 'thumb_up' : 'thumb_down'}
+          </span>
+          {r.display_name ?? r.email}
+          {r.leftTrip && (
+            <span className="italic opacity-70">&nbsp;(left trip)</span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // Read-only final tallies shown under the itinerary once voting has closed.
-function VotingResults({ trip }: { trip: Trip }) {
+function VotingResults({
+  trip,
+  onOpen,
+}: {
+  trip: Trip;
+  onOpen: (a: TripActivity) => void;
+}) {
   if (trip.votes.length === 0) return null;
   const ranked = sortByNetScore(trip.activities, trip.votes);
   return (
@@ -547,14 +794,17 @@ function VotingResults({ trip }: { trip: Trip }) {
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
         {ranked.map((a) => (
-          <VotingCandidateCard
-            key={a.id}
-            activity={a}
-            tally={tallyFor(trip.votes, a.id)}
-            myVote={0}
-            votingOpen={false}
-            canRemove={false}
-          />
+          <div key={a.id} className="space-y-xs">
+            <VotingCandidateCard
+              activity={a}
+              tally={tallyFor(trip.votes, a.id)}
+              myVote={0}
+              votingOpen={false}
+              canRemove={false}
+              onOpen={() => onOpen(a)}
+            />
+            <VoteBreakdown trip={trip} tripActivityId={a.id} />
+          </div>
         ))}
       </div>
     </div>
@@ -882,6 +1132,7 @@ function DaySection({
   onEditTime,
   onMoveToUnscheduled,
   onRemove,
+  onOpen,
 }: {
   trip: Trip;
   bucket: DayBucket;
@@ -890,6 +1141,7 @@ function DaySection({
   onEditTime: (a: TripActivity) => void;
   onMoveToUnscheduled: (a: TripActivity) => void;
   onRemove: (a: TripActivity) => void;
+  onOpen: (a: TripActivity) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   return (
@@ -931,6 +1183,7 @@ function DaySection({
             onEditTime={() => onEditTime(a)}
             onMoveToUnscheduled={() => onMoveToUnscheduled(a)}
             onRemove={() => onRemove(a)}
+            onOpen={() => onOpen(a)}
             showTimeRange
           />
         ))
@@ -945,6 +1198,7 @@ function UnscheduledPanel({
   onDrop,
   onAssign,
   onRemove,
+  onOpen,
   onAddFromCurated,
 }: {
   trip: Trip;
@@ -952,6 +1206,7 @@ function UnscheduledPanel({
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   onAssign: (a: TripActivity) => void;
   onRemove: (a: TripActivity) => void;
+  onOpen: (a: TripActivity) => void;
   onAddFromCurated: () => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
@@ -1015,6 +1270,7 @@ function UnscheduledPanel({
             }}
             onAssignToDay={() => onAssign(a)}
             onRemove={() => onRemove(a)}
+            onOpen={() => onOpen(a)}
           />
         ))
       )}
@@ -1170,6 +1426,12 @@ function MarkPastModal({
                   <span className="block font-body-md text-sm text-on-surface-variant">
                     {dayLabel(trip, a.day_index ?? 0)} ·{' '}
                     {formatHHMM(a.start_time)}
+                    {(() => {
+                      const t = tallyFor(trip.votes, a.id);
+                      return t.up + t.down > 0
+                        ? ` · Voted ${t.up} to ${t.down}`
+                        : '';
+                    })()}
                   </span>
                 </label>
               </div>
