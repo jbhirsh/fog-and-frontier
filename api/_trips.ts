@@ -428,6 +428,99 @@ export async function addTripMember(
   });
 }
 
+export async function removeTripMember(
+  tripId: string,
+  email: string,
+): Promise<void> {
+  await db().execute({
+    sql: 'DELETE FROM trip_members WHERE trip_id = ? AND member_email = ?',
+    args: [tripId, email],
+  });
+}
+
+// Upsert any account's users row (used at invite-claim time, where a non-owner
+// editor account is created for the first time). Role is owner if the email is
+// in the allow-list, else editor — and never downgrades an existing owner.
+export async function upsertUser(email: string): Promise<void> {
+  const role: UserRole = getOwnerEmails().has(email) ? 'owner' : 'editor';
+  await db().execute({
+    sql: `INSERT INTO users (email, display_name, created_at, role)
+          VALUES (?, NULL, ?, ?)
+          ON CONFLICT(email) DO UPDATE SET role =
+            CASE WHEN users.role = 'owner' THEN 'owner' ELSE excluded.role END`,
+    args: [email, Date.now(), role],
+  });
+}
+
+export type UserSummary = { email: string; display_name: string | null };
+
+// All known accounts, for the invite picker. The autocomplete is intentionally
+// global (#51 c4): anyone with a users row is suggestable to any inviter.
+export async function getAllUsers(): Promise<UserSummary[]> {
+  const rs = await db().execute(
+    'SELECT email, display_name FROM users ORDER BY email ASC',
+  );
+  return rs.rows.map((r) => ({
+    email: asString(r.email),
+    display_name: asOptionalString(r.display_name),
+  }));
+}
+
+// Create a pending invite with a fresh token (the credential, #51 c2). The
+// invited_email is informational only — used to label the picker. Returns the
+// new invite row.
+export async function createInvite(
+  tripId: string,
+  invitedEmail: string,
+  invitedByEmail: string,
+): Promise<TripInvite> {
+  const invite_token = newId();
+  const invited_at = Date.now();
+  await db().execute({
+    sql: `INSERT INTO trip_invites
+            (trip_id, invite_token, invited_email, invited_by_email, invited_at)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [tripId, invite_token, invitedEmail, invitedByEmail, invited_at],
+  });
+  return {
+    invite_token,
+    invited_email: invitedEmail,
+    invited_by_email: invitedByEmail,
+    invited_at,
+  };
+}
+
+export type InviteRow = TripInvite & { trip_id: string };
+
+export async function getInviteByToken(
+  token: string,
+): Promise<InviteRow | null> {
+  const rs = await db().execute({
+    sql: `SELECT trip_id, invite_token, invited_email, invited_by_email, invited_at
+          FROM trip_invites WHERE invite_token = ?`,
+    args: [token],
+  });
+  const row = rs.rows[0];
+  if (!row) return null;
+  return {
+    trip_id: asString(row.trip_id),
+    invite_token: asString(row.invite_token),
+    invited_email: asOptionalString(row.invited_email),
+    invited_by_email: asString(row.invited_by_email),
+    invited_at: asNumber(row.invited_at),
+  };
+}
+
+export async function deleteInviteByToken(
+  tripId: string,
+  token: string,
+): Promise<void> {
+  await db().execute({
+    sql: 'DELETE FROM trip_invites WHERE trip_id = ? AND invite_token = ?',
+    args: [tripId, token],
+  });
+}
+
 // Gate for any trip-scoped action available to members. Non-members get a 404
 // (existence hidden, #51 privacy), anon gets 401. Returns the caller context
 // or null after writing the response.

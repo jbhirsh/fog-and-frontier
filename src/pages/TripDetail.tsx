@@ -1,26 +1,40 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { TripActivityCard } from '../components/TripActivityCard';
 import { TripMap } from '../components/TripMap';
 import { VotingCandidateCard } from '../components/VotingCandidateCard';
 import { PromoteToPlanningModal } from '../components/PromoteToPlanningModal';
 import { InlineError } from '../components/InlineError';
+import { MembersStrip } from '../components/MembersStrip';
+import { InviteModal } from '../components/InviteModal';
 import { useAuthState } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 import { useVisibilityInterval } from '../lib/useVisibilityInterval';
 import {
   assignSlot,
   castVote,
+  claimInvite,
   dayCount,
   dayLabel,
   defaultStartTimeForDay,
   deleteTrip,
+  fetchUsers,
   formatHHMM,
+  inviteLinkPath,
+  inviteMember,
   markTripPast,
+  memberVoteBreakdown,
   myVote,
   patchTrip,
+  removeMember,
   removeTripActivity,
   revertToVoting,
+  revokeInvite,
   setDisplayOrder,
   sortByNetScore,
   tallyFor,
@@ -29,6 +43,7 @@ import {
   type PatchTripInput,
   type Trip,
   type TripActivity,
+  type UserSummary,
 } from '../lib/userTrips';
 
 const TALLY_REFRESH_MS = 30_000;
@@ -39,9 +54,10 @@ const PAST_TOOLTIP = 'This trip is past';
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isOwner, isLoaded: ownerLoaded, email } = useOwner();
+  const { isLoaded: ownerLoaded, email } = useOwner();
   const { getToken } = useAuthState();
   const { trip, isLoading, error, reload } = useTrip(id);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [editingHeader, setEditingHeader] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,14 +67,42 @@ export function TripDetail() {
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [confirmingRevert, setConfirmingRevert] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [users, setUsers] = useState<UserSummary[]>([]);
 
   const isPast = trip?.status === 'past';
   const isVoting = trip?.status === 'voting';
-  // In this PR the only members are owners, so creator === owner-who-created.
-  // PR3 refines membership-based gating; creator-only controls are gated here.
   const isCreator = !!trip && !!email && trip.creator_email === email;
 
   const buckets = useMemo(() => bucketByDay(trip), [trip]);
+
+  // Invite claim (#51 c2): an authed visitor opening /trips/:id?invite=<token>
+  // claims it (token IS the credential — no email match), becoming a member.
+  // We run this once per token, strip the param, then refetch so the trip
+  // (previously 404 for a non-member) resolves.
+  const inviteToken = searchParams.get('invite');
+  const claimedRef = useRef<string | null>(null);
+  const [claiming, setClaiming] = useState<boolean>(() => !!inviteToken);
+  useEffect(() => {
+    if (!inviteToken || !ownerLoaded || !email) return;
+    if (claimedRef.current === inviteToken) return;
+    claimedRef.current = inviteToken;
+    setClaiming(true);
+    void (async () => {
+      try {
+        const token = await getToken();
+        await claimInvite(inviteToken, token);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        const next = new URLSearchParams(searchParams);
+        next.delete('invite');
+        setSearchParams(next, { replace: true });
+        setClaiming(false);
+        reload();
+      }
+    })();
+  }, [inviteToken, ownerLoaded, email, getToken, reload, searchParams, setSearchParams]);
 
   const runWithToken = useCallback(
     async (fn: (token: string | null) => Promise<unknown>) => {
@@ -123,6 +167,50 @@ export function TripDetail() {
         await setDisplayOrder(ordered[i], i, token);
       }
     });
+  }
+
+  async function handleOpenInvite() {
+    setInviteOpen(true);
+    // Lazy-load the global account list for the picker autocomplete.
+    try {
+      const token = await getToken();
+      setUsers(await fetchUsers(token));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleCreateInvite(inviteEmail: string) {
+    if (!trip) throw new Error('no trip');
+    const token = await getToken();
+    const invite = await inviteMember(trip.id, inviteEmail, token);
+    reload(); // surface the new pending-invite chip
+    return { invite_token: invite.invite_token };
+  }
+
+  function handleRemoveMember(memberEmail: string) {
+    if (!trip) return;
+    void runWithToken((token) => removeMember(trip.id, memberEmail, token));
+  }
+
+  function handleRevokeInvite(token: string) {
+    if (!trip) return;
+    void runWithToken((t) => revokeInvite(trip.id, token, t));
+  }
+
+  function handleLeave() {
+    if (!trip || !email) return;
+    const tripEmail = email;
+    void (async () => {
+      try {
+        const token = await getToken();
+        await removeMember(trip.id, tripEmail, token);
+        void navigate('/trips');
+      } catch (err) {
+        console.error(err);
+        setActionError("Couldn't leave the trip. Try again.");
+      }
+    })();
   }
 
   function handleDropOnDay(dayIndex: number) {
@@ -229,7 +317,7 @@ export function TripDetail() {
     void runWithToken((token) => markTripPast(trip.id, ids, token));
   }
 
-  if (!ownerLoaded || isLoading) {
+  if (!ownerLoaded || isLoading || claiming) {
     return (
       <section className="px-margin py-xl text-center text-on-surface-variant">
         Loading…
@@ -237,12 +325,15 @@ export function TripDetail() {
     );
   }
 
-  if (!isOwner) {
+  // Anonymous callers get 401 from the API. Members (owners or invited editors)
+  // get the trip; non-members get 404 (existence hidden) and fall through to the
+  // not-found branch below.
+  if (error === 'unauthorized') {
     return (
       <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
         <h1 className="font-display text-headline-lg text-primary">Trip</h1>
         <p className="font-body-lg text-on-surface-variant">
-          Sign in with an owner account to view trips.
+          Sign in to view this trip.
         </p>
         <Link to="/trips" className="text-primary underline">
           Back to trips
@@ -290,6 +381,19 @@ export function TripDetail() {
           />
         </div>
       )}
+
+      <div className="px-margin pt-md max-w-screen-2xl mx-auto">
+        <MembersStrip
+          members={trip.members}
+          invites={trip.invites}
+          currentEmail={email}
+          isCreator={isCreator}
+          onInvite={() => void handleOpenInvite()}
+          onRemoveMember={handleRemoveMember}
+          onRevokeInvite={handleRevokeInvite}
+          onLeave={handleLeave}
+        />
+      </div>
 
       {isVoting ? (
         <VotingView
@@ -423,6 +527,21 @@ export function TripDetail() {
           onConfirm={handleRevert}
         />
       )}
+
+      {inviteOpen && trip && (
+        <InviteModal
+          users={users}
+          excludeEmails={[
+            ...trip.members.map((m) => m.email),
+            ...trip.invites.map((i) => i.invited_email ?? ''),
+          ].filter(Boolean)}
+          onClose={() => setInviteOpen(false)}
+          onCreateInvite={handleCreateInvite}
+          buildLink={(token) =>
+            `${window.location.origin}${inviteLinkPath(trip.id, token)}`
+          }
+        />
+      )}
     </>
   );
 }
@@ -508,31 +627,68 @@ function VotingView({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
           {candidates.map((a) => (
-            <VotingCandidateCard
-              key={a.id}
-              activity={a}
-              tally={tallyFor(trip.votes, a.id)}
-              myVote={myVote(trip.votes, a.id, email)}
-              votingOpen
-              canRemove
-              onVote={(value) => onVote(a.id, value)}
-              onRemove={() => onRemove(a)}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(DRAG_MIME, a.id);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const draggedId = e.dataTransfer.getData(DRAG_MIME);
-                if (draggedId) onReorder(draggedId, a.id);
-              }}
-            />
+            <div key={a.id} className="space-y-xs">
+              <VotingCandidateCard
+                activity={a}
+                tally={tallyFor(trip.votes, a.id)}
+                myVote={myVote(trip.votes, a.id, email)}
+                votingOpen
+                canRemove
+                onVote={(value) => onVote(a.id, value)}
+                onRemove={() => onRemove(a)}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(DRAG_MIME, a.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const draggedId = e.dataTransfer.getData(DRAG_MIME);
+                  if (draggedId) onReorder(draggedId, a.id);
+                }}
+              />
+              <VoteBreakdown trip={trip} tripActivityId={a.id} />
+            </div>
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+// Per-candidate by-member breakdown (#51 c5). A member who voted then left the
+// trip still appears here, labeled "(left trip)" — their vote keeps counting.
+function VoteBreakdown({
+  trip,
+  tripActivityId,
+}: {
+  trip: Trip;
+  tripActivityId: string;
+}) {
+  const rows = memberVoteBreakdown(trip.votes, trip.members, tripActivityId);
+  if (rows.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-xs px-sm">
+      {rows.map((r) => (
+        <span
+          key={r.email}
+          className="inline-flex items-center gap-xs text-sm font-body-md text-on-surface-variant bg-surface-container-low rounded-full px-sm py-xs"
+        >
+          <span
+            className={`material-symbols-outlined text-body-md ${
+              r.value === 1 ? 'text-primary' : 'text-error'
+            }`}
+          >
+            {r.value === 1 ? 'thumb_up' : 'thumb_down'}
+          </span>
+          {r.display_name ?? r.email}
+          {r.leftTrip && (
+            <span className="italic opacity-70">&nbsp;(left trip)</span>
+          )}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -547,14 +703,16 @@ function VotingResults({ trip }: { trip: Trip }) {
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
         {ranked.map((a) => (
-          <VotingCandidateCard
-            key={a.id}
-            activity={a}
-            tally={tallyFor(trip.votes, a.id)}
-            myVote={0}
-            votingOpen={false}
-            canRemove={false}
-          />
+          <div key={a.id} className="space-y-xs">
+            <VotingCandidateCard
+              activity={a}
+              tally={tallyFor(trip.votes, a.id)}
+              myVote={0}
+              votingOpen={false}
+              canRemove={false}
+            />
+            <VoteBreakdown trip={trip} tripActivityId={a.id} />
+          </div>
         ))}
       </div>
     </div>
@@ -1170,6 +1328,12 @@ function MarkPastModal({
                   <span className="block font-body-md text-sm text-on-surface-variant">
                     {dayLabel(trip, a.day_index ?? 0)} ·{' '}
                     {formatHHMM(a.start_time)}
+                    {(() => {
+                      const t = tallyFor(trip.votes, a.id);
+                      return t.up + t.down > 0
+                        ? ` · Voted ${t.up} to ${t.down}`
+                        : '';
+                    })()}
                   </span>
                 </label>
               </div>

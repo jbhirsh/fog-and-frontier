@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Activity } from '../data/types';
 import { authedFetch } from './authedFetch';
 import { useAuthState } from './authShim';
@@ -123,8 +123,15 @@ export function useTrip(id: string | undefined) {
   const [error, setError] = useState<TripLoadError | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const { getToken, isLoaded } = useAuthState();
+  // Tracks whether we've ever loaded the trip successfully. Until then,
+  // reload() re-enters the loading state so a refetch that follows a 404 (e.g.
+  // claiming an invite, which makes a previously-hidden trip visible) shows
+  // "Loading…" rather than flashing the not-found screen. Once loaded, reloads
+  // (30s vote poll, post-mutation) refresh in the background without a flash.
+  const hasLoadedRef = useRef(false);
 
   const reload = useCallback(() => {
+    if (!hasLoadedRef.current) setIsLoading(true);
     setReloadKey((k) => k + 1);
   }, []);
 
@@ -152,6 +159,7 @@ export function useTrip(id: string | undefined) {
         } else {
           setError(null);
           setTrip((await res.json()) as Trip);
+          hasLoadedRef.current = true;
         }
       } catch {
         if (!cancelled) setError('failed');
@@ -344,7 +352,7 @@ export async function markTripPast(
   uncompleted_activity_ids: string[];
 }> {
   const res = await authedFetch(
-    `/api/trip-mark-past?id=${encodeURIComponent(tripId)}`,
+    `/api/trip-lifecycle?id=${encodeURIComponent(tripId)}&to=past`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -394,7 +402,7 @@ export async function transitionToPlanning(
   token: string | null,
 ): Promise<void> {
   const res = await authedFetch(
-    `/api/trip-transition-planning?id=${encodeURIComponent(tripId)}`,
+    `/api/trip-lifecycle?id=${encodeURIComponent(tripId)}&to=planning`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -410,11 +418,78 @@ export async function revertToVoting(
   token: string | null,
 ): Promise<void> {
   const res = await authedFetch(
-    `/api/trip-revert-to-voting?id=${encodeURIComponent(tripId)}`,
+    `/api/trip-lifecycle?id=${encodeURIComponent(tripId)}&to=voting`,
     { method: 'POST' },
     token,
   );
   await jsonOrThrow<unknown>(res, 'revert to voting');
+}
+
+export type UserSummary = { email: string; display_name: string | null };
+
+export async function fetchUsers(token: string | null): Promise<UserSummary[]> {
+  const res = await authedFetch('/api/users', { method: 'GET' }, token);
+  return jsonOrThrow<UserSummary[]>(res, 'fetch users');
+}
+
+export async function inviteMember(
+  tripId: string,
+  email: string,
+  token: string | null,
+): Promise<TripInvite> {
+  const res = await authedFetch(
+    `/api/trip-membership?id=${encodeURIComponent(tripId)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email }),
+    },
+    token,
+  );
+  return jsonOrThrow<TripInvite>(res, 'invite member');
+}
+
+export async function removeMember(
+  tripId: string,
+  email: string,
+  token: string | null,
+): Promise<void> {
+  const res = await authedFetch(
+    `/api/trip-membership?id=${encodeURIComponent(tripId)}&email=${encodeURIComponent(email)}`,
+    { method: 'DELETE' },
+    token,
+  );
+  await jsonOrThrow<unknown>(res, 'remove member');
+}
+
+export async function revokeInvite(
+  tripId: string,
+  inviteToken: string,
+  token: string | null,
+): Promise<void> {
+  const res = await authedFetch(
+    `/api/trip-membership?id=${encodeURIComponent(tripId)}&token=${encodeURIComponent(inviteToken)}`,
+    { method: 'DELETE' },
+    token,
+  );
+  await jsonOrThrow<unknown>(res, 'revoke invite');
+}
+
+export async function claimInvite(
+  inviteToken: string,
+  token: string | null,
+): Promise<{ trip_id: string } | null> {
+  const res = await authedFetch(
+    '/api/trip-membership',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ invite_token: inviteToken }),
+    },
+    token,
+  );
+  if (res.status === 404) return null;
+  return jsonOrThrow<{ trip_id: string }>(res, 'claim invite');
 }
 
 // Pure helpers usable by tests and components.
@@ -552,6 +627,54 @@ export function myVote(
     (r) => r.trip_activity_id === tripActivityId && r.member_email.toLowerCase() === lower,
   );
   return v ? v.value : 0;
+}
+
+// Path (not full URL) for a shareable invite link. The component prepends origin.
+export function inviteLinkPath(tripId: string, inviteToken: string): string {
+  return `/trips/${encodeURIComponent(tripId)}?invite=${encodeURIComponent(inviteToken)}`;
+}
+
+export type MemberVote = {
+  email: string;
+  display_name: string | null;
+  value: -1 | 1;
+  leftTrip: boolean;
+};
+
+// Per-candidate by-member breakdown (#51 c5). For the given trip_activity_id, return one entry per
+// vote row, joining display_name from members when present. leftTrip = the voter's email is NOT in
+// `members` (they voted then left). Sort: upvotes (1) before downvotes (-1), then email asc.
+export function memberVoteBreakdown(
+  votes: TripVote[],
+  members: TripMember[],
+  tripActivityId: string,
+): MemberVote[] {
+  const memberMap = new Map<string, TripMember>();
+  for (const m of members) {
+    memberMap.set(m.email.toLowerCase(), m);
+  }
+
+  const result: MemberVote[] = [];
+  for (const v of votes) {
+    if (v.trip_activity_id !== tripActivityId) continue;
+    const lower = v.member_email.toLowerCase();
+    const member = memberMap.get(lower);
+    result.push({
+      email: v.member_email,
+      display_name: member?.display_name ?? null,
+      value: v.value,
+      leftTrip: !member,
+    });
+  }
+
+  result.sort((a, b) => {
+    // Upvotes (1) before downvotes (-1).
+    if (b.value !== a.value) return b.value - a.value;
+    // Then email ascending (case-insensitive).
+    return a.email.toLowerCase().localeCompare(b.email.toLowerCase());
+  });
+
+  return result;
 }
 
 export function sortByNetScore<T extends { id: string }>(
