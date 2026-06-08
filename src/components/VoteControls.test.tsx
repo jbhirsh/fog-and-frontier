@@ -6,19 +6,26 @@ import { VoteControls } from './VoteControls';
 const baseTally = { up: 3, down: 1, net: 2 };
 
 describe('VoteControls', () => {
-  it('shows net score pill with correct value', () => {
+  it('shows the up and down counts on their own thumbs (no separate net pill)', () => {
     render(<VoteControls tally={baseTally} myVote={0} />);
-    expect(screen.getByLabelText('Net score +2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upvote' })).toHaveTextContent(
+      '3',
+    );
+    expect(screen.getByRole('button', { name: 'Downvote' })).toHaveTextContent(
+      '1',
+    );
+    // No aggregate/net element.
+    expect(screen.queryByLabelText(/net score/i)).not.toBeInTheDocument();
   });
 
-  it('shows net score with minus sign when negative', () => {
-    render(<VoteControls tally={{ up: 1, down: 4, net: -3 }} myVote={0} />);
-    expect(screen.getByLabelText('Net score -3')).toBeInTheDocument();
-  });
-
-  it('shows 0 net score', () => {
-    render(<VoteControls tally={{ up: 2, down: 2, net: 0 }} myVote={0} />);
-    expect(screen.getByLabelText('Net score 0')).toBeInTheDocument();
+  it('shows a zero count rather than hiding it', () => {
+    render(<VoteControls tally={{ up: 0, down: 0, net: 0 }} myVote={0} />);
+    expect(screen.getByRole('button', { name: 'Upvote' })).toHaveTextContent(
+      '0',
+    );
+    expect(screen.getByRole('button', { name: 'Downvote' })).toHaveTextContent(
+      '0',
+    );
   });
 
   it('clicking inactive upvote calls onVote(1)', async () => {
