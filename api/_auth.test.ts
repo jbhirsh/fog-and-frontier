@@ -6,15 +6,19 @@ const { verifyToken, getUser } = vi.hoisted(() => ({
   getUser: vi.fn(),
 }));
 
+const { execute } = vi.hoisted(() => ({ execute: vi.fn() }));
+
 vi.mock('@clerk/backend', () => ({
   verifyToken,
   createClerkClient: () => ({ users: { getUser } }),
 }));
 
+vi.mock('./_db.js', () => ({ db: () => ({ execute, batch: vi.fn() }) }));
+
 process.env.CLERK_SECRET_KEY = 'sk_test_dummy';
 process.env.OWNER_EMAILS = 'owner@example.com,owner2@example.com';
 
-const { getOwnerEmail, requireOwner } = await import('./_auth.js');
+const { getOwnerEmail, requireOwner, getCurrentUser } = await import('./_auth.js');
 
 function fakeReq(auth?: string): VercelRequest {
   return {
@@ -47,6 +51,7 @@ describe('api/_auth', () => {
   afterEach(() => {
     verifyToken.mockReset();
     getUser.mockReset();
+    execute.mockReset();
   });
 
   it('returns null when no Authorization header', async () => {
@@ -143,5 +148,49 @@ describe('api/_auth', () => {
       emailAddresses: [{ id: 'eid_1', emailAddress: '  Owner@Example.com  ' }],
     });
     expect(await getOwnerEmail(fakeReq('Bearer xxx'))).toBe('owner@example.com');
+  });
+});
+
+describe('getCurrentUser', () => {
+  afterEach(() => {
+    verifyToken.mockReset();
+    getUser.mockReset();
+    execute.mockReset();
+  });
+
+  it('returns null for anonymous caller and does not call db upsert', async () => {
+    const result = await getCurrentUser(fakeReq());
+    expect(result).toBeNull();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('returns { email, role: "owner" } for an owner email and calls db upsert with role "owner"', async () => {
+    verifyToken.mockResolvedValueOnce({ sub: 'user_123' });
+    getUser.mockResolvedValueOnce({
+      primaryEmailAddressId: 'eid_1',
+      emailAddresses: [{ id: 'eid_1', emailAddress: 'Owner@Example.com' }],
+    });
+    execute.mockResolvedValueOnce({ rows: [] });
+
+    const result = await getCurrentUser(fakeReq('Bearer xxx'));
+    expect(result).toEqual({ email: 'owner@example.com', role: 'owner' });
+    expect(execute).toHaveBeenCalledOnce();
+    const callArg = execute.mock.calls[0]?.[0] as { sql: string; args: unknown[] };
+    expect(callArg.sql).toContain("'owner'");
+    expect(callArg.args).toContain('owner@example.com');
+  });
+
+  it('returns { email, role: "editor" } for a non-owner email and does NOT write a users row', async () => {
+    // Non-owner rows are created only at invite-claim time (#51 c4), so a
+    // plain editor sign-in must not seed a users row here.
+    verifyToken.mockResolvedValueOnce({ sub: 'user_456' });
+    getUser.mockResolvedValueOnce({
+      primaryEmailAddressId: 'eid_2',
+      emailAddresses: [{ id: 'eid_2', emailAddress: 'editor@example.com' }],
+    });
+
+    const result = await getCurrentUser(fakeReq('Bearer yyy'));
+    expect(result).toEqual({ email: 'editor@example.com', role: 'editor' });
+    expect(execute).not.toHaveBeenCalled();
   });
 });

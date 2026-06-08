@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClerkClient, verifyToken } from '@clerk/backend';
+import { db } from './_db.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
 
@@ -10,6 +11,24 @@ const ownerEmails = new Set(
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),
 );
+
+// Read OWNER_EMAILS lazily as well so callers (e.g. the trips backfill) that
+// run after a late env injection still see the configured owners. The module
+// `ownerEmails` set above is sufficient for the hot path; this getter exists
+// for code outside this module that needs the list.
+export function getOwnerEmails(): Set<string> {
+  return new Set(
+    (process.env.OWNER_EMAILS ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+// Editor accounts (#51). Owners come from OWNER_EMAILS; editors are created on
+// first sign-in once they hold trip membership. Role is always derived from the
+// owner allow-list at auth time — the `users.role` column is a cache of that.
+export type UserRole = 'owner' | 'editor';
 
 let _client: ReturnType<typeof createClerkClient> | null = null;
 function client() {
@@ -80,4 +99,38 @@ export async function requireOwner(
     res.status(401).json({ error: 'unauthorized' });
   }
   return null;
+}
+
+export type CurrentUser = { email: string; role: UserRole };
+
+// Identifies any authenticated account — owner OR editor — and upserts a row
+// into `users` so the account is discoverable (invite picker) and its role
+// stays in sync with the owner allow-list. Returns null for anonymous callers.
+//
+// Callers MUST have run `ensureTripsSchema()` first (it creates the `users`
+// table). Complements `requireOwner`, which remains the gate for site-wide
+// writes and paid endpoints.
+export async function getCurrentUser(
+  req: VercelRequest,
+): Promise<CurrentUser | null> {
+  const status = await getCallerStatus(req);
+  if (status.state === 'anon') return null;
+  const email = status.email;
+  const role: UserRole = status.state === 'owner' ? 'owner' : 'editor';
+  // Only owners get a `users` row written here. A non-owner row is created
+  // exactly when that account claims a trip invite (the invite-claim path).
+  // Writing one for *every* authenticated visitor would let any random
+  // Google sign-in seed a row and pollute the global invite-picker
+  // autocomplete (#51 c4), which is meant to list owners + invitees only.
+  // The upsert also keeps `role` correct if an editor is later promoted into
+  // OWNER_EMAILS. display_name stays null — Clerk owns it.
+  if (role === 'owner') {
+    await db().execute({
+      sql: `INSERT INTO users (email, display_name, created_at, role)
+            VALUES (?, NULL, ?, 'owner')
+            ON CONFLICT(email) DO UPDATE SET role = 'owner'`,
+      args: [email, Date.now()],
+    });
+  }
+  return { email, role };
 }

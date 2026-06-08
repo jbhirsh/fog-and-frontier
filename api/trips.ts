@@ -1,14 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from './_db.js';
-import { requireOwner } from './_auth.js';
+import { getCurrentUser, requireOwner } from './_auth.js';
 import { withErrorLogging } from './_log.js';
 import {
+  addTripMember,
   ensureTripsSchema,
   fetchActivitySnapshot,
   getTripActivities,
+  getTripInvites,
+  getTripMembers,
   getTripRow,
   isIsoDate,
   newId,
+  requireCreator,
+  requireMember,
   rowToTrip,
   type Trip,
   type TripListItem,
@@ -49,17 +54,21 @@ function trimmedString(value: unknown, max: number): string | null {
   return t;
 }
 
-async function listTrips(): Promise<TripListItem[]> {
-  // Sort: `planning` trips first by start_date asc, then `past` trips by
+async function listTrips(callerEmail: string): Promise<TripListItem[]> {
+  // Member-scoped (#51): only trips the caller belongs to. Sort: active
+  // (voting/planning) trips first by start_date asc, then `past` by
   // marked_past_at desc. CASE pushes the status to a sortable bucket.
-  const trips = await db().execute(
-    `SELECT * FROM trips
-     ORDER BY
-       CASE WHEN status = 'planning' THEN 0 ELSE 1 END,
-       CASE WHEN status = 'planning' THEN start_date END ASC,
-       CASE WHEN status = 'past' THEN marked_past_at END DESC,
-       created_at DESC`,
-  );
+  const trips = await db().execute({
+    sql: `SELECT t.* FROM trips t
+          JOIN trip_members m ON m.trip_id = t.id
+          WHERE m.member_email = ?
+          ORDER BY
+            CASE WHEN t.status = 'past' THEN 1 ELSE 0 END,
+            CASE WHEN t.status <> 'past' THEN t.start_date END ASC,
+            CASE WHEN t.status = 'past' THEN t.marked_past_at END DESC,
+            t.created_at DESC`,
+    args: [callerEmail],
+  });
   const counts = await db().execute(
     `SELECT trip_id,
        SUM(CASE WHEN day_index IS NULL THEN 0 ELSE 1 END) AS scheduled,
@@ -93,8 +102,12 @@ async function listTrips(): Promise<TripListItem[]> {
 async function getTripDetail(tripId: string): Promise<Trip | null> {
   const trip = await getTripRow(tripId);
   if (!trip) return null;
-  const activities = await getTripActivities(tripId);
-  return { ...trip, activities };
+  const [activities, members, invites] = await Promise.all([
+    getTripActivities(tripId),
+    getTripMembers(tripId, trip.creator_email),
+    getTripInvites(tripId),
+  ]);
+  return { ...trip, activities, members, invites };
 }
 
 async function createTrip(
@@ -161,6 +174,10 @@ async function createTrip(
       created_at,
     ],
   });
+
+  // Creator becomes the first member (#51) — replaces v0's implicit
+  // "shared with all owners". Other owners must be invited.
+  await addTripMember(id, creatorEmail, creatorEmail);
 
   // Optional initial activity snapshot — used by "New trip from selection".
   if (Array.isArray(body.initial_activity_ids)) {
@@ -308,14 +325,18 @@ async function patchTrip(
 async function deleteTrip(tripId: string): Promise<boolean> {
   const existing = await getTripRow(tripId);
   if (!existing) return false;
-  await db().execute({
-    sql: 'DELETE FROM trip_activities WHERE trip_id = ?',
-    args: [tripId],
-  });
-  await db().execute({
-    sql: 'DELETE FROM trips WHERE id = ?',
-    args: [tripId],
-  });
+  // Single transaction so a trip never half-deletes, leaving orphan votes or
+  // members behind (#51 c9).
+  await db().batch(
+    [
+      { sql: 'DELETE FROM trip_votes WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trip_activities WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trip_invites WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trip_members WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trips WHERE id = ?', args: [tripId] },
+    ],
+    'write',
+  );
   return true;
 }
 
@@ -325,14 +346,13 @@ export default withErrorLogging(async function handler(
 ) {
   await ensureTripsSchema();
 
-  // Every trips endpoint is owner-gated (v0 has no editor accounts).
-  const ownerEmail = await requireOwner(req, res);
-  if (!ownerEmail) return;
-
   const id = queryParam(req, 'id');
 
   if (req.method === 'GET') {
     if (id) {
+      // requireMember hides existence from non-members (404, not 403).
+      const ctx = await requireMember(req, res, id);
+      if (!ctx) return;
       const trip = await getTripDetail(id);
       if (!trip) {
         res.status(404).json({ error: 'not found' });
@@ -341,12 +361,21 @@ export default withErrorLogging(async function handler(
       res.status(200).json(trip);
       return;
     }
-    const trips = await listTrips();
+    // List is member-scoped: any authed account, only its own trips.
+    const user = await getCurrentUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized' });
+      return;
+    }
+    const trips = await listTrips(user.email);
     res.status(200).json(trips);
     return;
   }
 
   if (req.method === 'POST') {
+    // Trip creation stays owner-only (#51 c1): editors exist only via invite.
+    const ownerEmail = await requireOwner(req, res);
+    if (!ownerEmail) return;
     const result = await createTrip((req.body ?? {}) as CreateBody, ownerEmail);
     if ('error' in result) {
       res.status(result.status).json({ error: result.error });
@@ -361,6 +390,9 @@ export default withErrorLogging(async function handler(
       res.status(400).json({ error: 'missing id' });
       return;
     }
+    // Any member can edit metadata.
+    const ctx = await requireMember(req, res, id);
+    if (!ctx) return;
     const result = await patchTrip(id, (req.body ?? {}) as PatchBody);
     if ('error' in result) {
       res.status(result.status).json({ error: result.error });
@@ -375,6 +407,9 @@ export default withErrorLogging(async function handler(
       res.status(400).json({ error: 'missing id' });
       return;
     }
+    // Deletion is creator-only (#51).
+    const ctx = await requireCreator(req, res, id);
+    if (!ctx) return;
     const ok = await deleteTrip(id);
     if (!ok) {
       res.status(404).json({ error: 'not found' });
