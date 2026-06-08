@@ -49,6 +49,29 @@ describe('ActivityCard', () => {
     expect(screen.getByText('4.7')).toBeInTheDocument();
   });
 
+  it('renders an actionSlot overlay', () => {
+    render(
+      <ActivityCard
+        activity={muirWoods}
+        actionSlot={<button type="button">Trip</button>}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: 'Trip' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows both the completed badge and the actionSlot without dropping either', () => {
+    render(
+      <ActivityCard
+        activity={completedHike}
+        actionSlot={<button type="button">Trip</button>}
+      />,
+    );
+    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trip' })).toBeInTheDocument();
+  });
+
   it('shows user photo count when showUserPhotoCount is set and photos exist', () => {
     localStorage.setItem(
       'fogandfrontier.userPhotos.v1',

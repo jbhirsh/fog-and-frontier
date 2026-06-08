@@ -306,21 +306,20 @@ export function CuratedAdventures() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
             {results.map((a) => (
-              <div key={a.id} className="relative">
-                <ActivityCard
-                  activity={a}
-                  selectionMode={selectionMode}
-                  selected={selectedForTrip.has(a.id)}
-                  onClick={() => {
-                    if (selectionMode) {
-                      toggleSelected(a.id);
-                    } else {
-                      setSelected(a);
-                    }
-                  }}
-                />
-                {!selectionMode && (
-                  <div className="absolute top-sm right-sm z-10">
+              <ActivityCard
+                key={a.id}
+                activity={a}
+                selectionMode={selectionMode}
+                selected={selectedForTrip.has(a.id)}
+                onClick={() => {
+                  if (selectionMode) {
+                    toggleSelected(a.id);
+                  } else {
+                    setSelected(a);
+                  }
+                }}
+                actionSlot={
+                  selectionMode ? undefined : (
                     <AddToTripDropdown
                       activityId={a.id}
                       disabled={!isOwner}
@@ -330,9 +329,9 @@ export function CuratedAdventures() {
                         window.setTimeout(() => setTripAddedToast(null), 3000);
                       }}
                     />
-                  </div>
-                )}
-              </div>
+                  )
+                }
+              />
             ))}
           </div>
         )}
