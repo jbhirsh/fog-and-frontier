@@ -41,6 +41,13 @@ export type TripInvite = {
   invited_at: number;
 };
 
+// One member's vote on one candidate. Neutral = no row. value is -1 or 1.
+export type TripVote = {
+  trip_activity_id: string;
+  member_email: string;
+  value: -1 | 1;
+};
+
 // Membership context returned by the guards below.
 export type MemberContext = {
   email: string;
@@ -68,6 +75,7 @@ export type Trip = TripRow & {
   activities: TripActivity[];
   members: TripMember[];
   invites: TripInvite[];
+  votes: TripVote[];
 };
 
 export type TripListItem = TripRow & {
@@ -381,6 +389,21 @@ export async function getTripInvites(tripId: string): Promise<TripInvite[]> {
   }));
 }
 
+export async function getTripVotes(tripId: string): Promise<TripVote[]> {
+  const rs = await db().execute({
+    sql: `SELECT trip_activity_id, member_email, value
+          FROM trip_votes
+          WHERE trip_id = ?`,
+    args: [tripId],
+  });
+  return rs.rows.map((r) => ({
+    trip_activity_id: asString(r.trip_activity_id),
+    member_email: asString(r.member_email),
+    // Stored as -1 or 1; neutral never has a row.
+    value: asNumber(r.value) < 0 ? -1 : 1,
+  }));
+}
+
 export async function isTripMember(
   tripId: string,
   email: string,
@@ -402,6 +425,99 @@ export async function addTripMember(
             (trip_id, member_email, added_by_email, added_at)
           VALUES (?, ?, ?, ?)`,
     args: [tripId, email, addedByEmail, Date.now()],
+  });
+}
+
+export async function removeTripMember(
+  tripId: string,
+  email: string,
+): Promise<void> {
+  await db().execute({
+    sql: 'DELETE FROM trip_members WHERE trip_id = ? AND member_email = ?',
+    args: [tripId, email],
+  });
+}
+
+// Upsert any account's users row (used at invite-claim time, where a non-owner
+// editor account is created for the first time). Role is owner if the email is
+// in the allow-list, else editor — and never downgrades an existing owner.
+export async function upsertUser(email: string): Promise<void> {
+  const role: UserRole = getOwnerEmails().has(email) ? 'owner' : 'editor';
+  await db().execute({
+    sql: `INSERT INTO users (email, display_name, created_at, role)
+          VALUES (?, NULL, ?, ?)
+          ON CONFLICT(email) DO UPDATE SET role =
+            CASE WHEN users.role = 'owner' THEN 'owner' ELSE excluded.role END`,
+    args: [email, Date.now(), role],
+  });
+}
+
+export type UserSummary = { email: string; display_name: string | null };
+
+// All known accounts, for the invite picker. The autocomplete is intentionally
+// global (#51 c4): anyone with a users row is suggestable to any inviter.
+export async function getAllUsers(): Promise<UserSummary[]> {
+  const rs = await db().execute(
+    'SELECT email, display_name FROM users ORDER BY email ASC',
+  );
+  return rs.rows.map((r) => ({
+    email: asString(r.email),
+    display_name: asOptionalString(r.display_name),
+  }));
+}
+
+// Create a pending invite with a fresh token (the credential, #51 c2). The
+// invited_email is informational only — used to label the picker. Returns the
+// new invite row.
+export async function createInvite(
+  tripId: string,
+  invitedEmail: string,
+  invitedByEmail: string,
+): Promise<TripInvite> {
+  const invite_token = newId();
+  const invited_at = Date.now();
+  await db().execute({
+    sql: `INSERT INTO trip_invites
+            (trip_id, invite_token, invited_email, invited_by_email, invited_at)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [tripId, invite_token, invitedEmail, invitedByEmail, invited_at],
+  });
+  return {
+    invite_token,
+    invited_email: invitedEmail,
+    invited_by_email: invitedByEmail,
+    invited_at,
+  };
+}
+
+export type InviteRow = TripInvite & { trip_id: string };
+
+export async function getInviteByToken(
+  token: string,
+): Promise<InviteRow | null> {
+  const rs = await db().execute({
+    sql: `SELECT trip_id, invite_token, invited_email, invited_by_email, invited_at
+          FROM trip_invites WHERE invite_token = ?`,
+    args: [token],
+  });
+  const row = rs.rows[0];
+  if (!row) return null;
+  return {
+    trip_id: asString(row.trip_id),
+    invite_token: asString(row.invite_token),
+    invited_email: asOptionalString(row.invited_email),
+    invited_by_email: asString(row.invited_by_email),
+    invited_at: asNumber(row.invited_at),
+  };
+}
+
+export async function deleteInviteByToken(
+  tripId: string,
+  token: string,
+): Promise<void> {
+  await db().execute({
+    sql: 'DELETE FROM trip_invites WHERE trip_id = ? AND invite_token = ?',
+    args: [tripId, token],
   });
 }
 

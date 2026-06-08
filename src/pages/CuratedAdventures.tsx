@@ -63,11 +63,14 @@ export function CuratedAdventures() {
         }
       : null;
 
-  const { isOwner } = useOwner();
-  // Target-trip mode is only meaningful for owners (non-owners can't add
-  // to trips and shouldn't even see the action bar). If a non-owner somehow
-  // arrives via location.state, fall back to vanilla Curated.
-  const acceptTarget = isOwner && initialTarget !== null;
+  const { isOwner, email } = useOwner();
+  // Adding to a trip is a member power, not an owner-only one (#51): invited
+  // editors can shortlist activities too. Gate the trip-selection affordances
+  // on being signed in; the server enforces per-trip membership on the actual
+  // add. (Catalog "Add activity" stays owner-only below.) A signed-out visitor
+  // arriving via location.state falls back to vanilla Curated.
+  const isSignedIn = !!email;
+  const acceptTarget = isSignedIn && initialTarget !== null;
 
   const [search, setSearch] = useState('');
   const [maxDistance, setMaxDistance] = useState<number>(Infinity);
@@ -273,8 +276,8 @@ export function CuratedAdventures() {
                   setSelectionMode(true);
                 }
               }}
-              disabled={!isOwner && !selectionMode}
-              title={isOwner ? undefined : 'Sign in to plan trips'}
+              disabled={!isSignedIn && !selectionMode}
+              title={isSignedIn ? undefined : 'Sign in to plan trips'}
               className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-sm md:px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
             >
               <span className="material-symbols-outlined text-body-md">
@@ -322,8 +325,8 @@ export function CuratedAdventures() {
                   selectionMode ? undefined : (
                     <AddToTripDropdown
                       activityId={a.id}
-                      disabled={!isOwner}
-                      disabledTooltip="Sign in as an owner to add to trips"
+                      disabled={!isSignedIn}
+                      disabledTooltip="Sign in to add to trips"
                       onAdded={(msg) => {
                         setTripAddedToast(msg);
                         window.setTimeout(() => setTripAddedToast(null), 3000);

@@ -7,7 +7,7 @@ import {
 } from '../lib/userTrips';
 
 export function Trips() {
-  const { isOwner, isLoaded } = useOwner();
+  const { isOwner, isLoaded, email } = useOwner();
   const { trips, isLoading, error } = useTripsList();
 
   if (!isLoaded) {
@@ -18,12 +18,14 @@ export function Trips() {
     );
   }
 
-  if (!isOwner) {
+  // Trips are visible to any signed-in member (owner or invited editor); the
+  // list is member-scoped server-side. Only creating a trip is owner-only.
+  if (!email) {
     return (
       <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
         <h1 className="font-display text-headline-lg text-primary">Trips</h1>
         <p className="font-body-lg text-on-surface-variant">
-          Trips are owner-only for now. Sign in with the owner account to plan an outing.
+          Sign in to see trips you&apos;ve been invited to or that you own.
         </p>
       </section>
     );
@@ -41,13 +43,15 @@ export function Trips() {
               Plan a multi-day outing — shortlist activities, slot them into a per-day itinerary, see the map.
             </p>
           </div>
-          <Link
-            to="/trips/new"
-            className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
-          >
-            <span className="material-symbols-outlined text-body-md">add</span>
-            New trip
-          </Link>
+          {isOwner && (
+            <Link
+              to="/trips/new"
+              className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
+            >
+              <span className="material-symbols-outlined text-body-md">add</span>
+              New trip
+            </Link>
+          )}
         </div>
       </section>
 
@@ -61,15 +65,19 @@ export function Trips() {
         ) : trips.length === 0 ? (
           <div className="text-center py-xl space-y-md">
             <p className="font-body-lg text-on-surface-variant">
-              No trips yet — plan one.
+              {isOwner
+                ? 'No trips yet — plan one.'
+                : "No trips yet. You'll see trips here once you're invited to one."}
             </p>
-            <Link
-              to="/trips/new"
-              className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
-            >
-              <span className="material-symbols-outlined text-body-md">add</span>
-              New trip
-            </Link>
+            {isOwner && (
+              <Link
+                to="/trips/new"
+                className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
+              >
+                <span className="material-symbols-outlined text-body-md">add</span>
+                New trip
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
