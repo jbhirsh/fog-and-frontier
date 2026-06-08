@@ -206,7 +206,7 @@ export function Explore() {
       <section className="px-margin py-xl max-w-screen-2xl mx-auto">
         {loading && <LoadingState />}
         {!loading && error && <ErrorState message={error} onRetry={() => void discover()} />}
-        {!loading && !error && !events && <EmptyHero />}
+        {!loading && !error && !events && <EmptyHero isOwner={isOwner} />}
         {!loading && !error && events && events.length === 0 && (
           <div className="text-center py-xl text-on-surface-variant">
             Nothing surfaced for that window. Try a different range.
@@ -321,7 +321,7 @@ function ErrorState({
   );
 }
 
-function EmptyHero() {
+function EmptyHero({ isOwner }: { isOwner: boolean }) {
   return (
     <div className="text-center py-lg md:py-xl px-md space-y-sm text-on-surface-variant max-w-2xl mx-auto">
       <span
@@ -331,8 +331,14 @@ function EmptyHero() {
         explore
       </span>
       <p className="font-body-lg text-body-lg">
-        Pick a window above and tap <strong>Discover events</strong> to see
-        what's happening.
+        {isOwner ? (
+          <>
+            Pick a window above and tap <strong>Discover events</strong> to see
+            what's happening.
+          </>
+        ) : (
+          <>No events have been discovered for this window yet — check back soon.</>
+        )}
       </p>
     </div>
   );
