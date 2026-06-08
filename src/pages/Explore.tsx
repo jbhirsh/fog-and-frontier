@@ -181,18 +181,19 @@ export function Explore() {
               </button>
             ))}
           </div>
-          <div className="pt-md">
-            <button
-              type="button"
-              onClick={() => void discover()}
-              disabled={loading || !isOwner}
-              title={isOwner ? undefined : 'Sign in to edit'}
-              className="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-sm rounded-full font-body-lg shadow-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
-            >
-              <span className="material-symbols-outlined">auto_awesome</span>
-              {loading ? 'Searching…' : events ? 'Refresh' : 'Discover events'}
-            </button>
-          </div>
+          {isOwner && (
+            <div className="pt-md">
+              <button
+                type="button"
+                onClick={() => void discover()}
+                disabled={loading}
+                className="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-sm rounded-full font-body-lg shadow-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+              >
+                <span className="material-symbols-outlined">auto_awesome</span>
+                {loading ? 'Searching…' : events ? 'Refresh' : 'Discover events'}
+              </button>
+            </div>
+          )}
           {lastFetched && !loading && (
             <p className="font-body-sm text-on-surface-variant pt-xs">
               Last refreshed {timeAgo(lastFetched.at)} for{' '}

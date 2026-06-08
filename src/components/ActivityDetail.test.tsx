@@ -124,6 +124,40 @@ describe('ActivityDetail', () => {
     expect(screen.getByText(/No photos yet/)).toBeInTheDocument();
   });
 
+  describe('non-owner presentation (issue #67)', () => {
+    it('hides the Mark-as-completed toggle for non-owners', () => {
+      ownerState.isOwner = false;
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(
+        screen.queryByRole('button', { name: /mark as completed/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('keeps the completed status as a read-only badge for non-owners', () => {
+      ownerState.isOwner = false;
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      // Status is preserved (a read), but it is not an interactive control.
+      expect(screen.getByText(/COMPLETED/)).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /completed/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('hides the photo-upload control for non-owners in upload mode', () => {
+      ownerState.isOwner = false;
+      render(
+        <ActivityDetail
+          activity={completedHike}
+          onClose={() => {}}
+          showUploads
+        />,
+      );
+      // The Your Photos section (a read) still renders, but Add photos is gone.
+      expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
+      expect(screen.getByText(/No photos yet/)).toBeInTheDocument();
+    });
+  });
+
   it('uploads, displays, and removes a photo', async () => {
     const user = userEvent.setup();
     const { container } = render(
@@ -260,12 +294,12 @@ describe('ActivityDetail', () => {
       confirmSpy.mockRestore();
     });
 
-    it('renders the Delete button disabled with a tooltip for non-owners', () => {
+    it('does not render the Delete button for non-owners', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      const btn = screen.getByRole('button', { name: /delete activity/i });
-      expect(btn).toBeDisabled();
-      expect(btn).toHaveAttribute('title', 'Sign in as owner to delete');
+      expect(
+        screen.queryByRole('button', { name: /delete activity/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -280,12 +314,12 @@ describe('ActivityDetail', () => {
       ).toBeInTheDocument();
     });
 
-    it('renders the Edit button disabled with a tooltip for non-owners', () => {
+    it('does not render the Edit button for non-owners', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      const btn = screen.getByRole('button', { name: /edit activity/i });
-      expect(btn).toBeDisabled();
-      expect(btn).toHaveAttribute('title', 'Sign in as owner to edit');
+      expect(
+        screen.queryByRole('button', { name: /edit activity/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('opens the edit form pre-populated with the activity when an owner clicks Edit', async () => {
