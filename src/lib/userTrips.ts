@@ -4,7 +4,27 @@ import { authedFetch } from './authedFetch';
 import { useAuthState } from './authShim';
 import { applyCompletionMirror } from './userCompleted';
 
-export type TripStatus = 'planning' | 'past';
+// 'voting' is exercised by the v1 voting PR; the union is widened now so the
+// client never receives a status its type says is impossible once the server
+// can emit it.
+export type TripStatus = 'voting' | 'planning' | 'past';
+
+export type UserRole = 'owner' | 'editor';
+
+export type TripMember = {
+  email: string;
+  display_name: string | null;
+  added_by_email: string;
+  added_at: number;
+  is_creator: boolean;
+};
+
+export type TripInvite = {
+  invite_token: string;
+  invited_email: string | null;
+  invited_by_email: string;
+  invited_at: number;
+};
 
 // Snapshot stored in trip_activities.snapshot_json. Server stores whatever the
 // catalog activity looked like at add-time; we trust it has Activity-shaped
@@ -36,7 +56,11 @@ type TripMeta = {
   marked_past_at: number | null;
 };
 
-export type Trip = TripMeta & { activities: TripActivity[] };
+export type Trip = TripMeta & {
+  activities: TripActivity[];
+  members: TripMember[];
+  invites: TripInvite[];
+};
 
 export type TripListItem = TripMeta & {
   scheduled_count: number;
