@@ -50,6 +50,9 @@ blob-report/
 # Claude Code per-session state (worktrees, scratch)
 .claude/
 
+# Caliber runtime state, logs, and caches. The curated CALIBER_LEARNINGS.md IS committed; this dir is not.
+.caliber/
+
 # Leftover from pre-flatten directory layout
 fog-and-frontier/
 
