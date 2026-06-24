@@ -44,7 +44,7 @@ function summarize(err: unknown): ErrSummary {
     // `cause.message`. Walk one level so the JSON log carries useful signal.
     // No leak risk: cause.message for fetch failures is the hostname, never
     // the full URL with query string.
-    if (err.cause instanceof Error) {
+    if ('cause' in err && err.cause instanceof Error) {
       out.cause = { name: err.cause.name, message: err.cause.message };
     }
     return out;
