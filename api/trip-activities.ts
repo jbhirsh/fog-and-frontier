@@ -159,22 +159,29 @@ export default withErrorLogging(async function handler(
     if (body.day_index !== undefined || body.start_time !== undefined) {
       const nextDay = body.day_index === undefined ? day_index : body.day_index;
       const nextTime = body.start_time === undefined ? start_time : body.start_time;
-      const bothNull = nextDay === null && nextTime === null;
       const dayCount = tripDateRangeDayCount(trip);
-      const bothSet =
+      // Narrow inside each branch so day_index/start_time get concrete types
+      // without casts — the `unknown` body fields are validated, not asserted.
+      // (A separate `bothSet` boolean severs narrowing from the assignment,
+      // which @vercel/node's function build rejects as unknown→number/string.)
+      if (nextDay === null && nextTime === null) {
+        day_index = null;
+        start_time = null;
+      } else if (
         typeof nextDay === 'number' &&
         Number.isInteger(nextDay) &&
         nextDay >= 0 &&
         nextDay < dayCount &&
-        isHHMM(nextTime);
-      if (!bothNull && !bothSet) {
+        isHHMM(nextTime)
+      ) {
+        day_index = nextDay;
+        start_time = nextTime;
+      } else {
         res.status(400).json({
           error: `day_index and start_time must be set together (both null, or day_index in 0..${dayCount - 1} and start_time HH:MM)`,
         });
         return;
       }
-      day_index = bothNull ? null : (nextDay);
-      start_time = bothNull ? null : (nextTime);
     }
 
     let display_order = tripActivity.display_order;
