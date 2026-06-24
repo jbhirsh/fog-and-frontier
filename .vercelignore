@@ -1,0 +1,7 @@
+# Test files must never be deployed as Vercel Serverless Functions.
+# Every api/*.ts becomes a function and counts against the plan's function
+# limit (Hobby = 12). The trips test files (api/*.test.ts) were being turned
+# into functions, pushing the count to 14 and failing the deploy at the
+# "Deploying outputs" stage. Tests run in CI (smoke/visual), never on Vercel.
+*.test.ts
+*.test.tsx
