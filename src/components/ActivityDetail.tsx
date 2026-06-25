@@ -221,6 +221,78 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             </div>
           )}
 
+          {(activity.cuisine ||
+            activity.priceRange ||
+            activity.hours ||
+            activity.reservationUrl ||
+            activity.menuUrl ||
+            (activity.dietary && activity.dietary.length > 0)) && (
+            <div className="bg-surface-container-low rounded-lg p-md space-y-sm">
+              <div className="font-label-caps text-label-caps text-on-surface-variant">
+                RESTAURANT INFO
+              </div>
+              <div className="flex flex-wrap gap-md text-on-surface-variant">
+                {activity.cuisine && (
+                  <Stat icon="restaurant_menu" label={activity.cuisine} />
+                )}
+                {activity.priceRange && (
+                  <Stat icon="payments" label={activity.priceRange} />
+                )}
+                {activity.hours && (
+                  <Stat icon="schedule" label={activity.hours} />
+                )}
+              </div>
+              {activity.dietary && activity.dietary.length > 0 && (
+                <div className="flex flex-wrap gap-xs">
+                  {activity.dietary.map((d) => (
+                    <span
+                      key={d}
+                      className="font-body-sm text-on-surface-variant bg-surface-variant rounded-full px-sm py-xs capitalize"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {(activity.reservationUrl || activity.menuUrl) && (
+                <div className="flex flex-wrap gap-md">
+                  {activity.reservationUrl && (
+                    <a
+                      href={activity.reservationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
+                    >
+                      Reserve
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 16 }}
+                      >
+                        open_in_new
+                      </span>
+                    </a>
+                  )}
+                  {activity.menuUrl && (
+                    <a
+                      href={activity.menuUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
+                    >
+                      Menu / website
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 16 }}
+                      >
+                        open_in_new
+                      </span>
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {activity.notes && (
             <div className="bg-surface-container-low rounded-lg p-md">
               <div className="font-label-caps text-label-caps text-on-surface-variant mb-xs">
