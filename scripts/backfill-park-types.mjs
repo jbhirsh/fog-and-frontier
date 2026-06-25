@@ -71,7 +71,7 @@ const EXTRAS = {
   'angel-island-state-park': 'state',
   'mori-point-coastal-trail': 'national', // GGNRA
   'sequoia-national-park': 'national',
-  'don-edwards-pink-salt-ponds': 'national', // SF Bay National Wildlife Refuge
+  'don-edwards-pink-salt-ponds': 'county', // salt ponds accessed via a county park
   'uvas-canyon-waterfall-loop': 'county', // Uvas Canyon County Park (SCC)
   'huntington-falls-golden-gate-park': 'city', // Golden Gate Park
   'tomales-point-trail': 'national', // Point Reyes National Seashore
@@ -96,7 +96,7 @@ const EXTRAS = {
   'mcarthur-burney-falls-memorial-state-park': 'state',
   'chimney-rock-trail': 'national', // Point Reyes National Seashore
   'lover-s-point-park-and-beach': 'city', // Pacific Grove city park
-  'sierra-vista-open-space-preserve': 'county', // SCC Parks
+  'sierra-vista-open-space-preserve': 'regional', // Midpeninsula Regional Open Space District
   'garden-of-eden-swimming-hole': 'state', // Henry Cowell Redwoods SP
   'mccloud-falls-trail': 'none', // USFS Shasta-Trinity (no park tier)
   'redwood-grove-nature-preserve': 'city', // City of Los Altos
