@@ -1,0 +1,10 @@
+# Keep test files out of the deployment. Vitest runs them in CI / locally, never
+# at build time. Critically, any `api/*.test.ts` would otherwise be treated as a
+# Serverless Function — and that pushed a deployment to 14 functions, over the
+# Hobby plan's cap of 12 per deployment. (Helper-style `api/_*.test.ts` are
+# already ignored by Vercel's `_`-prefix rule; the route-level test files are
+# not, which is what this covers.)
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
