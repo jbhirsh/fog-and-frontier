@@ -6,7 +6,7 @@ import { ActivityDetail } from '../components/ActivityDetail';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
-import type { Activity, Category, Duration } from '../data/types';
+import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { useAuthState } from '../lib/authShim';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
@@ -50,6 +50,28 @@ const CATEGORY_OPTIONS: ('Any' | Category)[] = [
   'other',
 ];
 
+const PARK_TYPE_OPTIONS: ('Any' | ParkType)[] = [
+  'Any',
+  'national',
+  'state',
+  'regional',
+  'county',
+  'city',
+  'private',
+  'none',
+];
+
+const PARK_TYPE_LABELS: Record<'Any' | ParkType, string> = {
+  Any: 'Any park type',
+  national: 'National park',
+  state: 'State park',
+  regional: 'Regional park',
+  county: 'County park',
+  city: 'City park',
+  private: 'Private land',
+  none: 'Not in a park',
+};
+
 export function CuratedAdventures() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -76,6 +98,7 @@ export function CuratedAdventures() {
   const [maxDistance, setMaxDistance] = useState<number>(Infinity);
   const [duration, setDuration] = useState<'Any' | Duration>('Any');
   const [category, setCategory] = useState<'Any' | Category>('Any');
+  const [parkType, setParkType] = useState<'Any' | ParkType>('Any');
   const [dogOnly, setDogOnly] = useState(false);
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
@@ -162,6 +185,8 @@ export function CuratedAdventures() {
         if (miles > maxDistance) return false;
         if (duration !== 'Any' && a.duration !== duration) return false;
         if (category !== 'Any' && a.category !== category) return false;
+        if (parkType !== 'Any' && (a.parkType ?? 'none') !== parkType)
+          return false;
         if (dogOnly && !a.dogFriendly) return false;
         if (q) {
           const hay = `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
@@ -171,7 +196,7 @@ export function CuratedAdventures() {
       })
       .sort((x, y) => x.miles - y.miles)
       .map(({ a }) => a);
-  }, [search, maxDistance, duration, category, dogOnly, all]);
+  }, [search, maxDistance, duration, category, parkType, dogOnly, all]);
 
   return (
     <>
@@ -240,6 +265,19 @@ export function CuratedAdventures() {
               {CATEGORY_OPTIONS.map((c) => (
                 <option key={c} value={c} className="capitalize">
                   {c === 'Any' ? 'Any category' : c}
+                </option>
+              ))}
+            </select>
+          </FilterPill>
+          <FilterPill icon="forest">
+            <select
+              value={parkType}
+              onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
+              className="bg-transparent focus:outline-none cursor-pointer"
+            >
+              {PARK_TYPE_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {PARK_TYPE_LABELS[p]}
                 </option>
               ))}
             </select>

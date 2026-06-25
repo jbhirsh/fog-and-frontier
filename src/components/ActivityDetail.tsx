@@ -148,6 +148,13 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             {activity.difficulty && (
               <Stat icon="trending_up" label={activity.difficulty} capitalize />
             )}
+            {activity.parkType && activity.parkType !== 'none' && (
+              <Stat
+                icon="forest"
+                label={`${activity.parkType} park`}
+                capitalize
+              />
+            )}
             <Stat icon="place" label={activity.location.city} />
             {activity.dogFriendly && <Stat icon="pets" label="Dog friendly" />}
           </div>
