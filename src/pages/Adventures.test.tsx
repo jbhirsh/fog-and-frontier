@@ -32,13 +32,18 @@ describe('Adventures page', () => {
     expect(screen.getByText(/1 trip/)).toBeInTheDocument();
   });
 
-  it('opens the detail dialog with upload UI for a completed activity', async () => {
+  it('opens the detail dialog with the photo gallery for a completed activity', async () => {
     renderAdventures([completedHike]);
     await userEvent.click(
       screen.getByRole('button', { name: /Test Completed Hike/ }),
     );
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Add photos')).toBeInTheDocument();
+    // The Your Photos gallery (a read) renders for everyone; the owner-gated
+    // "Add photos" upload control is hidden for non-owners (issue #67).
+    expect(
+      screen.getByRole('heading', { name: 'Your Photos' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
   });
 
   it('shows an empty state when no completed activities exist', () => {
