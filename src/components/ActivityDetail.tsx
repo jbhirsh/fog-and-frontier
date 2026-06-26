@@ -118,25 +118,37 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             <h2 className="font-display text-headline-lg text-primary">
               {activity.name}
             </h2>
-            <button
-              type="button"
-              onClick={toggle}
-              disabled={!isOwner}
-              title={isOwner ? undefined : 'Sign in to edit'}
-              aria-pressed={completed}
-              className={`inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-surface-variant ${
-                completed
-                  ? 'bg-primary-fixed text-primary hover:bg-primary-fixed-dim'
-                  : 'bg-surface-variant text-on-surface-variant hover:bg-surface-container-high'
-              }`}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                {completed ? 'check_circle' : 'radio_button_unchecked'}
-              </span>
-              {completed
-                ? `COMPLETED${activity.completedDate ? ` · ${activity.completedDate}` : ''}`
-                : 'MARK AS COMPLETED'}
-            </button>
+            {isOwner ? (
+              <button
+                type="button"
+                onClick={toggle}
+                aria-pressed={completed}
+                className={`inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps transition-colors ${
+                  completed
+                    ? 'bg-primary-fixed text-primary hover:bg-primary-fixed-dim'
+                    : 'bg-surface-variant text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                  {completed ? 'check_circle' : 'radio_button_unchecked'}
+                </span>
+                {completed
+                  ? `COMPLETED${activity.completedDate ? ` · ${activity.completedDate}` : ''}`
+                  : 'MARK AS COMPLETED'}
+              </button>
+            ) : (
+              // Non-owners can't toggle completion (owner-gated mutation), but
+              // the completion *status* is a read worth keeping — render it as a
+              // static badge when the activity is completed, nothing otherwise.
+              completed && (
+                <span className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps bg-primary-fixed text-primary">
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                    check_circle
+                  </span>
+                  {`COMPLETED${activity.completedDate ? ` · ${activity.completedDate}` : ''}`}
+                </span>
+              )
+            )}
           </div>
 
           <div className="flex flex-wrap gap-sm md:gap-md text-on-surface-variant">
@@ -272,30 +284,24 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                 <h3 className="font-headline-md text-headline-md text-primary">
                   Your Photos
                 </h3>
-                <label
-                  title={isOwner ? undefined : 'Sign in to edit'}
-                  className={`bg-secondary text-on-secondary px-md py-sm rounded-full font-medium transition-opacity flex items-center gap-xs ${
-                    isOwner
-                      ? 'cursor-pointer hover:opacity-90'
-                      : 'opacity-60 cursor-not-allowed'
-                  }`}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                    add_a_photo
-                  </span>
-                  Add photos
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    disabled={!isOwner}
-                    className="hidden"
-                    onChange={(e) => {
-                      handleFiles(e.target.files);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
+                {isOwner && (
+                  <label className="bg-secondary text-on-secondary px-md py-sm rounded-full font-medium transition-opacity flex items-center gap-xs cursor-pointer hover:opacity-90">
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                      add_a_photo
+                    </span>
+                    Add photos
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        handleFiles(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               {photos.length === 0 ? (
                 <div className="rounded-lg border-2 border-dashed border-outline-variant p-lg text-center text-on-surface-variant">
@@ -333,38 +339,36 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             </section>
           )}
 
-          <div className="pt-md mt-md border-t border-outline-variant/40 flex flex-wrap justify-end gap-sm">
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              disabled={!isOwner}
-              title={isOwner ? undefined : 'Sign in as owner to edit'}
-              className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 14 }}
+          {isOwner && (
+            <div className="pt-md mt-md border-t border-outline-variant/40 flex flex-wrap justify-end gap-sm">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors"
               >
-                edit
-              </span>
-              EDIT ACTIVITY
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              disabled={!isOwner}
-              title={isOwner ? undefined : 'Sign in as owner to delete'}
-              className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 14 }}
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 14 }}
+                >
+                  edit
+                </span>
+                EDIT ACTIVITY
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors"
               >
-                delete
-              </span>
-              DELETE ACTIVITY
-            </button>
-          </div>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 14 }}
+                >
+                  delete
+                </span>
+                DELETE ACTIVITY
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {editing && (
