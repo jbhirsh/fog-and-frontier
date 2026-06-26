@@ -7,6 +7,7 @@ import type {
   Category,
   Difficulty,
   Duration,
+  ParkType,
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
@@ -31,6 +32,7 @@ type GeneratedFields = {
   longDescription?: string;
   category: Category;
   region: Region;
+  parkType?: ParkType;
   city: string;
   lat: number;
   lng: number;
@@ -80,6 +82,15 @@ const DURATIONS: Duration[] = [
   'Multi-Day',
 ];
 const DIFFICULTIES: Difficulty[] = ['easy', 'moderate', 'advanced'];
+const PARK_TYPES: ParkType[] = [
+  'national',
+  'state',
+  'regional',
+  'county',
+  'city',
+  'private',
+  'none',
+];
 
 // When the AllTrails URL changes (or is newly added), refresh rating /
 // distance / elevation from the lookup endpoint. When it's cleared, drop
@@ -186,6 +197,7 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
         longDescription: g.longDescription,
         category: g.category,
         region: g.region,
+        parkType: g.parkType,
         location: { city: g.city, coords: { lat: g.lat, lng: g.lng } },
         duration: g.duration,
         durationDetail: g.durationDetail,
@@ -534,6 +546,27 @@ function ReviewStep({
             {DIFFICULTIES.map((d) => (
               <option key={d} value={d}>
                 {d}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Park type (optional)">
+          <select
+            value={draft.parkType ?? ''}
+            onChange={(e) =>
+              patch(
+                'parkType',
+                (e.target.value || undefined) as ParkType | undefined,
+              )
+            }
+            className={`${inputCls} capitalize`}
+          >
+            {/* The empty option is the sole "not in a park" representation;
+                exclude the literal 'none' so there aren't two ways to say it. */}
+            <option value="">— Not in a park —</option>
+            {PARK_TYPES.filter((p) => p !== 'none').map((p) => (
+              <option key={p} value={p} className="capitalize">
+                {p}
               </option>
             ))}
           </select>

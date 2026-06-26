@@ -61,3 +61,4 @@ fog-and-frontier/
 
 # Planning scratch (not committed)
 PLAN_*.md
+.env*
