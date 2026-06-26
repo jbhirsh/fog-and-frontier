@@ -47,6 +47,20 @@ const ACTIVITY_SCHEMA = {
         'washington',
       ],
     },
+    parkType: {
+      type: 'string',
+      enum: [
+        'national',
+        'state',
+        'regional',
+        'county',
+        'city',
+        'private',
+        'none',
+      ],
+      description:
+        'Land/park designation that manages the site (e.g. a state park, county park, GGNRA = national). Omit if the activity is not in a park.',
+    },
     city: { type: 'string' },
     lat: { type: 'number' },
     lng: { type: 'number' },
@@ -103,7 +117,8 @@ Rules:
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
 - "duration" should reflect realistic round-trip time from Los Gatos including driving.
 - "shortDescription" should be vivid and specific, not generic.
-- "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.`;
+- "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.
+- "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).`;
 
 type Body = { title?: unknown; notes?: unknown };
 

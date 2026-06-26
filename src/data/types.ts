@@ -21,6 +21,18 @@ export type Difficulty = 'easy' | 'moderate' | 'advanced';
 
 export type Region = 'sf' | 'north-bay' | 'east-bay' | 'south-bay' | 'peninsula' | 'central-coast' | 'norcal' | 'socal' | 'oregon' | 'washington';
 
+// Who manages the land an activity sits on. Optional — not every activity is
+// in a park. Drives the park-designation filter (state park vs county park,
+// etc.) in the catalog. See issue #77.
+export type ParkType =
+  | 'national'
+  | 'state'
+  | 'regional'
+  | 'county'
+  | 'city'
+  | 'private'
+  | 'none';
+
 export interface Activity {
   id: string;
   name: string;
@@ -28,6 +40,7 @@ export interface Activity {
   longDescription?: string;
   category: Category;
   region: Region;
+  parkType?: ParkType;
   location: {
     city: string;
     coords: { lat: number; lng: number };
