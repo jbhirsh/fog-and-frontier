@@ -323,16 +323,16 @@ export function CuratedAdventures() {
               </span>
               {selectionMode ? 'Cancel select' : 'Select for trip'}
             </button>
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              disabled={!isOwner}
-              title={isOwner ? undefined : 'Sign in to edit'}
-              className="flex items-center gap-xs bg-primary text-on-primary px-sm md:px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              <span className="material-symbols-outlined text-body-md">add</span>
-              Add activity
-            </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className="flex items-center gap-xs bg-primary text-on-primary px-sm md:px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                <span className="material-symbols-outlined text-body-md">add</span>
+                Add activity
+              </button>
+            )}
           </div>
         </div>
       </section>
