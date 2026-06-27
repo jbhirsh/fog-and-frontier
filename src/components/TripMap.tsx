@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Trip, TripActivity } from '../lib/userTrips';
 import { dayCount, dayLabel, formatHHMM } from '../lib/userTrips';
 import { HOME_LOCATION } from '../data/home';
+import { MapZoomControls } from './MapZoomControls';
+import { CARTO_ATTRIBUTION, CARTO_TILE_URL, glyphPin } from '../lib/mapPins';
 
 // Color cycle for "show all days" mode. Each day picks a hue; the same hue
 // is used for the per-day label so the legend stays readable.
@@ -21,29 +22,6 @@ const DAY_COLORS = [
 
 function colorForDay(dayIndex: number): string {
   return DAY_COLORS[dayIndex % DAY_COLORS.length];
-}
-
-function pinIcon(color: string, label: string) {
-  const html = `<div style="
-    width: 28px; height: 28px;
-    background: ${color};
-    border: 2px solid white;
-    border-radius: 50% 50% 50% 0;
-    transform: rotate(-45deg);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-    display: flex; align-items: center; justify-content: center;
-  "><span style="
-    transform: rotate(45deg);
-    font-size: 12px; font-weight: 700; color: white;
-    font-family: system-ui, sans-serif;
-  ">${label}</span></div>`;
-  return L.divIcon({
-    html,
-    className: '',
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
-  });
 }
 
 type Props = {
@@ -133,12 +111,11 @@ export function TripMap({ trip }: Props) {
           center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           zoom={8}
           scrollWheelZoom
+          zoomControl={false}
           style={{ flex: 1, width: '100%' }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
+          <MapZoomControls />
           {activitiesToShow.map(({ activity, dayIndex }, idx) => {
             const coords = activity.snapshot?.location?.coords;
             if (!coords) return null;
@@ -148,7 +125,7 @@ export function TripMap({ trip }: Props) {
               <Marker
                 key={activity.id}
                 position={[coords.lat, coords.lng]}
-                icon={pinIcon(color, label)}
+                icon={glyphPin(color, { text: label })}
               >
                 <Popup>
                   <div className="space-y-xs min-w-[180px]">
