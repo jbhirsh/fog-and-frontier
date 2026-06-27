@@ -19,6 +19,9 @@ export type Duration =
 
 export type Difficulty = 'easy' | 'moderate' | 'advanced';
 
+// Rough cost tier for restaurants ($ cheap → $$$$ splurge). See issue #76.
+export type PriceRange = '$' | '$$' | '$$$' | '$$$$';
+
 export type Region = 'sf' | 'north-bay' | 'east-bay' | 'south-bay' | 'peninsula' | 'central-coast' | 'norcal' | 'socal' | 'oregon' | 'washington';
 
 // Who manages the land an activity sits on. Optional — not every activity is
@@ -55,6 +58,15 @@ export interface Activity {
   allTrailsRating?: number;
   hikeDistanceMiles?: number;
   hikeElevationFeet?: number;
+  // Restaurant fields (#76) — only meaningful when category === 'food'.
+  // All optional; render only when present (field-presence, not a category
+  // switch) so a "food" entry without them still works.
+  cuisine?: string;
+  priceRange?: PriceRange;
+  hours?: string;
+  reservationUrl?: string;
+  menuUrl?: string;
+  dietary?: string[];
   completed?: boolean;
   completedDate?: string;
   notes?: string;

@@ -8,6 +8,7 @@ import type {
   Difficulty,
   Duration,
   ParkType,
+  PriceRange,
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
@@ -43,6 +44,12 @@ type GeneratedFields = {
   hikeDistanceMiles?: number;
   hikeElevationFeet?: number;
   allTrailsUrl?: string;
+  cuisine?: string;
+  priceRange?: PriceRange;
+  hours?: string;
+  reservationUrl?: string;
+  menuUrl?: string;
+  dietary?: string[];
   notes?: string;
   coverImage?: string;
 };
@@ -91,6 +98,7 @@ const PARK_TYPES: ParkType[] = [
   'private',
   'none',
 ];
+const PRICE_RANGES: PriceRange[] = ['$', '$$', '$$$', '$$$$'];
 
 // When the AllTrails URL changes (or is newly added), refresh rating /
 // distance / elevation from the lookup endpoint. When it's cleared, drop
@@ -206,6 +214,12 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
         hikeDistanceMiles: g.hikeDistanceMiles,
         hikeElevationFeet: g.hikeElevationFeet,
         allTrailsUrl: g.allTrailsUrl,
+        cuisine: g.cuisine,
+        priceRange: g.priceRange,
+        hours: g.hours,
+        reservationUrl: g.reservationUrl,
+        menuUrl: g.menuUrl,
+        dietary: g.dietary,
         notes: g.notes,
         coverImage: g.coverImage || PLACEHOLDER_IMAGE,
       };
@@ -608,6 +622,90 @@ function ReviewStep({
           AllTrails when the URL changes.
         </p>
       </div>
+
+      {/* Restaurant fields — only relevant for food spots (#76). Kept out of
+          the way for every other category. All optional. */}
+      {draft.category === 'food' && (
+        <div className="space-y-md rounded-lg border border-outline-variant/40 p-md">
+          <div className="font-label-caps text-label-caps text-on-surface-variant">
+            RESTAURANT DETAILS
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+            <Field label="Cuisine">
+              <input
+                type="text"
+                value={draft.cuisine ?? ''}
+                placeholder="e.g. Coastal Californian"
+                onChange={(e) => patch('cuisine', e.target.value || undefined)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Price range">
+              <select
+                value={draft.priceRange ?? ''}
+                onChange={(e) =>
+                  patch(
+                    'priceRange',
+                    (e.target.value || undefined) as PriceRange | undefined,
+                  )
+                }
+                className={inputCls}
+              >
+                <option value="">—</option>
+                {PRICE_RANGES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Hours">
+              <input
+                type="text"
+                value={draft.hours ?? ''}
+                placeholder="e.g. Thu–Mon 11am–8pm"
+                onChange={(e) => patch('hours', e.target.value || undefined)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Dietary options (comma-separated)">
+              <input
+                type="text"
+                value={draft.dietary?.join(', ') ?? ''}
+                placeholder="e.g. vegetarian, vegan, gluten-free"
+                onChange={(e) => {
+                  const list = e.target.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  patch('dietary', list.length ? list : undefined);
+                }}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Reservation URL">
+              <input
+                type="url"
+                value={draft.reservationUrl ?? ''}
+                placeholder="https://resy.com/…"
+                onChange={(e) =>
+                  patch('reservationUrl', e.target.value || undefined)
+                }
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Menu / website URL">
+              <input
+                type="url"
+                value={draft.menuUrl ?? ''}
+                placeholder="https://…"
+                onChange={(e) => patch('menuUrl', e.target.value || undefined)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+        </div>
+      )}
 
       <Field label="Pin location (drag or tap to reposition)">
         <LocationPicker
