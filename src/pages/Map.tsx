@@ -1,12 +1,19 @@
 import { useMemo, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
-import L from 'leaflet';
+import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ActivityDetail } from '../components/ActivityDetail';
+import { MapZoomControls } from '../components/MapZoomControls';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
-import type { Activity } from '../data/types';
+import type { Activity, Category } from '../data/types';
 import { useAllActivities } from '../lib/userActivities';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
+import {
+  CARTO_ATTRIBUTION,
+  CARTO_TILE_URL,
+  CATEGORY_ICON,
+  glyphPin,
+} from '../lib/mapPins';
 
 const COLORS = {
   completed: '#16a34a',
@@ -14,32 +21,18 @@ const COLORS = {
   home: '#dc2626',
 };
 
-function pinIcon(color: string, label: string) {
-  const html = `<div style="
-    width: 28px; height: 28px;
-    background: ${color};
-    border: 2px solid white;
-    border-radius: 50% 50% 50% 0;
-    transform: rotate(-45deg);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-    display: flex; align-items: center; justify-content: center;
-  "><span style="
-    transform: rotate(45deg);
-    font-size: 14px; font-weight: 700; color: white;
-    font-family: system-ui, sans-serif;
-  ">${label}</span></div>`;
-  return L.divIcon({
-    html,
-    className: '',
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
-  });
-}
+// Status carries meaning via color: home (red), completed (green), pending
+// (blue). The glyph reinforces it — a house for home, a check for completed,
+// and the activity's category icon for pending (so you see what's still to do).
+const homeIcon = glyphPin(COLORS.home, { icon: 'home' });
+const completedIcon = glyphPin(COLORS.completed, { icon: 'check' });
 
-const homeIcon = pinIcon(COLORS.home, '⌂');
-const completedIcon = pinIcon(COLORS.completed, '✓');
-const pendingIcon = pinIcon(COLORS.pending, '');
+const pendingIcons: Partial<Record<Category, L.DivIcon>> = {};
+function pendingIcon(category: Category): L.DivIcon {
+  return (pendingIcons[category] ??= glyphPin(COLORS.pending, {
+    icon: CATEGORY_ICON[category],
+  }));
+}
 
 export function Map() {
   const all = useAllActivities();
@@ -86,12 +79,14 @@ export function Map() {
             center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
             zoom={8}
             scrollWheelZoom
+            zoomControl={false}
             style={{ flex: 1, width: '100%' }}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution={CARTO_ATTRIBUTION}
+              url={CARTO_TILE_URL}
             />
+            <MapZoomControls />
             <Marker
               position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
               icon={homeIcon}
@@ -105,7 +100,7 @@ export function Map() {
               <Marker
                 key={a.id}
                 position={[a.location.coords.lat, a.location.coords.lng]}
-                icon={completed ? completedIcon : pendingIcon}
+                icon={completed ? completedIcon : pendingIcon(a.category)}
               >
                 <Popup>
                   <div className="space-y-xs min-w-[200px]">
