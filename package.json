@@ -19,6 +19,7 @@
     "db:snapshot": "node scripts/snapshot-prod-db.mjs",
     "db:migrate-static": "node --experimental-strip-types scripts/migrate-static-to-turso.mjs",
     "db:backfill-park-types": "node --experimental-strip-types scripts/backfill-park-types.mjs",
+    "db:backfill-restaurant-info": "node --experimental-strip-types scripts/backfill-restaurant-info.mjs",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots"
   },

@@ -87,6 +87,36 @@ const ACTIVITY_SCHEMA = {
       type: 'string',
       description: 'Full AllTrails URL if it exists; omit if unsure',
     },
+    cuisine: {
+      type: 'string',
+      description:
+        'Restaurants only: cuisine or food style, e.g. "Coastal Californian", "Danish bakery". Omit for non-restaurants.',
+    },
+    priceRange: {
+      type: 'string',
+      enum: ['$', '$$', '$$$', '$$$$'],
+      description: 'Restaurants only: rough cost tier. Omit for non-restaurants.',
+    },
+    hours: {
+      type: 'string',
+      description:
+        'Restaurants only: opening hours summary, e.g. "Thu–Mon 11am–8pm". Omit if unsure or non-restaurant.',
+    },
+    reservationUrl: {
+      type: 'string',
+      description:
+        'Restaurants only: reservation or booking URL (OpenTable/Resy/official). Omit if unsure.',
+    },
+    menuUrl: {
+      type: 'string',
+      description: 'Restaurants only: menu or official website URL. Omit if unsure.',
+    },
+    dietary: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Restaurants only: dietary options offered, e.g. ["vegetarian","vegan","gluten-free"]. Omit for non-restaurants.',
+    },
     notes: {
       type: 'string',
       description:
@@ -118,7 +148,8 @@ Rules:
 - "duration" should reflect realistic round-trip time from Los Gatos including driving.
 - "shortDescription" should be vivid and specific, not generic.
 - "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.
-- "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).`;
+- "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).
+- When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.`;
 
 type Body = { title?: unknown; notes?: unknown };
 

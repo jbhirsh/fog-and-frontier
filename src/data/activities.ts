@@ -50,6 +50,10 @@ export const activities: Activity[] = [
     allTrailsRating: 4.4,
     hikeDistanceMiles: 1.9,
     hikeElevationFeet: 30,
+    cuisine: 'American · seafood',
+    priceRange: '$$',
+    menuUrl: 'https://www.duartestavern.com/',
+    dietary: ['vegetarian'],
     notes: 'Not dog friendly',
   },
   {
@@ -443,6 +447,12 @@ export const activities: Activity[] = [
     dogFriendly: true,
     coverImage:
       'https://upload.wikimedia.org/wikipedia/commons/7/71/Camp_Curry_Historic_District-12.jpg',
+    cuisine: 'Pizza',
+    priceRange: '$$',
+    hours: 'Seasonal; typically afternoon–evening',
+    menuUrl:
+      'https://www.travelyosemite.com/dining/curry-village-pizza-deck/',
+    dietary: ['vegetarian'],
     notes: 'great pizza and beer. Leashed dogs welcome on the outdoor patio.',
   },
 
