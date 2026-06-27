@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { HOME_LOCATION, distanceMiles } from '../data/home';
+import { HOME_LOCATION } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { AddActivity } from '../components/AddActivity';
@@ -8,6 +8,7 @@ import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { useAuthState } from '../lib/authShim';
+import { useCatalogFilters } from '../lib/useCatalogFilters';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { addActivityToTrip } from '../lib/userTrips';
@@ -94,12 +95,21 @@ export function CuratedAdventures() {
   const isSignedIn = !!email;
   const acceptTarget = isSignedIn && initialTarget !== null;
 
-  const [search, setSearch] = useState('');
-  const [maxDistance, setMaxDistance] = useState<number>(Infinity);
-  const [duration, setDuration] = useState<'Any' | Duration>('Any');
-  const [category, setCategory] = useState<'Any' | Category>('Any');
-  const [parkType, setParkType] = useState<'Any' | ParkType>('Any');
-  const [dogOnly, setDogOnly] = useState(false);
+  const {
+    search,
+    setSearch,
+    maxDistance,
+    setMaxDistance,
+    duration,
+    setDuration,
+    category,
+    setCategory,
+    parkType,
+    setParkType,
+    dogOnly,
+    setDogOnly,
+    applyFilters,
+  } = useCatalogFilters();
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
@@ -174,29 +184,7 @@ export function CuratedAdventures() {
     }
   }
 
-  const results = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return all
-      .map((a) => ({
-        a,
-        miles: distanceMiles(HOME_LOCATION.coords, a.location.coords),
-      }))
-      .filter(({ a, miles }) => {
-        if (miles > maxDistance) return false;
-        if (duration !== 'Any' && a.duration !== duration) return false;
-        if (category !== 'Any' && a.category !== category) return false;
-        if (parkType !== 'Any' && (a.parkType ?? 'none') !== parkType)
-          return false;
-        if (dogOnly && !a.dogFriendly) return false;
-        if (q) {
-          const hay = `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
-      })
-      .sort((x, y) => x.miles - y.miles)
-      .map(({ a }) => a);
-  }, [search, maxDistance, duration, category, parkType, dogOnly, all]);
+  const results = useMemo(() => applyFilters(all), [applyFilters, all]);
 
   return (
     <>
