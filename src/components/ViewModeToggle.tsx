@@ -83,9 +83,15 @@ export function ViewModeToggle({ value, onChange }: Props) {
                 : 'text-on-surface-variant hover:bg-surface-variant/60'
             }`}
           >
+            {/* Fixed-size icon box: Material Symbols renders the glyph via a
+                ligature, so if the icon font fails to load (e.g. the visual
+                tests stub Google Fonts to empty) the raw ligature *name*
+                ("splitscreen", "view_agenda") would otherwise render as text and
+                blow out the width of this non-wrapping control. Clipping to a
+                fixed box keeps the layout stable in either case. */}
             <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 18 }}
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 20, height: 20 }}
               aria-hidden="true"
             >
               {option.icon}
