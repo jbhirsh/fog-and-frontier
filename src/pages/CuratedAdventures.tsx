@@ -294,11 +294,11 @@ export function CuratedAdventures() {
   // Map it's the fixed top row of a viewport-height flex column (below).
   const filterToolbar = (
     <section
-      className={`border-b border-outline-variant/20 bg-surface px-margin py-md z-40 backdrop-blur-xl ${
+      className={`border-b border-outline-variant/20 bg-surface px-margin py-sm z-40 backdrop-blur-xl ${
         view === 'list' ? 'md:sticky md:top-20' : ''
       }`}
     >
-      <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-sm md:gap-md">
+      <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-sm">
         <FilterPill icon="location_on">
           <select
             value={String(maxDistance)}
@@ -372,10 +372,10 @@ export function CuratedAdventures() {
           </span>
           Dog friendly
         </button>
-        <div className="w-full md:w-auto md:ml-auto flex justify-center">
+        {/* Toggle + trip actions share one right-aligned row so the toolbar
+            stays a single line and the cards/map sit just below it. */}
+        <div className="w-full md:w-auto md:ml-auto flex flex-wrap md:flex-nowrap items-center justify-center md:justify-end gap-sm">
           <ViewModeToggle value={view} onChange={setView} />
-        </div>
-        <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto justify-center md:justify-end">
           <button
             type="button"
             onClick={() => {
@@ -387,9 +387,13 @@ export function CuratedAdventures() {
             }}
             disabled={!isSignedIn && !selectionMode}
             title={isSignedIn ? undefined : 'Sign in to plan trips'}
-            className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-sm md:px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            <span className="material-symbols-outlined text-body-md">
+            <span
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 18, height: 18 }}
+              aria-hidden="true"
+            >
               {selectionMode ? 'close' : 'check_box'}
             </span>
             {selectionMode ? 'Cancel select' : 'Select for trip'}
@@ -398,9 +402,13 @@ export function CuratedAdventures() {
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="flex items-center gap-xs bg-primary text-on-primary px-sm md:px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity whitespace-nowrap"
+              className="inline-flex h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm text-on-primary hover:opacity-90 transition-opacity whitespace-nowrap"
             >
-              <span className="material-symbols-outlined text-body-md">
+              <span
+                className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+                style={{ fontSize: 18, width: 18, height: 18 }}
+                aria-hidden="true"
+              >
                 add
               </span>
               Add activity
@@ -434,7 +442,7 @@ export function CuratedAdventures() {
               page's own scrollbar moves the cards while the map stays pinned —
               no separate inner scrollbar. */}
             <div
-              className={`px-margin py-lg ${
+              className={`px-margin py-md ${
                 selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
               }`}
             >
@@ -455,7 +463,7 @@ export function CuratedAdventures() {
         <>
           {filterToolbar}
           <section
-            className={`px-margin py-lg max-w-screen-2xl mx-auto ${
+            className={`px-margin py-md max-w-screen-2xl mx-auto ${
               selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
             }`}
           >
