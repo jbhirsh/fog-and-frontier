@@ -19,6 +19,11 @@ const OPTIONS: readonly Option[] = [
 type Props = {
   value: ViewMode;
   onChange: (mode: ViewMode) => void;
+  /**
+   * Which segments to show, in order. Defaults to all three. The split view
+   * passes `['list', 'map']` below `lg`, where Split has no two-column layout.
+   */
+  modes?: readonly ViewMode[];
 };
 
 /**
@@ -28,11 +33,14 @@ type Props = {
  * Accessible as a radiogroup: arrow keys move (and select) between segments,
  * with a roving tabindex so the group is a single tab stop.
  */
-export function ViewModeToggle({ value, onChange }: Props) {
+export function ViewModeToggle({ value, onChange, modes }: Props) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const options = modes
+    ? OPTIONS.filter((o) => modes.includes(o.value))
+    : OPTIONS;
 
   function focusAndSelect(index: number) {
-    const next = OPTIONS[index];
+    const next = options[index];
     onChange(next.value);
     refs.current[index]?.focus();
   }
@@ -43,13 +51,13 @@ export function ViewModeToggle({ value, onChange }: Props) {
   ) {
     let nextIndex: number | null = null;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (index + 1) % OPTIONS.length;
+      nextIndex = (index + 1) % options.length;
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (index - 1 + OPTIONS.length) % OPTIONS.length;
+      nextIndex = (index - 1 + options.length) % options.length;
     } else if (event.key === 'Home') {
       nextIndex = 0;
     } else if (event.key === 'End') {
-      nextIndex = OPTIONS.length - 1;
+      nextIndex = options.length - 1;
     }
     if (nextIndex !== null) {
       event.preventDefault();
@@ -63,7 +71,7 @@ export function ViewModeToggle({ value, onChange }: Props) {
       aria-label="View mode"
       className="inline-flex items-center gap-xs rounded-xl bg-surface-container p-xs"
     >
-      {OPTIONS.map((option, index) => {
+      {options.map((option, index) => {
         const selected = option.value === value;
         return (
           <button

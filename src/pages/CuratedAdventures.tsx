@@ -150,6 +150,12 @@ export function CuratedAdventures() {
   // Leaflet there entirely. Map mode renders its own map unconditionally.
   const splitMapVisible = view === 'split' && isLg;
 
+  // Split is a desktop-only layout, so the segmented control only offers it at
+  // lg+; on smaller screens it's List · Map (the mobile map UX is #96).
+  const toggleModes: ViewMode[] = isLg
+    ? ['list', 'split', 'map']
+    : ['list', 'map'];
+
   // Free-text search now lives in the global header (#4 mockup) and is shared
   // via the `?q=` param; mirror it into the catalog filter state.
   const query = searchParams.get('q') ?? '';
@@ -305,7 +311,7 @@ export function CuratedAdventures() {
         {/* Filter chips on a single line that scrolls horizontally instead of
             wrapping, so the toolbar stays short — especially on mobile, where
             wrapping previously pushed the map far down the page. */}
-        <div className="flex items-center gap-sm overflow-x-auto py-px md:min-w-0 md:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <FilterPill icon="location_on">
             <select
               value={String(maxDistance)}
@@ -382,8 +388,8 @@ export function CuratedAdventures() {
         </div>
         {/* View toggle + trip actions: their own row below the filters on
             mobile, right-aligned inline on desktop. */}
-        <div className="flex shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
-          <ViewModeToggle value={view} onChange={setView} />
+        <div className="flex flex-wrap md:flex-nowrap shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
+          <ViewModeToggle value={view} onChange={setView} modes={toggleModes} />
           <button
             type="button"
             onClick={() => {
