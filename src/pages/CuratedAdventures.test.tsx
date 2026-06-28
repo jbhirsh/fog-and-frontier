@@ -11,9 +11,9 @@ import {
 
 import { CuratedAdventures } from './CuratedAdventures';
 
-function renderExplore() {
+function renderExplore(path = '/') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <CuratedAdventures />
     </MemoryRouter>,
   );
@@ -31,20 +31,18 @@ describe('Curated Adventures page', () => {
     expect(screen.getByText('Test Tide Pools')).toBeInTheDocument();
   });
 
-  it('filters by free-text search', async () => {
-    renderExplore();
-    const input = screen.getByPlaceholderText(/Find your next adventure/);
-    await userEvent.type(input, 'tide');
-    expect(screen.getByText('Test Tide Pools')).toBeInTheDocument();
+  // Free-text search now lives in the global header and reaches the page via
+  // the `?q=` URL param (the header isn't mounted in this page-only test).
+  it('filters by the ?q= search param', async () => {
+    renderExplore('/?q=tide');
+    expect(await screen.findByText('Test Tide Pools')).toBeInTheDocument();
     expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
   });
 
-  it('shows an empty state when nothing matches', async () => {
-    renderExplore();
-    const input = screen.getByPlaceholderText(/Find your next adventure/);
-    await userEvent.type(input, 'nothing-matches-this-zzz');
+  it('shows an empty state when nothing matches the search', async () => {
+    renderExplore('/?q=nothing-matches-this-zzz');
     expect(
-      screen.getByText('No activities match those filters.'),
+      await screen.findByText('No activities match those filters.'),
     ).toBeInTheDocument();
   });
 

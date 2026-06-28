@@ -4,7 +4,6 @@ import { Layout } from './components/Layout';
 import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
 import { Adventures } from './pages/Adventures';
-import { Map } from './pages/Map';
 import { Trips } from './pages/Trips';
 import { NewTrip } from './pages/NewTrip';
 import { TripDetail } from './pages/TripDetail';
@@ -32,7 +31,9 @@ export default function App() {
           <Route path="/" element={<CuratedAdventures />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/adventures" element={<Adventures />} />
-          <Route path="/map" element={<Map />} />
+          {/* The standalone Map page is superseded by the combined split view
+              (#4 / #93). Keep the old URL working by aliasing it to Map mode. */}
+          <Route path="/map" element={<Navigate to="/?view=map" replace />} />
           <Route path="/trips" element={<Trips />} />
           <Route path="/trips/new" element={<NewTrip />} />
           <Route path="/trips/:id" element={<TripDetail />} />
