@@ -1,14 +1,19 @@
 import { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HOME_LOCATION } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
+import { ActivityMap } from '../components/ActivityMap';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import type { ViewMode } from '../components/ViewModeToggle';
+import { isViewMode } from '../lib/viewMode';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { useAuthState } from '../lib/authShim';
 import { useCatalogFilters } from '../lib/useCatalogFilters';
+import { useMediaQuery } from '../lib/useMediaQuery';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { addActivityToTrip } from '../lib/userTrips';
@@ -110,6 +115,33 @@ export function CuratedAdventures() {
     setDogOnly,
     applyFilters,
   } = useCatalogFilters();
+  // Layout mode (#4 / #93). Source of truth is the `?view=` param so the choice
+  // is shareable and survives reloads; when absent we default to Split on
+  // desktop and List on mobile. `isLg` also gates mounting the map column —
+  // below `lg` the split collapses to list-only (the mobile map sheet is #96).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isLg = useMediaQuery('(min-width: 1024px)');
+  const viewParam = searchParams.get('view');
+  const view: ViewMode = isViewMode(viewParam)
+    ? viewParam
+    : isLg
+      ? 'split'
+      : 'list';
+  function setView(next: ViewMode) {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.set('view', next);
+        return params;
+      },
+      { replace: true },
+    );
+  }
+  // Whether Split mode should mount its map column. Below `lg` the split
+  // collapses to list-only (the mobile map sheet is #96), so we skip mounting
+  // Leaflet there entirely. Map mode renders its own map unconditionally.
+  const splitMapVisible = view === 'split' && isLg;
+
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
@@ -186,8 +218,56 @@ export function CuratedAdventures() {
 
   const results = useMemo(() => applyFilters(all), [applyFilters, all]);
 
+  // Narrower grid in Split (the list shares the row with the map) than in the
+  // full-width List layout.
+  const gridColsClass =
+    view === 'split'
+      ? 'grid-cols-1 xl:grid-cols-2'
+      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+
+  const listContent =
+    results.length === 0 ? (
+      <div className="text-center py-xl text-on-surface-variant">
+        No activities match those filters.
+      </div>
+    ) : (
+      <div className={`grid gap-gutter ${gridColsClass}`}>
+        {results.map((a) => (
+          <ActivityCard
+            key={a.id}
+            activity={a}
+            selectionMode={selectionMode}
+            selected={selectedForTrip.has(a.id)}
+            onClick={() => {
+              if (selectionMode) {
+                toggleSelected(a.id);
+              } else {
+                setSelected(a);
+              }
+            }}
+            actionSlot={
+              selectionMode ? undefined : (
+                <AddToTripDropdown
+                  activityId={a.id}
+                  disabled={!isSignedIn}
+                  disabledTooltip="Sign in to add to trips"
+                  onAdded={(msg) => {
+                    setTripAddedToast(msg);
+                    window.setTimeout(() => setTripAddedToast(null), 3000);
+                  }}
+                />
+              )
+            }
+          />
+        ))}
+      </div>
+    );
+
   return (
     <>
+      {/* Map mode hands the full viewport to the map, so the tall hero is
+          suppressed there; List and Split keep it. */}
+      {view !== 'map' && (
       <section className="relative px-margin py-lg md:py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
         <div className="max-w-4xl mx-auto text-center space-y-lg">
           <h1 className="font-display text-headline-lg md:text-display text-primary">
@@ -213,6 +293,7 @@ export function CuratedAdventures() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Sticky only on md+; on mobile the header wraps to two rows so a
           second sticky bar would eat too much vertical space. */}
@@ -292,7 +373,10 @@ export function CuratedAdventures() {
               />
             </button>
           </div>
-          <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto md:ml-auto justify-center md:justify-end">
+          <div className="w-full md:w-auto md:ml-auto flex justify-center">
+            <ViewModeToggle value={view} onChange={setView} />
+          </div>
+          <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto justify-center md:justify-end">
             <button
               type="button"
               onClick={() => {
@@ -325,46 +409,42 @@ export function CuratedAdventures() {
         </div>
       </section>
 
-      <section className={`px-margin py-xl max-w-screen-2xl mx-auto ${
-        selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
-      }`}>
-        {results.length === 0 ? (
-          <div className="text-center py-xl text-on-surface-variant">
-            No activities match those filters.
+      {view === 'map' ? (
+        <section className="px-margin py-md w-full max-w-screen-2xl mx-auto">
+          {/* Full-bleed map fills the viewport below the nav. */}
+          <div className="h-[calc(100vh-80px)] w-full">
+            <ActivityMap activities={results} onSelect={setSelected} />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-            {results.map((a) => (
-              <ActivityCard
-                key={a.id}
-                activity={a}
-                selectionMode={selectionMode}
-                selected={selectedForTrip.has(a.id)}
-                onClick={() => {
-                  if (selectionMode) {
-                    toggleSelected(a.id);
-                  } else {
-                    setSelected(a);
-                  }
-                }}
-                actionSlot={
-                  selectionMode ? undefined : (
-                    <AddToTripDropdown
-                      activityId={a.id}
-                      disabled={!isSignedIn}
-                      disabledTooltip="Sign in to add to trips"
-                      onAdded={(msg) => {
-                        setTripAddedToast(msg);
-                        window.setTimeout(() => setTripAddedToast(null), 3000);
-                      }}
-                    />
-                  )
-                }
-              />
-            ))}
+        </section>
+      ) : view === 'split' ? (
+        <section className="max-w-screen-2xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          {/* List column: its own scroll container on lg, sticky under the
+              filter bar so it scrolls independently of the map. */}
+          <div
+            className={`px-margin py-xl lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] lg:overflow-y-auto ${
+              selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
+            }`}
+          >
+            {listContent}
           </div>
-        )}
-      </section>
+          {/* Map column: sticky at top-20, fills the viewport beside the list.
+              Mounted only at lg+ (below it the split collapses to list-only;
+              the mobile map sheet is #96). */}
+          {splitMapVisible && (
+            <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
+              <ActivityMap activities={results} onSelect={setSelected} />
+            </div>
+          )}
+        </section>
+      ) : (
+        <section
+          className={`px-margin py-xl max-w-screen-2xl mx-auto ${
+            selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
+          }`}
+        >
+          {listContent}
+        </section>
+      )}
 
       {selectionMode && (
         <div className="fixed bottom-0 inset-x-0 z-40 px-margin py-md bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30">
