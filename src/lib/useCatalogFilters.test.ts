@@ -46,6 +46,26 @@ describe('applyCatalogFilters', () => {
     expect(result.map((a) => a.id)).toEqual([muirWoods.id]);
   });
 
+  it('matches search against the short description field', () => {
+    // "redwoods" appears only in muirWoods.shortDescription, not its name,
+    // city or category.
+    const result = applyCatalogFilters(ALL, filters({ search: 'redwoods' }));
+    expect(result.map((a) => a.id)).toEqual([muirWoods.id]);
+  });
+
+  it('matches search against the city field', () => {
+    // "moss beach" appears only in dogFriendlyTidepools.location.city.
+    const result = applyCatalogFilters(ALL, filters({ search: 'moss beach' }));
+    expect(result.map((a) => a.id)).toEqual([dogFriendlyTidepools.id]);
+  });
+
+  it('does not search the long description field', () => {
+    // "loop" appears only in muirWoods.longDescription, which is intentionally
+    // outside the search haystack — so it must match nothing.
+    const result = applyCatalogFilters(ALL, filters({ search: 'loop' }));
+    expect(result).toEqual([]);
+  });
+
   it('filters by duration', () => {
     const result = applyCatalogFilters(ALL, filters({ duration: 'Half Day' }));
     expect(result.map((a) => a.id)).toEqual([muirWoods.id]);

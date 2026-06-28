@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 
@@ -68,12 +69,12 @@ export function applyCatalogFilters(
 }
 
 export interface CatalogFilters extends CatalogFilterState {
-  setSearch: (value: string) => void;
-  setMaxDistance: (value: number) => void;
-  setDuration: (value: DurationFilter) => void;
-  setCategory: (value: CategoryFilter) => void;
-  setParkType: (value: ParkTypeFilter) => void;
-  setDogOnly: (value: boolean | ((prev: boolean) => boolean)) => void;
+  setSearch: Dispatch<SetStateAction<string>>;
+  setMaxDistance: Dispatch<SetStateAction<number>>;
+  setDuration: Dispatch<SetStateAction<DurationFilter>>;
+  setCategory: Dispatch<SetStateAction<CategoryFilter>>;
+  setParkType: Dispatch<SetStateAction<ParkTypeFilter>>;
+  setDogOnly: Dispatch<SetStateAction<boolean>>;
   /** Apply the current filters to `activities` (memoized on the inputs). */
   applyFilters: (activities: Activity[]) => Activity[];
 }
