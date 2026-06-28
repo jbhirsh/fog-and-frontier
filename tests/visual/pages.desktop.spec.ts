@@ -13,6 +13,12 @@ test.describe('visual regression — desktop', () => {
   test('home / curated list', async ({ page }) => {
     await page.goto('/');
     await waitForVisualReady(page);
+    // On desktop the home view defaults to Split (#93), which mounts a Leaflet
+    // map alongside the list. Leaflet renders its tiles asynchronously, so wait
+    // for the container to attach and let tiles settle before snapshotting —
+    // mirrors the mobile map spec.
+    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
+    await page.waitForTimeout(400);
     await expect(page).toHaveScreenshot('curated.png', { fullPage: true });
   });
 

@@ -1,14 +1,19 @@
-import { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HOME_LOCATION } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
+import { ActivityMap } from '../components/ActivityMap';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import type { ViewMode } from '../components/ViewModeToggle';
+import { isViewMode } from '../lib/viewMode';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { useAuthState } from '../lib/authShim';
 import { useCatalogFilters } from '../lib/useCatalogFilters';
+import { useMediaQuery } from '../lib/useMediaQuery';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { addActivityToTrip } from '../lib/userTrips';
@@ -96,7 +101,6 @@ export function CuratedAdventures() {
   const acceptTarget = isSignedIn && initialTarget !== null;
 
   const {
-    search,
     setSearch,
     maxDistance,
     setMaxDistance,
@@ -110,6 +114,55 @@ export function CuratedAdventures() {
     setDogOnly,
     applyFilters,
   } = useCatalogFilters();
+  // Layout mode (#4 / #93). Source of truth is the `?view=` param so the choice
+  // is shareable and survives reloads; when absent we default to Split on
+  // desktop and List on mobile. `isLg` also gates mounting the map column —
+  // below `lg` the split collapses to list-only (the mobile map sheet is #96).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isLg = useMediaQuery('(min-width: 1024px)');
+  const viewParam = searchParams.get('view');
+  const requestedView: ViewMode = isViewMode(viewParam)
+    ? viewParam
+    : isLg
+      ? 'split'
+      : 'list';
+  // Split needs the two-column desktop layout; below `lg` there's no room (the
+  // mobile map experience is #96), so a `?view=split` link or a stray toggle
+  // falls back to List there instead of showing Split selected over a
+  // list-only page.
+  const view: ViewMode =
+    requestedView === 'split' && !isLg ? 'list' : requestedView;
+  function setView(next: ViewMode) {
+    // Split is desktop-only; below `lg`, store List so the URL never carries a
+    // `?view=split` that would silently activate if the window is widened.
+    const target: ViewMode = next === 'split' && !isLg ? 'list' : next;
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.set('view', target);
+        return params;
+      },
+      { replace: true },
+    );
+  }
+  // Whether Split mode should mount its map column. Below `lg` the split
+  // collapses to list-only (the mobile map sheet is #96), so we skip mounting
+  // Leaflet there entirely. Map mode renders its own map unconditionally.
+  const splitMapVisible = view === 'split' && isLg;
+
+  // Split is a desktop-only layout, so the segmented control only offers it at
+  // lg+; on smaller screens it's List · Map (the mobile map UX is #96).
+  const toggleModes: ViewMode[] = isLg
+    ? ['list', 'split', 'map']
+    : ['list', 'map'];
+
+  // Free-text search now lives in the global header (#4 mockup) and is shared
+  // via the `?q=` param; mirror it into the catalog filter state.
+  const query = searchParams.get('q') ?? '';
+  useEffect(() => {
+    setSearch(query);
+  }, [query, setSearch]);
+
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
@@ -186,43 +239,84 @@ export function CuratedAdventures() {
 
   const results = useMemo(() => applyFilters(all), [applyFilters, all]);
 
-  return (
-    <>
-      <section className="relative px-margin py-lg md:py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
-        <div className="max-w-4xl mx-auto text-center space-y-lg">
-          <h1 className="font-display text-headline-lg md:text-display text-primary">
-            Curated Adventures
-          </h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
-            A hand-picked list of trips from {HOME_LOCATION.label} — misty
-            redwoods, hidden coves, and everything in between.
-          </p>
-          <div className="relative max-w-3xl mx-auto">
-            <div className="flex items-center bg-surface-container-lowest rounded-full border border-outline-variant focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20 transition-all shadow-sm pl-gutter pr-sm py-sm">
-              <span className="material-symbols-outlined text-outline">
-                search
-              </span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="flex-grow bg-transparent border-none focus:outline-none text-body-lg px-sm"
-                placeholder="Find your next adventure..."
-                type="text"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+  // Narrower grid in Split (the list shares the row with the map) than in the
+  // full-width List layout.
+  const gridColsClass =
+    view === 'split'
+      ? 'grid-cols-1 xl:grid-cols-2'
+      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
 
-      {/* Sticky only on md+; on mobile the header wraps to two rows so a
-          second sticky bar would eat too much vertical space. */}
-      <section className="border-b border-outline-variant/20 bg-surface px-margin py-md md:sticky md:top-20 z-40 backdrop-blur-xl">
-        <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-sm md:gap-md">
+  const listContent =
+    results.length === 0 ? (
+      <div className="text-center py-xl text-on-surface-variant">
+        No activities match those filters.
+      </div>
+    ) : (
+      <div className={`grid gap-gutter ${gridColsClass}`}>
+        {results.map((a) => (
+          <ActivityCard
+            key={a.id}
+            activity={a}
+            selectionMode={selectionMode}
+            selected={selectedForTrip.has(a.id)}
+            onClick={() => {
+              if (selectionMode) {
+                toggleSelected(a.id);
+              } else {
+                setSelected(a);
+              }
+            }}
+            actionSlot={
+              selectionMode ? undefined : (
+                <AddToTripDropdown
+                  activityId={a.id}
+                  disabled={!isSignedIn}
+                  disabledTooltip="Sign in to add to trips"
+                  onAdded={(msg) => {
+                    setTripAddedToast(msg);
+                    window.setTimeout(() => setTripAddedToast(null), 3000);
+                  }}
+                />
+              )
+            }
+          />
+        ))}
+      </div>
+    );
+
+  // Compact list-head (replaces the old hero's H1) — shown above the grid in
+  // List and Split; Map mode gives the whole viewport to the map.
+  const listHeader = (
+    <div className="mb-md">
+      <h1 className="font-display text-headline-md text-primary">
+        Curated Adventures
+      </h1>
+      <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
+        {results.length} place{results.length === 1 ? '' : 's'} · sorted by
+        distance from {HOME_LOCATION.label}
+      </p>
+    </div>
+  );
+
+  // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
+  // scrolls beneath it); in Split it sits above the page-scrolled columns; in
+  // Map it's the fixed top row of a viewport-height flex column (below).
+  const filterToolbar = (
+    <section
+      className={`border-b border-outline-variant/20 bg-surface px-margin py-sm z-40 backdrop-blur-xl ${
+        view === 'list' ? 'md:sticky md:top-20' : ''
+      }`}
+    >
+      <div className="max-w-screen-2xl mx-auto flex flex-col gap-sm md:flex-row md:items-center">
+        {/* Filter chips on a single line that scrolls horizontally instead of
+            wrapping, so the toolbar stays short — especially on mobile, where
+            wrapping previously pushed the map far down the page. */}
+        <div className="flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <FilterPill icon="location_on">
             <select
               value={String(maxDistance)}
               onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="bg-transparent focus:outline-none cursor-pointer"
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
             >
               {DISTANCE_OPTIONS.map((o) => (
                 <option key={o.label} value={String(o.value)}>
@@ -235,7 +329,7 @@ export function CuratedAdventures() {
             <select
               value={duration}
               onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-              className="bg-transparent focus:outline-none cursor-pointer"
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={d}>
@@ -248,7 +342,7 @@ export function CuratedAdventures() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-              className="bg-transparent focus:outline-none cursor-pointer capitalize"
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
             >
               {CATEGORY_OPTIONS.map((c) => (
                 <option key={c} value={c} className="capitalize">
@@ -261,7 +355,7 @@ export function CuratedAdventures() {
             <select
               value={parkType}
               onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-              className="bg-transparent focus:outline-none cursor-pointer"
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
             >
               {PARK_TYPE_OPTIONS.map((p) => (
                 <option key={p} value={p}>
@@ -270,101 +364,128 @@ export function CuratedAdventures() {
               ))}
             </select>
           </FilterPill>
-          <div className="flex items-center gap-sm shrink-0">
-            <span className="font-body-md text-on-surface-variant">
-              Dog Friendly
+          <button
+            type="button"
+            role="switch"
+            aria-checked={dogOnly}
+            aria-label="Dog friendly"
+            onClick={() => setDogOnly((v) => !v)}
+            className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+              dogOnly
+                ? 'border-primary bg-primary text-on-primary'
+                : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+            }`}
+          >
+            <span
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 18, height: 18 }}
+              aria-hidden="true"
+            >
+              pets
             </span>
+            Dog friendly
+          </button>
+        </div>
+        {/* View toggle + trip actions: their own row below the filters on
+            mobile, right-aligned inline on desktop. */}
+        <div className="flex flex-wrap md:flex-nowrap shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
+          <ViewModeToggle value={view} onChange={setView} modes={toggleModes} />
+          <button
+            type="button"
+            onClick={() => {
+              if (selectionMode) {
+                clearSelection();
+              } else {
+                setSelectionMode(true);
+              }
+            }}
+            disabled={!isSignedIn && !selectionMode}
+            title={isSignedIn ? undefined : 'Sign in to plan trips'}
+            className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            <span
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 18, height: 18 }}
+              aria-hidden="true"
+            >
+              {selectionMode ? 'close' : 'check_box'}
+            </span>
+            {selectionMode ? 'Cancel select' : 'Select for trip'}
+          </button>
+          {isOwner && (
             <button
               type="button"
-              role="switch"
-              aria-checked={dogOnly}
-              onClick={() => setDogOnly((v) => !v)}
-              className={`w-12 h-7 rounded-full relative transition-colors ${
-                dogOnly ? 'bg-secondary' : 'bg-surface-variant'
+              onClick={() => setAdding(true)}
+              className="inline-flex h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm text-on-primary hover:opacity-90 transition-opacity whitespace-nowrap"
+            >
+              <span
+                className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+                style={{ fontSize: 18, width: 18, height: 18 }}
+                aria-hidden="true"
+              >
+                add
+              </span>
+              Add activity
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
+  return (
+    <>
+      {view === 'map' ? (
+        <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden">
+          {filterToolbar}
+          {/* Map fills exactly the space below the nav: a flex child in a
+              fixed-height, overflow-clipped column, so the page never scrolls
+              and the map can't slide under the sticky header. */}
+          <section className="min-h-0 flex-1 px-margin py-md">
+            <h1 className="sr-only">Curated Adventures — map</h1>
+            <div className="h-full w-full">
+              <ActivityMap activities={results} onSelect={setSelected} />
+            </div>
+          </section>
+        </div>
+      ) : view === 'split' ? (
+        <>
+          {filterToolbar}
+          <section className="max-w-screen-2xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            {/* List column flows in the normal page scroll (Airbnb-style): the
+              page's own scrollbar moves the cards while the map stays pinned —
+              no separate inner scrollbar. */}
+            <div
+              className={`px-margin py-md ${
+                selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
               }`}
             >
-              <div
-                className={`w-4 h-4 rounded-full absolute top-1.5 transition-transform ${
-                  dogOnly
-                    ? 'bg-on-secondary translate-x-7'
-                    : 'bg-outline translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto md:ml-auto justify-center md:justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                if (selectionMode) {
-                  clearSelection();
-                } else {
-                  setSelectionMode(true);
-                }
-              }}
-              disabled={!isSignedIn && !selectionMode}
-              title={isSignedIn ? undefined : 'Sign in to plan trips'}
-              className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-sm md:px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              <span className="material-symbols-outlined text-body-md">
-                {selectionMode ? 'close' : 'check_box'}
-              </span>
-              {selectionMode ? 'Cancel select' : 'Select for trip'}
-            </button>
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className="flex items-center gap-xs bg-primary text-on-primary px-sm md:px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-body-md">add</span>
-                Add activity
-              </button>
+              {listHeader}
+              {listContent}
+            </div>
+            {/* Map column: sticky at top-20, fills the viewport and stays put as
+              the list scrolls past. Mounted only at lg+ (below it the split
+              collapses to list-only; the mobile map sheet is #96). */}
+            {splitMapVisible && (
+              <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
+                <ActivityMap activities={results} onSelect={setSelected} />
+              </div>
             )}
-          </div>
-        </div>
-      </section>
-
-      <section className={`px-margin py-xl max-w-screen-2xl mx-auto ${
-        selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
-      }`}>
-        {results.length === 0 ? (
-          <div className="text-center py-xl text-on-surface-variant">
-            No activities match those filters.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-            {results.map((a) => (
-              <ActivityCard
-                key={a.id}
-                activity={a}
-                selectionMode={selectionMode}
-                selected={selectedForTrip.has(a.id)}
-                onClick={() => {
-                  if (selectionMode) {
-                    toggleSelected(a.id);
-                  } else {
-                    setSelected(a);
-                  }
-                }}
-                actionSlot={
-                  selectionMode ? undefined : (
-                    <AddToTripDropdown
-                      activityId={a.id}
-                      disabled={!isSignedIn}
-                      disabledTooltip="Sign in to add to trips"
-                      onAdded={(msg) => {
-                        setTripAddedToast(msg);
-                        window.setTimeout(() => setTripAddedToast(null), 3000);
-                      }}
-                    />
-                  )
-                }
-              />
-            ))}
-          </div>
-        )}
-      </section>
+          </section>
+        </>
+      ) : (
+        <>
+          {filterToolbar}
+          <section
+            className={`px-margin py-md max-w-screen-2xl mx-auto ${
+              selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
+            }`}
+          >
+            {listHeader}
+            {listContent}
+          </section>
+        </>
+      )}
 
       {selectionMode && (
         <div className="fixed bottom-0 inset-x-0 z-40 px-margin py-md bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30">
@@ -373,7 +494,9 @@ export function CuratedAdventures() {
               {targetTrip ? (
                 <>
                   Adding to{' '}
-                  <span className="font-bold">&quot;{targetTrip.title}&quot;</span>
+                  <span className="font-bold">
+                    &quot;{targetTrip.title}&quot;
+                  </span>
                   {' · '}
                   {selectedForTrip.size} selected
                 </>
@@ -466,9 +589,26 @@ function FilterPill({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex items-center gap-xs text-on-surface-variant bg-surface-container-low px-sm py-xs rounded-full border border-outline-variant/30 cursor-pointer hover:bg-surface-variant transition-colors">
-      <span className="material-symbols-outlined text-body-md">{icon}</span>
+    <label className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40">
+      {/* Fixed-size icon box: clips the Material Symbols ligature so a missing
+          icon font (the visual tests stub it) can't blow out the chip width. */}
+      <span
+        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
+        style={{ fontSize: 18, width: 18, height: 18 }}
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
       {children}
+      {/* Custom caret — the native select arrow is removed via appearance-none
+          so the chip reads cleanly; this keeps the dropdown affordance. */}
+      <span
+        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
+        style={{ fontSize: 18, width: 18, height: 18 }}
+        aria-hidden="true"
+      >
+        expand_more
+      </span>
     </label>
   );
 }

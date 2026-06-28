@@ -19,6 +19,11 @@ const OPTIONS: readonly Option[] = [
 type Props = {
   value: ViewMode;
   onChange: (mode: ViewMode) => void;
+  /**
+   * Which segments to show, in order. Defaults to all three. The split view
+   * passes `['list', 'map']` below `lg`, where Split has no two-column layout.
+   */
+  modes?: readonly ViewMode[];
 };
 
 /**
@@ -28,11 +33,14 @@ type Props = {
  * Accessible as a radiogroup: arrow keys move (and select) between segments,
  * with a roving tabindex so the group is a single tab stop.
  */
-export function ViewModeToggle({ value, onChange }: Props) {
+export function ViewModeToggle({ value, onChange, modes }: Props) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const options = modes
+    ? OPTIONS.filter((o) => modes.includes(o.value))
+    : OPTIONS;
 
   function focusAndSelect(index: number) {
-    const next = OPTIONS[index];
+    const next = options[index];
     onChange(next.value);
     refs.current[index]?.focus();
   }
@@ -43,13 +51,13 @@ export function ViewModeToggle({ value, onChange }: Props) {
   ) {
     let nextIndex: number | null = null;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (index + 1) % OPTIONS.length;
+      nextIndex = (index + 1) % options.length;
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (index - 1 + OPTIONS.length) % OPTIONS.length;
+      nextIndex = (index - 1 + options.length) % options.length;
     } else if (event.key === 'Home') {
       nextIndex = 0;
     } else if (event.key === 'End') {
-      nextIndex = OPTIONS.length - 1;
+      nextIndex = options.length - 1;
     }
     if (nextIndex !== null) {
       event.preventDefault();
@@ -61,9 +69,9 @@ export function ViewModeToggle({ value, onChange }: Props) {
     <div
       role="radiogroup"
       aria-label="View mode"
-      className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-lowest/70 p-xs backdrop-blur-xl"
+      className="inline-flex items-center gap-xs rounded-xl bg-surface-container p-xs"
     >
-      {OPTIONS.map((option, index) => {
+      {options.map((option, index) => {
         const selected = option.value === value;
         return (
           <button
@@ -77,15 +85,21 @@ export function ViewModeToggle({ value, onChange }: Props) {
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`flex items-center gap-xs rounded-full px-sm py-xs font-label-caps text-label-caps uppercase transition-colors ${
+            className={`flex items-center gap-xs rounded-lg px-sm py-xs text-body-sm font-semibold transition-colors ${
               selected
-                ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-on-surface-variant hover:bg-surface-variant/60'
+                ? 'bg-surface-container-lowest text-primary shadow-sm'
+                : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
+            {/* Fixed-size icon box: Material Symbols renders the glyph via a
+                ligature, so if the icon font fails to load (e.g. the visual
+                tests stub Google Fonts to empty) the raw ligature *name*
+                ("splitscreen", "view_agenda") would otherwise render as text and
+                blow out the width of this non-wrapping control. Clipping to a
+                fixed box keeps the layout stable in either case. */}
             <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 18 }}
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 20, height: 20 }}
               aria-hidden="true"
             >
               {option.icon}
