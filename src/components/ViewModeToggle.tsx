@@ -37,7 +37,10 @@ export function ViewModeToggle({ value, onChange }: Props) {
     refs.current[index]?.focus();
   }
 
-  function handleKeyDown(event: React.KeyboardEvent, index: number) {
+  function handleKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
     let nextIndex: number | null = null;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
       nextIndex = (index + 1) % OPTIONS.length;
@@ -71,7 +74,6 @@ export function ViewModeToggle({ value, onChange }: Props) {
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={option.label}
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}

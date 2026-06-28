@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ViewModeToggle, type ViewMode } from './ViewModeToggle';
 
@@ -106,5 +107,43 @@ describe('ViewModeToggle', () => {
     expect(onChange).toHaveBeenLastCalledWith('list');
     await userEvent.keyboard('{End}');
     expect(onChange).toHaveBeenLastCalledWith('map');
+  });
+
+  it('moves focus and the tab stop to the newly selected segment on arrow nav', async () => {
+    // Drive a real controlled wrapper so `value` actually updates — proving the
+    // roving tabindex and focus follow the selection after a keypress, not just
+    // that onChange fired.
+    function Controlled() {
+      const [value, setValue] = useState<ViewMode>('list');
+      return <ViewModeToggle value={value} onChange={setValue} />;
+    }
+    render(<Controlled />);
+    screen.getByRole('radio', { name: 'List' }).focus();
+    await userEvent.keyboard('{ArrowRight}');
+
+    const split = screen.getByRole('radio', { name: 'Split' });
+    expect(split).toHaveAttribute('aria-checked', 'true');
+    expect(split).toHaveAttribute('tabindex', '0');
+    expect(split).toHaveFocus();
+    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute(
+      'tabindex',
+      '-1',
+    );
+  });
+
+  it('prevents default on navigation keys (so the page does not scroll)', () => {
+    render(<ViewModeToggle value="list" onChange={() => {}} />);
+    const list = screen.getByRole('radio', { name: 'List' });
+    const navEvent = createEvent.keyDown(list, { key: 'ArrowRight' });
+    fireEvent(list, navEvent);
+    expect(navEvent.defaultPrevented).toBe(true);
+  });
+
+  it('does not prevent default on unrelated keys', () => {
+    render(<ViewModeToggle value="list" onChange={() => {}} />);
+    const list = screen.getByRole('radio', { name: 'List' });
+    const otherEvent = createEvent.keyDown(list, { key: 'a' });
+    fireEvent(list, otherEvent);
+    expect(otherEvent.defaultPrevented).toBe(false);
   });
 });
