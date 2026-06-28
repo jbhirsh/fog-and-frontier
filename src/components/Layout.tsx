@@ -2,7 +2,6 @@ import {
   NavLink,
   Outlet,
   useLocation,
-  useNavigate,
   useSearchParams,
 } from 'react-router-dom';
 import {
@@ -14,8 +13,10 @@ import {
 import { CLERK_ENABLED } from '../lib/authShim';
 
 function navClass({ isActive }: { isActive: boolean }) {
+  // Active state carries a non-color cue (underline + weight) as well as color,
+  // so it's distinguishable without relying on hue alone (WCAG 1.4.1).
   return isActive
-    ? 'text-secondary font-semibold transition-colors'
+    ? 'text-secondary font-semibold underline decoration-2 underline-offset-[6px] transition-colors'
     : 'text-on-surface-variant font-medium hover:text-secondary transition-colors';
 }
 
@@ -28,14 +29,13 @@ function NavSeparator() {
 }
 
 export function Layout() {
-  // App-wide search lives in the header (per the #4 mockup) and drives the
-  // catalog's `?q=` filter. The input is bound to the `?q=` param; on the
-  // catalog ("/") that filters the list live. On other pages submitting jumps
-  // to the filtered catalog.
+  // Catalog search (per the #4 mockup) drives the `?q=` filter. The box is
+  // rendered only on the catalog ("/") — see the conditional below — so it
+  // never appears (or writes a stray `?q=`) on Explore / Trips / Adventures.
   const [params, setParams] = useSearchParams();
-  const navigate = useNavigate();
   const { pathname } = useLocation();
   const q = params.get('q') ?? '';
+  const showSearch = pathname === '/';
 
   function handleChange(next: string) {
     setParams(
@@ -47,13 +47,6 @@ export function Layout() {
       },
       { replace: true },
     );
-  }
-
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (pathname !== '/') {
-      void navigate(q ? `/?q=${encodeURIComponent(q)}` : '/');
-    }
   }
 
   return (
@@ -70,37 +63,39 @@ export function Layout() {
             Fog and Frontier
           </NavLink>
 
-          <form
-            role="search"
-            onSubmit={handleSubmit}
-            className="order-3 md:order-2 w-full md:w-[min(42vw,520px)]"
-          >
-            <label className="flex items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest pl-gutter pr-xs py-xs shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
-              <span className="material-symbols-outlined text-outline">
-                search
-              </span>
-              <input
-                value={q}
-                onChange={(e) => handleChange(e.target.value)}
-                className="grow min-w-0 bg-transparent border-none focus:outline-none text-body-md"
-                placeholder="Search adventures, places, trails…"
-                type="text"
-                aria-label="Search adventures"
-              />
-              <button
-                type="submit"
-                aria-label="Search"
-                className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary text-on-secondary transition-opacity hover:opacity-90"
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 20 }}
-                >
-                  arrow_forward
+          {showSearch && (
+            <form
+              role="search"
+              onSubmit={(e) => e.preventDefault()}
+              className="order-3 md:order-2 w-full md:w-[min(42vw,520px)]"
+            >
+              <label className="flex items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest pl-gutter pr-xs py-xs shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
+                <span className="material-symbols-outlined text-outline">
+                  search
                 </span>
-              </button>
-            </label>
-          </form>
+                <input
+                  value={q}
+                  onChange={(e) => handleChange(e.target.value)}
+                  className="grow min-w-0 bg-transparent border-none focus:outline-none text-body-md"
+                  placeholder="Search adventures, places, trails…"
+                  type="text"
+                  aria-label="Search adventures"
+                />
+                <button
+                  type="submit"
+                  aria-label="Search"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary text-on-secondary transition-opacity hover:opacity-90"
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 20 }}
+                  >
+                    arrow_forward
+                  </span>
+                </button>
+              </label>
+            </form>
+          )}
 
           <nav className="order-4 md:order-3 w-full md:w-auto md:ml-auto flex items-center justify-center md:justify-end gap-x-sm text-body-sm whitespace-nowrap">
             <NavLink to="/" end className={navClass}>

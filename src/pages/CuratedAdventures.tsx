@@ -121,11 +121,17 @@ export function CuratedAdventures() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isLg = useMediaQuery('(min-width: 1024px)');
   const viewParam = searchParams.get('view');
-  const view: ViewMode = isViewMode(viewParam)
+  const requestedView: ViewMode = isViewMode(viewParam)
     ? viewParam
     : isLg
       ? 'split'
       : 'list';
+  // Split needs the two-column desktop layout; below `lg` there's no room (the
+  // mobile map experience is #96), so a `?view=split` link or a stray toggle
+  // falls back to List there instead of showing Split selected over a
+  // list-only page.
+  const view: ViewMode =
+    requestedView === 'split' && !isLg ? 'list' : requestedView;
   function setView(next: ViewMode) {
     setSearchParams(
       (prev) => {
@@ -283,168 +289,180 @@ export function CuratedAdventures() {
     </div>
   );
 
-  return (
-    <>
-      {/* Compact toolbar (search + filters + view toggle) replacing the old
-          full-height hero, so the list/map fills the page like the #4 mockup.
-          Sticky in List mode — the long grid scrolls beneath it. In Split/Map
-          the columns are themselves sticky and fill the viewport, so a sticky
-          toolbar would overlap them; there it scrolls away with the page. */}
-      <section
-        className={`border-b border-outline-variant/20 bg-surface px-margin py-md z-40 backdrop-blur-xl ${
-          view === 'list' ? 'md:sticky md:top-20' : ''
-        }`}
-      >
-        <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-sm md:gap-md">
-          <FilterPill icon="location_on">
-            <select
-              value={String(maxDistance)}
-              onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="bg-transparent focus:outline-none cursor-pointer text-body-sm"
-            >
-              {DISTANCE_OPTIONS.map((o) => (
-                <option key={o.label} value={String(o.value)}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <FilterPill icon="schedule">
-            <select
-              value={duration}
-              onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-              className="bg-transparent focus:outline-none cursor-pointer text-body-sm"
-            >
-              {DURATION_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d === 'Any' ? 'Any duration' : d}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <FilterPill icon="category">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-              className="bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
-            >
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c} value={c} className="capitalize">
-                  {c === 'Any' ? 'Any category' : c}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <FilterPill icon="forest">
-            <select
-              value={parkType}
-              onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-              className="bg-transparent focus:outline-none cursor-pointer text-body-sm"
-            >
-              {PARK_TYPE_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {PARK_TYPE_LABELS[p]}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
+  // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
+  // scrolls beneath it); in Split it sits above the page-scrolled columns; in
+  // Map it's the fixed top row of a viewport-height flex column (below).
+  const filterToolbar = (
+    <section
+      className={`border-b border-outline-variant/20 bg-surface px-margin py-md z-40 backdrop-blur-xl ${
+        view === 'list' ? 'md:sticky md:top-20' : ''
+      }`}
+    >
+      <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-sm md:gap-md">
+        <FilterPill icon="location_on">
+          <select
+            value={String(maxDistance)}
+            onChange={(e) => setMaxDistance(Number(e.target.value))}
+            className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+          >
+            {DISTANCE_OPTIONS.map((o) => (
+              <option key={o.label} value={String(o.value)}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </FilterPill>
+        <FilterPill icon="schedule">
+          <select
+            value={duration}
+            onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
+            className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+          >
+            {DURATION_OPTIONS.map((d) => (
+              <option key={d} value={d}>
+                {d === 'Any' ? 'Any duration' : d}
+              </option>
+            ))}
+          </select>
+        </FilterPill>
+        <FilterPill icon="category">
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
+            className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
+          >
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c} className="capitalize">
+                {c === 'Any' ? 'Any category' : c}
+              </option>
+            ))}
+          </select>
+        </FilterPill>
+        <FilterPill icon="forest">
+          <select
+            value={parkType}
+            onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
+            className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+          >
+            {PARK_TYPE_OPTIONS.map((p) => (
+              <option key={p} value={p}>
+                {PARK_TYPE_LABELS[p]}
+              </option>
+            ))}
+          </select>
+        </FilterPill>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={dogOnly}
+          aria-label="Dog friendly"
+          onClick={() => setDogOnly((v) => !v)}
+          className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+            dogOnly
+              ? 'border-primary bg-primary text-on-primary'
+              : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+          }`}
+        >
+          <span
+            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            style={{ fontSize: 18, width: 18, height: 18 }}
+            aria-hidden="true"
+          >
+            pets
+          </span>
+          Dog friendly
+        </button>
+        <div className="w-full md:w-auto md:ml-auto flex justify-center">
+          <ViewModeToggle value={view} onChange={setView} />
+        </div>
+        <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto justify-center md:justify-end">
           <button
             type="button"
-            role="switch"
-            aria-checked={dogOnly}
-            aria-label="Dog friendly"
-            onClick={() => setDogOnly((v) => !v)}
-            className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-              dogOnly
-                ? 'border-primary bg-primary text-on-primary'
-                : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-            }`}
+            onClick={() => {
+              if (selectionMode) {
+                clearSelection();
+              } else {
+                setSelectionMode(true);
+              }
+            }}
+            disabled={!isSignedIn && !selectionMode}
+            title={isSignedIn ? undefined : 'Sign in to plan trips'}
+            className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-sm md:px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            <span
-              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-              style={{ fontSize: 18, width: 18, height: 18 }}
-              aria-hidden="true"
-            >
-              pets
+            <span className="material-symbols-outlined text-body-md">
+              {selectionMode ? 'close' : 'check_box'}
             </span>
-            Dog friendly
+            {selectionMode ? 'Cancel select' : 'Select for trip'}
           </button>
-          <div className="w-full md:w-auto md:ml-auto flex justify-center">
-            <ViewModeToggle value={view} onChange={setView} />
-          </div>
-          <div className="flex flex-wrap items-center gap-sm md:gap-md w-full md:w-auto justify-center md:justify-end">
+          {isOwner && (
             <button
               type="button"
-              onClick={() => {
-                if (selectionMode) {
-                  clearSelection();
-                } else {
-                  setSelectionMode(true);
-                }
-              }}
-              disabled={!isSignedIn && !selectionMode}
-              title={isSignedIn ? undefined : 'Sign in to plan trips'}
-              className="flex items-center gap-xs bg-surface-container-low border border-outline-variant/40 text-on-surface-variant px-sm md:px-md py-xs rounded-full font-body-md hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-xs bg-primary text-on-primary px-sm md:px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity whitespace-nowrap"
             >
               <span className="material-symbols-outlined text-body-md">
-                {selectionMode ? 'close' : 'check_box'}
+                add
               </span>
-              {selectionMode ? 'Cancel select' : 'Select for trip'}
+              Add activity
             </button>
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className="flex items-center gap-xs bg-primary text-on-primary px-sm md:px-md py-xs rounded-full font-body-md hover:opacity-90 transition-opacity whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-body-md">
-                  add
-                </span>
-                Add activity
-              </button>
-            )}
-          </div>
+          )}
         </div>
-      </section>
+      </div>
+    </section>
+  );
 
+  return (
+    <>
       {view === 'map' ? (
-        <section className="px-margin py-md w-full max-w-screen-2xl mx-auto">
-          {/* Full-bleed map fills the viewport below the nav. */}
-          <div className="h-[calc(100vh-80px)] w-full">
-            <ActivityMap activities={results} onSelect={setSelected} />
-          </div>
-        </section>
+        <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden">
+          {filterToolbar}
+          {/* Map fills exactly the space below the nav: a flex child in a
+              fixed-height, overflow-clipped column, so the page never scrolls
+              and the map can't slide under the sticky header. */}
+          <section className="min-h-0 flex-1 px-margin py-md">
+            <h1 className="sr-only">Curated Adventures — map</h1>
+            <div className="h-full w-full">
+              <ActivityMap activities={results} onSelect={setSelected} />
+            </div>
+          </section>
+        </div>
       ) : view === 'split' ? (
-        <section className="max-w-screen-2xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          {/* List column flows in the normal page scroll (Airbnb-style): the
+        <>
+          {filterToolbar}
+          <section className="max-w-screen-2xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            {/* List column flows in the normal page scroll (Airbnb-style): the
               page's own scrollbar moves the cards while the map stays pinned —
               no separate inner scrollbar. */}
-          <div
-            className={`px-margin py-lg ${
+            <div
+              className={`px-margin py-lg ${
+                selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
+              }`}
+            >
+              {listHeader}
+              {listContent}
+            </div>
+            {/* Map column: sticky at top-20, fills the viewport and stays put as
+              the list scrolls past. Mounted only at lg+ (below it the split
+              collapses to list-only; the mobile map sheet is #96). */}
+            {splitMapVisible && (
+              <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
+                <ActivityMap activities={results} onSelect={setSelected} />
+              </div>
+            )}
+          </section>
+        </>
+      ) : (
+        <>
+          {filterToolbar}
+          <section
+            className={`px-margin py-lg max-w-screen-2xl mx-auto ${
               selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
             }`}
           >
             {listHeader}
             {listContent}
-          </div>
-          {/* Map column: sticky at top-20, fills the viewport and stays put as
-              the list scrolls past. Mounted only at lg+ (below it the split
-              collapses to list-only; the mobile map sheet is #96). */}
-          {splitMapVisible && (
-            <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
-              <ActivityMap activities={results} onSelect={setSelected} />
-            </div>
-          )}
-        </section>
-      ) : (
-        <section
-          className={`px-margin py-lg max-w-screen-2xl mx-auto ${
-            selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
-          }`}
-        >
-          {listHeader}
-          {listContent}
-        </section>
+          </section>
+        </>
       )}
 
       {selectionMode && (
@@ -560,6 +578,15 @@ function FilterPill({
         {icon}
       </span>
       {children}
+      {/* Custom caret — the native select arrow is removed via appearance-none
+          so the chip reads cleanly; this keeps the dropdown affordance. */}
+      <span
+        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
+        style={{ fontSize: 18, width: 18, height: 18 }}
+        aria-hidden="true"
+      >
+        expand_more
+      </span>
     </label>
   );
 }
