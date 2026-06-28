@@ -27,14 +27,14 @@ describe('Layout', () => {
   it('marks the Curated link active on the home route', () => {
     renderAt('/');
     const curated = screen.getByRole('link', { name: 'Curated' });
-    expect(curated.className).toMatch(/border-secondary/);
+    expect(curated.className).toMatch(/text-secondary/);
   });
 
   it('marks the Adventures link active on /adventures', () => {
     renderAt('/adventures');
     expect(screen.getByText('adv-content')).toBeInTheDocument();
     const adv = screen.getByRole('link', { name: 'Adventures' });
-    expect(adv.className).toMatch(/border-secondary/);
+    expect(adv.className).toMatch(/text-secondary/);
   });
 
   it('renders the brand and footer', () => {

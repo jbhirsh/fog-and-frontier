@@ -61,7 +61,7 @@ export function ViewModeToggle({ value, onChange }: Props) {
     <div
       role="radiogroup"
       aria-label="View mode"
-      className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-lowest/70 p-xs backdrop-blur-xl"
+      className="inline-flex items-center gap-xs rounded-xl bg-surface-container p-xs"
     >
       {OPTIONS.map((option, index) => {
         const selected = option.value === value;
@@ -77,10 +77,10 @@ export function ViewModeToggle({ value, onChange }: Props) {
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`flex items-center gap-xs rounded-full px-sm py-xs font-label-caps text-label-caps uppercase transition-colors ${
+            className={`flex items-center gap-xs rounded-lg px-sm py-xs text-body-sm font-semibold transition-colors ${
               selected
-                ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-on-surface-variant hover:bg-surface-variant/60'
+                ? 'bg-surface-container-lowest text-primary shadow-sm'
+                : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
             {/* Fixed-size icon box: Material Symbols renders the glyph via a
