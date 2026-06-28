@@ -300,7 +300,7 @@ export function CuratedAdventures() {
             <select
               value={String(maxDistance)}
               onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="bg-transparent focus:outline-none cursor-pointer"
+              className="bg-transparent focus:outline-none cursor-pointer text-body-sm"
             >
               {DISTANCE_OPTIONS.map((o) => (
                 <option key={o.label} value={String(o.value)}>
@@ -313,7 +313,7 @@ export function CuratedAdventures() {
             <select
               value={duration}
               onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-              className="bg-transparent focus:outline-none cursor-pointer"
+              className="bg-transparent focus:outline-none cursor-pointer text-body-sm"
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={d}>
@@ -326,7 +326,7 @@ export function CuratedAdventures() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-              className="bg-transparent focus:outline-none cursor-pointer capitalize"
+              className="bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
             >
               {CATEGORY_OPTIONS.map((c) => (
                 <option key={c} value={c} className="capitalize">
@@ -339,7 +339,7 @@ export function CuratedAdventures() {
             <select
               value={parkType}
               onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-              className="bg-transparent focus:outline-none cursor-pointer"
+              className="bg-transparent focus:outline-none cursor-pointer text-body-sm"
             >
               {PARK_TYPE_OPTIONS.map((p) => (
                 <option key={p} value={p}>
@@ -348,28 +348,27 @@ export function CuratedAdventures() {
               ))}
             </select>
           </FilterPill>
-          <div className="flex items-center gap-sm shrink-0">
-            <span className="font-body-md text-on-surface-variant">
-              Dog Friendly
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={dogOnly}
-              onClick={() => setDogOnly((v) => !v)}
-              className={`w-12 h-7 rounded-full relative transition-colors ${
-                dogOnly ? 'bg-secondary' : 'bg-surface-variant'
-              }`}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={dogOnly}
+            aria-label="Dog friendly"
+            onClick={() => setDogOnly((v) => !v)}
+            className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+              dogOnly
+                ? 'border-primary bg-primary text-on-primary'
+                : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+            }`}
+          >
+            <span
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 18, height: 18 }}
+              aria-hidden="true"
             >
-              <div
-                className={`w-4 h-4 rounded-full absolute top-1.5 transition-transform ${
-                  dogOnly
-                    ? 'bg-on-secondary translate-x-7'
-                    : 'bg-outline translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
+              pets
+            </span>
+            Dog friendly
+          </button>
           <div className="w-full md:w-auto md:ml-auto flex justify-center">
             <ViewModeToggle value={view} onChange={setView} />
           </div>
@@ -417,19 +416,20 @@ export function CuratedAdventures() {
         </section>
       ) : view === 'split' ? (
         <section className="max-w-screen-2xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          {/* List column: its own scroll container on lg, sticky under the
-              filter bar so it scrolls independently of the map. */}
+          {/* List column flows in the normal page scroll (Airbnb-style): the
+              page's own scrollbar moves the cards while the map stays pinned —
+              no separate inner scrollbar. */}
           <div
-            className={`px-margin py-lg lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] lg:overflow-y-auto ${
+            className={`px-margin py-lg ${
               selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
             }`}
           >
             {listHeader}
             {listContent}
           </div>
-          {/* Map column: sticky at top-20, fills the viewport beside the list.
-              Mounted only at lg+ (below it the split collapses to list-only;
-              the mobile map sheet is #96). */}
+          {/* Map column: sticky at top-20, fills the viewport and stays put as
+              the list scrolls past. Mounted only at lg+ (below it the split
+              collapses to list-only; the mobile map sheet is #96). */}
           {splitMapVisible && (
             <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
               <ActivityMap activities={results} onSelect={setSelected} />
@@ -549,8 +549,16 @@ function FilterPill({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex items-center gap-xs text-on-surface-variant bg-surface-container-low px-sm py-xs rounded-full border border-outline-variant/30 cursor-pointer hover:bg-surface-variant transition-colors">
-      <span className="material-symbols-outlined text-body-md">{icon}</span>
+    <label className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer">
+      {/* Fixed-size icon box: clips the Material Symbols ligature so a missing
+          icon font (the visual tests stub it) can't blow out the chip width. */}
+      <span
+        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
+        style={{ fontSize: 18, width: 18, height: 18 }}
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
       {children}
     </label>
   );

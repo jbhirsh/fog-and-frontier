@@ -149,16 +149,20 @@ export function Layout() {
       <main className="flex-grow">
         <Outlet />
       </main>
-      <footer className="bg-primary w-full py-xl mt-xl">
-        <div className="flex flex-col md:flex-row justify-between items-center px-margin gap-md max-w-screen-2xl mx-auto">
-          <div className="font-display text-headline-md font-bold text-on-primary">
-            Fog and Frontier
+      {/* The catalog/split view (#4) owns the full page scroll Airbnb-style, so
+          the footer is suppressed there; other pages keep it. */}
+      {pathname !== '/' && (
+        <footer className="bg-primary w-full py-xl mt-xl">
+          <div className="flex flex-col md:flex-row justify-between items-center px-margin gap-md max-w-screen-2xl mx-auto">
+            <div className="font-display text-headline-md font-bold text-on-primary">
+              Fog and Frontier
+            </div>
+            <div className="font-body-md text-body-md text-on-primary/70 text-center md:text-right">
+              Inspired by the Pacific Coast.
+            </div>
           </div>
-          <div className="font-body-md text-body-md text-on-primary/70 text-center md:text-right">
-            Inspired by the Pacific Coast.
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }

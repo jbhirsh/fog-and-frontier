@@ -38,7 +38,9 @@ describe('Layout', () => {
   });
 
   it('renders the brand and footer', () => {
-    renderAt('/');
+    // The footer is suppressed on the catalog ("/") so the split view owns the
+    // page scroll; assert it on another route.
+    renderAt('/adventures');
     expect(screen.getAllByText('Fog and Frontier').length).toBeGreaterThan(0);
     expect(screen.getByText(/Inspired by the Pacific Coast/)).toBeInTheDocument();
   });
