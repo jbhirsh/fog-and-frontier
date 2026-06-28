@@ -133,10 +133,13 @@ export function CuratedAdventures() {
   const view: ViewMode =
     requestedView === 'split' && !isLg ? 'list' : requestedView;
   function setView(next: ViewMode) {
+    // Split is desktop-only; below `lg`, store List so the URL never carries a
+    // `?view=split` that would silently activate if the window is widened.
+    const target: ViewMode = next === 'split' && !isLg ? 'list' : next;
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev);
-        params.set('view', next);
+        params.set('view', target);
         return params;
       },
       { replace: true },
@@ -298,83 +301,88 @@ export function CuratedAdventures() {
         view === 'list' ? 'md:sticky md:top-20' : ''
       }`}
     >
-      <div className="max-w-screen-2xl mx-auto flex flex-wrap items-center gap-sm">
-        <FilterPill icon="location_on">
-          <select
-            value={String(maxDistance)}
-            onChange={(e) => setMaxDistance(Number(e.target.value))}
-            className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+      <div className="max-w-screen-2xl mx-auto flex flex-col gap-sm md:flex-row md:items-center">
+        {/* Filter chips on a single line that scrolls horizontally instead of
+            wrapping, so the toolbar stays short — especially on mobile, where
+            wrapping previously pushed the map far down the page. */}
+        <div className="flex items-center gap-sm overflow-x-auto py-px md:min-w-0 md:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FilterPill icon="location_on">
+            <select
+              value={String(maxDistance)}
+              onChange={(e) => setMaxDistance(Number(e.target.value))}
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+            >
+              {DISTANCE_OPTIONS.map((o) => (
+                <option key={o.label} value={String(o.value)}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </FilterPill>
+          <FilterPill icon="schedule">
+            <select
+              value={duration}
+              onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+            >
+              {DURATION_OPTIONS.map((d) => (
+                <option key={d} value={d}>
+                  {d === 'Any' ? 'Any duration' : d}
+                </option>
+              ))}
+            </select>
+          </FilterPill>
+          <FilterPill icon="category">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
+            >
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c} className="capitalize">
+                  {c === 'Any' ? 'Any category' : c}
+                </option>
+              ))}
+            </select>
+          </FilterPill>
+          <FilterPill icon="forest">
+            <select
+              value={parkType}
+              onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
+              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+            >
+              {PARK_TYPE_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {PARK_TYPE_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </FilterPill>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={dogOnly}
+            aria-label="Dog friendly"
+            onClick={() => setDogOnly((v) => !v)}
+            className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+              dogOnly
+                ? 'border-primary bg-primary text-on-primary'
+                : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+            }`}
           >
-            {DISTANCE_OPTIONS.map((o) => (
-              <option key={o.label} value={String(o.value)}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </FilterPill>
-        <FilterPill icon="schedule">
-          <select
-            value={duration}
-            onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-            className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
-          >
-            {DURATION_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {d === 'Any' ? 'Any duration' : d}
-              </option>
-            ))}
-          </select>
-        </FilterPill>
-        <FilterPill icon="category">
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-            className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
-          >
-            {CATEGORY_OPTIONS.map((c) => (
-              <option key={c} value={c} className="capitalize">
-                {c === 'Any' ? 'Any category' : c}
-              </option>
-            ))}
-          </select>
-        </FilterPill>
-        <FilterPill icon="forest">
-          <select
-            value={parkType}
-            onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-            className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
-          >
-            {PARK_TYPE_OPTIONS.map((p) => (
-              <option key={p} value={p}>
-                {PARK_TYPE_LABELS[p]}
-              </option>
-            ))}
-          </select>
-        </FilterPill>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={dogOnly}
-          aria-label="Dog friendly"
-          onClick={() => setDogOnly((v) => !v)}
-          className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-            dogOnly
-              ? 'border-primary bg-primary text-on-primary'
-              : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-          }`}
-        >
-          <span
-            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 18, width: 18, height: 18 }}
-            aria-hidden="true"
-          >
-            pets
-          </span>
-          Dog friendly
-        </button>
-        {/* Toggle + trip actions share one right-aligned row so the toolbar
-            stays a single line and the cards/map sit just below it. */}
-        <div className="w-full md:w-auto md:ml-auto flex flex-wrap md:flex-nowrap items-center justify-center md:justify-end gap-sm">
+            <span
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 18, height: 18 }}
+              aria-hidden="true"
+            >
+              pets
+            </span>
+            Dog friendly
+          </button>
+        </div>
+        {/* View toggle + trip actions: their own row below the filters on
+            mobile, right-aligned inline on desktop. */}
+        <div className="flex shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
           <ViewModeToggle value={view} onChange={setView} />
           <button
             type="button"
@@ -575,7 +583,7 @@ function FilterPill({
   children: React.ReactNode;
 }) {
   return (
-    <label className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer">
+    <label className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40">
       {/* Fixed-size icon box: clips the Material Symbols ligature so a missing
           icon font (the visual tests stub it) can't blow out the chip width. */}
       <span
