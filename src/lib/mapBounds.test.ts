@@ -85,6 +85,13 @@ describe('isWithinBounds', () => {
     expect(isWithinBounds(55, 180, wrapped)).toBe(true); // on the seam
     expect(isWithinBounds(55, 0, wrapped)).toBe(false); // the far side
   });
+
+  it('matches nothing for inverted latitude bounds (north < south)', () => {
+    // Degenerate bounds aren't produced by Leaflet, but document the behavior:
+    // an empty latitude range can never contain a point.
+    const inverted: MapBounds = { north: 37, south: 38, east: -122, west: -123 };
+    expect(isWithinBounds(37.5, -122.5, inverted)).toBe(false);
+  });
 });
 
 describe('filterByBounds', () => {
@@ -144,6 +151,16 @@ describe('filterByBounds', () => {
     const result = filterByBounds([first, second, third], bounds);
 
     expect(result.map((a) => a.id)).toEqual(['first', 'second', 'third']);
+  });
+
+  it('filters across an antimeridian-crossing viewport end-to-end', () => {
+    const wrapped: MapBounds = { north: 60, south: 50, east: -170, west: 170 };
+    const nearSeam = makeActivity('near-seam', { lat: 55, lng: 179 });
+    const farSide = makeActivity('far-side', { lat: 55, lng: 0 });
+
+    const result = filterByBounds([nearSeam, farSide], wrapped);
+
+    expect(result.map((a) => a.id)).toEqual(['near-seam']);
   });
 });
 
@@ -217,5 +234,38 @@ describe('debounce', () => {
     vi.advanceTimersByTime(1000);
 
     expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('re-arms after firing: a later call schedules a fresh invocation', () => {
+    // This is the actual pan/zoom usage pattern — the map settles, fires, then
+    // the user pans again and it must fire a second time.
+    vi.useFakeTimers();
+    const fn = vi.fn();
+    const debounced = debounce(fn, 400);
+
+    debounced('first');
+    vi.advanceTimersByTime(400);
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenLastCalledWith('first');
+
+    debounced('second');
+    expect(fn).toHaveBeenCalledTimes(1); // not yet — new timer pending
+    vi.advanceTimersByTime(400);
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn).toHaveBeenLastCalledWith('second');
+  });
+
+  it('cancel() after the invocation has fired is a safe no-op', () => {
+    vi.useFakeTimers();
+    const fn = vi.fn();
+    const debounced = debounce(fn, 400);
+
+    debounced();
+    vi.advanceTimersByTime(400);
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    expect(() => debounced.cancel()).not.toThrow();
+    vi.advanceTimersByTime(1000);
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 });

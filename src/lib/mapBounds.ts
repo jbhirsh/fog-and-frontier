@@ -54,6 +54,12 @@ function hasValidCoords(
  * eastern edge is numerically smaller than the western edge, e.g. panned across
  * the 180°/-180° line): in that case a point matches if it is east of `west`
  * OR west of `east`.
+ *
+ * Assumes both the point and the bounds use normalized longitudes in
+ * [-180, 180]. Leaflet's `getWest()/getEast()` can return values outside that
+ * range once the user pans across multiple world copies (e.g. `west: -200`);
+ * normalize at the call site (or in {@link toMapBounds}) before relying on this.
+ * Handling world-copy wrap is deferred to the #95 map-wiring work.
  */
 export function isWithinBounds(
   lat: number,
