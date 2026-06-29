@@ -4,6 +4,7 @@ import {
   Marker,
   Popup,
   TileLayer,
+  Tooltip,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
@@ -22,8 +23,8 @@ import {
   type PinOptions,
 } from '../lib/mapPins';
 
-/** A fly-to request: clicking a card sets this; the bumped `nonce` re-triggers
- * the fly+pulse even when the same activity is clicked twice in a row (#94). */
+/** A focus request: clicking a card sets this; the bumped `nonce` re-triggers
+ * the pan+pulse even when the same activity is clicked twice in a row (#94). */
 export interface FocusTarget {
   id: string;
   nonce: number;
@@ -82,9 +83,13 @@ interface Props {
   /** Id of the activity whose pin should render highlighted (a hovered/focused
    * card, #94). Larger disc + raised above neighbours; does not open a popup. */
   highlightedId?: string | null;
-  /** A fly-to request (#94). When its `nonce` changes the map flies to that
-   * activity's pin and pulses it. */
+  /** A focus request (#94). When its `nonce` changes the matching pin pulses
+   * once. The map view is intentionally left untouched — no pan or zoom — since
+   * the user may have framed it deliberately. */
   focusTarget?: FocusTarget | null;
+  /** Notified when a pin gains/loses hover (#94): the split view outlines the
+   * matching card. `null` when the pointer leaves the pin. */
+  onPinHoverChange?: (activity: Activity | null) => void;
   /**
    * Called ~400 ms after the map settles from a pan/zoom, with the current
    * viewport as normalized {@link MapBounds}. The split view uses this to
@@ -110,6 +115,7 @@ export function ActivityMap({
   onActivate,
   highlightedId,
   focusTarget,
+  onPinHoverChange,
   onBoundsChange,
 }: Props) {
   const overrides = useOverrides();
@@ -124,10 +130,10 @@ export function ActivityMap({
     [activities, overrides],
   );
 
-  // The pin currently playing the one-shot fly-to pulse, set when `focusTarget`
-  // changes and cleared ~700ms later (matches the CSS animation in index.css).
-  // Tracked separately from the highlight so a card click pulses even when the
-  // pointer has already left the card.
+  // The pin currently playing the one-shot pulse, set when `focusTarget` changes
+  // and cleared ~700ms later (matches the CSS animation in index.css). Tracked
+  // separately from the highlight so a card click pulses even when the pointer
+  // has already left the card. The map view is never moved (see FocusTarget).
   const [pulseId, setPulseId] = useState<string | null>(null);
   const lastPulseNonce = useRef<number | null>(null);
   useEffect(() => {
@@ -150,7 +156,6 @@ export function ActivityMap({
         <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
         <MapZoomControls />
         {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
-        <FocusFlyer focusTarget={focusTarget} activities={activities} />
         <Marker
           position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           icon={homeIcon}
@@ -171,10 +176,17 @@ export function ActivityMap({
               // Raise the highlighted/pulsing pin above its neighbours so the
               // enlarged disc isn't clipped by adjacent markers (#94).
               zIndexOffset={highlighted || pulse ? 1000 : 0}
-              eventHandlers={
-                onActivate ? { click: () => onActivate(a) } : undefined
-              }
+              eventHandlers={{
+                ...(onActivate ? { click: () => onActivate(a) } : {}),
+                // Pin hover → outline the matching card in the list (#94).
+                mouseover: () => onPinHoverChange?.(a),
+                mouseout: () => onPinHoverChange?.(null),
+              }}
             >
+              {/* Brief hover tooltip — the activity title (#94). */}
+              <Tooltip direction="top" offset={[0, -6]}>
+                {a.name}
+              </Tooltip>
               {/* When the parent wires `onActivate` (the split view), a pin
                   click opens detail + scrolls the card directly — rendering a
                   Popup too would double-open it and its autoPan would move the
@@ -244,34 +256,6 @@ function BoundsWatcher({
   );
   useMapEvents({ moveend: debounced, zoomend: debounced });
   useEffect(() => () => debounced.cancel(), [debounced]);
-  return null;
-}
-
-// Flies the map to a focused activity's pin when `focusTarget.nonce` changes
-// (#94). Lives inside MapContainer so `useMap()` has the map in context;
-// renders nothing. The `lastNonce` ref guards against the effect re-running for
-// unrelated dependency changes (e.g. `activities` refiltering, which is needed
-// in the dep array to satisfy exhaustive-deps) — we only fly on a *new* nonce.
-function FocusFlyer({
-  focusTarget,
-  activities,
-}: {
-  focusTarget?: FocusTarget | null;
-  activities: Activity[];
-}) {
-  const map = useMap();
-  const lastNonce = useRef<number | null>(null);
-  useEffect(() => {
-    if (!focusTarget || focusTarget.nonce === lastNonce.current) return;
-    lastNonce.current = focusTarget.nonce;
-    const a = activities.find((x) => x.id === focusTarget.id);
-    if (!a) return;
-    map.flyTo(
-      [a.location.coords.lat, a.location.coords.lng],
-      Math.max(map.getZoom(), 12),
-      { duration: 0.6 },
-    );
-  }, [focusTarget, activities, map]);
   return null;
 }
 

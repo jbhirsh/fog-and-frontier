@@ -249,36 +249,33 @@ export function CuratedAdventures() {
   // Linked card↔pin state (#94), lifted here since both the list and the map are
   // rendered in this component.
   //   - `hoveredId` drives the highlighted pin (a hovered/focused card).
-  //   - `focusTarget` is a fly-to request; the bumped `nonce` (via the ref
-  //     counter below) re-fires the fly even when the same card is clicked twice.
+  //   - `pinHoveredId` is the reverse: a hovered pin outlines its list card.
+  //   - `focusTarget` pulses a clicked card's pin; the bumped `nonce` (via the
+  //     ref counter below) re-fires the pulse even on a repeat click. The map
+  //     view is never moved, so there's no #95 bounds feedback loop to guard.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [pinHoveredId, setPinHoveredId] = useState<string | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const focusNonceRef = useRef(0);
-  // A programmatic `flyTo` (card click → focusTarget) fires `moveend`, which the
-  // map reports via `onBoundsChange` and would refilter the list (#95) — possibly
-  // dropping the very activity we just flew to. We flag the next bounds update
-  // from that fly and skip it. (Only one debounced update follows a single fly.)
-  const ignoreNextBoundsRef = useRef(false);
-  const handleBoundsChange = useCallback((next: MapBounds) => {
-    if (ignoreNextBoundsRef.current) {
-      ignoreNextBoundsRef.current = false;
-      return;
-    }
-    setBounds(next);
-  }, []);
+  const handleBoundsChange = useCallback(
+    (next: MapBounds) => setBounds(next),
+    [],
+  );
   const clearBounds = useCallback(() => setBounds(null), []);
   const visibleResults = useMemo(
     () => (bounds ? filterByBounds(results, bounds) : results),
     [bounds, results],
   );
 
-  // Card click (#94): open detail and fly the map to the pin (with a pulse).
-  // Bumps the nonce so re-clicking the same card re-triggers the fly. Only guards
-  // the bounds feedback loop when a map is actually mounted to receive the fly.
+  // Card click (#94): open detail and pulse the matching pin — without moving
+  // the map, since the user may have framed the view deliberately. Bumps the
+  // nonce so re-clicking the same card re-triggers the pulse. Only sets the
+  // focus target when a map is mounted, so a List-view click doesn't leave a
+  // stale target that pulses when a map mounts later.
   function handleCardActivate(activity: Activity) {
     setSelected(activity);
     const mapMounted = splitMapVisible || view === 'map';
-    if (mapMounted) ignoreNextBoundsRef.current = true;
+    if (!mapMounted) return;
     focusNonceRef.current += 1;
     setFocusTarget({ id: activity.id, nonce: focusNonceRef.current });
   }
@@ -320,6 +317,7 @@ export function CuratedAdventures() {
             activity={a}
             selectionMode={selectionMode}
             selected={selectedForTrip.has(a.id)}
+            highlighted={a.id === pinHoveredId}
             onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
             onClick={() => {
               if (selectionMode) {
@@ -548,6 +546,7 @@ export function CuratedAdventures() {
                 onActivate={handlePinActivate}
                 highlightedId={hoveredId}
                 focusTarget={focusTarget}
+                onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                 onBoundsChange={handleBoundsChange}
               />
             </div>
@@ -579,6 +578,7 @@ export function CuratedAdventures() {
                   onActivate={handlePinActivate}
                   highlightedId={hoveredId}
                   focusTarget={focusTarget}
+                  onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                   onBoundsChange={handleBoundsChange}
                 />
               </div>
