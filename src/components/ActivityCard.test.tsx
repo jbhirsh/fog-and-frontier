@@ -48,6 +48,52 @@ describe('ActivityCard', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes data-activity-id on the root for scroll-into-view (#94)', () => {
+    const { container } = render(<ActivityCard activity={muirWoods} />);
+    expect(
+      container.querySelector(`[data-activity-id="${muirWoods.id}"]`),
+    ).toBeInTheDocument();
+  });
+
+  it('fires onHoverChange on pointer enter/leave (#94)', async () => {
+    const onHoverChange = vi.fn();
+    render(<ActivityCard activity={muirWoods} onHoverChange={onHoverChange} />);
+    const button = screen.getByRole('button');
+    await userEvent.hover(button);
+    expect(onHoverChange).toHaveBeenLastCalledWith(true);
+    await userEvent.unhover(button);
+    expect(onHoverChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('fires onHoverChange on keyboard focus/blur (#94)', () => {
+    const onHoverChange = vi.fn();
+    render(<ActivityCard activity={muirWoods} onHoverChange={onHoverChange} />);
+    const button = screen.getByRole('button');
+    act(() => button.focus());
+    expect(onHoverChange).toHaveBeenLastCalledWith(true);
+    act(() => button.blur());
+    expect(onHoverChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('keeps the highlight while focused even as the mouse leaves (#94)', async () => {
+    const onHoverChange = vi.fn();
+    render(<ActivityCard activity={muirWoods} onHoverChange={onHoverChange} />);
+    const button = screen.getByRole('button');
+    act(() => button.focus()); // keyboard focus → highlight on
+    await userEvent.hover(button);
+    await userEvent.unhover(button); // mouse leaves, but focus remains
+    expect(onHoverChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('outlines the cover when highlighted by a hovered pin (#94)', () => {
+    const { container, rerender } = render(
+      <ActivityCard activity={muirWoods} />,
+    );
+    expect(container.querySelector('.outline-2')).toBeNull();
+    rerender(<ActivityCard activity={muirWoods} highlighted />);
+    expect(container.querySelector('.outline-2')).not.toBeNull();
+  });
+
   it('shows the AllTrails rating when present', () => {
     render(<ActivityCard activity={{ ...muirWoods, allTrailsRating: 4.7 }} />);
     expect(screen.getByText('4.7')).toBeInTheDocument();
