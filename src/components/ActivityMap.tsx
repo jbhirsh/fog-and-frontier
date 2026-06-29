@@ -4,6 +4,7 @@ import {
   Marker,
   Popup,
   TileLayer,
+  Tooltip,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
@@ -40,11 +41,43 @@ function pendingIcon(category: Category): L.DivIcon {
   }));
 }
 
+// Pick the icon for an activity pin. The common (un-highlighted) case reuses the
+// memoized status icons above; the highlighted variant is rare (one at a time)
+// so a fresh `glyphPin` per render is fine and avoids polluting the shared cache
+// (#94).
+function activityIcon(
+  a: Activity,
+  completed: boolean,
+  highlighted: boolean,
+): L.DivIcon {
+  if (!highlighted) {
+    return completed ? completedIcon : pendingIcon(a.category);
+  }
+  const color = completed ? COLORS.completed : COLORS.pending;
+  const glyph = completed
+    ? { icon: 'check' as const }
+    : { icon: CATEGORY_ICON[a.category] };
+  return glyphPin(color, glyph, { highlighted });
+}
+
 interface Props {
   /** Activities to plot — already filtered by the caller. */
   activities: Activity[];
   /** Open the detail modal for an activity (from a pin popup's "View details"). */
   onSelect: (activity: Activity) => void;
+  /**
+   * Primary click handler for a pin (#94): a single click on the marker fires
+   * this (the split view opens detail + scrolls the matching card into view).
+   * The popup's "View details" calls it too when provided. Omit to fall back to
+   * {@link onSelect}.
+   */
+  onActivate?: (activity: Activity) => void;
+  /** Id of the activity whose pin should render highlighted (a hovered/focused
+   * card, #94). Larger disc + raised above neighbours; does not open a popup. */
+  highlightedId?: string | null;
+  /** Notified when a pin gains/loses hover (#94): the split view outlines the
+   * matching card. `null` when the pointer leaves the pin. */
+  onPinHoverChange?: (activity: Activity | null) => void;
   /**
    * Called ~400 ms after the map settles from a pan/zoom, with the current
    * viewport as normalized {@link MapBounds}. The split view uses this to
@@ -62,9 +95,16 @@ interface Props {
  * page in Map mode, the sticky right column in Split mode). See #4 / #93.
  *
  * #93 is layout-only: pins render statically and a popup links to detail. The
- * linked card↔pin hover/fly behaviour is #94.
+ * linked card↔pin hover behaviour is #94.
  */
-export function ActivityMap({ activities, onSelect, onBoundsChange }: Props) {
+export function ActivityMap({
+  activities,
+  onSelect,
+  onActivate,
+  highlightedId,
+  onPinHoverChange,
+  onBoundsChange,
+}: Props) {
   const overrides = useOverrides();
 
   const plotted = useMemo(
@@ -98,29 +138,52 @@ export function ActivityMap({ activities, onSelect, onBoundsChange }: Props) {
             <div className="text-on-surface-variant">Home base</div>
           </Popup>
         </Marker>
-        {plotted.map(({ a, completed, miles }) => (
-          <Marker
-            key={a.id}
-            position={[a.location.coords.lat, a.location.coords.lng]}
-            icon={completed ? completedIcon : pendingIcon(a.category)}
-          >
-            <Popup>
-              <div className="space-y-xs min-w-[200px]">
-                <div className="font-bold text-body-md">{a.name}</div>
-                <div className="text-body-sm text-on-surface-variant">
-                  {a.location.city} · {Math.round(miles)} mi · {a.duration}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onSelect(a)}
-                  className="inline-flex items-center min-h-11 text-primary font-bold underline cursor-pointer"
-                >
-                  View details →
-                </button>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {plotted.map(({ a, completed, miles }) => {
+          const highlighted = a.id === highlightedId;
+          return (
+            <Marker
+              key={a.id}
+              position={[a.location.coords.lat, a.location.coords.lng]}
+              icon={activityIcon(a, completed, highlighted)}
+              // Raise the highlighted pin above its neighbours so the enlarged
+              // disc isn't clipped by adjacent markers (#94).
+              zIndexOffset={highlighted ? 1000 : 0}
+              eventHandlers={{
+                ...(onActivate ? { click: () => onActivate(a) } : {}),
+                // Pin hover → outline the matching card in the list (#94).
+                mouseover: () => onPinHoverChange?.(a),
+                mouseout: () => onPinHoverChange?.(null),
+              }}
+            >
+              {/* Brief hover tooltip — the activity title (#94). */}
+              <Tooltip direction="top" offset={[0, -6]}>
+                {a.name}
+              </Tooltip>
+              {/* When the parent wires `onActivate` (the split view), a pin
+                  click opens detail + scrolls the card directly — rendering a
+                  Popup too would double-open it and its autoPan would move the
+                  map (firing an unwanted bounds refilter). Keep the Popup only
+                  as the standalone fallback when there's no `onActivate`. */}
+              {!onActivate && (
+                <Popup>
+                  <div className="space-y-xs min-w-[200px]">
+                    <div className="font-bold text-body-md">{a.name}</div>
+                    <div className="text-body-sm text-on-surface-variant">
+                      {a.location.city} · {Math.round(miles)} mi · {a.duration}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(a)}
+                      className="inline-flex items-center min-h-11 text-primary font-bold underline cursor-pointer"
+                    >
+                      View details →
+                    </button>
+                  </div>
+                </Popup>
+              )}
+            </Marker>
+          );
+        })}
       </MapContainer>
       <MapLegend />
     </div>

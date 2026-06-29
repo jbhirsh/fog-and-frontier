@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
@@ -33,6 +33,19 @@ interface Props {
    * so the two never collide.
    */
   actionSlot?: ReactNode;
+  /**
+   * Notified when the card gains/loses pointer hover OR keyboard focus (#94).
+   * The split view uses this to highlight the matching map pin. Focus parity
+   * means tabbing through the list highlights pins too, not just mousing.
+   */
+  onHoverChange?: (hovering: boolean) => void;
+  /**
+   * Render the card in its highlighted state (same cover outline + lift as
+   * `selected`) when its map pin is hovered (#94) — the reverse of
+   * {@link onHoverChange}. Only the cards currently in the list react; a pin
+   * whose card is filtered out of the view simply has nothing to outline.
+   */
+  highlighted?: boolean;
 }
 
 export function ActivityCard({
@@ -42,6 +55,8 @@ export function ActivityCard({
   selected,
   selectionMode,
   actionSlot,
+  onHoverChange,
+  highlighted,
 }: Props) {
   const cat = categoryLabels[activity.category];
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
@@ -54,8 +69,41 @@ export function ActivityCard({
   const distanceLabel =
     miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
 
+  // Pointer hover and keyboard focus both light the matching pin (#94); track
+  // them separately and emit their OR, so moving the mouse away doesn't drop a
+  // still-focused highlight and vice-versa. Handlers live on the root (not the
+  // button) so the corner action overlay — a sibling sitting on top of the
+  // button — doesn't trigger a spurious mouse-leave and flicker the highlight.
+  const activeRef = useRef({ pointer: false, focus: false });
+  const emitHover = () =>
+    onHoverChange?.(activeRef.current.pointer || activeRef.current.focus);
+
   return (
-    <div className="relative h-full">
+    // `data-activity-id` lets the list scroll a card into view by id when its
+    // map pin is clicked (#94).
+    <div
+      className="relative h-full"
+      data-activity-id={activity.id}
+      onMouseEnter={() => {
+        activeRef.current.pointer = true;
+        emitHover();
+      }}
+      onMouseLeave={() => {
+        activeRef.current.pointer = false;
+        emitHover();
+      }}
+      onFocus={() => {
+        activeRef.current.focus = true;
+        emitHover();
+      }}
+      onBlur={(e) => {
+        // Ignore focus moving between elements inside the same card (e.g. button
+        // → the add-to-trip control); only clear when focus leaves the card.
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        activeRef.current.focus = false;
+        emitHover();
+      }}
+    >
       <button
         type="button"
         onClick={onClick}
@@ -72,7 +120,7 @@ export function ActivityCard({
             card border — there is no card chrome around the whole thing. */}
         <div
           className={`relative aspect-[4/3] overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:outline-2 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] motion-reduce:transition-none ${
-            selected
+            selected || highlighted
               ? 'outline-2 shadow-[0_10px_30px_rgba(0,30,55,0.18)]'
               : 'outline-0'
           }`}

@@ -245,6 +245,14 @@ export function CuratedAdventures() {
   // filters. `null` = inactive (never moved, or "Clear bounds"). The map keeps
   // plotting every `results` pin; only the list narrows.
   const [bounds, setBounds] = useState<MapBounds | null>(null);
+  // Linked card↔pin state (#94), lifted here since both the list and the map are
+  // rendered in this component.
+  //   - `hoveredId` drives the highlighted pin (a hovered/focused card).
+  //   - `pinHoveredId` is the reverse: a hovered pin outlines its list card.
+  // Clicking a card opens detail but never moves the map (the user may have
+  // framed it deliberately), so there's nothing else to coordinate.
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [pinHoveredId, setPinHoveredId] = useState<string | null>(null);
   const handleBoundsChange = useCallback(
     (next: MapBounds) => setBounds(next),
     [],
@@ -254,6 +262,21 @@ export function CuratedAdventures() {
     () => (bounds ? filterByBounds(results, bounds) : results),
     [bounds, results],
   );
+
+  // Pin click (#94): open detail and scroll the matching card into view. The
+  // card only exists in list/split layouts; in map mode the querySelector simply
+  // returns null.
+  function handlePinActivate(activity: Activity) {
+    setSelected(activity);
+    if (typeof document === 'undefined') return;
+    const safeId =
+      typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(activity.id)
+        : activity.id;
+    document
+      .querySelector(`[data-activity-id="${safeId}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 
   // Narrower grid in Split (the list shares the row with the map) than in the
   // full-width List layout.
@@ -277,6 +300,8 @@ export function CuratedAdventures() {
             activity={a}
             selectionMode={selectionMode}
             selected={selectedForTrip.has(a.id)}
+            highlighted={a.id === pinHoveredId}
+            onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
             onClick={() => {
               if (selectionMode) {
                 toggleSelected(a.id);
@@ -500,6 +525,9 @@ export function CuratedAdventures() {
               <ActivityMap
                 activities={results}
                 onSelect={setSelected}
+                onActivate={handlePinActivate}
+                highlightedId={hoveredId}
+                onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                 onBoundsChange={handleBoundsChange}
               />
             </div>
@@ -528,6 +556,9 @@ export function CuratedAdventures() {
                 <ActivityMap
                   activities={results}
                   onSelect={setSelected}
+                  onActivate={handlePinActivate}
+                  highlightedId={hoveredId}
+                  onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                   onBoundsChange={handleBoundsChange}
                 />
               </div>
