@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { fixtureActivities, fixtureCompleted } from './fixtures';
+import type { Activity } from '../../src/data/types';
 
 // 1x1 transparent PNG. Returned for every external image so screenshots don't
 // depend on the network or on which remote photos happen to load.
@@ -13,26 +14,95 @@ const BLANK_PNG_BYTES = Buffer.from(
 const BLANK_PNG_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
 
+// Domain Activity -> the GraphQL `Activity` row the client now reads: camelCase
+// fields + the __typenames the Apollo cache needs on every (nested) object.
+// Mirrors src/test/render.tsx's toActivityRow; fixtures predate parkType /
+// restaurant fields, so those default to null.
+function toActivityRow(a: Activity) {
+  return {
+    __typename: 'Activity',
+    id: a.id,
+    name: a.name,
+    shortDescription: a.shortDescription,
+    longDescription: a.longDescription ?? null,
+    category: a.category,
+    region: a.region,
+    parkType: a.parkType ?? null,
+    location: {
+      __typename: 'Location',
+      city: a.location.city,
+      coords: {
+        __typename: 'Coords',
+        lat: a.location.coords.lat,
+        lng: a.location.coords.lng,
+      },
+    },
+    duration: a.duration,
+    durationDetail: a.durationDetail ?? null,
+    difficulty: a.difficulty ?? null,
+    dogFriendly: a.dogFriendly ?? null,
+    coverImage: a.coverImage,
+    galleryImages: a.galleryImages ?? null,
+    allTrailsUrl: a.allTrailsUrl ?? null,
+    allTrailsRating: a.allTrailsRating ?? null,
+    hikeDistanceMiles: a.hikeDistanceMiles ?? null,
+    hikeElevationFeet: a.hikeElevationFeet ?? null,
+    cuisine: a.cuisine ?? null,
+    priceRange: a.priceRange ?? null,
+    hours: a.hours ?? null,
+    reservationUrl: a.reservationUrl ?? null,
+    menuUrl: a.menuUrl ?? null,
+    dietary: a.dietary ?? null,
+    completed: a.completed ?? null,
+    completedDate: a.completedDate ?? null,
+    notes: a.notes ?? null,
+  };
+}
+
 export async function mockApis(page: Page) {
-  await page.route('**/api/activities', async (route) => {
+  // The client now talks to the single GraphQL endpoint — route by operationName
+  // (the old per-route REST mocks are gone with the 11 handlers).
+  await page.route('**/api/graphql', async (route) => {
+    const op = (
+      route.request().postDataJSON() as { operationName?: string } | null
+    )?.operationName;
+    let data: Record<string, unknown> = {};
+    switch (op) {
+      case 'Activities':
+        data = {
+          activities: Object.values(fixtureActivities).map(toActivityRow),
+        };
+        break;
+      case 'Completed':
+        data = {
+          completed: Object.entries(fixtureCompleted).map(([id, completed]) => ({
+            __typename: 'CompletedEntry',
+            id,
+            completed,
+          })),
+        };
+        break;
+      case 'TripsList':
+        data = { trips: [] };
+        break;
+      case 'UsersList':
+        data = { users: [] };
+        break;
+      case 'Discover':
+        data = {
+          discover: {
+            __typename: 'DiscoverResult',
+            range: 'weekend',
+            events: [],
+            sources: [],
+          },
+        };
+        break;
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(fixtureActivities),
-    });
-  });
-  await page.route('**/api/completed', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(fixtureCompleted),
-    });
-  });
-  await page.route('**/api/discover', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ events: [], sources: [] }),
+      body: JSON.stringify({ data }),
     });
   });
   // Stub every external image with a 1x1 PNG so the page reaches a stable

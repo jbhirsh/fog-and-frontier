@@ -51,9 +51,15 @@ export type CallerStatus =
   | { state: 'non_owner'; email: string }
   | { state: 'owner'; email: string };
 
-export async function getCallerStatus(req: VercelRequest): Promise<CallerStatus> {
+// Token-core: resolve a caller from a raw Bearer token string (no req object).
+// The GraphQL context (api/_gqlContext.ts) authenticates from a bare token, so
+// the identity logic lives here and the `(req)` helpers below just extract the
+// token and delegate. Clerk/network failures collapse to `anon` since we can't
+// trust the identity — same conservative posture as the prior boolean helper.
+export async function getCallerStatusFromToken(
+  token: string | null,
+): Promise<CallerStatus> {
   if (!secretKey || ownerEmails.size === 0) return { state: 'anon' };
-  const token = bearerToken(req);
   if (!token) return { state: 'anon' };
 
   let userId: string;
@@ -80,6 +86,10 @@ export async function getCallerStatus(req: VercelRequest): Promise<CallerStatus>
   return ownerEmails.has(email)
     ? { state: 'owner', email }
     : { state: 'non_owner', email };
+}
+
+export async function getCallerStatus(req: VercelRequest): Promise<CallerStatus> {
+  return getCallerStatusFromToken(bearerToken(req));
 }
 
 export async function getOwnerEmail(req: VercelRequest): Promise<string | null> {
@@ -110,10 +120,10 @@ export type CurrentUser = { email: string; role: UserRole };
 // Callers MUST have run `ensureTripsSchema()` first (it creates the `users`
 // table). Complements `requireOwner`, which remains the gate for site-wide
 // writes and paid endpoints.
-export async function getCurrentUser(
-  req: VercelRequest,
+export async function getCurrentUserFromToken(
+  token: string | null,
 ): Promise<CurrentUser | null> {
-  const status = await getCallerStatus(req);
+  const status = await getCallerStatusFromToken(token);
   if (status.state === 'anon') return null;
   const email = status.email;
   const role: UserRole = status.state === 'owner' ? 'owner' : 'editor';
@@ -133,4 +143,10 @@ export async function getCurrentUser(
     });
   }
   return { email, role };
+}
+
+export async function getCurrentUser(
+  req: VercelRequest,
+): Promise<CurrentUser | null> {
+  return getCurrentUserFromToken(bearerToken(req));
 }

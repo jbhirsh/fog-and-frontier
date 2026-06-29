@@ -13,15 +13,20 @@ import {
 
 const COMPLETED_FIXTURE_ID = 'fixture-completed-scenic';
 
-// Deterministic stub for the Gemini-backed /api/generate-activity endpoint so
-// the AddActivity review step has stable copy + a fixed pin location.
+// Deterministic stub for the Gemini-backed `generateActivity` GraphQL mutation
+// so the AddActivity review step has stable copy + a fixed pin location. Shaped
+// as the `GeneratedActivity` row the client reads — every selected field is
+// present (nulls for the ones this fixture doesn't exercise) plus the
+// __typenames Apollo adds to the mutation selection.
 const STUB_GENERATED = {
+  __typename: 'GeneratedActivity' as const,
   name: 'Test Generated Adventure',
   shortDescription: 'A deterministic stub for the review step screenshot.',
   longDescription:
     'A longer description used to populate the review form. This is fixture text — nothing about it depends on the network.',
   category: 'hiking' as const,
   region: 'peninsula' as const,
+  parkType: null,
   city: 'Half Moon Bay',
   lat: 37.4636,
   lng: -122.4286,
@@ -31,6 +36,13 @@ const STUB_GENERATED = {
   dogFriendly: true,
   hikeDistanceMiles: 4.2,
   hikeElevationFeet: 850,
+  cuisine: null,
+  priceRange: null,
+  hours: null,
+  reservationUrl: null,
+  menuUrl: null,
+  dietary: null,
+  allTrailsUrl: null,
   notes: 'Stubbed notes for visual fixture.',
   coverImage:
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=',
@@ -166,11 +178,28 @@ test.describe('visual regression — mobile', () => {
       (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ =
         true;
     });
-    await page.route('**/api/generate-activity', async (route) => {
+    // The client now reaches Gemini through the single GraphQL endpoint, so
+    // intercept the `GenerateActivity` mutation here and let mockApis' route
+    // (registered in beforeEach) handle every other operation via fallback.
+    await page.route('**/api/graphql', async (route) => {
+      const op = (
+        route.request().postDataJSON() as { operationName?: string } | null
+      )?.operationName;
+      if (op !== 'GenerateActivity') {
+        await route.fallback();
+        return;
+      }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(STUB_GENERATED),
+        body: JSON.stringify({
+          data: {
+            generateActivity: {
+              __typename: 'GenerateActivityPayload',
+              activity: STUB_GENERATED,
+            },
+          },
+        }),
       });
     });
     await page.goto('/');

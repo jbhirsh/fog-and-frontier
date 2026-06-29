@@ -5,7 +5,6 @@ import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
-import { useAuthState } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 import { AddActivity } from './AddActivity';
 
@@ -33,7 +32,6 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const { photos, addPhotos, removePhoto } = useUserPhotos(activity.id);
   const { completed, toggle } = useCompleted(activity);
   const { isOwner } = useOwner();
-  const { getToken } = useAuthState();
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
   const [editing, setEditing] = useState(false);
 
@@ -78,8 +76,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
       `Delete "${activity.name}" for everyone? This removes it from the shared catalog for all viewers. This can't be undone.`,
     );
     if (!ok) return;
-    const token = await getToken();
-    await deleteUserActivity(activity.id, token);
+    await deleteUserActivity(activity.id);
     onClose();
   }
 

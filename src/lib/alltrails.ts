@@ -1,4 +1,5 @@
-import { authedFetch } from './authedFetch';
+import { apolloClient } from './apolloClient';
+import { ALLTRAILS_LOOKUP } from './gqlDocs';
 
 export type AllTrailsLookup = {
   allTrailsRating?: number;
@@ -7,24 +8,16 @@ export type AllTrailsLookup = {
 };
 
 // Fetches rating + distance + elevation for a given AllTrails URL via the
-// Gemini-backed server endpoint. The endpoint is owner-gated; pass a token
-// from useAuthState().getToken().
-export async function lookupAllTrails(
-  url: string,
-  token: string | null,
-): Promise<AllTrailsLookup> {
-  const res = await authedFetch(
-    '/api/alltrails-lookup',
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ url }),
-    },
-    token,
-  );
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(text || `HTTP ${res.status}`);
-  }
-  return (await res.json()) as AllTrailsLookup;
+// owner-gated alltrailsLookup mutation. Auth is injected by the Apollo link.
+export async function lookupAllTrails(url: string): Promise<AllTrailsLookup> {
+  const { data } = await apolloClient.mutate({
+    mutation: ALLTRAILS_LOOKUP,
+    variables: { input: { url } },
+  });
+  const lookup = data?.alltrailsLookup.lookup;
+  return {
+    allTrailsRating: lookup?.allTrailsRating ?? undefined,
+    hikeDistanceMiles: lookup?.hikeDistanceMiles ?? undefined,
+    hikeElevationFeet: lookup?.hikeElevationFeet ?? undefined,
+  };
 }

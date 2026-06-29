@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthState } from '../lib/authShim';
 import { addActivityToTrip, useTripsList } from '../lib/userTrips';
 
 type Props = {
@@ -84,7 +83,6 @@ function DropdownMenu({
   onAdded?: (message: string) => void;
 }) {
   const navigate = useNavigate();
-  const { getToken } = useAuthState();
   const { trips, isLoading, error } = useTripsList();
   const [busy, setBusy] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -109,11 +107,9 @@ function DropdownMenu({
     setBusy(true);
     setErrMsg(null);
     try {
-      const token = await getToken();
       const { alreadyOnTrip, tripPast } = await addActivityToTrip(
         tripId,
         activityId,
-        token,
       );
       if (tripPast) {
         setErrMsg(`"${tripTitle}" was just marked past — refresh to retry.`);

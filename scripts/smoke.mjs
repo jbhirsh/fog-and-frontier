@@ -8,27 +8,31 @@
  * Exit codes:
  *   0 — all checks passed
  *   1 — regression: build looks real (CSS link present) but some check failed
- *   2 — not-yet-built: the preview Vercel served has no built CSS link AND APIs 404
- *       (typical "Builds: [0ms]" cached/no-build preview). Caller can retry.
+ *   2 — not-yet-built: the preview Vercel served has no built CSS link AND the
+ *       GraphQL API 404s (typical "Builds: [0ms]" cached/no-build preview).
  *   3 — usage error
  *
  * Designed to be re-runnable from a polling loop in CI: when exit=2, the workflow
  * keeps waiting; when exit=1, it fails fast.
+ *
+ * Single-function migration (#91): every REST endpoint now lives behind one
+ * GraphQL function at /api/graphql. The read-only canary POSTs
+ *   { activities { id } completed { id } }
+ * and asserts the catalog floor — no mutations against prod.
  */
 
 const SENTINEL_ACTIVITY_SLUG = 'the-horse-park-at-woodside';
 const TIMEOUT_MS = 15_000;
 
-// Regression floor for /api/activities (incident #24 follow-up). If a deploy
-// would publish fewer activities than the floor, fail closed. Override via
-// MIN_ACTIVITIES env when seeding new content legitimately raises the floor.
+// Regression floor for the activities catalog (incident #24 follow-up). If a
+// deploy would publish fewer activities than the floor, fail closed. Override
+// via MIN_ACTIVITIES env when seeding new content legitimately raises the floor.
 const MIN_ACTIVITIES = Number(process.env.MIN_ACTIVITIES ?? 64);
 
 // On Preview, the deployed app reads from a Turso replica that may not match
-// Production's row set (same DB credentials, divergent reads observed in CI:
-// prod returns 4 activities, preview returns {}). Sentinel-by-slug is only
-// meaningful when we know the read target is the same DB Production reads.
-// Default to strict so local runs against prod stay strict.
+// Production's row set (same DB credentials, divergent reads observed in CI).
+// Sentinel-by-slug is only meaningful when we know the read target is the same
+// DB Production reads. Default to strict so local runs against prod stay strict.
 const STRICT = (process.env.SMOKE_ENV ?? 'Production') === 'Production';
 
 const EXIT_OK = 0;
@@ -60,11 +64,10 @@ let hadFailure = false;
 
 // Build-presence signals. We use these to decide between "regression" and
 // "not yet built" when something fails. A no-build cached preview returns
-// HTML without a hashed /assets/*.css link and 404s the API routes.
+// HTML without a hashed /assets/*.css link and 404s the GraphQL route.
 const signals = {
   cssLinkPresent: false,
-  apiActivitiesStatus: null,
-  apiCompletedStatus: null,
+  graphqlStatus: null,
 };
 
 function record(name, ok, detail) {
@@ -88,79 +91,93 @@ async function fetchWithTimeout(url, opts = {}) {
   }
 }
 
-async function checkActivities() {
-  const url = new URL('/api/activities', baseUrl).toString();
+// Read-only GraphQL canary: one POST that pulls both catalog reads at once.
+async function checkGraphql() {
+  const url = new URL('/api/graphql', baseUrl).toString();
+  let res;
   try {
-    const res = await fetchWithTimeout(url);
-    signals.apiActivitiesStatus = res.status;
-    if (res.status !== 200) {
-      record('GET /api/activities', false, `expected 200, got ${res.status}`);
-      return;
-    }
-    const ctype = res.headers.get('content-type') ?? '';
-    if (!ctype.includes('application/json')) {
-      record('GET /api/activities', false, `expected JSON, got ${ctype}`);
-      return;
-    }
-    const data = await res.json();
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      record('GET /api/activities', false, 'expected object body');
-      return;
-    }
-    const keys = Object.keys(data);
-    if (STRICT) {
-      if (keys.length === 0) {
-        record('GET /api/activities', false, 'response has zero activities (DB empty or rows dropped)');
-        return;
-      }
-      if (keys.length < MIN_ACTIVITIES) {
-        record(
-          'GET /api/activities',
-          false,
-          `regression: ${keys.length} activities < MIN_ACTIVITIES floor (${MIN_ACTIVITIES})`,
-        );
-        return;
-      }
-      if (!(SENTINEL_ACTIVITY_SLUG in data)) {
-        record(
-          'GET /api/activities',
-          false,
-          `sentinel "${SENTINEL_ACTIVITY_SLUG}" missing from response (got ${keys.length} keys; first: ${keys[0]})`,
-        );
-        return;
-      }
-      record('GET /api/activities', true, `${keys.length} activities (≥${MIN_ACTIVITIES}), sentinel present`);
-      return;
-    }
-    record('GET /api/activities', true, `${keys.length} activities (shape-only check on non-Production)`);
+    res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: '{ activities { id } completed { id } }' }),
+    });
   } catch (err) {
-    record('GET /api/activities', false, `request failed: ${err.message ?? err}`);
+    record('POST /api/graphql', false, `request failed: ${err.message ?? err}`);
+    return;
   }
-}
+  signals.graphqlStatus = res.status;
+  if (res.status !== 200) {
+    record('POST /api/graphql', false, `expected 200, got ${res.status}`);
+    return;
+  }
+  const ctype = res.headers.get('content-type') ?? '';
+  if (!ctype.includes('application/json')) {
+    record('POST /api/graphql', false, `expected JSON, got ${ctype}`);
+    return;
+  }
 
-async function checkCompleted() {
-  const url = new URL('/api/completed', baseUrl).toString();
+  let payload;
   try {
-    const res = await fetchWithTimeout(url);
-    signals.apiCompletedStatus = res.status;
-    if (res.status !== 200) {
-      record('GET /api/completed', false, `expected 200, got ${res.status}`);
-      return;
-    }
-    const ctype = res.headers.get('content-type') ?? '';
-    if (!ctype.includes('application/json')) {
-      record('GET /api/completed', false, `expected JSON, got ${ctype}`);
-      return;
-    }
-    const data = await res.json();
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      record('GET /api/completed', false, 'expected object body');
-      return;
-    }
-    record('GET /api/completed', true, `${Object.keys(data).length} entries`);
+    payload = await res.json();
   } catch (err) {
-    record('GET /api/completed', false, `request failed: ${err.message ?? err}`);
+    record('POST /api/graphql', false, `body was not JSON: ${err.message ?? err}`);
+    return;
   }
+
+  if (payload?.errors?.length) {
+    record(
+      'POST /api/graphql',
+      false,
+      `GraphQL errors: ${payload.errors.map((e) => e.message).join('; ').slice(0, 300)}`,
+    );
+    return;
+  }
+
+  const activities = payload?.data?.activities;
+  const completed = payload?.data?.completed;
+  if (!Array.isArray(activities)) {
+    record('POST /api/graphql', false, 'data.activities is not an array');
+    return;
+  }
+  if (!Array.isArray(completed)) {
+    record('POST /api/graphql', false, 'data.completed is not an array');
+    return;
+  }
+  record('GraphQL completed read', true, `${completed.length} entries`);
+
+  if (STRICT) {
+    if (activities.length === 0) {
+      record('GraphQL activities read', false, 'zero activities (DB empty or rows dropped)');
+      return;
+    }
+    if (activities.length < MIN_ACTIVITIES) {
+      record(
+        'GraphQL activities read',
+        false,
+        `regression: ${activities.length} activities < MIN_ACTIVITIES floor (${MIN_ACTIVITIES})`,
+      );
+      return;
+    }
+    if (!activities.some((a) => a?.id === SENTINEL_ACTIVITY_SLUG)) {
+      record(
+        'GraphQL activities read',
+        false,
+        `sentinel "${SENTINEL_ACTIVITY_SLUG}" missing (got ${activities.length} activities; first: ${activities[0]?.id})`,
+      );
+      return;
+    }
+    record(
+      'GraphQL activities read',
+      true,
+      `${activities.length} activities (≥${MIN_ACTIVITIES}), sentinel present`,
+    );
+    return;
+  }
+  record(
+    'GraphQL activities read',
+    true,
+    `${activities.length} activities (shape-only check on non-Production)`,
+  );
 }
 
 async function checkHtmlAndCss() {
@@ -216,8 +233,7 @@ async function checkHtmlAndCss() {
 }
 
 console.log(`Smoke gate against ${baseUrl} (SMOKE_ENV=${process.env.SMOKE_ENV ?? 'Production (default)'}, strict=${STRICT})`);
-await checkActivities();
-await checkCompleted();
+await checkGraphql();
 await checkHtmlAndCss();
 
 const passed = results.filter((r) => r.ok).length;
@@ -230,16 +246,15 @@ if (!hadFailure) {
 
 // Decide between regression and not-yet-built. Vercel's no-build cached
 // preview signature: HTML served (so we got past GET /) but no hashed CSS
-// link AND both API routes return 404. If we see that combination, tell
-// the caller this is a stub, not a regression.
-const apiActivities404 = signals.apiActivitiesStatus === 404;
-const apiCompleted404 = signals.apiCompletedStatus === 404;
-const looksUnbuilt = !signals.cssLinkPresent && apiActivities404 && apiCompleted404;
+// link AND the GraphQL route 404s. If we see that combination, tell the
+// caller this is a stub, not a regression.
+const graphql404 = signals.graphqlStatus === 404;
+const looksUnbuilt = !signals.cssLinkPresent && graphql404;
 
 if (looksUnbuilt) {
   console.log(
     '\n[SMOKE_UNBUILT] preview looks like a Vercel no-build cached stub ' +
-      '(no /assets/*.css link in HTML AND /api/activities + /api/completed both 404). ' +
+      '(no /assets/*.css link in HTML AND /api/graphql 404). ' +
       'Not treating as a regression yet — caller should retry or escalate.',
   );
   process.exit(EXIT_NOT_BUILT);
@@ -248,7 +263,6 @@ if (looksUnbuilt) {
 console.log(
   '\n[SMOKE_REGRESSION] preview appears to be a real build but at least one check failed. ' +
     `Signals: cssLinkPresent=${signals.cssLinkPresent}, ` +
-    `apiActivitiesStatus=${signals.apiActivitiesStatus}, ` +
-    `apiCompletedStatus=${signals.apiCompletedStatus}.`,
+    `graphqlStatus=${signals.graphqlStatus}.`,
 );
 process.exit(EXIT_REGRESSION);

@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import {
   completedHike,
   dogFriendlyTidepools,
   muirWoods,
-  seedActivities,
 } from '../test/fixtures';
 import type { MapBounds } from '../lib/mapBounds';
 
@@ -64,13 +63,13 @@ function renderSplit() {
     <MemoryRouter initialEntries={['/?view=split']}>
       <CuratedAdventures />
     </MemoryRouter>,
+    { activities: [muirWoods, completedHike, dogFriendlyTidepools] },
   );
 }
 
 describe('Curated Adventures — bounds filter (#95)', () => {
   beforeEach(() => {
     stubViewport(true); // desktop → Split, with the (mocked) map mounted
-    seedActivities([muirWoods, completedHike, dogFriendlyTidepools]);
   });
   afterEach(() => {
     vi.unstubAllGlobals();

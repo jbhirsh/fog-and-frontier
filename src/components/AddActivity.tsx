@@ -12,9 +12,11 @@ import type {
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
-import { authedFetch } from '../lib/authedFetch';
 import { lookupAllTrails } from '../lib/alltrails';
-import { useAuthState } from '../lib/authShim';
+import {
+  generateActivity,
+  type GeneratedFields,
+} from '../lib/generateActivity';
 
 interface Props {
   onClose: () => void;
@@ -26,33 +28,6 @@ interface Props {
   // refresh any cached copy (e.g. ActivityDetail's displayed activity).
   onSaved?: (activity: Activity) => void;
 }
-
-type GeneratedFields = {
-  name: string;
-  shortDescription: string;
-  longDescription?: string;
-  category: Category;
-  region: Region;
-  parkType?: ParkType;
-  city: string;
-  lat: number;
-  lng: number;
-  duration: Duration;
-  durationDetail?: string;
-  difficulty?: Difficulty;
-  dogFriendly?: boolean;
-  hikeDistanceMiles?: number;
-  hikeElevationFeet?: number;
-  allTrailsUrl?: string;
-  cuisine?: string;
-  priceRange?: PriceRange;
-  hours?: string;
-  reservationUrl?: string;
-  menuUrl?: string;
-  dietary?: string[];
-  notes?: string;
-  coverImage?: string;
-};
 
 const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&q=80';
@@ -109,7 +84,6 @@ const PRICE_RANGES: PriceRange[] = ['$', '$$', '$$$', '$$$$'];
 async function refreshTrailDetails(
   draft: Activity,
   previousUrl: string | undefined,
-  token: string | null,
 ): Promise<Activity> {
   const next = (draft.allTrailsUrl ?? '').trim();
   const prev = (previousUrl ?? '').trim();
@@ -123,7 +97,7 @@ async function refreshTrailDetails(
       hikeElevationFeet: undefined,
     };
   }
-  const fresh = await lookupAllTrails(next, token);
+  const fresh = await lookupAllTrails(next);
   return {
     ...draft,
     allTrailsUrl: next,
@@ -146,7 +120,6 @@ function slugify(name: string): string {
 
 export function AddActivity({ onClose, editActivity, onSaved }: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const { getToken } = useAuthState();
   const mode: 'create' | 'edit' = editActivity ? 'edit' : 'create';
   const [step, setStep] = useState<'form' | 'generating' | 'review'>(
     editActivity ? 'review' : 'form',
@@ -183,21 +156,10 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
     setError(null);
     setStep('generating');
     try {
-      const token = await getToken();
-      const res = await authedFetch(
-        '/api/generate-activity',
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ title: title.trim(), notes: notes.trim() }),
-        },
-        token,
+      const g: GeneratedFields = await generateActivity(
+        title.trim(),
+        notes.trim(),
       );
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
-      }
-      const g = (await res.json()) as GeneratedFields;
       const activity: Activity = {
         id: slugify(g.name || title),
         name: g.name,
@@ -236,13 +198,11 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const token = await getToken();
       const finalDraft = await refreshTrailDetails(
         draft,
         editActivity?.allTrailsUrl,
-        token,
       );
-      await saveUserActivity(finalDraft, token);
+      await saveUserActivity(finalDraft);
       onSaved?.(finalDraft);
       onClose();
     } catch (e) {
