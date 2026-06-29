@@ -4,7 +4,10 @@ import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 
-const categoryLabels: Record<Activity['category'], { label: string; icon: string }> = {
+const categoryLabels: Record<
+  Activity['category'],
+  { label: string; icon: string }
+> = {
   hiking: { label: 'HIKING', icon: 'directions_walk' },
   cycling: { label: 'CYCLING', icon: 'pedal_bike' },
   water: { label: 'WATER', icon: 'water' },
@@ -14,12 +17,6 @@ const categoryLabels: Record<Activity['category'], { label: string; icon: string
   climbing: { label: 'CLIMBING', icon: 'terrain' },
   camping: { label: 'CAMPING', icon: 'forest' },
   other: { label: 'OTHER', icon: 'explore' },
-};
-
-const difficultyIcon: Record<NonNullable<Activity['difficulty']>, string> = {
-  easy: 'trending_up',
-  moderate: 'directions_walk',
-  advanced: 'signal_cellular_alt',
 };
 
 interface Props {
@@ -58,27 +55,41 @@ export function ActivityCard({
     miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <button
         type="button"
         onClick={onClick}
         aria-pressed={selectionMode ? !!selected : undefined}
-        className={`w-full text-left group bg-surface-container-lowest rounded-xl border overflow-hidden hover:shadow-lg hover:shadow-primary-container/5 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container ${
-          selected
-            ? 'border-primary ring-2 ring-primary'
-            : 'border-outline-variant/20'
-        }`}
+        className="group flex h-full w-full flex-col text-left focus:outline-none"
       >
-        <div className="relative aspect-video bg-surface-variant">
+        {/* Image-led cover. Selected/focus states live on the image, not a
+            card border — there is no card chrome around the whole thing. */}
+        <div
+          className={`relative aspect-[4/3] overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-focus-visible:ring-2 group-focus-visible:ring-primary group-focus-visible:ring-offset-2 motion-reduce:transition-none ${
+            selected
+              ? 'outline-2 shadow-[0_10px_30px_rgba(0,30,55,0.18)]'
+              : 'outline-0'
+          }`}
+        >
           <img
             alt={activity.name}
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
             src={cover}
             loading="lazy"
           />
+          {/* Category tag — frosted pill, navy label, accent icon. */}
+          <span className="absolute top-sm left-sm inline-flex h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm backdrop-blur-sm font-label-caps text-label-caps text-primary">
+            <span
+              className="material-symbols-outlined text-secondary"
+              style={{ fontSize: 15 }}
+            >
+              {cat.icon}
+            </span>
+            {cat.label}
+          </span>
           {selectionMode && (
             <div
-              className={`absolute bottom-sm left-sm w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+              className={`absolute bottom-sm left-sm flex h-8 w-8 items-center justify-center rounded-full border-2 ${
                 selected
                   ? 'bg-primary border-primary text-on-primary'
                   : 'bg-surface-container-lowest/90 border-outline-variant/60 text-on-surface-variant'
@@ -95,19 +106,8 @@ export function ActivityCard({
               )}
             </div>
           )}
-          {activity.dogFriendly && (
-            <div className="absolute top-sm left-sm bg-secondary-fixed text-secondary px-sm py-xs rounded-full flex items-center gap-xs">
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 16 }}
-              >
-                pets
-              </span>
-              <span className="font-label-caps text-label-caps">DOGS OK</span>
-            </div>
-          )}
           {showUserPhotoCount && photos.length > 0 && (
-            <div className="absolute bottom-sm right-sm bg-surface-container-lowest/90 backdrop-blur-sm text-primary px-sm py-xs rounded-full flex items-center gap-xs">
+            <div className="absolute bottom-sm right-sm flex items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm py-xs text-primary backdrop-blur-sm">
               <span
                 className="material-symbols-outlined"
                 style={{ fontSize: 16 }}
@@ -120,60 +120,58 @@ export function ActivityCard({
             </div>
           )}
         </div>
-        <div className="p-md space-y-sm">
-          <div className="flex justify-between items-start gap-sm">
-            <h3 className="font-headline-md text-headline-md text-on-surface group-hover:text-primary-container transition-colors">
+        {/* Body sits on the page background — no card surface. Flex column so
+            the meta row pins to the bottom and rows stay equal height. */}
+        <div className="flex flex-1 flex-col px-xs pt-sm">
+          <div className="flex items-center justify-between gap-sm">
+            <h3 className="truncate text-body-lg font-semibold text-on-surface group-hover:text-primary-container transition-colors">
               {activity.name}
             </h3>
-            <span className="shrink-0 flex items-center gap-xs font-label-caps text-label-caps text-on-surface-variant bg-surface-variant px-sm py-xs rounded-full">
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 14 }}
-              >
-                {cat.icon}
-              </span>
-              {cat.label}
-            </span>
-          </div>
-          <p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">
-            {activity.shortDescription}
-          </p>
-          <div className="flex items-center gap-md text-outline pt-sm border-t border-outline-variant/20 mt-sm flex-wrap">
-            <div className="flex items-center gap-xs">
-              <span className="material-symbols-outlined text-body-md">
-                schedule
-              </span>
-              <span className="font-body-md text-sm">{activity.duration}</span>
-            </div>
-            {activity.difficulty && (
-              <div className="flex items-center gap-xs">
-                <span className="material-symbols-outlined text-body-md">
-                  {difficultyIcon[activity.difficulty]}
-                </span>
-                <span className="font-body-md text-sm capitalize">
-                  {activity.difficulty}
-                </span>
-              </div>
-            )}
             {activity.allTrailsRating != null && (
-              <div className="flex items-center gap-xs">
+              <span className="flex shrink-0 items-center gap-xs text-body-sm font-semibold text-on-surface">
                 <span
-                  className="material-symbols-outlined text-body-md text-secondary"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}
                 >
                   star
                 </span>
-                <span className="font-body-md text-sm">
-                  {activity.allTrailsRating.toFixed(1)}
-                </span>
-              </div>
+                {activity.allTrailsRating.toFixed(1)}
+              </span>
             )}
-            <div className="flex items-center gap-xs ml-auto">
-              <span className="material-symbols-outlined text-body-md">
+          </div>
+          <p className="mt-xs line-clamp-1 text-body-sm text-on-surface-variant">
+            {activity.shortDescription}
+          </p>
+          <div className="mt-auto flex flex-wrap items-center gap-md pt-sm text-body-sm text-on-surface-variant">
+            <span className="flex items-center gap-xs">
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 17 }}
+              >
+                schedule
+              </span>
+              {activity.duration}
+            </span>
+            <span className="flex items-center gap-xs">
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 17 }}
+              >
                 location_on
               </span>
-              <span className="font-body-md text-sm">{distanceLabel}</span>
-            </div>
+              {distanceLabel}
+            </span>
+            {activity.dogFriendly && (
+              <span className="flex items-center gap-xs">
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 17 }}
+                >
+                  pets
+                </span>
+                Dog OK
+              </span>
+            )}
           </div>
         </div>
       </button>
@@ -182,7 +180,7 @@ export function ActivityCard({
         affordance (e.g. add-to-trip) share this corner but stack vertically,
         so they never overlap. Rendered as a sibling of the card button — not
         nested inside it — so the action stays interactive and its popover can
-        overflow the card. Other badges keep their own corners: dog-friendly
+        overflow the card. Other badges keep their own corners: category tag
         (top-left), photo-count (bottom-right), selection check (bottom-left).
       */}
       {(completed || actionSlot) && (
