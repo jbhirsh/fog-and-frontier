@@ -60,7 +60,13 @@ export function ActivityCard({
         type="button"
         onClick={onClick}
         aria-pressed={selectionMode ? !!selected : undefined}
-        className="group flex h-full w-full flex-col text-left focus:outline-none"
+        // `items-stretch` is load-bearing: WebKit/Safari resolves `align-items`
+        // to `flex-start` (not `stretch`) on a <button> flex container, so the
+        // body column shrinks to its content and a long title overflows the
+        // card, overlapping the neighbour. Chromium stretches by default, which
+        // is why this only reproduces in Safari. Forcing stretch keeps the body
+        // at the card width so the title's `truncate` can take effect.
+        className="group flex h-full w-full flex-col items-stretch text-left focus:outline-none"
       >
         {/* Image-led cover. Selected/focus states live on the image, not a
             card border — there is no card chrome around the whole thing. */}
