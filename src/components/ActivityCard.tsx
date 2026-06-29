@@ -72,7 +72,7 @@ export function ActivityCard({
           }`}
         >
           <img
-            alt={activity.name}
+            alt=""
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
             src={cover}
             loading="lazy"
@@ -81,6 +81,7 @@ export function ActivityCard({
           <span className="absolute top-sm left-sm inline-flex h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm backdrop-blur-sm font-label-caps text-label-caps text-primary">
             <span
               className="material-symbols-outlined text-secondary"
+              aria-hidden="true"
               style={{ fontSize: 15 }}
             >
               {cat.icon}
@@ -99,6 +100,7 @@ export function ActivityCard({
               {selected && (
                 <span
                   className="material-symbols-outlined"
+                  aria-hidden="true"
                   style={{ fontSize: 20 }}
                 >
                   check
@@ -110,6 +112,7 @@ export function ActivityCard({
             <div className="absolute bottom-sm right-sm flex items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm py-xs text-primary backdrop-blur-sm">
               <span
                 className="material-symbols-outlined"
+                aria-hidden="true"
                 style={{ fontSize: 16 }}
               >
                 photo_library
@@ -124,13 +127,14 @@ export function ActivityCard({
             the meta row pins to the bottom and rows stay equal height. */}
         <div className="flex flex-1 flex-col px-xs pt-sm">
           <div className="flex items-center justify-between gap-sm">
-            <h3 className="truncate text-body-lg font-semibold text-on-surface group-hover:text-primary-container transition-colors">
+            <h3 className="min-w-0 flex-1 truncate text-body-lg font-semibold text-on-surface group-hover:text-primary-container transition-colors">
               {activity.name}
             </h3>
             {activity.allTrailsRating != null && (
               <span className="flex shrink-0 items-center gap-xs text-body-sm font-semibold text-on-surface">
                 <span
                   className="material-symbols-outlined"
+                  aria-hidden="true"
                   style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}
                 >
                   star
@@ -142,10 +146,11 @@ export function ActivityCard({
           <p className="mt-xs line-clamp-1 text-body-sm text-on-surface-variant">
             {activity.shortDescription}
           </p>
-          <div className="mt-auto flex flex-wrap items-center gap-md pt-sm text-body-sm text-on-surface-variant">
+          <div className="mt-auto flex flex-wrap items-center gap-sm pt-sm text-body-sm text-on-surface-variant">
             <span className="flex items-center gap-xs">
               <span
                 className="material-symbols-outlined"
+                aria-hidden="true"
                 style={{ fontSize: 17 }}
               >
                 schedule
@@ -155,6 +160,7 @@ export function ActivityCard({
             <span className="flex items-center gap-xs">
               <span
                 className="material-symbols-outlined"
+                aria-hidden="true"
                 style={{ fontSize: 17 }}
               >
                 location_on
@@ -165,6 +171,7 @@ export function ActivityCard({
               <span className="flex items-center gap-xs">
                 <span
                   className="material-symbols-outlined"
+                  aria-hidden="true"
                   style={{ fontSize: 17 }}
                 >
                   pets
@@ -189,6 +196,7 @@ export function ActivityCard({
             <div className="bg-primary-fixed text-primary px-sm py-xs rounded-full flex items-center gap-xs">
               <span
                 className="material-symbols-outlined"
+                aria-hidden="true"
                 style={{ fontSize: 16 }}
               >
                 check_circle
