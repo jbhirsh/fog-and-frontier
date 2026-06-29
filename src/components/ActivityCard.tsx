@@ -65,7 +65,7 @@ export function ActivityCard({
         {/* Image-led cover. Selected/focus states live on the image, not a
             card border — there is no card chrome around the whole thing. */}
         <div
-          className={`relative aspect-[4/3] overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-focus-visible:ring-2 group-focus-visible:ring-primary group-focus-visible:ring-offset-2 motion-reduce:transition-none ${
+          className={`relative aspect-[4/3] overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:outline-2 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] motion-reduce:transition-none ${
             selected
               ? 'outline-2 shadow-[0_10px_30px_rgba(0,30,55,0.18)]'
               : 'outline-0'
@@ -127,7 +127,7 @@ export function ActivityCard({
             the meta row pins to the bottom and rows stay equal height. */}
         <div className="flex flex-1 flex-col px-xs pt-sm">
           <div className="flex items-center justify-between gap-sm">
-            <h3 className="min-w-0 flex-1 truncate text-body-lg font-semibold text-on-surface group-hover:text-primary-container transition-colors">
+            <h3 className="min-w-0 flex-1 truncate text-[16px] font-semibold tracking-[-0.015em] text-on-surface group-hover:text-primary-container transition-colors">
               {activity.name}
             </h3>
             {activity.allTrailsRating != null && (
