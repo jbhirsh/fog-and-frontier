@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapContainer,
   Marker,
@@ -19,7 +19,15 @@ import {
   CARTO_TILE_URL,
   CATEGORY_ICON,
   glyphPin,
+  type PinOptions,
 } from '../lib/mapPins';
+
+/** A fly-to request: clicking a card sets this; the bumped `nonce` re-triggers
+ * the fly+pulse even when the same activity is clicked twice in a row (#94). */
+export interface FocusTarget {
+  id: string;
+  nonce: number;
+}
 
 const COLORS = {
   completed: '#16a34a',
@@ -40,11 +48,43 @@ function pendingIcon(category: Category): L.DivIcon {
   }));
 }
 
+// Pick the icon for an activity pin. The common (un-highlighted, un-pulsing)
+// case reuses the memoized status icons above; the highlighted/pulsing variants
+// are rare (one at a time) so a fresh `glyphPin` per render is fine and avoids
+// polluting the shared cache (#94).
+function activityIcon(
+  a: Activity,
+  completed: boolean,
+  opts: PinOptions,
+): L.DivIcon {
+  if (!opts.highlighted && !opts.pulse) {
+    return completed ? completedIcon : pendingIcon(a.category);
+  }
+  const color = completed ? COLORS.completed : COLORS.pending;
+  const glyph = completed
+    ? { icon: 'check' as const }
+    : { icon: CATEGORY_ICON[a.category] };
+  return glyphPin(color, glyph, opts);
+}
+
 interface Props {
   /** Activities to plot — already filtered by the caller. */
   activities: Activity[];
   /** Open the detail modal for an activity (from a pin popup's "View details"). */
   onSelect: (activity: Activity) => void;
+  /**
+   * Primary click handler for a pin (#94): a single click on the marker fires
+   * this (the split view opens detail + scrolls the matching card into view).
+   * The popup's "View details" calls it too when provided. Omit to fall back to
+   * {@link onSelect}.
+   */
+  onActivate?: (activity: Activity) => void;
+  /** Id of the activity whose pin should render highlighted (a hovered/focused
+   * card, #94). Larger disc + raised above neighbours; does not open a popup. */
+  highlightedId?: string | null;
+  /** A fly-to request (#94). When its `nonce` changes the map flies to that
+   * activity's pin and pulses it. */
+  focusTarget?: FocusTarget | null;
   /**
    * Called ~400 ms after the map settles from a pan/zoom, with the current
    * viewport as normalized {@link MapBounds}. The split view uses this to
@@ -64,7 +104,14 @@ interface Props {
  * #93 is layout-only: pins render statically and a popup links to detail. The
  * linked card↔pin hover/fly behaviour is #94.
  */
-export function ActivityMap({ activities, onSelect, onBoundsChange }: Props) {
+export function ActivityMap({
+  activities,
+  onSelect,
+  onActivate,
+  highlightedId,
+  focusTarget,
+  onBoundsChange,
+}: Props) {
   const overrides = useOverrides();
 
   const plotted = useMemo(
@@ -76,6 +123,20 @@ export function ActivityMap({ activities, onSelect, onBoundsChange }: Props) {
       })),
     [activities, overrides],
   );
+
+  // The pin currently playing the one-shot fly-to pulse, set when `focusTarget`
+  // changes and cleared ~700ms later (matches the CSS animation in index.css).
+  // Tracked separately from the highlight so a card click pulses even when the
+  // pointer has already left the card.
+  const [pulseId, setPulseId] = useState<string | null>(null);
+  const lastPulseNonce = useRef<number | null>(null);
+  useEffect(() => {
+    if (!focusTarget || focusTarget.nonce === lastPulseNonce.current) return;
+    lastPulseNonce.current = focusTarget.nonce;
+    setPulseId(focusTarget.id);
+    const t = window.setTimeout(() => setPulseId(null), 700);
+    return () => window.clearTimeout(t);
+  }, [focusTarget]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
@@ -89,6 +150,7 @@ export function ActivityMap({ activities, onSelect, onBoundsChange }: Props) {
         <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
         <MapZoomControls />
         {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
+        <FocusFlyer focusTarget={focusTarget} activities={activities} />
         <Marker
           position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           icon={homeIcon}
@@ -98,29 +160,46 @@ export function ActivityMap({ activities, onSelect, onBoundsChange }: Props) {
             <div className="text-on-surface-variant">Home base</div>
           </Popup>
         </Marker>
-        {plotted.map(({ a, completed, miles }) => (
-          <Marker
-            key={a.id}
-            position={[a.location.coords.lat, a.location.coords.lng]}
-            icon={completed ? completedIcon : pendingIcon(a.category)}
-          >
-            <Popup>
-              <div className="space-y-xs min-w-[200px]">
-                <div className="font-bold text-body-md">{a.name}</div>
-                <div className="text-body-sm text-on-surface-variant">
-                  {a.location.city} · {Math.round(miles)} mi · {a.duration}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onSelect(a)}
-                  className="inline-flex items-center min-h-11 text-primary font-bold underline cursor-pointer"
-                >
-                  View details →
-                </button>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {plotted.map(({ a, completed, miles }) => {
+          const highlighted = a.id === highlightedId;
+          const pulse = a.id === pulseId;
+          return (
+            <Marker
+              key={a.id}
+              position={[a.location.coords.lat, a.location.coords.lng]}
+              icon={activityIcon(a, completed, { highlighted, pulse })}
+              // Raise the highlighted/pulsing pin above its neighbours so the
+              // enlarged disc isn't clipped by adjacent markers (#94).
+              zIndexOffset={highlighted || pulse ? 1000 : 0}
+              eventHandlers={
+                onActivate ? { click: () => onActivate(a) } : undefined
+              }
+            >
+              {/* When the parent wires `onActivate` (the split view), a pin
+                  click opens detail + scrolls the card directly — rendering a
+                  Popup too would double-open it and its autoPan would move the
+                  map (firing an unwanted bounds refilter). Keep the Popup only
+                  as the standalone fallback when there's no `onActivate`. */}
+              {!onActivate && (
+                <Popup>
+                  <div className="space-y-xs min-w-[200px]">
+                    <div className="font-bold text-body-md">{a.name}</div>
+                    <div className="text-body-sm text-on-surface-variant">
+                      {a.location.city} · {Math.round(miles)} mi · {a.duration}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(a)}
+                      className="inline-flex items-center min-h-11 text-primary font-bold underline cursor-pointer"
+                    >
+                      View details →
+                    </button>
+                  </div>
+                </Popup>
+              )}
+            </Marker>
+          );
+        })}
       </MapContainer>
       <MapLegend />
     </div>
@@ -165,6 +244,34 @@ function BoundsWatcher({
   );
   useMapEvents({ moveend: debounced, zoomend: debounced });
   useEffect(() => () => debounced.cancel(), [debounced]);
+  return null;
+}
+
+// Flies the map to a focused activity's pin when `focusTarget.nonce` changes
+// (#94). Lives inside MapContainer so `useMap()` has the map in context;
+// renders nothing. The `lastNonce` ref guards against the effect re-running for
+// unrelated dependency changes (e.g. `activities` refiltering, which is needed
+// in the dep array to satisfy exhaustive-deps) — we only fly on a *new* nonce.
+function FocusFlyer({
+  focusTarget,
+  activities,
+}: {
+  focusTarget?: FocusTarget | null;
+  activities: Activity[];
+}) {
+  const map = useMap();
+  const lastNonce = useRef<number | null>(null);
+  useEffect(() => {
+    if (!focusTarget || focusTarget.nonce === lastNonce.current) return;
+    lastNonce.current = focusTarget.nonce;
+    const a = activities.find((x) => x.id === focusTarget.id);
+    if (!a) return;
+    map.flyTo(
+      [a.location.coords.lat, a.location.coords.lng],
+      Math.max(map.getZoom(), 12),
+      { duration: 0.6 },
+    );
+  }, [focusTarget, activities, map]);
   return null;
 }
 

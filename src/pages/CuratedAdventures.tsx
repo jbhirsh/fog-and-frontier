@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HOME_LOCATION } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { ActivityMap } from '../components/ActivityMap';
+import type { FocusTarget } from '../components/ActivityMap';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
@@ -245,15 +246,57 @@ export function CuratedAdventures() {
   // filters. `null` = inactive (never moved, or "Clear bounds"). The map keeps
   // plotting every `results` pin; only the list narrows.
   const [bounds, setBounds] = useState<MapBounds | null>(null);
-  const handleBoundsChange = useCallback(
-    (next: MapBounds) => setBounds(next),
-    [],
-  );
+  // Linked card↔pin state (#94), lifted here since both the list and the map are
+  // rendered in this component.
+  //   - `hoveredId` drives the highlighted pin (a hovered/focused card).
+  //   - `focusTarget` is a fly-to request; the bumped `nonce` (via the ref
+  //     counter below) re-fires the fly even when the same card is clicked twice.
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
+  const focusNonceRef = useRef(0);
+  // A programmatic `flyTo` (card click → focusTarget) fires `moveend`, which the
+  // map reports via `onBoundsChange` and would refilter the list (#95) — possibly
+  // dropping the very activity we just flew to. We flag the next bounds update
+  // from that fly and skip it. (Only one debounced update follows a single fly.)
+  const ignoreNextBoundsRef = useRef(false);
+  const handleBoundsChange = useCallback((next: MapBounds) => {
+    if (ignoreNextBoundsRef.current) {
+      ignoreNextBoundsRef.current = false;
+      return;
+    }
+    setBounds(next);
+  }, []);
   const clearBounds = useCallback(() => setBounds(null), []);
   const visibleResults = useMemo(
     () => (bounds ? filterByBounds(results, bounds) : results),
     [bounds, results],
   );
+
+  // Card click (#94): open detail and fly the map to the pin (with a pulse).
+  // Bumps the nonce so re-clicking the same card re-triggers the fly. Only guards
+  // the bounds feedback loop when a map is actually mounted to receive the fly.
+  function handleCardActivate(activity: Activity) {
+    setSelected(activity);
+    const mapMounted = splitMapVisible || view === 'map';
+    if (mapMounted) ignoreNextBoundsRef.current = true;
+    focusNonceRef.current += 1;
+    setFocusTarget({ id: activity.id, nonce: focusNonceRef.current });
+  }
+
+  // Pin click (#94): open detail and scroll the matching card into view. The
+  // card only exists in list/split layouts; in map mode the querySelector simply
+  // returns null. No fly here — the user is already looking at the pin.
+  function handlePinActivate(activity: Activity) {
+    setSelected(activity);
+    if (typeof document === 'undefined') return;
+    const safeId =
+      typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(activity.id)
+        : activity.id;
+    document
+      .querySelector(`[data-activity-id="${safeId}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 
   // Narrower grid in Split (the list shares the row with the map) than in the
   // full-width List layout.
@@ -277,11 +320,13 @@ export function CuratedAdventures() {
             activity={a}
             selectionMode={selectionMode}
             selected={selectedForTrip.has(a.id)}
+            onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
             onClick={() => {
               if (selectionMode) {
+                // Selection toggles trip membership, not detail — don't fly.
                 toggleSelected(a.id);
               } else {
-                setSelected(a);
+                handleCardActivate(a);
               }
             }}
             actionSlot={
@@ -500,6 +545,9 @@ export function CuratedAdventures() {
               <ActivityMap
                 activities={results}
                 onSelect={setSelected}
+                onActivate={handlePinActivate}
+                highlightedId={hoveredId}
+                focusTarget={focusTarget}
                 onBoundsChange={handleBoundsChange}
               />
             </div>
@@ -528,6 +576,9 @@ export function CuratedAdventures() {
                 <ActivityMap
                   activities={results}
                   onSelect={setSelected}
+                  onActivate={handlePinActivate}
+                  highlightedId={hoveredId}
+                  focusTarget={focusTarget}
                   onBoundsChange={handleBoundsChange}
                 />
               </div>

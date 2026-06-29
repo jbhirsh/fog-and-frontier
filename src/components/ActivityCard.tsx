@@ -33,6 +33,12 @@ interface Props {
    * so the two never collide.
    */
   actionSlot?: ReactNode;
+  /**
+   * Notified when the card gains/loses pointer hover OR keyboard focus (#94).
+   * The split view uses this to highlight the matching map pin. Focus parity
+   * means tabbing through the list highlights pins too, not just mousing.
+   */
+  onHoverChange?: (hovering: boolean) => void;
 }
 
 export function ActivityCard({
@@ -42,6 +48,7 @@ export function ActivityCard({
   selected,
   selectionMode,
   actionSlot,
+  onHoverChange,
 }: Props) {
   const cat = categoryLabels[activity.category];
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
@@ -55,10 +62,16 @@ export function ActivityCard({
     miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
 
   return (
-    <div className="relative h-full">
+    // `data-activity-id` lets the list scroll a card into view by id when its
+    // map pin is clicked (#94).
+    <div className="relative h-full" data-activity-id={activity.id}>
       <button
         type="button"
         onClick={onClick}
+        onMouseEnter={() => onHoverChange?.(true)}
+        onMouseLeave={() => onHoverChange?.(false)}
+        onFocus={() => onHoverChange?.(true)}
+        onBlur={() => onHoverChange?.(false)}
         aria-pressed={selectionMode ? !!selected : undefined}
         // `items-stretch` is load-bearing: WebKit/Safari resolves `align-items`
         // to `flex-start` (not `stretch`) on a <button> flex container, so the

@@ -48,6 +48,33 @@ describe('ActivityCard', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes data-activity-id on the root for scroll-into-view (#94)', () => {
+    const { container } = render(<ActivityCard activity={muirWoods} />);
+    expect(
+      container.querySelector(`[data-activity-id="${muirWoods.id}"]`),
+    ).toBeInTheDocument();
+  });
+
+  it('fires onHoverChange on pointer enter/leave (#94)', async () => {
+    const onHoverChange = vi.fn();
+    render(<ActivityCard activity={muirWoods} onHoverChange={onHoverChange} />);
+    const button = screen.getByRole('button');
+    await userEvent.hover(button);
+    expect(onHoverChange).toHaveBeenLastCalledWith(true);
+    await userEvent.unhover(button);
+    expect(onHoverChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('fires onHoverChange on keyboard focus/blur (#94)', () => {
+    const onHoverChange = vi.fn();
+    render(<ActivityCard activity={muirWoods} onHoverChange={onHoverChange} />);
+    const button = screen.getByRole('button');
+    act(() => button.focus());
+    expect(onHoverChange).toHaveBeenLastCalledWith(true);
+    act(() => button.blur());
+    expect(onHoverChange).toHaveBeenLastCalledWith(false);
+  });
+
   it('shows the AllTrails rating when present', () => {
     render(<ActivityCard activity={{ ...muirWoods, allTrailsRating: 4.7 }} />);
     expect(screen.getByText('4.7')).toBeInTheDocument();

@@ -126,6 +126,32 @@
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
+/* One-shot pulse for a map pin flown-to from a card click (#94). The class is
+   set on the Leaflet div-icon (see glyphPin in mapPins.ts) for ~700ms; the
+   inner colored disc is the animated child. Honors reduced-motion. */
+@keyframes glyph-pin-pulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.glyph-pin--pulse > div {
+  transform-origin: center;
+  animation: glyph-pin-pulse 0.7s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glyph-pin--pulse > div {
+    animation: none;
+  }
+}
+
 html,
 body {
   height: 100%;
