@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ActivityCard } from './ActivityCard';
-import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
+import {
+  completedHike,
+  dogFriendlyTidepools,
+  muirWoods,
+} from '../test/fixtures';
 
 describe('ActivityCard', () => {
   it('renders core fields', () => {
@@ -10,8 +14,12 @@ describe('ActivityCard', () => {
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     expect(screen.getByText('Short redwoods description.')).toBeInTheDocument();
     expect(screen.getByText('Half Day')).toBeInTheDocument();
-    expect(screen.getByText('moderate')).toBeInTheDocument();
     expect(screen.getByText('HIKING')).toBeInTheDocument();
+  });
+
+  it('does not render difficulty (it lives in the detail view, not the card)', () => {
+    render(<ActivityCard activity={muirWoods} />);
+    expect(screen.queryByText('moderate')).not.toBeInTheDocument();
   });
 
   it('shows a distance label computed from home', () => {
@@ -19,11 +27,11 @@ describe('ActivityCard', () => {
     expect(screen.getByText(/\d+\s*mi/)).toBeInTheDocument();
   });
 
-  it('renders the dog-friendly badge only when applicable', () => {
+  it('renders the dog-friendly meta only when applicable', () => {
     const { rerender } = render(<ActivityCard activity={muirWoods} />);
-    expect(screen.queryByText('DOGS OK')).not.toBeInTheDocument();
+    expect(screen.queryByText('Dog OK')).not.toBeInTheDocument();
     rerender(<ActivityCard activity={dogFriendlyTidepools} />);
-    expect(screen.getByText('DOGS OK')).toBeInTheDocument();
+    expect(screen.getByText('Dog OK')).toBeInTheDocument();
   });
 
   it('renders the completed badge only when activity.completed is true', () => {
@@ -41,11 +49,7 @@ describe('ActivityCard', () => {
   });
 
   it('shows the AllTrails rating when present', () => {
-    render(
-      <ActivityCard
-        activity={{ ...muirWoods, allTrailsRating: 4.7 }}
-      />,
-    );
+    render(<ActivityCard activity={{ ...muirWoods, allTrailsRating: 4.7 }} />);
     expect(screen.getByText('4.7')).toBeInTheDocument();
   });
 
@@ -56,9 +60,7 @@ describe('ActivityCard', () => {
         actionSlot={<button type="button">Trip</button>}
       />,
     );
-    expect(
-      screen.getByRole('button', { name: 'Trip' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trip' })).toBeInTheDocument();
   });
 
   it('shows both the completed badge and the actionSlot without dropping either', () => {
@@ -75,7 +77,12 @@ describe('ActivityCard', () => {
   it('shows user photo count when showUserPhotoCount is set and photos exist', () => {
     localStorage.setItem(
       'fogandfrontier.userPhotos.v1',
-      JSON.stringify({ [completedHike.id]: ['data:image/png;base64,x', 'data:image/png;base64,y'] }),
+      JSON.stringify({
+        [completedHike.id]: [
+          'data:image/png;base64,x',
+          'data:image/png;base64,y',
+        ],
+      }),
     );
     act(() => {
       window.dispatchEvent(new CustomEvent('fogandfrontier:photos-changed'));

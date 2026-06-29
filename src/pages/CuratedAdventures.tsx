@@ -356,7 +356,7 @@ export function CuratedAdventures() {
   // Map it's the fixed top row of a viewport-height flex column (below).
   const filterToolbar = (
     <section
-      className={`border-b border-outline-variant/20 bg-surface px-margin py-sm z-40 backdrop-blur-xl ${
+      className={`border-b border-outline-variant/20 bg-surface px-gutter py-sm z-40 backdrop-blur-xl ${
         view === 'list' ? 'md:sticky md:top-20' : ''
       }`}
     >
@@ -494,7 +494,7 @@ export function CuratedAdventures() {
           {/* Map fills exactly the space below the nav: a flex child in a
               fixed-height, overflow-clipped column, so the page never scrolls
               and the map can't slide under the sticky header. */}
-          <section className="min-h-0 flex-1 px-margin py-md">
+          <section className="min-h-0 flex-1 px-gutter py-md">
             <h1 className="sr-only">Curated Adventures — map</h1>
             <div className="h-full w-full">
               <ActivityMap
@@ -513,7 +513,7 @@ export function CuratedAdventures() {
               page's own scrollbar moves the cards while the map stays pinned —
               no separate inner scrollbar. */}
             <div
-              className={`px-margin py-md ${
+              className={`px-gutter py-md ${
                 selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
               }`}
             >
@@ -538,7 +538,7 @@ export function CuratedAdventures() {
         <>
           {filterToolbar}
           <section
-            className={`px-margin py-md max-w-screen-2xl mx-auto ${
+            className={`px-gutter py-md max-w-screen-2xl mx-auto ${
               selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
             }`}
           >
@@ -549,7 +549,7 @@ export function CuratedAdventures() {
       )}
 
       {selectionMode && (
-        <div className="fixed bottom-0 inset-x-0 z-40 px-margin py-md bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30">
+        <div className="fixed bottom-0 inset-x-0 z-40 px-gutter py-md bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30">
           <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-md flex-wrap">
             <div className="font-body-md text-on-surface">
               {targetTrip ? (
