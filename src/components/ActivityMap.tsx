@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   MapContainer,
   Marker,
@@ -20,15 +20,7 @@ import {
   CARTO_TILE_URL,
   CATEGORY_ICON,
   glyphPin,
-  type PinOptions,
 } from '../lib/mapPins';
-
-/** A focus request: clicking a card sets this; the bumped `nonce` re-triggers
- * the pan+pulse even when the same activity is clicked twice in a row (#94). */
-export interface FocusTarget {
-  id: string;
-  nonce: number;
-}
 
 const COLORS = {
   completed: '#16a34a',
@@ -49,23 +41,23 @@ function pendingIcon(category: Category): L.DivIcon {
   }));
 }
 
-// Pick the icon for an activity pin. The common (un-highlighted, un-pulsing)
-// case reuses the memoized status icons above; the highlighted/pulsing variants
-// are rare (one at a time) so a fresh `glyphPin` per render is fine and avoids
-// polluting the shared cache (#94).
+// Pick the icon for an activity pin. The common (un-highlighted) case reuses the
+// memoized status icons above; the highlighted variant is rare (one at a time)
+// so a fresh `glyphPin` per render is fine and avoids polluting the shared cache
+// (#94).
 function activityIcon(
   a: Activity,
   completed: boolean,
-  opts: PinOptions,
+  highlighted: boolean,
 ): L.DivIcon {
-  if (!opts.highlighted && !opts.pulse) {
+  if (!highlighted) {
     return completed ? completedIcon : pendingIcon(a.category);
   }
   const color = completed ? COLORS.completed : COLORS.pending;
   const glyph = completed
     ? { icon: 'check' as const }
     : { icon: CATEGORY_ICON[a.category] };
-  return glyphPin(color, glyph, opts);
+  return glyphPin(color, glyph, { highlighted });
 }
 
 interface Props {
@@ -83,10 +75,6 @@ interface Props {
   /** Id of the activity whose pin should render highlighted (a hovered/focused
    * card, #94). Larger disc + raised above neighbours; does not open a popup. */
   highlightedId?: string | null;
-  /** A focus request (#94). When its `nonce` changes the matching pin pulses
-   * once. The map view is intentionally left untouched — no pan or zoom — since
-   * the user may have framed it deliberately. */
-  focusTarget?: FocusTarget | null;
   /** Notified when a pin gains/loses hover (#94): the split view outlines the
    * matching card. `null` when the pointer leaves the pin. */
   onPinHoverChange?: (activity: Activity | null) => void;
@@ -107,14 +95,13 @@ interface Props {
  * page in Map mode, the sticky right column in Split mode). See #4 / #93.
  *
  * #93 is layout-only: pins render statically and a popup links to detail. The
- * linked card↔pin hover/fly behaviour is #94.
+ * linked card↔pin hover behaviour is #94.
  */
 export function ActivityMap({
   activities,
   onSelect,
   onActivate,
   highlightedId,
-  focusTarget,
   onPinHoverChange,
   onBoundsChange,
 }: Props) {
@@ -129,20 +116,6 @@ export function ActivityMap({
       })),
     [activities, overrides],
   );
-
-  // The pin currently playing the one-shot pulse, set when `focusTarget` changes
-  // and cleared ~700ms later (matches the CSS animation in index.css). Tracked
-  // separately from the highlight so a card click pulses even when the pointer
-  // has already left the card. The map view is never moved (see FocusTarget).
-  const [pulseId, setPulseId] = useState<string | null>(null);
-  const lastPulseNonce = useRef<number | null>(null);
-  useEffect(() => {
-    if (!focusTarget || focusTarget.nonce === lastPulseNonce.current) return;
-    lastPulseNonce.current = focusTarget.nonce;
-    setPulseId(focusTarget.id);
-    const t = window.setTimeout(() => setPulseId(null), 700);
-    return () => window.clearTimeout(t);
-  }, [focusTarget]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
@@ -167,15 +140,14 @@ export function ActivityMap({
         </Marker>
         {plotted.map(({ a, completed, miles }) => {
           const highlighted = a.id === highlightedId;
-          const pulse = a.id === pulseId;
           return (
             <Marker
               key={a.id}
               position={[a.location.coords.lat, a.location.coords.lng]}
-              icon={activityIcon(a, completed, { highlighted, pulse })}
-              // Raise the highlighted/pulsing pin above its neighbours so the
-              // enlarged disc isn't clipped by adjacent markers (#94).
-              zIndexOffset={highlighted || pulse ? 1000 : 0}
+              icon={activityIcon(a, completed, highlighted)}
+              // Raise the highlighted pin above its neighbours so the enlarged
+              // disc isn't clipped by adjacent markers (#94).
+              zIndexOffset={highlighted ? 1000 : 0}
               eventHandlers={{
                 ...(onActivate ? { click: () => onActivate(a) } : {}),
                 // Pin hover → outline the matching card in the list (#94).

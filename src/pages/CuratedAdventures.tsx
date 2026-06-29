@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HOME_LOCATION } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { ActivityMap } from '../components/ActivityMap';
-import type { FocusTarget } from '../components/ActivityMap';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
@@ -250,13 +249,10 @@ export function CuratedAdventures() {
   // rendered in this component.
   //   - `hoveredId` drives the highlighted pin (a hovered/focused card).
   //   - `pinHoveredId` is the reverse: a hovered pin outlines its list card.
-  //   - `focusTarget` pulses a clicked card's pin; the bumped `nonce` (via the
-  //     ref counter below) re-fires the pulse even on a repeat click. The map
-  //     view is never moved, so there's no #95 bounds feedback loop to guard.
+  // Clicking a card opens detail but never moves the map (the user may have
+  // framed it deliberately), so there's nothing else to coordinate.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinHoveredId, setPinHoveredId] = useState<string | null>(null);
-  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
-  const focusNonceRef = useRef(0);
   const handleBoundsChange = useCallback(
     (next: MapBounds) => setBounds(next),
     [],
@@ -267,22 +263,9 @@ export function CuratedAdventures() {
     [bounds, results],
   );
 
-  // Card click (#94): open detail and pulse the matching pin — without moving
-  // the map, since the user may have framed the view deliberately. Bumps the
-  // nonce so re-clicking the same card re-triggers the pulse. Only sets the
-  // focus target when a map is mounted, so a List-view click doesn't leave a
-  // stale target that pulses when a map mounts later.
-  function handleCardActivate(activity: Activity) {
-    setSelected(activity);
-    const mapMounted = splitMapVisible || view === 'map';
-    if (!mapMounted) return;
-    focusNonceRef.current += 1;
-    setFocusTarget({ id: activity.id, nonce: focusNonceRef.current });
-  }
-
   // Pin click (#94): open detail and scroll the matching card into view. The
   // card only exists in list/split layouts; in map mode the querySelector simply
-  // returns null. No fly here — the user is already looking at the pin.
+  // returns null.
   function handlePinActivate(activity: Activity) {
     setSelected(activity);
     if (typeof document === 'undefined') return;
@@ -321,10 +304,9 @@ export function CuratedAdventures() {
             onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
             onClick={() => {
               if (selectionMode) {
-                // Selection toggles trip membership, not detail — don't fly.
                 toggleSelected(a.id);
               } else {
-                handleCardActivate(a);
+                setSelected(a);
               }
             }}
             actionSlot={
@@ -545,7 +527,6 @@ export function CuratedAdventures() {
                 onSelect={setSelected}
                 onActivate={handlePinActivate}
                 highlightedId={hoveredId}
-                focusTarget={focusTarget}
                 onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                 onBoundsChange={handleBoundsChange}
               />
@@ -577,7 +558,6 @@ export function CuratedAdventures() {
                   onSelect={setSelected}
                   onActivate={handlePinActivate}
                   highlightedId={hoveredId}
-                  focusTarget={focusTarget}
                   onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                   onBoundsChange={handleBoundsChange}
                 />

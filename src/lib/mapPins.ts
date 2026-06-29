@@ -34,12 +34,9 @@ export const CATEGORY_ICON: Record<Category, string> = {
 export type PinGlyph = { icon: string } | { text: string };
 
 // Visual variants of a pin (#94). `highlighted` enlarges the disc and deepens
-// its shadow so the pin matching a hovered/focused card stands out; `pulse`
-// adds a one-shot scale animation (keyframes in index.css) used when a card
-// click flies the map to its pin.
+// its shadow so the pin matching a hovered/focused card stands out.
 export interface PinOptions {
   highlighted?: boolean;
-  pulse?: boolean;
 }
 
 const PIN_SIZE = 30;
@@ -57,7 +54,7 @@ export function glyphPin(
   glyph: PinGlyph,
   opts: PinOptions = {},
 ): L.DivIcon {
-  const { highlighted = false, pulse = false } = opts;
+  const { highlighted = false } = opts;
   const size = highlighted ? PIN_SIZE_HIGHLIGHTED : PIN_SIZE;
   const iconFontSize = highlighted ? 22 : 17;
   const textFontSize = highlighted ? 16 : 13;
@@ -83,9 +80,8 @@ export function glyphPin(
   return L.divIcon({
     html,
     // Custom class so Leaflet's default `.leaflet-div-icon` white box/border is
-    // not applied (the circle is our entire visual). `glyph-pin--pulse` adds the
-    // one-shot fly-to animation (see index.css).
-    className: pulse ? 'glyph-pin glyph-pin--pulse' : 'glyph-pin',
+    // not applied (the circle is our entire visual).
+    className: 'glyph-pin',
     iconSize: [size, size],
     // Center anchor — a circle has no point, unlike the old teardrop.
     iconAnchor: [size / 2, size / 2],
