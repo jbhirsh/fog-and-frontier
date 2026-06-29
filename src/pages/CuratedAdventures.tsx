@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HOME_LOCATION } from '../data/home';
 import { ActivityCard } from '../components/ActivityCard';
@@ -13,6 +13,7 @@ import { isViewMode } from '../lib/viewMode';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { useAuthState } from '../lib/authShim';
 import { useCatalogFilters } from '../lib/useCatalogFilters';
+import { filterByBounds, type MapBounds } from '../lib/mapBounds';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
@@ -239,6 +240,21 @@ export function CuratedAdventures() {
 
   const results = useMemo(() => applyFilters(all), [applyFilters, all]);
 
+  // Bounds filter (#95): when the user pans/zooms an interactive map, narrow the
+  // list to the activities inside the current viewport, on top of the catalog
+  // filters. `null` = inactive (never moved, or "Clear bounds"). The map keeps
+  // plotting every `results` pin; only the list narrows.
+  const [bounds, setBounds] = useState<MapBounds | null>(null);
+  const handleBoundsChange = useCallback(
+    (next: MapBounds) => setBounds(next),
+    [],
+  );
+  const clearBounds = useCallback(() => setBounds(null), []);
+  const visibleResults = useMemo(
+    () => (bounds ? filterByBounds(results, bounds) : results),
+    [bounds, results],
+  );
+
   // Narrower grid in Split (the list shares the row with the map) than in the
   // full-width List layout.
   const gridColsClass =
@@ -247,13 +263,15 @@ export function CuratedAdventures() {
       : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
 
   const listContent =
-    results.length === 0 ? (
+    visibleResults.length === 0 ? (
       <div className="text-center py-xl text-on-surface-variant">
-        No activities match those filters.
+        {bounds && results.length > 0
+          ? 'No activities in this area.'
+          : 'No activities match those filters.'}
       </div>
     ) : (
       <div className={`grid gap-gutter ${gridColsClass}`}>
-        {results.map((a) => (
+        {visibleResults.map((a) => (
           <ActivityCard
             key={a.id}
             activity={a}
@@ -287,14 +305,49 @@ export function CuratedAdventures() {
   // Compact list-head (replaces the old hero's H1) — shown above the grid in
   // List and Split; Map mode gives the whole viewport to the map.
   const listHeader = (
-    <div className="mb-md">
-      <h1 className="font-display text-headline-md text-primary">
-        Curated Adventures
-      </h1>
-      <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
-        {results.length} place{results.length === 1 ? '' : 's'} · sorted by
-        distance from {HOME_LOCATION.label}
-      </p>
+    <div className="mb-md space-y-sm">
+      <div>
+        <h1 className="font-display text-headline-md text-primary">
+          Curated Adventures
+        </h1>
+        <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
+          {results.length} place{results.length === 1 ? '' : 's'} · sorted by
+          distance from {HOME_LOCATION.label}
+        </p>
+      </div>
+      {/* Bounds indicator (#95): why the list narrowed, with a way to undo. */}
+      {bounds && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-sm rounded-lg border border-secondary/30 bg-secondary/5 px-sm py-xs text-body-sm text-on-surface"
+        >
+          <span
+            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-secondary"
+            style={{ fontSize: 18, width: 18, height: 18 }}
+            aria-hidden="true"
+          >
+            my_location
+          </span>
+          <span>
+            Showing <b>{visibleResults.length}</b> in this area
+          </span>
+          <button
+            type="button"
+            onClick={clearBounds}
+            className="ml-auto inline-flex items-center gap-xs font-semibold text-secondary hover:underline"
+          >
+            <span
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 18, height: 18 }}
+              aria-hidden="true"
+            >
+              close
+            </span>
+            Clear bounds
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -444,7 +497,11 @@ export function CuratedAdventures() {
           <section className="min-h-0 flex-1 px-margin py-md">
             <h1 className="sr-only">Curated Adventures — map</h1>
             <div className="h-full w-full">
-              <ActivityMap activities={results} onSelect={setSelected} />
+              <ActivityMap
+                activities={results}
+                onSelect={setSelected}
+                onBoundsChange={handleBoundsChange}
+              />
             </div>
           </section>
         </div>
@@ -468,7 +525,11 @@ export function CuratedAdventures() {
               collapses to list-only; the mobile map sheet is #96). */}
             {splitMapVisible && (
               <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
-                <ActivityMap activities={results} onSelect={setSelected} />
+                <ActivityMap
+                  activities={results}
+                  onSelect={setSelected}
+                  onBoundsChange={handleBoundsChange}
+                />
               </div>
             )}
           </section>
