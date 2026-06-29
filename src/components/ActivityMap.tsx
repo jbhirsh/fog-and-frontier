@@ -1,11 +1,19 @@
-import { useMemo } from 'react';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import { useEffect, useMemo } from 'react';
+import {
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet';
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapZoomControls } from './MapZoomControls';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import type { Activity, Category } from '../data/types';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
+import { debounce, type MapBounds } from '../lib/mapBounds';
 import {
   CARTO_ATTRIBUTION,
   CARTO_TILE_URL,
@@ -37,6 +45,14 @@ interface Props {
   activities: Activity[];
   /** Open the detail modal for an activity (from a pin popup's "View details"). */
   onSelect: (activity: Activity) => void;
+  /**
+   * Called ~400 ms after the map settles from a pan/zoom, with the current
+   * viewport as normalized {@link MapBounds}. The split view uses this to
+   * refilter the list to what's visible (#95). Must be referentially stable
+   * (e.g. `useCallback`) so the debounce isn't recreated each render. Omit to
+   * disable bounds reporting.
+   */
+  onBoundsChange?: (bounds: MapBounds) => void;
 }
 
 /**
@@ -48,7 +64,7 @@ interface Props {
  * #93 is layout-only: pins render statically and a popup links to detail. The
  * linked card↔pin hover/fly behaviour is #94.
  */
-export function ActivityMap({ activities, onSelect }: Props) {
+export function ActivityMap({ activities, onSelect, onBoundsChange }: Props) {
   const overrides = useOverrides();
 
   const plotted = useMemo(
@@ -72,6 +88,7 @@ export function ActivityMap({ activities, onSelect }: Props) {
       >
         <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
         <MapZoomControls />
+        {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
         <Marker
           position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           icon={homeIcon}
@@ -108,6 +125,47 @@ export function ActivityMap({ activities, onSelect }: Props) {
       <MapLegend />
     </div>
   );
+}
+
+// Wrap a longitude into [-180, 180]. Leaflet's getWest()/getEast() can return
+// values outside that range once the user pans across multiple world copies
+// (e.g. west: -200); the activities use normalized longitudes, so the bounds
+// must be normalized too before {@link isWithinBounds} compares them.
+function wrapLng(lng: number): number {
+  return ((((lng + 180) % 360) + 360) % 360) - 180;
+}
+
+// Read the map's current viewport as normalized MapBounds. A viewport spanning
+// a full world (or more) contains every longitude, so collapse it to the whole
+// range rather than wrapping into a misleading antimeridian window.
+function readBounds(map: L.Map): MapBounds {
+  const b = map.getBounds();
+  const north = b.getNorth();
+  const south = b.getSouth();
+  const rawWest = b.getWest();
+  const rawEast = b.getEast();
+  if (rawEast - rawWest >= 360) {
+    return { north, south, west: -180, east: 180 };
+  }
+  return { north, south, west: wrapLng(rawWest), east: wrapLng(rawEast) };
+}
+
+// Reports the viewport to the parent ~400 ms after the map settles from a
+// pan/zoom (#95). Lives inside MapContainer so `useMap()` has the map in
+// context; renders nothing.
+function BoundsWatcher({
+  onBoundsChange,
+}: {
+  onBoundsChange: (bounds: MapBounds) => void;
+}) {
+  const map = useMap();
+  const debounced = useMemo(
+    () => debounce(() => onBoundsChange(readBounds(map)), 400),
+    [map, onBoundsChange],
+  );
+  useMapEvents({ moveend: debounced, zoomend: debounced });
+  useEffect(() => () => debounced.cancel(), [debounced]);
+  return null;
 }
 
 // Frosted color key, ported from the old standalone Map page so status stays
