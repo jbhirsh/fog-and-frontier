@@ -1,101 +1,122 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { Activity } from '../data/types';
-import { authedFetch } from './authedFetch';
+import { useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
+import type { Activity, Duration, PriceRange, Region } from '../data/types';
+import { apolloClient } from './apolloClient';
+import {
+  ACTIVITIES_QUERY,
+  DELETE_ACTIVITY,
+  SAVE_ACTIVITY,
+  type ActivityLike,
+} from './gqlDocs';
 
-const STORAGE_KEY = 'fogandfrontier.activities.v1';
-const EVENT = 'fogandfrontier:activities-changed';
-
-type Store = Record<string, Activity>;
-
-function readLocal(): Store {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Store) : {};
-  } catch {
-    return {};
-  }
+// Boundary mapper: GraphQL Activity/ActivitySnapshot row -> the app's domain
+// Activity model. Catalog rows are non-null; snapshot rows are all-nullable
+// (and may be null-coerced by the server), so we coalesce defensively. The
+// String-typed scalars (region/duration/priceRange) are narrowed to their
+// domain unions; the GraphQL enums (category/difficulty/parkType) already match.
+export function rowToActivity(row: ActivityLike): Activity {
+  const loc = row.location;
+  return {
+    id: row.id ?? '',
+    name: row.name ?? '',
+    shortDescription: row.shortDescription ?? '',
+    longDescription: row.longDescription ?? undefined,
+    category: row.category ?? 'other',
+    region: (row.region ?? '') as Region,
+    parkType: row.parkType ?? undefined,
+    location: {
+      city: loc?.city ?? '',
+      coords: { lat: loc?.coords.lat ?? 0, lng: loc?.coords.lng ?? 0 },
+    },
+    duration: (row.duration ?? '') as Duration,
+    durationDetail: row.durationDetail ?? undefined,
+    difficulty: row.difficulty ?? undefined,
+    dogFriendly: row.dogFriendly ?? undefined,
+    coverImage: row.coverImage ?? '',
+    galleryImages: row.galleryImages ?? undefined,
+    allTrailsUrl: row.allTrailsUrl ?? undefined,
+    allTrailsRating: row.allTrailsRating ?? undefined,
+    hikeDistanceMiles: row.hikeDistanceMiles ?? undefined,
+    hikeElevationFeet: row.hikeElevationFeet ?? undefined,
+    cuisine: row.cuisine ?? undefined,
+    priceRange: (row.priceRange ?? undefined) as PriceRange | undefined,
+    hours: row.hours ?? undefined,
+    reservationUrl: row.reservationUrl ?? undefined,
+    menuUrl: row.menuUrl ?? undefined,
+    dietary: row.dietary ?? undefined,
+    completed: row.completed ?? undefined,
+    completedDate: row.completedDate ?? undefined,
+    notes: row.notes ?? undefined,
+  };
 }
 
-function writeLocal(store: Store) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-  window.dispatchEvent(new CustomEvent(EVENT));
+// Domain Activity -> ActivityInput (camelCase, scalars widen to String/enum).
+// Optional fields go out as null so a cleared value is persisted.
+function activityToInput(a: Activity) {
+  return {
+    name: a.name,
+    shortDescription: a.shortDescription,
+    longDescription: a.longDescription ?? null,
+    category: a.category,
+    region: a.region,
+    parkType: a.parkType ?? null,
+    location: {
+      city: a.location.city,
+      coords: { lat: a.location.coords.lat, lng: a.location.coords.lng },
+    },
+    duration: a.duration,
+    durationDetail: a.durationDetail ?? null,
+    difficulty: a.difficulty ?? null,
+    dogFriendly: a.dogFriendly ?? null,
+    coverImage: a.coverImage,
+    galleryImages: a.galleryImages ?? null,
+    allTrailsUrl: a.allTrailsUrl ?? null,
+    allTrailsRating: a.allTrailsRating ?? null,
+    hikeDistanceMiles: a.hikeDistanceMiles ?? null,
+    hikeElevationFeet: a.hikeElevationFeet ?? null,
+    cuisine: a.cuisine ?? null,
+    priceRange: a.priceRange ?? null,
+    hours: a.hours ?? null,
+    reservationUrl: a.reservationUrl ?? null,
+    menuUrl: a.menuUrl ?? null,
+    dietary: a.dietary ?? null,
+    completed: a.completed ?? null,
+    completedDate: a.completedDate ?? null,
+    notes: a.notes ?? null,
+  };
 }
 
-let pulled = false;
-async function pullRemote() {
-  if (pulled) return;
-  pulled = true;
-  try {
-    const res = await fetch('/api/activities');
-    if (!res.ok) return;
-    const remote = (await res.json()) as Store;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
-    window.dispatchEvent(new CustomEvent(EVENT));
-  } catch {
-    /* offline — keep local cache */
-  }
-}
-
-export async function saveUserActivity(
-  activity: Activity,
-  token: string | null,
-): Promise<void> {
-  const store = readLocal();
-  store[activity.id] = activity;
-  writeLocal(store);
-  try {
-    await authedFetch(
-      '/api/activities',
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: activity.id, activity }),
-      },
-      token,
-    );
-  } catch {
-    /* queued in local cache; will retry on next save */
-  }
-}
-
-export async function deleteUserActivity(
-  id: string,
-  token: string | null,
-): Promise<void> {
-  const store = readLocal();
-  delete store[id];
-  writeLocal(store);
-  try {
-    await authedFetch(
-      `/api/activities?id=${encodeURIComponent(id)}`,
-      { method: 'DELETE' },
-      token,
-    );
-  } catch {
-    /* offline */
-  }
-}
-
+// Public catalog read. cache-and-network: instant cached render + background
+// refresh (offline persistence was dropped in the GraphQL migration).
 export function useUserActivities(): Activity[] {
-  const [store, setStore] = useState<Store>(() => readLocal());
-
-  useEffect(() => {
-    const sync = () => setStore(readLocal());
-    window.addEventListener(EVENT, sync);
-    window.addEventListener('storage', sync);
-    return () => {
-      window.removeEventListener(EVENT, sync);
-      window.removeEventListener('storage', sync);
-    };
-  }, []);
-
-  useEffect(() => {
-    void pullRemote();
-  }, []);
-
-  return useMemo(() => Object.values(store), [store]);
+  const { data } = useQuery(ACTIVITIES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  return useMemo(() => (data?.activities ?? []).map(rowToActivity), [data]);
 }
 
 export function useAllActivities(): Activity[] {
   return useUserActivities();
+}
+
+// Owner-only upsert; refetches the catalog so a new card appears (a normalized
+// edit updates in place, but a brand-new id won't join the list otherwise).
+export async function saveUserActivity(activity: Activity): Promise<void> {
+  await apolloClient.mutate({
+    mutation: SAVE_ACTIVITY,
+    variables: {
+      input: { id: activity.id, activity: activityToInput(activity) },
+    },
+    refetchQueries: [{ query: ACTIVITIES_QUERY }],
+    awaitRefetchQueries: true,
+  });
+}
+
+export async function deleteUserActivity(id: string): Promise<void> {
+  await apolloClient.mutate({
+    mutation: DELETE_ACTIVITY,
+    variables: { input: { id } },
+    refetchQueries: [{ query: ACTIVITIES_QUERY }],
+    awaitRefetchQueries: true,
+  });
 }

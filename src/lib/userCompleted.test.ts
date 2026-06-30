@@ -1,25 +1,64 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createElement, type ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { ApolloProvider } from '@apollo/client/react';
 import { isEffectivelyCompleted, useCompleted } from './userCompleted';
+import { apolloClient } from './apolloClient';
 import { completedHike, muirWoods } from '../test/fixtures';
 
-const STORAGE_KEY = 'fogandfrontier.completed.v1';
+// useCompleted reads via useQuery and writes via the module-level apolloClient
+// singleton — the same client the app wires into ApolloProvider in prod. We
+// render against that singleton and stub fetch so the GraphQL ops resolve,
+// then assert the optimistic + persisted cache behavior end-to-end.
+type SetCall = { id: string; value: boolean | null };
+
+function jsonResponse(obj: unknown): Response {
+  return new Response(JSON.stringify(obj), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+function wrapper({ children }: { children: ReactNode }) {
+  return createElement(ApolloProvider, { client: apolloClient, children });
+}
 
 describe('userCompleted', () => {
+  let calls: SetCall[];
+
   beforeEach(() => {
-    localStorage.clear();
+    calls = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({}), {
-          headers: { 'content-type': 'application/json' },
-        }),
-      ),
+      vi.fn((_url: string, opts: { body: string }) => {
+        const body = JSON.parse(opts.body) as {
+          operationName?: string;
+          variables?: { input?: { id: string; value: boolean | null } };
+        };
+        if (body.operationName === 'SetCompleted') {
+          const input = body.variables?.input;
+          if (input) calls.push({ id: input.id, value: input.value });
+          return Promise.resolve(
+            jsonResponse({
+              data: {
+                setCompleted: {
+                  __typename: 'SetCompletedPayload',
+                  id: input?.id,
+                  completed: input?.value ?? null,
+                },
+              },
+            }),
+          );
+        }
+        // Completed read.
+        return Promise.resolve(jsonResponse({ data: { completed: [] } }));
+      }),
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.unstubAllGlobals();
+    await apolloClient.clearStore();
   });
 
   it('isEffectivelyCompleted falls back to baseline when no override', () => {
@@ -34,46 +73,40 @@ describe('userCompleted', () => {
     ).toBe(false);
   });
 
-  it('toggle on a non-completed activity stores override and posts', async () => {
-    const { result } = renderHook(() => useCompleted(muirWoods));
+  it('toggle on a non-completed activity optimistically completes it and persists value:true', async () => {
+    const { result } = renderHook(() => useCompleted(muirWoods), { wrapper });
     expect(result.current.completed).toBe(false);
 
     act(() => result.current.toggle());
-    expect(result.current.completed).toBe(true);
 
-    const stored = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ?? '{}',
-    ) as Record<string, boolean>;
-    expect(stored[muirWoods.id]).toBe(true);
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        '/api/completed',
-        expect.objectContaining({ method: 'POST' }),
-      );
-    });
+    await waitFor(() => expect(result.current.completed).toBe(true));
+    await waitFor(() =>
+      expect(calls).toContainEqual({ id: muirWoods.id, value: true }),
+    );
   });
 
-  it('toggle back to baseline removes the override (saves storage)', () => {
-    const { result } = renderHook(() => useCompleted(muirWoods));
-    act(() => result.current.toggle());
-    act(() => result.current.toggle());
+  it('toggle back to baseline clears the override (persists value:null)', async () => {
+    const { result } = renderHook(() => useCompleted(muirWoods), { wrapper });
 
-    const stored = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ?? '{}',
-    ) as Record<string, boolean>;
-    expect(stored[muirWoods.id]).toBeUndefined();
+    act(() => result.current.toggle());
+    await waitFor(() => expect(result.current.completed).toBe(true));
+    act(() => result.current.toggle());
+    await waitFor(() => expect(result.current.completed).toBe(false));
+
+    await waitFor(() =>
+      expect(calls).toContainEqual({ id: muirWoods.id, value: null }),
+    );
   });
 
-  it('can unmark a baseline-completed activity', () => {
-    const { result } = renderHook(() => useCompleted(completedHike));
+  it('can unmark a baseline-completed activity (persists value:false)', async () => {
+    const { result } = renderHook(() => useCompleted(completedHike), { wrapper });
     expect(result.current.completed).toBe(true);
 
     act(() => result.current.toggle());
-    expect(result.current.completed).toBe(false);
 
-    const stored = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ?? '{}',
-    ) as Record<string, boolean>;
-    expect(stored[completedHike.id]).toBe(false);
+    await waitFor(() => expect(result.current.completed).toBe(false));
+    await waitFor(() =>
+      expect(calls).toContainEqual({ id: completedHike.id, value: false }),
+    );
   });
 });

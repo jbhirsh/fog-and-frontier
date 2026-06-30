@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthState } from '../lib/authShim';
 import {
   addActivityToTrip,
   useTripsList,
@@ -17,7 +16,6 @@ type Props = {
 
 export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
   const navigate = useNavigate();
-  const { getToken } = useAuthState();
   const { trips, isLoading } = useTripsList();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,14 +36,12 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const token = await getToken();
       let added = 0;
       let skipped = 0;
       for (const activityId of activityIds) {
         const { alreadyOnTrip, tripPast } = await addActivityToTrip(
           trip.id,
           activityId,
-          token,
         );
         if (tripPast) {
           setError(

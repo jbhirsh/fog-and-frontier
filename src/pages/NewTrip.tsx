@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuthState } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 import { createTrip, type CreateTripInput } from '../lib/userTrips';
 
@@ -12,7 +11,6 @@ export function NewTrip() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isOwner, isLoaded } = useOwner();
-  const { getToken } = useAuthState();
   const initialActivityIds =
     (location.state as LocationState)?.initial_activity_ids ?? [];
 
@@ -79,8 +77,7 @@ export function NewTrip() {
         body.initial_activity_ids = initialActivityIds;
       }
       if (openVotingFirst) body.status = 'voting';
-      const token = await getToken();
-      const trip = await createTrip(body, token);
+      const trip = await createTrip(body);
       void navigate(`/trips/${trip.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create trip.');

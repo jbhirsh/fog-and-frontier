@@ -1,12 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { render, screen, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import {
   completedHike,
   dogFriendlyTidepools,
   muirWoods,
-  seedActivities,
 } from '../test/fixtures';
 
 import { CuratedAdventures } from './CuratedAdventures';
@@ -16,13 +15,11 @@ function renderExplore(path = '/') {
     <MemoryRouter initialEntries={[path]}>
       <CuratedAdventures />
     </MemoryRouter>,
+    { activities: [muirWoods, completedHike, dogFriendlyTidepools] },
   );
 }
 
 describe('Curated Adventures page', () => {
-  beforeEach(() => {
-    seedActivities([muirWoods, completedHike, dogFriendlyTidepools]);
-  });
 
   it('renders all activities by default, sorted by distance', () => {
     renderExplore();

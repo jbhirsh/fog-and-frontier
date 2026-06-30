@@ -21,5 +21,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // graphql-codegen output (client-preset). Generated build artifact, not
+  // hand-authored — kept out of the strict app typecheck roots (like dist).
+  // It is still type-checked transitively wherever app code imports from it.
+  "exclude": ["src/gql"]
 }

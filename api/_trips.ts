@@ -1,10 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { InStatement } from '@libsql/client';
 import { db } from './_db.js';
 import {
   getCurrentUser,
   getOwnerEmails,
+  type CurrentUser,
   type UserRole,
 } from './_auth.js';
+import { badInput, conflict, forbidden, notFound } from './_gqlError.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
 // Shared helpers, types, and schema for the Trips feature (v0 #50, v1 #51).
@@ -182,6 +185,38 @@ export async function ensureTripsSchema(): Promise<void> {
   await backfillOwnersAndMembers();
 
   initialized = true;
+}
+
+// The catalog `a` (activities) and `c` (completed) tables used to be created by
+// per-handler `ensureSchema()` calls in api/activities.ts + api/completed.ts.
+// With the single GraphQL function those handlers are gone, so the table
+// creation lives here and graphql.ts seeds all three groups at startup. Without
+// this, activities/completed/saveActivity/setCompleted/transitionTrip(to=past)
+// would fail on a fresh Preview DB.
+let activitiesInitialized = false;
+export async function ensureActivitiesSchema(): Promise<void> {
+  if (activitiesInitialized) return;
+  await db().execute(
+    'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
+  );
+  activitiesInitialized = true;
+}
+
+let completedInitialized = false;
+export async function ensureCompletedSchema(): Promise<void> {
+  if (completedInitialized) return;
+  await db().execute(
+    'CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)',
+  );
+  completedInitialized = true;
+}
+
+// Single entry point for graphql.ts startup: create every table group the API
+// touches (trips/members/invites/votes + activities + completed).
+export async function ensureAllSchemas(): Promise<void> {
+  await ensureTripsSchema();
+  await ensureActivitiesSchema();
+  await ensureCompletedSchema();
 }
 
 const BACKFILL_KEY = 'members_backfill_v1';
@@ -563,4 +598,671 @@ export async function requireCreator(
     return null;
   }
   return ctx;
+}
+
+// ===========================================================================
+// Res-free business logic (issue #91). Lifted out of the deleted REST handlers
+// so the GraphQL resolvers can reuse it. These NEVER touch a `res`: they return
+// domain objects (snake_case; the resolver layer maps to camelCase) or THROW a
+// `GraphQLError` from `_gqlError`. The REST status codes map to error
+// categories (400→BAD_USER_INPUT, 401→UNAUTHENTICATED, 403→FORBIDDEN,
+// 404→NOT_FOUND, 409→CONFLICT) and the REST `code` field becomes `appCode`.
+// ===========================================================================
+
+// Loose on purpose (#51 c17) — Clerk is the real validator at sign-in.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function trimmedString(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const t = value.trim();
+  if (!t || t.length > max) return null;
+  return t;
+}
+
+// Inclusive day count between start_date and end_date (server-side mirror of
+// the client `dayCount` helper). Used to bound slot day_index and to slide
+// out-of-range slots back to Unscheduled after a date edit.
+function tripDateRangeDayCount(start_date: string, end_date: string): number {
+  const start = Date.parse(`${start_date}T00:00:00Z`);
+  const end = Date.parse(`${end_date}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 1;
+  return Math.round((end - start) / 86_400_000) + 1;
+}
+
+// Full trip detail (header + activities/members/invites/votes). Returns null
+// when the trip row is missing.
+export async function getTripDetail(tripId: string): Promise<Trip | null> {
+  const trip = await getTripRow(tripId);
+  if (!trip) return null;
+  const [activities, members, invites, votes] = await Promise.all([
+    getTripActivities(tripId),
+    getTripMembers(tripId, trip.creator_email),
+    getTripInvites(tripId),
+    getTripVotes(tripId),
+  ]);
+  return { ...trip, activities, members, invites, votes };
+}
+
+// Member-scoped trip list (#51): only trips the caller belongs to, sorted
+// active-first by start_date, then past by marked_past_at desc.
+export async function listTrips(callerEmail: string): Promise<TripListItem[]> {
+  const trips = await db().execute({
+    sql: `SELECT t.* FROM trips t
+          JOIN trip_members m ON m.trip_id = t.id
+          WHERE m.member_email = ?
+          ORDER BY
+            CASE WHEN t.status = 'past' THEN 1 ELSE 0 END,
+            CASE WHEN t.status <> 'past' THEN t.start_date END ASC,
+            CASE WHEN t.status = 'past' THEN t.marked_past_at END DESC,
+            t.created_at DESC`,
+    args: [callerEmail],
+  });
+  const counts = await db().execute(
+    `SELECT trip_id,
+       SUM(CASE WHEN day_index IS NULL THEN 0 ELSE 1 END) AS scheduled,
+       SUM(CASE WHEN day_index IS NULL THEN 1 ELSE 0 END) AS unscheduled
+     FROM trip_activities
+     GROUP BY trip_id`,
+  );
+  const byTrip = new Map<string, { scheduled: number; unscheduled: number }>();
+  for (const row of counts.rows) {
+    const raw = row.trip_id;
+    let tripId: string;
+    if (typeof raw === 'string') tripId = raw;
+    else if (typeof raw === 'number' || typeof raw === 'bigint') tripId = raw.toString();
+    else continue;
+    byTrip.set(tripId, {
+      scheduled: Number(row.scheduled ?? 0),
+      unscheduled: Number(row.unscheduled ?? 0),
+    });
+  }
+  return trips.rows.map((row) => {
+    const trip = rowToTrip(row);
+    const c = byTrip.get(trip.id) ?? { scheduled: 0, unscheduled: 0 };
+    return {
+      ...trip,
+      scheduled_count: c.scheduled,
+      unscheduled_count: c.unscheduled,
+    };
+  });
+}
+
+export type CreateTripArgs = {
+  title: unknown;
+  // startDate/endDate arrive as already-validated 'YYYY-MM-DD' strings (the
+  // resolver converts the graphql Date scalar's Date object back to a string).
+  startDate: string | null;
+  endDate: string | null;
+  description?: string | null;
+  coverImageUrl?: string | null;
+  initialActivityIds?: readonly string[] | null;
+  status?: TripStatus | null;
+};
+
+export async function createTrip(
+  args: CreateTripArgs,
+  creatorEmail: string,
+): Promise<Trip> {
+  const title = trimmedString(args.title, 200);
+  if (!title) throw badInput('missing or invalid title');
+
+  const start_date = args.startDate;
+  const end_date = args.endDate;
+  if (!isIsoDate(start_date) || !isIsoDate(end_date)) {
+    throw badInput('startDate and endDate must be ISO dates (YYYY-MM-DD)');
+  }
+  if (end_date < start_date) {
+    throw badInput('endDate must be on or after startDate');
+  }
+
+  const description =
+    args.description == null ? null : trimmedString(args.description, 2000);
+  if (args.description != null && description === null) {
+    throw badInput('invalid description');
+  }
+
+  const cover_image_url =
+    args.coverImageUrl == null ? null : trimmedString(args.coverImageUrl, 2000);
+  if (args.coverImageUrl != null && cover_image_url === null) {
+    throw badInput('invalid coverImageUrl');
+  }
+
+  const MAX_INITIAL_ACTIVITIES = 50;
+  if (
+    Array.isArray(args.initialActivityIds) &&
+    args.initialActivityIds.length > MAX_INITIAL_ACTIVITIES
+  ) {
+    throw badInput(`too many initialActivityIds (max ${MAX_INITIAL_ACTIVITIES})`);
+  }
+
+  // Initial status (#51 c3): a trip can open in `voting` or skip straight to
+  // `planning`. Anything else (incl. `past`) defaults to `planning`.
+  const status: TripStatus = args.status === 'voting' ? 'voting' : 'planning';
+
+  const id = newId();
+  const created_at = Date.now();
+  await db().execute({
+    sql: `INSERT INTO trips (
+            id, creator_email, title, description,
+            start_date, end_date, cover_image_url,
+            status, created_at, marked_past_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+    args: [
+      id,
+      creatorEmail,
+      title,
+      description,
+      start_date,
+      end_date,
+      cover_image_url,
+      status,
+      created_at,
+    ],
+  });
+
+  await addTripMember(id, creatorEmail, creatorEmail);
+
+  if (Array.isArray(args.initialActivityIds)) {
+    const seen = new Set<string>();
+    for (const raw of args.initialActivityIds) {
+      if (typeof raw !== 'string' || seen.has(raw)) continue;
+      seen.add(raw);
+      const snapshotJson = await fetchActivitySnapshot(raw);
+      if (!snapshotJson) continue;
+      await db().execute({
+        sql: `INSERT OR IGNORE INTO trip_activities (
+                id, trip_id, activity_id, snapshot_json,
+                added_by_email, added_at, day_index, start_time, display_order
+              ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
+        args: [newId(), id, raw, snapshotJson, creatorEmail, Date.now()],
+      });
+    }
+  }
+
+  const trip = await getTripDetail(id);
+  if (!trip) throw new Error('failed to load created trip');
+  return trip;
+}
+
+export type PatchTripArgs = {
+  title?: unknown;
+  description?: unknown;
+  // present-or-absent; the resolver converts the Date scalar back to a string.
+  startDate?: string | null;
+  endDate?: string | null;
+  coverImageUrl?: unknown;
+};
+
+export async function patchTrip(
+  tripId: string,
+  patch: PatchTripArgs,
+): Promise<TripRow> {
+  const existing = await getTripRow(tripId);
+  if (!existing) throw notFound('not found');
+  const isPast = existing.status === 'past';
+
+  const sets: string[] = [];
+  const updateArgs: (string | null)[] = [];
+  const proposed = {
+    title: existing.title,
+    description: existing.description,
+    start_date: existing.start_date,
+    end_date: existing.end_date,
+    cover_image_url: existing.cover_image_url,
+  };
+
+  if (patch.title !== undefined) {
+    if (isPast) throw conflict('trip is past', 'trip_past');
+    const title = trimmedString(patch.title, 200);
+    if (!title) throw badInput('invalid title');
+    proposed.title = title;
+    sets.push('title = ?');
+    updateArgs.push(title);
+  }
+  if (patch.description !== undefined) {
+    const description =
+      patch.description === null ? null : trimmedString(patch.description, 2000);
+    if (patch.description !== null && description === null) {
+      throw badInput('invalid description');
+    }
+    proposed.description = description;
+    sets.push('description = ?');
+    updateArgs.push(description);
+  }
+  if (patch.startDate !== undefined) {
+    if (isPast) throw conflict('trip is past', 'trip_past');
+    if (!isIsoDate(patch.startDate)) throw badInput('invalid startDate');
+    proposed.start_date = patch.startDate;
+    sets.push('start_date = ?');
+    updateArgs.push(patch.startDate);
+  }
+  if (patch.endDate !== undefined) {
+    if (isPast) throw conflict('trip is past', 'trip_past');
+    if (!isIsoDate(patch.endDate)) throw badInput('invalid endDate');
+    proposed.end_date = patch.endDate;
+    sets.push('end_date = ?');
+    updateArgs.push(patch.endDate);
+  }
+  if (patch.coverImageUrl !== undefined) {
+    const cover =
+      patch.coverImageUrl === null
+        ? null
+        : trimmedString(patch.coverImageUrl, 2000);
+    if (patch.coverImageUrl !== null && cover === null) {
+      throw badInput('invalid coverImageUrl');
+    }
+    proposed.cover_image_url = cover;
+    sets.push('cover_image_url = ?');
+    updateArgs.push(cover);
+  }
+
+  if (sets.length === 0) return existing;
+
+  if (proposed.end_date < proposed.start_date) {
+    throw badInput('endDate must be on or after startDate');
+  }
+
+  await db().execute({
+    sql: `UPDATE trips SET ${sets.join(', ')} WHERE id = ?`,
+    args: [...updateArgs, tripId],
+  });
+
+  // If the date range changed, slide any now-out-of-range slot back to
+  // Unscheduled so it still renders somewhere.
+  const dateChanged =
+    proposed.start_date !== existing.start_date ||
+    proposed.end_date !== existing.end_date;
+  if (dateChanged) {
+    const newDayCount = tripDateRangeDayCount(
+      proposed.start_date,
+      proposed.end_date,
+    );
+    await db().execute({
+      sql: `UPDATE trip_activities
+            SET day_index = NULL, start_time = NULL
+            WHERE trip_id = ? AND (day_index < 0 OR day_index >= ?)`,
+      args: [tripId, newDayCount],
+    });
+  }
+
+  const updated = await getTripRow(tripId);
+  if (!updated) throw notFound('not found');
+  return updated;
+}
+
+// Creator-only; the guard guarantees the trip exists, so this never 404s.
+// Single transaction so a trip never half-deletes (#51 c9).
+export async function deleteTripById(tripId: string): Promise<void> {
+  await db().batch(
+    [
+      { sql: 'DELETE FROM trip_votes WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trip_activities WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trip_invites WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trip_members WHERE trip_id = ?', args: [tripId] },
+      { sql: 'DELETE FROM trips WHERE id = ?', args: [tripId] },
+    ],
+    'write',
+  );
+}
+
+// Single trip_activities row by id (used by assignSlot/setDisplayOrder/remove).
+export async function getTripActivityRow(
+  taId: string,
+): Promise<TripActivity | null> {
+  const rs = await db().execute({
+    sql: 'SELECT * FROM trip_activities WHERE id = ?',
+    args: [taId],
+  });
+  const row = rs.rows[0];
+  return row ? rowToTripActivity(row) : null;
+}
+
+// Add a catalog activity as a candidate on a trip. `trip` is the already-loaded
+// (and membership-verified) row.
+export async function addCandidate(
+  trip: TripRow,
+  activityId: string,
+  adderEmail: string,
+): Promise<TripActivity> {
+  if (trip.status === 'past') throw conflict('trip is past', 'trip_past');
+  const existing = await db().execute({
+    sql: 'SELECT id FROM trip_activities WHERE trip_id = ? AND activity_id = ?',
+    args: [trip.id, activityId],
+  });
+  if (existing.rows.length > 0) {
+    throw conflict('activity already on trip', 'duplicate');
+  }
+  const snapshotJson = await fetchActivitySnapshot(activityId);
+  if (!snapshotJson) throw notFound('activity not found');
+  const id = newId();
+  const added_at = Date.now();
+  await db().execute({
+    sql: `INSERT INTO trip_activities (
+            id, trip_id, activity_id, snapshot_json,
+            added_by_email, added_at, day_index, start_time, display_order
+          ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
+    args: [id, trip.id, activityId, snapshotJson, adderEmail, added_at],
+  });
+  const created = await getTripActivityRow(id);
+  if (!created) throw new Error('failed to load created candidate');
+  return created;
+}
+
+// Slot/display-order patch (assignSlot + setDisplayOrder both route here). A
+// field left `undefined` is absent; `null` is an explicit clear. The
+// voting-phase lock fires ONLY when dayIndex/startTime are present, so a
+// displayOrder-only patch (drag-reorder of candidate cards) stays allowed
+// during voting (#51 c8).
+export type SlotPatch = {
+  dayIndex?: number | null;
+  startTime?: string | null;
+  displayOrder?: number | null;
+};
+
+export async function patchTripActivity(
+  ta: TripActivity,
+  trip: TripRow,
+  patch: SlotPatch,
+): Promise<TripActivity> {
+  if (trip.status === 'past') throw conflict('trip is past', 'trip_past');
+
+  const dayProvided = patch.dayIndex !== undefined;
+  const timeProvided = patch.startTime !== undefined;
+  if (trip.status === 'voting' && (dayProvided || timeProvided)) {
+    throw conflict(
+      'voting in progress — finalize to start scheduling',
+      'voting_locked',
+    );
+  }
+
+  let day_index = ta.day_index;
+  let start_time = ta.start_time;
+  if (dayProvided || timeProvided) {
+    const nextDay = dayProvided ? patch.dayIndex : day_index;
+    const nextTime = timeProvided ? patch.startTime : start_time;
+    const dayCount = tripDateRangeDayCount(trip.start_date, trip.end_date);
+    if (nextDay === null && nextTime === null) {
+      day_index = null;
+      start_time = null;
+    } else if (
+      typeof nextDay === 'number' &&
+      Number.isInteger(nextDay) &&
+      nextDay >= 0 &&
+      nextDay < dayCount &&
+      isHHMM(nextTime)
+    ) {
+      day_index = nextDay;
+      start_time = nextTime;
+    } else {
+      throw badInput(
+        `dayIndex and startTime must be set together (both null, or dayIndex in 0..${dayCount - 1} and startTime HH:MM)`,
+      );
+    }
+  }
+
+  let display_order = ta.display_order;
+  if (patch.displayOrder !== undefined) {
+    if (typeof patch.displayOrder !== 'number' || !Number.isInteger(patch.displayOrder)) {
+      throw badInput('displayOrder must be an integer');
+    }
+    display_order = patch.displayOrder;
+  }
+
+  await db().execute({
+    sql: `UPDATE trip_activities
+          SET day_index = ?, start_time = ?, display_order = ?
+          WHERE id = ?`,
+    args: [day_index, start_time, display_order, ta.id],
+  });
+  const updated = await getTripActivityRow(ta.id);
+  if (!updated) throw new Error('failed to load updated candidate');
+  return updated;
+}
+
+// Remove a candidate. Only the member who added it, or the trip creator, may
+// remove it (#51). Cascade: drop the row and any votes on it in one tx.
+export async function removeCandidate(
+  ta: TripActivity,
+  trip: TripRow,
+  ctx: MemberContext,
+): Promise<void> {
+  if (trip.status === 'past') throw conflict('trip is past', 'trip_past');
+  if (ta.added_by_email !== ctx.email && !ctx.isCreator) {
+    throw forbidden('forbidden', 'not_adder');
+  }
+  await db().batch(
+    [
+      { sql: 'DELETE FROM trip_votes WHERE trip_activity_id = ?', args: [ta.id] },
+      { sql: 'DELETE FROM trip_activities WHERE id = ?', args: [ta.id] },
+    ],
+    'write',
+  );
+}
+
+// Cast or clear a vote. value 0 deletes the row (neutral) and returns null;
+// ±1 upserts and returns the row. Open only while the trip is in `voting`.
+export async function castVote(
+  trip: TripRow,
+  taId: string,
+  value: -1 | 0 | 1,
+  memberEmail: string,
+): Promise<TripVote | null> {
+  if (trip.status !== 'voting') {
+    throw conflict('voting is closed', 'not_voting');
+  }
+  const ta = await db().execute({
+    sql: 'SELECT id FROM trip_activities WHERE id = ? AND trip_id = ?',
+    args: [taId, trip.id],
+  });
+  if (ta.rows.length === 0) {
+    throw notFound('candidate not found on this trip');
+  }
+  if (value === 0) {
+    await db().execute({
+      sql: `DELETE FROM trip_votes
+            WHERE trip_id = ? AND member_email = ? AND trip_activity_id = ?`,
+      args: [trip.id, memberEmail, taId],
+    });
+    return null;
+  }
+  await db().execute({
+    sql: `INSERT INTO trip_votes
+            (trip_id, member_email, trip_activity_id, value, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(trip_id, member_email, trip_activity_id)
+          DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    args: [trip.id, memberEmail, taId, value, Date.now()],
+  });
+  return { trip_activity_id: taId, member_email: memberEmail, value };
+}
+
+// Finalize voting → planning: cull unselected candidates + their votes,
+// normalize display_order on survivors, flip status. One tx (#51 c9).
+export async function transitionToPlanning(
+  trip: TripRow,
+  rawKept: readonly unknown[],
+): Promise<{ kept: number }> {
+  if (trip.status !== 'voting') {
+    throw conflict('trip is not in voting', 'not_voting');
+  }
+  const activities = await getTripActivities(trip.id);
+  const onTrip = new Set(activities.map((a) => a.id));
+  const keptOrdered: string[] = [];
+  const keptSet = new Set<string>();
+  for (const raw of rawKept) {
+    if (typeof raw === 'string' && onTrip.has(raw) && !keptSet.has(raw)) {
+      keptSet.add(raw);
+      keptOrdered.push(raw);
+    }
+  }
+  const toDelete = activities.filter((a) => !keptSet.has(a.id));
+
+  const stmts: InStatement[] = [];
+  for (const a of toDelete) {
+    stmts.push({
+      sql: 'DELETE FROM trip_votes WHERE trip_activity_id = ?',
+      args: [a.id],
+    });
+    stmts.push({ sql: 'DELETE FROM trip_activities WHERE id = ?', args: [a.id] });
+  }
+  keptOrdered.forEach((taId, index) => {
+    stmts.push({
+      sql: 'UPDATE trip_activities SET display_order = ? WHERE id = ?',
+      args: [index, taId],
+    });
+  });
+  stmts.push({
+    sql: `UPDATE trips SET status = 'planning' WHERE id = ?`,
+    args: [trip.id],
+  });
+  await db().batch(stmts, 'write');
+  return { kept: keptOrdered.length };
+}
+
+// Reopen voting from planning: clear slot fields, normalize display_order,
+// PRESERVE votes. `past` is terminal (409 not_planning).
+export async function transitionToVoting(trip: TripRow): Promise<void> {
+  if (trip.status !== 'planning') {
+    throw conflict(
+      trip.status === 'past'
+        ? 'past trips cannot reopen voting'
+        : 'trip is already in voting',
+      'not_planning',
+    );
+  }
+  const activities = await getTripActivities(trip.id);
+  const stmts: InStatement[] = activities.map((a, index) => ({
+    sql: `UPDATE trip_activities
+          SET day_index = NULL, start_time = NULL, display_order = ?
+          WHERE id = ?`,
+    args: [index, a.id],
+  }));
+  stmts.push({
+    sql: `UPDATE trips SET status = 'voting' WHERE id = ?`,
+    args: [trip.id],
+  });
+  await db().batch(stmts, 'write');
+}
+
+export type MarkPastResult = {
+  markedPastAt: number;
+  completedActivityIds: string[];
+  uncompletedActivityIds: string[];
+};
+
+// Mark a trip past: write through completion to the `c` table and freeze it.
+export async function transitionToPast(
+  trip: TripRow,
+  rawCompletedIds: readonly unknown[],
+): Promise<MarkPastResult> {
+  if (trip.status === 'past') {
+    throw conflict('trip is already past');
+  }
+  const rawIds = rawCompletedIds.filter((v): v is string => typeof v === 'string');
+
+  // Only mark activities on the trip AND scheduled AND still pointing at a live
+  // catalog row. Orphaned snapshot-only rows have nowhere to land completion.
+  const onTrip = await getTripActivities(trip.id);
+  const eligibleIds = new Set(
+    onTrip
+      .filter((a) => a.activity_id !== null && a.day_index !== null)
+      .map((a) => a.activity_id as string),
+  );
+  const checkedSet = new Set(rawIds.filter((aid) => eligibleIds.has(aid)));
+  const toMark = Array.from(checkedSet);
+  const toUnmark = Array.from(eligibleIds).filter((aid) => !checkedSet.has(aid));
+
+  const marked_past_at = Date.now();
+  await db().execute({
+    sql: `UPDATE trips SET status = 'past', marked_past_at = ? WHERE id = ?`,
+    args: [marked_past_at, trip.id],
+  });
+  for (const aid of toMark) {
+    await db().execute({
+      sql: `INSERT INTO c (id, v) VALUES (?, 1)
+            ON CONFLICT(id) DO UPDATE SET v = excluded.v`,
+      args: [aid],
+    });
+  }
+  for (const aid of toUnmark) {
+    await db().execute({
+      sql: `INSERT INTO c (id, v) VALUES (?, 0)
+            ON CONFLICT(id) DO UPDATE SET v = excluded.v`,
+      args: [aid],
+    });
+  }
+  return {
+    markedPastAt: marked_past_at,
+    completedActivityIds: toMark,
+    uncompletedActivityIds: toUnmark,
+  };
+}
+
+// Invite by email — any member. invited_email is informational (labels the
+// picker); the token is the credential (#51 c2). Returns the new invite.
+export async function inviteMember(
+  tripId: string,
+  rawEmail: string,
+  inviterEmail: string,
+): Promise<TripInvite> {
+  const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+  if (!EMAIL_RE.test(email)) throw badInput('invalid email');
+  if (await isTripMember(tripId, email)) {
+    throw conflict('already a member', 'already_member');
+  }
+  return createInvite(tripId, email, inviterEmail);
+}
+
+// Remove a member — the creator removes anyone; a member removes themselves
+// ("Leave trip"). The creator can't leave (delete the trip instead). Returns
+// the removed email. ctx.isCreator ⟺ caller is the trip creator.
+export async function removeMember(
+  tripId: string,
+  rawEmail: string,
+  ctx: MemberContext,
+): Promise<string> {
+  const email = (rawEmail ?? '').trim().toLowerCase();
+  if (!email) throw badInput('missing email');
+  const isSelf = email === ctx.email;
+  if (!isSelf && !ctx.isCreator) throw forbidden('forbidden');
+  if (isSelf && ctx.isCreator) {
+    throw conflict(
+      'the creator cannot leave; delete the trip instead',
+      'creator_cannot_leave',
+    );
+  }
+  await removeTripMember(tripId, email);
+  return email;
+}
+
+// Revoke a pending invite — any member. Idempotent. Returns the token.
+export async function revokeInvite(
+  tripId: string,
+  token: string,
+): Promise<string> {
+  await deleteInviteByToken(tripId, token);
+  return token;
+}
+
+// Claim an invite (token IS the credential, c2 — any authed account). Creates
+// the claimer's account row (an editor account is born here), adds them, and
+// consumes the invite. Returns the trip id, or null when the token/trip is
+// gone (both map to null on the client).
+export async function claimInvite(
+  token: string,
+  user: CurrentUser,
+): Promise<string | null> {
+  const invite = await getInviteByToken(token);
+  if (!invite) return null;
+  const trip = await getTripRow(invite.trip_id);
+  if (!trip) return null;
+  // Already a member? Consume the dangling invite and succeed idempotently.
+  if (await isTripMember(invite.trip_id, user.email)) {
+    await deleteInviteByToken(invite.trip_id, token);
+    return invite.trip_id;
+  }
+  await upsertUser(user.email);
+  await addTripMember(invite.trip_id, user.email, invite.invited_by_email);
+  await deleteInviteByToken(invite.trip_id, token);
+  return invite.trip_id;
 }

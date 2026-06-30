@@ -158,9 +158,8 @@ describe('AddActivity — edit mode', () => {
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
     expect(lookupSpy).toHaveBeenCalledWith(
       'https://www.alltrails.com/trail/new',
-      null,
     );
-    const saved = (saveSpy.mock.calls[0] as [Activity, string | null])[0];
+    const saved = (saveSpy.mock.calls[0] as [Activity])[0];
     expect(saved).toMatchObject({
       allTrailsUrl: 'https://www.alltrails.com/trail/new',
       allTrailsRating: 4.9,
@@ -253,9 +252,8 @@ describe('AddActivity — edit mode', () => {
     await waitFor(() => {
       expect(saveSpy).toHaveBeenCalledTimes(1);
     });
-    const call = saveSpy.mock.calls[0] as [Activity & { addedBy?: string }, string | null];
+    const call = saveSpy.mock.calls[0] as [Activity & { addedBy?: string }];
     const savedActivity = call[0];
-    expect(call[1]).toBeNull();
     expect(savedActivity).toMatchObject({
       id: 'test-edit-activity',
       name: 'Edited Name',

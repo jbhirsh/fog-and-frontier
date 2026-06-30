@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { HOME_LOCATION } from '../data/home';
 import { useOwner } from '../lib/useOwner';
-import { authedFetch } from '../lib/authedFetch';
-import { useAuthState } from '../lib/authShim';
+import { apolloClient } from '../lib/apolloClient';
+import { DISCOVER_QUERY } from '../lib/gqlDocs';
 
 type Range = 'today' | 'tomorrow' | 'weekend' | 'week';
 
@@ -88,7 +88,6 @@ function hydrateFromCache(): HydratedCache | null {
 }
 
 export function Explore() {
-  const { getToken } = useAuthState();
   const { isOwner } = useOwner();
   const [initial] = useState(hydrateFromCache);
   const [range, setRange] = useState<Range>(initial?.range ?? 'weekend');
@@ -124,26 +123,26 @@ export function Explore() {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      const res = await authedFetch(
-        '/api/discover',
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ range }),
-        },
-        token,
-      );
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `HTTP ${res.status}`);
-      }
-      const data = (await res.json()) as {
-        events: DiscoverEvent[];
-        sources: DiscoverSource[];
-      };
-      const evs = Array.isArray(data.events) ? data.events : [];
-      const srcs = Array.isArray(data.sources) ? data.sources : [];
+      const { data } = await apolloClient.query({
+        query: DISCOVER_QUERY,
+        variables: { range },
+        fetchPolicy: 'network-only',
+      });
+      const result = data?.discover;
+      // Live-model fields are all nullable; coalesce into the card's shape.
+      const evs: DiscoverEvent[] = (result?.events ?? []).map((e) => ({
+        name: e.name ?? '',
+        dateText: e.dateText ?? '',
+        startDate: e.startDate ?? undefined,
+        endDate: e.endDate ?? undefined,
+        location: e.location ?? '',
+        blurb: e.blurb ?? '',
+        sourceUrl: e.sourceUrl ?? '',
+      }));
+      const srcs: DiscoverSource[] = (result?.sources ?? []).map((s) => ({
+        uri: s.uri ?? '',
+        title: s.title ?? '',
+      }));
       const at = Date.now();
       setEvents(evs);
       setSources(srcs);
