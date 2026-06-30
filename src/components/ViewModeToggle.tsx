@@ -19,25 +19,20 @@ const OPTIONS: readonly Option[] = [
 type Props = {
   value: ViewMode;
   onChange: (mode: ViewMode) => void;
-  /**
-   * Which segments to show, in order. Defaults to all three. The split view
-   * passes `['list', 'map']` below `lg`, where Split has no two-column layout.
-   */
-  modes?: readonly ViewMode[];
 };
 
 /**
  * iOS-style segmented control for switching between the List · Split · Map
- * layouts. Frosted pill track with a navy (`primary`) active segment.
+ * layouts. Frosted pill track with a navy (`primary`) active segment. Rendered
+ * only at `lg+` — below the breakpoint Split has no two-column layout, so the
+ * mobile UX is a floating "Show map" button (see CuratedAdventures, #96).
  *
  * Accessible as a radiogroup: arrow keys move (and select) between segments,
  * with a roving tabindex so the group is a single tab stop.
  */
-export function ViewModeToggle({ value, onChange, modes }: Props) {
+export function ViewModeToggle({ value, onChange }: Props) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const options = modes
-    ? OPTIONS.filter((o) => modes.includes(o.value))
-    : OPTIONS;
+  const options = OPTIONS;
 
   function focusAndSelect(index: number) {
     const next = options[index];

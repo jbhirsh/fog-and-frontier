@@ -95,26 +95,39 @@ export function BottomSheet({
   // Live pixel height while dragging; `null` falls back to the snap's CSS height.
   const [liveH, setLiveH] = useState<number | null>(null);
   const liveHRef = useRef<number | null>(null);
+  // Removes the active gesture's window listeners. Held in a ref so an unmount
+  // mid-drag can tear them down (see the cleanup effect below).
+  const endGestureRef = useRef<(() => void) | null>(null);
 
-  // Subscribe to window-level pointer moves while dragging so the gesture keeps
-  // tracking even if the pointer leaves the narrow grabber.
-  useEffect(() => {
-    if (!dragging) return;
+  // Tear down any in-flight gesture if the sheet unmounts mid-drag.
+  useEffect(() => () => endGestureRef.current?.(), []);
+
+  function handlePointerDown(event: React.PointerEvent) {
+    if (typeof window === 'undefined') return;
+    // Reset up front: a prior *drag* may have set this without a trailing click
+    // to clear it (touch drags ending off the grabber don't synthesize one), and
+    // a stale `true` would otherwise swallow this gesture's tap.
+    suppressClickRef.current = false;
+    const startH = sheetRef.current?.offsetHeight ?? snapTargetsPx()[snap];
+    const drag = { startY: event.clientY, startH, moved: false };
+    dragRef.current = drag;
+    setDragging(true);
+
+    // Attach the move/up listeners synchronously here (not via an effect keyed on
+    // `dragging`) so a sub-frame pointerup can't fire before they exist.
     const { peek, full } = snapTargetsPx();
-    function onMove(event: PointerEvent) {
-      const drag = dragRef.current;
-      if (!drag) return;
+    function onMove(e: PointerEvent) {
       // Dragging up (clientY decreases) grows the sheet.
-      const delta = drag.startY - event.clientY;
+      const delta = drag.startY - e.clientY;
       if (Math.abs(delta) > DRAG_THRESHOLD) drag.moved = true;
       const next = clamp(drag.startH + delta, peek, full);
       liveHRef.current = next;
       setLiveH(next);
     }
     function onUp() {
-      const drag = dragRef.current;
+      endGesture();
       setDragging(false);
-      if (drag?.moved && liveHRef.current != null) {
+      if (drag.moved && liveHRef.current != null) {
         suppressClickRef.current = true;
         onSnapChange(nearestSnap(liveHRef.current));
       }
@@ -122,21 +135,16 @@ export function BottomSheet({
       liveHRef.current = null;
       setLiveH(null);
     }
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    return () => {
+    function endGesture() {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
-    };
-  }, [dragging, onSnapChange]);
-
-  function handlePointerDown(event: React.PointerEvent) {
-    if (typeof window === 'undefined') return;
-    const startH = sheetRef.current?.offsetHeight ?? snapTargetsPx()[snap];
-    dragRef.current = { startY: event.clientY, startH, moved: false };
-    setDragging(true);
+      endGestureRef.current = null;
+    }
+    endGestureRef.current = endGesture;
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   function handleClick() {
@@ -158,11 +166,14 @@ export function BottomSheet({
     }
   }
 
+  // z-[60] sits above the sticky app header (z-50): at the `full` snap the sheet
+  // overlaps the header, and the grabber must stay on top so it's always
+  // draggable back down. The detail dialog (z-[1000]) still opens above it.
   return (
     <section
       ref={sheetRef}
       aria-label={label}
-      className="fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl"
       style={{
         height: liveH != null ? `${liveH}px` : SNAP_CSS[snap],
         transition: dragging

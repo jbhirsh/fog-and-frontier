@@ -80,7 +80,7 @@ test.describe('visual regression — mobile', () => {
     });
   });
 
-  test('map page (dvh fix)', async ({ page }) => {
+  test('map page (full-screen map + list sheet, #96)', async ({ page }) => {
     await page.goto('/map');
     await waitForVisualReady(page);
     // Leaflet renders its tile layer asynchronously — wait for the container
@@ -89,7 +89,10 @@ test.describe('visual regression — mobile', () => {
     // moment to fade in).
     await page.locator('.leaflet-container').waitFor({ state: 'attached' });
     await page.waitForTimeout(400);
-    await expect(page).toHaveScreenshot('map-mobile.png', { fullPage: true });
+    // Viewport (not fullPage): the mobile map is a position:fixed full-screen
+    // backdrop with a fixed list sheet over it (#96), which fullPage stitching
+    // renders unreliably. The viewport is exactly what the user sees.
+    await expect(page).toHaveScreenshot('map-mobile.png', { fullPage: false });
   });
 
   // Leaflet marker click doesn't trigger the popup under Playwright on

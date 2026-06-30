@@ -153,7 +153,9 @@ export function CuratedAdventures() {
   // Apple-Maps style. Only below `lg` — at lg+ the Split layout already pairs
   // list and map side by side.
   const mobileMap = view === 'map' && !isLg;
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>('half');
+  // Start the mobile map's list sheet collapsed so the map is the prominent
+  // surface on entry (the user tapped "Show map"); they drag it up to browse.
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
 
   // Free-text search now lives in the global header (#4 mockup) and is shared
   // via the `?q=` param; mirror it into the catalog filter state.
@@ -373,14 +375,15 @@ export function CuratedAdventures() {
   );
 
   // Compact header for the mobile map's list sheet (#96). Stays visible even at
-  // the `peek` snap, so it carries the "back to list" affordance and the same
-  // count / bounds summary the full `listHeader` shows on the list page.
+  // the `peek` snap, so it carries the exit affordance and the same count /
+  // bounds summary the full `listHeader` shows on the list page. The exit reads
+  // "Hide map" (not "List") since the sheet itself already *is* the list — the
+  // button returns to the full-width list with the map dismissed.
   const mobileSheetHeader = (
     <div className="flex items-center justify-between gap-sm">
       <button
         type="button"
         onClick={() => setView('list')}
-        aria-label="Show list"
         className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
       >
         <span
@@ -388,9 +391,9 @@ export function CuratedAdventures() {
           style={{ fontSize: 18, width: 18, height: 18 }}
           aria-hidden="true"
         >
-          chevron_left
+          close
         </span>
-        List
+        Hide map
       </button>
       <div
         role="status"
@@ -563,15 +566,16 @@ export function CuratedAdventures() {
   return (
     <>
       {view === 'map' ? (
-        <div className="relative flex h-[calc(100dvh-5rem)] flex-col overflow-hidden">
-          {filterToolbar}
-          {/* Map fills exactly the space below the nav: a flex child in a
-              fixed-height, overflow-clipped column, so the page never scrolls
-              and the map can't slide under the sticky header. */}
-          <section className="min-h-0 flex-1 px-gutter py-md">
-            <h1 className="sr-only">Curated Adventures — map</h1>
-            <div className="h-full w-full">
+        mobileMap ? (
+          /* Mobile (#96): a full-screen map backdrop with the list riding in a
+             draggable sheet over it (Apple-Maps style). The map fills the whole
+             viewport behind the translucent app header, so the tall wrapping
+             mobile header no longer squeezes it into a thin strip, and no top
+             filter toolbar competes for the limited height. */
+          <>
+            <div className="fixed inset-0 z-0">
               <ActivityMap
+                fullBleed
                 activities={results}
                 onSelect={setSelected}
                 onActivate={handlePinActivate}
@@ -580,11 +584,7 @@ export function CuratedAdventures() {
                 onBoundsChange={handleBoundsChange}
               />
             </div>
-          </section>
-          {/* Mobile (#96): the list rides in a draggable bottom sheet over the
-              full-screen map (peek/half/full), Apple-Maps style. No sheet at
-              lg+ — the Split layout already pairs list and map there. */}
-          {mobileMap && (
+            <h1 className="sr-only">Curated Adventures — map</h1>
             <BottomSheet
               snap={sheetSnap}
               onSnapChange={setSheetSnap}
@@ -593,8 +593,28 @@ export function CuratedAdventures() {
             >
               {listContent}
             </BottomSheet>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden">
+            {filterToolbar}
+            {/* Map fills exactly the space below the nav: a flex child in a
+                fixed-height, overflow-clipped column, so the page never scrolls
+                and the map can't slide under the sticky header. */}
+            <section className="min-h-0 flex-1 px-gutter py-md">
+              <h1 className="sr-only">Curated Adventures — map</h1>
+              <div className="h-full w-full">
+                <ActivityMap
+                  activities={results}
+                  onSelect={setSelected}
+                  onActivate={handlePinActivate}
+                  highlightedId={hoveredId}
+                  onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
+                  onBoundsChange={handleBoundsChange}
+                />
+              </div>
+            </section>
+          </div>
+        )
       ) : view === 'split' ? (
         <>
           {filterToolbar}

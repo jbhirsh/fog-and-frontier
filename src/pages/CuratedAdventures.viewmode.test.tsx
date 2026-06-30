@@ -97,12 +97,12 @@ describe('Curated Adventures — view modes (#93)', () => {
     renderAt('/?view=map');
     expect(screen.queryByText('Curated Adventures')).not.toBeInTheDocument();
     expect(screen.getByTestId('activity-map')).toBeInTheDocument();
-    // The list lives in a labelled sheet over the map, with a way back to List.
+    // The list lives in a labelled sheet over the map, with a way back out.
     expect(
       screen.getByRole('region', { name: 'Activities in this area' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Show list' }),
+      screen.getByRole('button', { name: 'Hide map' }),
     ).toBeInTheDocument();
   });
 

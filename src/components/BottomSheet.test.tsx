@@ -104,4 +104,26 @@ describe('BottomSheet', () => {
     expect(onSnapChange).toHaveBeenCalledTimes(1);
     expect(onSnapChange).toHaveBeenCalledWith('full');
   });
+
+  it('a tap after a click-less drag still cycles (suppress flag is reset per gesture)', () => {
+    const onSnapChange = vi.fn();
+    render(<Host initial="peek" onSnapChange={onSnapChange} />);
+    const handle = grabber();
+
+    // A drag that ends without the browser synthesizing a click — the common
+    // case on touch when the pointer lifts off the grabber. This arms the
+    // suppress-click flag but nothing clears it.
+    fireEvent.pointerDown(handle, { clientY: 700 });
+    fireEvent.pointerMove(window, { clientY: 100 });
+    fireEvent.pointerUp(window, { clientY: 100 });
+    expect(onSnapChange).toHaveBeenLastCalledWith('full');
+
+    // The next genuine tap must still cycle (full → peek), not be eaten by a
+    // stranded suppress flag.
+    onSnapChange.mockClear();
+    fireEvent.pointerDown(handle, { clientY: 400 });
+    fireEvent.pointerUp(window, { clientY: 400 });
+    fireEvent.click(handle);
+    expect(onSnapChange).toHaveBeenCalledWith('peek');
+  });
 });

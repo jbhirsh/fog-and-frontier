@@ -86,6 +86,12 @@ interface Props {
    * disable bounds reporting.
    */
   onBoundsChange?: (bounds: MapBounds) => void;
+  /**
+   * Drop the rounded corners / border / shadow so the map can sit edge-to-edge
+   * as a full-screen backdrop (the mobile map mode, #96). Default `false` keeps
+   * the framed card look used in Split and desktop Map.
+   */
+  fullBleed?: boolean;
 }
 
 /**
@@ -104,6 +110,7 @@ export function ActivityMap({
   highlightedId,
   onPinHoverChange,
   onBoundsChange,
+  fullBleed = false,
 }: Props) {
   const overrides = useOverrides();
 
@@ -122,7 +129,11 @@ export function ActivityMap({
   // sheet (#96) reliably paints above the map instead of having pins punch
   // through it.
   return (
-    <div className="relative isolate h-full w-full overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
+    <div
+      className={`relative isolate h-full w-full overflow-hidden ${
+        fullBleed ? '' : 'rounded-xl border border-outline-variant/30 shadow-sm'
+      }`}
+    >
       <MapContainer
         center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
         zoom={8}
