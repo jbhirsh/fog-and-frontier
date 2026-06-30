@@ -237,6 +237,9 @@ export function TripDetail() {
       e.preventDefault();
       const activity = trip.activities.find((a) => a.id === taId);
       if (!activity) return;
+      // Dropping a card back onto the day it already belongs to is a no-op —
+      // don't fire a PATCH or recompute start_time (#79).
+      if (activity.day_index === dayIndex) return;
       const onDay = trip.activities.filter(
         (a) => a.day_index === dayIndex && a.id !== taId && a.start_time,
       );
