@@ -117,8 +117,12 @@ export function ActivityMap({
     [activities, overrides],
   );
 
+  // `isolate` traps Leaflet's pane z-indices (markers at 600, etc.) inside the
+  // map's own stacking context, so a page-level overlay like the mobile list
+  // sheet (#96) reliably paints above the map instead of having pins punch
+  // through it.
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
+    <div className="relative isolate h-full w-full overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
       <MapContainer
         center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
         zoom={8}

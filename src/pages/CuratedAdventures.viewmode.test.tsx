@@ -48,20 +48,37 @@ describe('Curated Adventures — view modes (#93)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders the view-mode segmented control', () => {
-    renderAt('/');
+  it('shows the segmented control only on desktop; mobile gets a "Show map" button (#96)', () => {
+    // Desktop (lg): the full List · Split · Map control.
+    stubViewport(true);
+    const { unmount } = renderAt('/');
     expect(
       screen.getByRole('radiogroup', { name: 'View mode' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Show map' }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    // Mobile: no segmented control — a floating "Show map" button instead.
+    vi.unstubAllGlobals();
+    renderAt('/');
+    expect(
+      screen.queryByRole('radiogroup', { name: 'View mode' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Show map' }),
     ).toBeInTheDocument();
   });
 
   it('defaults to List on a mobile viewport (no matchMedia / not lg)', () => {
     renderAt('/');
-    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    // List content is shown and no map is mounted by default on mobile.
+    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     expect(screen.queryByTestId('activity-map')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Show map' }),
+    ).toBeInTheDocument();
   });
 
   it('defaults to Split (with a map) on a desktop viewport', () => {
@@ -76,23 +93,39 @@ describe('Curated Adventures — view modes (#93)', () => {
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
   });
 
-  it('honours an explicit ?view=map: hides the hero and shows the full map', () => {
+  it('mobile ?view=map: full map with the list riding in a draggable sheet (#96)', () => {
     renderAt('/?view=map');
     expect(screen.queryByText('Curated Adventures')).not.toBeInTheDocument();
+    expect(screen.getByTestId('activity-map')).toBeInTheDocument();
+    // The list lives in a labelled sheet over the map, with a way back to List.
+    expect(
+      screen.getByRole('region', { name: 'Activities in this area' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Show list' }),
+    ).toBeInTheDocument();
+  });
+
+  it('desktop ?view=map: full map, no mobile list sheet', () => {
+    stubViewport(true);
+    renderAt('/?view=map');
     expect(screen.getByTestId('activity-map')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Map' })).toHaveAttribute(
       'aria-checked',
       'true',
     );
+    expect(
+      screen.queryByRole('region', { name: 'Activities in this area' }),
+    ).not.toBeInTheDocument();
   });
 
-  it('switches to Map mode when the Map segment is clicked', async () => {
+  it('switches to Map mode when the "Show map" button is tapped (mobile)', async () => {
     renderAt('/');
     // Starts in List (mobile default) — hero visible, no map.
     expect(screen.getByText('Curated Adventures')).toBeInTheDocument();
     expect(screen.queryByTestId('activity-map')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('radio', { name: 'Map' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show map' }));
 
     expect(screen.getByTestId('activity-map')).toBeInTheDocument();
     expect(screen.queryByText('Curated Adventures')).not.toBeInTheDocument();

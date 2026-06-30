@@ -9,6 +9,7 @@ import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
+import { BottomSheet, type SheetSnap } from '../components/BottomSheet';
 import { isViewMode } from '../lib/viewMode';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { useCatalogFilters } from '../lib/useCatalogFilters';
@@ -148,12 +149,11 @@ export function CuratedAdventures() {
   // collapses to list-only (the mobile map sheet is #96), so we skip mounting
   // Leaflet there entirely. Map mode renders its own map unconditionally.
   const splitMapVisible = view === 'split' && isLg;
-
-  // Split is a desktop-only layout, so the segmented control only offers it at
-  // lg+; on smaller screens it's List · Map (the mobile map UX is #96).
-  const toggleModes: ViewMode[] = isLg
-    ? ['list', 'split', 'map']
-    : ['list', 'map'];
+  // Mobile Map mode (#96): the full-screen map gets a draggable list sheet,
+  // Apple-Maps style. Only below `lg` — at lg+ the Split layout already pairs
+  // list and map side by side.
+  const mobileMap = view === 'map' && !isLg;
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>('half');
 
   // Free-text search now lives in the global header (#4 mockup) and is shared
   // via the `?q=` param; mirror it into the catalog filter state.
@@ -372,6 +372,55 @@ export function CuratedAdventures() {
     </div>
   );
 
+  // Compact header for the mobile map's list sheet (#96). Stays visible even at
+  // the `peek` snap, so it carries the "back to list" affordance and the same
+  // count / bounds summary the full `listHeader` shows on the list page.
+  const mobileSheetHeader = (
+    <div className="flex items-center justify-between gap-sm">
+      <button
+        type="button"
+        onClick={() => setView('list')}
+        aria-label="Show list"
+        className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
+      >
+        <span
+          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+          style={{ fontSize: 18, width: 18, height: 18 }}
+          aria-hidden="true"
+        >
+          chevron_left
+        </span>
+        List
+      </button>
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center gap-sm text-body-sm text-on-surface-variant"
+      >
+        {bounds ? (
+          <>
+            <span>
+              Showing <b className="text-on-surface">{visibleResults.length}</b>{' '}
+              in this area
+            </span>
+            <button
+              type="button"
+              onClick={clearBounds}
+              className="font-semibold text-secondary hover:underline"
+            >
+              Clear
+            </button>
+          </>
+        ) : (
+          <span>
+            <b className="text-on-surface">{results.length}</b> place
+            {results.length === 1 ? '' : 's'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
   // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
   // scrolls beneath it); in Split it sits above the page-scrolled columns; in
   // Map it's the fixed top row of a viewport-height flex column (below).
@@ -463,7 +512,11 @@ export function CuratedAdventures() {
         {/* View toggle + trip actions: their own row below the filters on
             mobile, right-aligned inline on desktop. */}
         <div className="flex flex-wrap md:flex-nowrap shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
-          <ViewModeToggle value={view} onChange={setView} modes={toggleModes} />
+          {/* Desktop offers the full List · Split · Map control; below `lg` the
+              Split layout has no room, so the mobile UX is a floating "Map"
+              button (below) that flips to the full-screen map + list sheet
+              (#96). */}
+          {isLg && <ViewModeToggle value={view} onChange={setView} />}
           <button
             type="button"
             onClick={() => {
@@ -510,7 +563,7 @@ export function CuratedAdventures() {
   return (
     <>
       {view === 'map' ? (
-        <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden">
+        <div className="relative flex h-[calc(100dvh-5rem)] flex-col overflow-hidden">
           {filterToolbar}
           {/* Map fills exactly the space below the nav: a flex child in a
               fixed-height, overflow-clipped column, so the page never scrolls
@@ -528,6 +581,19 @@ export function CuratedAdventures() {
               />
             </div>
           </section>
+          {/* Mobile (#96): the list rides in a draggable bottom sheet over the
+              full-screen map (peek/half/full), Apple-Maps style. No sheet at
+              lg+ — the Split layout already pairs list and map there. */}
+          {mobileMap && (
+            <BottomSheet
+              snap={sheetSnap}
+              onSnapChange={setSheetSnap}
+              label="Activities in this area"
+              header={mobileSheetHeader}
+            >
+              {listContent}
+            </BottomSheet>
+          )}
         </div>
       ) : view === 'split' ? (
         <>
@@ -573,6 +639,28 @@ export function CuratedAdventures() {
             {listContent}
           </section>
         </>
+      )}
+
+      {/* Mobile (#96): "Show map" floating button — the entry point from the
+          list to the full-screen map + sheet. Desktop uses the segmented
+          control instead; hidden while the selection action bar owns the
+          bottom of the screen, or while a dialog (detail / add) is open. */}
+      {!isLg && view === 'list' && !selectionMode && !selected && !adding && (
+        <button
+          type="button"
+          onClick={() => setView('map')}
+          aria-label="Show map"
+          className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90"
+        >
+          <span
+            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            style={{ fontSize: 20, width: 20, height: 20 }}
+            aria-hidden="true"
+          >
+            map
+          </span>
+          Map
+        </button>
       )}
 
       {selectionMode && (
