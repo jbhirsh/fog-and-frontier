@@ -1,8 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
 import type { Activity } from '../data/types';
-import { authedFetch } from './authedFetch';
+import { apolloClient } from './apolloClient';
+import { appCodeOf, tripLoadErrorFrom, type TripLoadError } from './gqlError';
 import { useAuthState } from './authShim';
+import { rowToActivity } from './userActivities';
 import { applyCompletionMirror } from './userCompleted';
+import {
+  ADD_TRIP_ACTIVITY,
+  ASSIGN_SLOT,
+  CAST_VOTE,
+  CLAIM_INVITE,
+  CREATE_TRIP,
+  DELETE_TRIP,
+  INVITE_MEMBER,
+  PATCH_TRIP,
+  REMOVE_MEMBER,
+  REMOVE_TRIP_ACTIVITY,
+  REVOKE_INVITE,
+  SET_DISPLAY_ORDER,
+  TRANSITION_TRIP,
+  TRIP_QUERY,
+  TRIPS_QUERY,
+  USERS_QUERY,
+  type TripListRow,
+  type TripRow,
+} from './gqlDocs';
+
+export type { TripLoadError };
 
 // 'voting' is exercised by the v1 voting PR; the union is widened now so the
 // client never receives a status its type says is impossible once the server
@@ -70,110 +95,130 @@ export type TripListItem = TripMeta & {
   unscheduled_count: number;
 };
 
-export type TripLoadError = 'unauthorized' | 'not-found' | 'failed';
+// ---- boundary mappers: GraphQL (camelCase / ISO) -> domain (snake_case) ----
+
+function rowToTripActivity(ta: TripRow['activities'][number]): TripActivity {
+  return {
+    id: ta.id,
+    trip_id: ta.tripId,
+    activity_id: ta.activityId ?? null,
+    added_by_email: ta.addedByEmail,
+    added_at: Date.parse(ta.addedAt),
+    day_index: ta.dayIndex ?? null,
+    start_time: ta.startTime ?? null,
+    display_order: ta.displayOrder,
+    snapshot: ta.snapshot ? rowToActivity(ta.snapshot) : null,
+  };
+}
+
+function rowToTrip(row: TripRow): Trip {
+  return {
+    id: row.id,
+    creator_email: row.creatorEmail,
+    title: row.title,
+    description: row.description ?? null,
+    start_date: row.startDate,
+    end_date: row.endDate,
+    cover_image_url: row.coverImageUrl ?? null,
+    status: row.status,
+    created_at: Date.parse(row.createdAt),
+    marked_past_at: row.markedPastAt ? Date.parse(row.markedPastAt) : null,
+    activities: row.activities.map(rowToTripActivity),
+    members: row.members.map((m) => ({
+      email: m.email,
+      display_name: m.displayName ?? null,
+      added_by_email: m.addedByEmail,
+      added_at: Date.parse(m.addedAt),
+      is_creator: m.isCreator,
+    })),
+    invites: row.invites.map((i) => ({
+      invite_token: i.inviteToken,
+      invited_email: i.invitedEmail ?? null,
+      invited_by_email: i.invitedByEmail,
+      invited_at: Date.parse(i.invitedAt),
+    })),
+    votes: row.votes.map((v) => ({
+      trip_activity_id: v.tripActivityId,
+      member_email: v.memberEmail,
+      value: v.value as -1 | 1,
+    })),
+  };
+}
+
+function rowToTripListItem(row: TripListRow): TripListItem {
+  return {
+    id: row.id,
+    creator_email: row.creatorEmail,
+    title: row.title,
+    description: row.description ?? null,
+    start_date: row.startDate,
+    end_date: row.endDate,
+    cover_image_url: row.coverImageUrl ?? null,
+    status: row.status,
+    created_at: Date.parse(row.createdAt),
+    marked_past_at: row.markedPastAt ? Date.parse(row.markedPastAt) : null,
+    scheduled_count: row.scheduledCount,
+    unscheduled_count: row.unscheduledCount,
+  };
+}
+
+// ---- reads ----
 
 export function useTripsList() {
-  const [trips, setTrips] = useState<TripListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<TripLoadError | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const { getToken, isLoaded } = useAuthState();
-
-  const reload = useCallback(() => {
-    setReloadKey((k) => k + 1);
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getToken();
-        const res = await authedFetch('/api/trips', { method: 'GET' }, token);
-        if (cancelled) return;
-        if (res.status === 401) {
-          setError('unauthorized');
-          setTrips([]);
-        } else if (!res.ok) {
-          setError('failed');
-          setTrips([]);
-        } else {
-          setError(null);
-          setTrips((await res.json()) as TripListItem[]);
-        }
-      } catch {
-        if (!cancelled) setError('failed');
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, reloadKey, getToken]);
-
-  return { trips, isLoading, error, reload };
+  // TRIPS_QUERY is auth-gated; firing before Clerk is ready sends an anon
+  // request → UNAUTHENTICATED with no self-heal (the link has no retry).
+  // `skip` until isLoaded; the query auto-runs (with a token) once it flips.
+  const { isLoaded } = useAuthState();
+  const { data, loading, error, refetch } = useQuery(TRIPS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !isLoaded,
+  });
+  const trips = useMemo(
+    () => (data?.trips ?? []).map(rowToTripListItem),
+    [data],
+  );
+  const reload = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+  return {
+    trips,
+    isLoading: !isLoaded || (loading && !data),
+    error: error ? tripLoadErrorFrom(error) : null,
+    reload,
+  };
 }
 
 export function useTrip(id: string | undefined) {
-  const [trip, setTrip] = useState<Trip | null>(null);
-  // No id ⇒ never loading. Callers (TripDetail) always pass an id from the
-  // route, but the type stays optional to keep the hook hooks-friendly.
-  const [isLoading, setIsLoading] = useState<boolean>(() => id !== undefined);
-  const [error, setError] = useState<TripLoadError | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const { getToken, isLoaded } = useAuthState();
-  // Tracks whether we've ever loaded the trip successfully. Until then,
-  // reload() re-enters the loading state so a refetch that follows a 404 (e.g.
-  // claiming an invite, which makes a previously-hidden trip visible) shows
-  // "Loading…" rather than flashing the not-found screen. Once loaded, reloads
-  // (30s vote poll, post-mutation) refresh in the background without a flash.
-  const hasLoadedRef = useRef(false);
-
-  const reload = useCallback(() => {
-    if (!hasLoadedRef.current) setIsLoading(true);
-    setReloadKey((k) => k + 1);
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded || !id) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getToken();
-        const res = await authedFetch(
-          `/api/trips?id=${encodeURIComponent(id)}`,
-          { method: 'GET' },
-          token,
-        );
-        if (cancelled) return;
-        if (res.status === 401) {
-          setError('unauthorized');
-          setTrip(null);
-        } else if (res.status === 404) {
-          setError('not-found');
-          setTrip(null);
-        } else if (!res.ok) {
-          setError('failed');
-          setTrip(null);
-        } else {
-          setError(null);
-          setTrip((await res.json()) as Trip);
-          hasLoadedRef.current = true;
-        }
-      } catch {
-        if (!cancelled) setError('failed');
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, isLoaded, reloadKey, getToken]);
-
-  return { trip, isLoading, error, reload, setTrip };
+  // Gate on Clerk readiness (see useTripsList) — TRIP_QUERY is auth-gated.
+  const { isLoaded } = useAuthState();
+  const { data, loading, error, refetch } = useQuery(TRIP_QUERY, {
+    variables: { id: id ?? '' },
+    skip: !id || !isLoaded,
+    fetchPolicy: 'cache-and-network',
+  });
+  const trip = useMemo(
+    () => (data?.trip ? rowToTrip(data.trip) : null),
+    [data],
+  );
+  // `trip(id)` returns null (not an error) for missing/non-member trips; an
+  // anon caller gets UNAUTHENTICATED. Map both into the load-error channel.
+  const loadError: TripLoadError | null = error
+    ? tripLoadErrorFrom(error)
+    : data?.trip === null
+      ? 'not-found'
+      : null;
+  const reload = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+  return {
+    trip,
+    isLoading: !!id && (!isLoaded || (loading && !data)),
+    error: loadError,
+    reload,
+  };
 }
+
+// ---- mutations (auth injected by the Apollo link) ----
 
 export type CreateTripInput = {
   title: string;
@@ -187,34 +232,30 @@ export type CreateTripInput = {
   status?: 'voting' | 'planning';
 };
 
-async function jsonOrThrow<T>(res: Response, label: string): Promise<T> {
-  if (!res.ok) {
-    let detail = '';
-    try {
-      const body = (await res.json()) as { error?: string };
-      detail = body.error ? `: ${body.error}` : '';
-    } catch {
-      /* ignore */
-    }
-    throw new Error(`${label} failed (${res.status})${detail}`);
-  }
-  return (await res.json()) as T;
-}
-
+// Returns the new trip's id (the list query is a different type — TripListItem —
+// so we refetch `trips` rather than relying on cache merge).
 export async function createTrip(
   body: CreateTripInput,
-  token: string | null,
-): Promise<Trip> {
-  const res = await authedFetch(
-    '/api/trips',
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+): Promise<{ id: string }> {
+  const { data } = await apolloClient.mutate({
+    mutation: CREATE_TRIP,
+    variables: {
+      input: {
+        title: body.title,
+        startDate: body.start_date,
+        endDate: body.end_date,
+        description: body.description ?? null,
+        coverImageUrl: body.cover_image_url ?? null,
+        initialActivityIds: body.initial_activity_ids ?? null,
+        status: body.status ?? null,
+      },
     },
-    token,
-  );
-  return jsonOrThrow<Trip>(res, 'create trip');
+    refetchQueries: [{ query: TRIPS_QUERY }],
+    awaitRefetchQueries: true,
+  });
+  const id = data?.createTrip.trip.id;
+  if (!id) throw new Error('create trip failed');
+  return { id };
 }
 
 export type PatchTripInput = {
@@ -228,63 +269,52 @@ export type PatchTripInput = {
 export async function patchTrip(
   id: string,
   body: PatchTripInput,
-  token: string | null,
 ): Promise<void> {
-  const res = await authedFetch(
-    `/api/trips?id=${encodeURIComponent(id)}`,
-    {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'update trip');
+  // Build the patch with only the keys actually present so a displayOrder-only
+  // or cover-only edit doesn't trip status guards (absent vs null matters).
+  const patch: {
+    title?: string;
+    description?: string | null;
+    startDate?: string;
+    endDate?: string;
+    coverImageUrl?: string | null;
+  } = {};
+  if (body.title !== undefined) patch.title = body.title;
+  if (body.description !== undefined) patch.description = body.description;
+  if (body.start_date !== undefined) patch.startDate = body.start_date;
+  if (body.end_date !== undefined) patch.endDate = body.end_date;
+  if (body.cover_image_url !== undefined) patch.coverImageUrl = body.cover_image_url;
+  await apolloClient.mutate({
+    mutation: PATCH_TRIP,
+    variables: { input: { id, patch } },
+  });
 }
 
-export async function deleteTrip(
-  id: string,
-  token: string | null,
-): Promise<void> {
-  const res = await authedFetch(
-    `/api/trips?id=${encodeURIComponent(id)}`,
-    { method: 'DELETE' },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'delete trip');
+export async function deleteTrip(id: string): Promise<void> {
+  await apolloClient.mutate({
+    mutation: DELETE_TRIP,
+    variables: { input: { id } },
+  });
 }
 
 export async function addActivityToTrip(
   tripId: string,
   activityId: string,
-  token: string | null,
 ): Promise<{ alreadyOnTrip: boolean; tripPast: boolean }> {
-  const res = await authedFetch(
-    '/api/trip-activities',
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ trip_id: tripId, activity_id: activityId }),
-    },
-    token,
-  );
-  if (res.status === 409) {
-    // Both "duplicate" and "past trip" are 409. Switch on the server's
-    // `code` discriminator so wording changes don't silently flip flows.
-    let code = '';
-    try {
-      const body = (await res.json()) as { code?: string };
-      code = body.code ?? '';
-    } catch {
-      /* ignore */
-    }
-    if (code === 'trip_past') {
-      return { alreadyOnTrip: false, tripPast: true };
-    }
-    return { alreadyOnTrip: true, tripPast: false };
+  try {
+    await apolloClient.mutate({
+      mutation: ADD_TRIP_ACTIVITY,
+      variables: { input: { tripId, activityId } },
+    });
+    return { alreadyOnTrip: false, tripPast: false };
+  } catch (err) {
+    // Switch on the server's appCode discriminator so wording changes don't
+    // silently flip flows: 'trip_past' vs 'duplicate' (both were 409 in REST).
+    const appCode = appCodeOf(err);
+    if (appCode === 'trip_past') return { alreadyOnTrip: false, tripPast: true };
+    if (appCode === 'duplicate') return { alreadyOnTrip: true, tripPast: false };
+    throw err;
   }
-  await jsonOrThrow<unknown>(res, 'add activity to trip');
-  return { alreadyOnTrip: false, tripPast: false };
 }
 
 export type SlotInput = {
@@ -293,206 +323,189 @@ export type SlotInput = {
   display_order?: number;
 };
 
-export async function assignSlot(
-  taId: string,
-  slot: SlotInput,
-  token: string | null,
-): Promise<void> {
-  const res = await authedFetch(
-    `/api/trip-activities?ta_id=${encodeURIComponent(taId)}`,
-    {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(slot),
+export async function assignSlot(taId: string, slot: SlotInput): Promise<void> {
+  await apolloClient.mutate({
+    mutation: ASSIGN_SLOT,
+    variables: {
+      input: {
+        taId,
+        dayIndex: slot.day_index,
+        startTime: slot.start_time,
+        displayOrder: slot.display_order,
+      },
     },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'update slot');
+  });
 }
 
-export async function removeTripActivity(
-  taId: string,
-  token: string | null,
-): Promise<void> {
-  const res = await authedFetch(
-    `/api/trip-activities?ta_id=${encodeURIComponent(taId)}`,
-    { method: 'DELETE' },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'remove activity');
+export async function removeTripActivity(taId: string): Promise<void> {
+  await apolloClient.mutate({
+    mutation: REMOVE_TRIP_ACTIVITY,
+    variables: { input: { taId } },
+  });
 }
 
-// display_order-only PATCH for drag-reordering candidate cards during voting.
-// Unlike assignSlot it sends NO day_index/start_time, so it isn't blocked by
-// the voting-phase slot lock (#51 c8).
+// display_order-only update for drag-reordering candidate cards during voting.
+// Sends NO day_index/start_time, so it isn't blocked by the voting-phase slot
+// lock (#51 c8).
 export async function setDisplayOrder(
   taId: string,
   displayOrder: number,
-  token: string | null,
 ): Promise<void> {
-  const res = await authedFetch(
-    `/api/trip-activities?ta_id=${encodeURIComponent(taId)}`,
-    {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ display_order: displayOrder }),
-    },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'reorder candidate');
+  await apolloClient.mutate({
+    mutation: SET_DISPLAY_ORDER,
+    variables: { input: { taId, displayOrder } },
+  });
 }
 
 export async function markTripPast(
   tripId: string,
   completedActivityIds: string[],
-  token: string | null,
 ): Promise<{
   marked_past_at: number;
   completed_activity_ids: string[];
   uncompleted_activity_ids: string[];
 }> {
-  const res = await authedFetch(
-    `/api/trip-lifecycle?id=${encodeURIComponent(tripId)}&to=past`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ completed_activity_ids: completedActivityIds }),
-    },
-    token,
-  );
-  const result = await jsonOrThrow<{
-    ok: boolean;
-    marked_past_at: number;
-    completed_activity_ids: string[];
-    uncompleted_activity_ids?: string[];
-  }>(res, 'mark trip past');
-  const uncompleted = result.uncompleted_activity_ids ?? [];
-  // Mirror the server-side completion write-through into the local cache so
-  // badges on Curated / Map / Adventures update without a hard refresh.
-  // Unchecked-but-eligible activities get v=0 to override stale baselines.
-  applyCompletionMirror(result.completed_activity_ids, uncompleted);
+  const { data } = await apolloClient.mutate({
+    mutation: TRANSITION_TRIP,
+    variables: { input: { id: tripId, to: 'past', completedActivityIds } },
+  });
+  const result = data?.transitionTrip;
+  const completed = result?.completedActivityIds ?? [];
+  const uncompleted = result?.uncompletedActivityIds ?? [];
+  // Mirror the server-side completion write-through into the cache so badges on
+  // Curated / Map / Adventures update without a hard refresh.
+  applyCompletionMirror(completed, uncompleted);
   return {
-    marked_past_at: result.marked_past_at,
-    completed_activity_ids: result.completed_activity_ids,
+    marked_past_at: result?.markedPastAt
+      ? Date.parse(result.markedPastAt)
+      : Date.now(),
+    completed_activity_ids: completed,
     uncompleted_activity_ids: uncompleted,
   };
 }
 
+// Optimistic vote: surgically rewrite Trip.votes so the thumb feels instant.
+// value 0 removes the caller's vote for the candidate (no neutral row). The
+// optimisticResponse mirrors the CastVotePayload shape (incl. __typename) and
+// the cache update rewrites the cached TRIP_QUERY's votes array.
 export async function castVote(
   tripId: string,
   tripActivityId: string,
   value: -1 | 0 | 1,
-  token: string | null,
+  memberEmail: string,
 ): Promise<void> {
-  const res = await authedFetch(
-    '/api/trip-votes',
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ trip_id: tripId, trip_activity_id: tripActivityId, value }),
+  const lower = memberEmail.toLowerCase();
+  await apolloClient.mutate({
+    mutation: CAST_VOTE,
+    variables: { input: { tripId, tripActivityId, value } },
+    optimisticResponse: {
+      castVote: {
+        vote:
+          value === 0
+            ? null
+            : { __typename: 'TripVote', tripActivityId, memberEmail, value },
+      },
     },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'cast vote');
+    update(cache, { data }) {
+      const newVote = data?.castVote.vote ?? null;
+      cache.updateQuery(
+        { query: TRIP_QUERY, variables: { id: tripId } },
+        (prev) => {
+          if (!prev?.trip) return prev;
+          const others = prev.trip.votes.filter(
+            (v) =>
+              !(
+                v.tripActivityId === tripActivityId &&
+                v.memberEmail.toLowerCase() === lower
+              ),
+          );
+          const votes = newVote ? [...others, newVote] : others;
+          return { ...prev, trip: { ...prev.trip, votes } };
+        },
+      );
+    },
+  });
 }
 
 export async function transitionToPlanning(
   tripId: string,
   keptActivityIds: string[],
-  token: string | null,
 ): Promise<void> {
-  const res = await authedFetch(
-    `/api/trip-lifecycle?id=${encodeURIComponent(tripId)}&to=planning`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kept_activity_ids: keptActivityIds }),
-    },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'transition to planning');
+  await apolloClient.mutate({
+    mutation: TRANSITION_TRIP,
+    variables: { input: { id: tripId, to: 'planning', keptActivityIds } },
+  });
 }
 
-export async function revertToVoting(
-  tripId: string,
-  token: string | null,
-): Promise<void> {
-  const res = await authedFetch(
-    `/api/trip-lifecycle?id=${encodeURIComponent(tripId)}&to=voting`,
-    { method: 'POST' },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'revert to voting');
+export async function revertToVoting(tripId: string): Promise<void> {
+  await apolloClient.mutate({
+    mutation: TRANSITION_TRIP,
+    variables: { input: { id: tripId, to: 'voting' } },
+  });
 }
 
 export type UserSummary = { email: string; display_name: string | null };
 
-export async function fetchUsers(token: string | null): Promise<UserSummary[]> {
-  const res = await authedFetch('/api/users', { method: 'GET' }, token);
-  return jsonOrThrow<UserSummary[]>(res, 'fetch users');
+export async function fetchUsers(): Promise<UserSummary[]> {
+  const { data } = await apolloClient.query({
+    query: USERS_QUERY,
+    fetchPolicy: 'network-only',
+  });
+  return (data?.users ?? []).map((u) => ({
+    email: u.email,
+    display_name: u.displayName ?? null,
+  }));
 }
 
 export async function inviteMember(
   tripId: string,
   email: string,
-  token: string | null,
 ): Promise<TripInvite> {
-  const res = await authedFetch(
-    `/api/trip-membership?id=${encodeURIComponent(tripId)}`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email }),
-    },
-    token,
-  );
-  return jsonOrThrow<TripInvite>(res, 'invite member');
+  const { data } = await apolloClient.mutate({
+    mutation: INVITE_MEMBER,
+    variables: { input: { tripId, email } },
+  });
+  const invite = data?.inviteMember.invite;
+  return {
+    invite_token: invite?.inviteToken ?? '',
+    invited_email: invite?.invitedEmail ?? null,
+    invited_by_email: invite?.invitedByEmail ?? '',
+    invited_at: invite?.invitedAt ? Date.parse(invite.invitedAt) : Date.now(),
+  };
 }
 
 export async function removeMember(
   tripId: string,
   email: string,
-  token: string | null,
 ): Promise<void> {
-  const res = await authedFetch(
-    `/api/trip-membership?id=${encodeURIComponent(tripId)}&email=${encodeURIComponent(email)}`,
-    { method: 'DELETE' },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'remove member');
+  await apolloClient.mutate({
+    mutation: REMOVE_MEMBER,
+    variables: { input: { tripId, email } },
+  });
 }
 
 export async function revokeInvite(
   tripId: string,
   inviteToken: string,
-  token: string | null,
 ): Promise<void> {
-  const res = await authedFetch(
-    `/api/trip-membership?id=${encodeURIComponent(tripId)}&token=${encodeURIComponent(inviteToken)}`,
-    { method: 'DELETE' },
-    token,
-  );
-  await jsonOrThrow<unknown>(res, 'revoke invite');
+  await apolloClient.mutate({
+    mutation: REVOKE_INVITE,
+    variables: { input: { tripId, token: inviteToken } },
+  });
 }
 
 export async function claimInvite(
   inviteToken: string,
-  token: string | null,
 ): Promise<{ trip_id: string } | null> {
-  const res = await authedFetch(
-    '/api/trip-membership',
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ invite_token: inviteToken }),
-    },
-    token,
-  );
-  if (res.status === 404) return null;
-  return jsonOrThrow<{ trip_id: string }>(res, 'claim invite');
+  const { data } = await apolloClient.mutate({
+    mutation: CLAIM_INVITE,
+    variables: { input: { inviteToken } },
+  });
+  const tripId = data?.claimInvite?.tripId ?? null;
+  return tripId ? { trip_id: tripId } : null;
 }
 
-// Pure helpers usable by tests and components.
+// ---- pure helpers (unchanged; usable by tests and components) ----
 
 export function dayCount(trip: Pick<Trip, 'start_date' | 'end_date'>): number {
   const start = Date.parse(`${trip.start_date}T00:00:00Z`);

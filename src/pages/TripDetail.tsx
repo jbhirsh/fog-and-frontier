@@ -15,7 +15,7 @@ import { InviteModal } from '../components/InviteModal';
 import { ActivityDetail } from '../components/ActivityDetail';
 import type { Activity } from '../data/types';
 import { SignInButton } from '@clerk/clerk-react';
-import { useAuthState, CLERK_ENABLED } from '../lib/authShim';
+import { CLERK_ENABLED } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 import { useVisibilityInterval } from '../lib/useVisibilityInterval';
 import {
@@ -58,8 +58,7 @@ export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isLoaded: ownerLoaded, email } = useOwner();
-  const { getToken } = useAuthState();
-  const { trip, isLoading, error, reload, setTrip } = useTrip(id);
+  const { trip, isLoading, error, reload } = useTrip(id);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [editingHeader, setEditingHeader] = useState(false);
@@ -97,86 +96,63 @@ export function TripDetail() {
     claimStartedRef.current = true;
     void (async () => {
       try {
-        const token = await getToken();
-        await claimInvite(inviteToken, token);
+        await claimInvite(inviteToken);
       } catch (err) {
         console.error(err);
       } finally {
         const next = new URLSearchParams(searchParams);
         next.delete('invite');
         setSearchParams(next, { replace: true });
+        // Await the refetch before clearing the in-progress gate so the now-
+        // visible trip is loaded rather than briefly flashing not-found.
+        await reload();
         setClaimDone(true);
-        reload();
       }
     })();
-  }, [inviteToken, ownerLoaded, email, getToken, reload, searchParams, setSearchParams]);
+  }, [inviteToken, ownerLoaded, email, reload, searchParams, setSearchParams]);
 
-  const runWithToken = useCallback(
-    async (fn: (token: string | null) => Promise<unknown>) => {
+  const runAction = useCallback(
+    async (fn: () => Promise<unknown>) => {
       if (busy) return;
       setBusy(true);
       setActionError(null);
       try {
-        const token = await getToken();
-        await fn(token);
-        reload();
+        await fn();
+        await reload();
       } catch (err) {
         console.error(err);
-        // Resync on failure so a stale view corrects itself — e.g. a vote that
-        // 409s because the creator just closed voting out from under us.
+        // Resync on failure so a stale view corrects itself — e.g. an action
+        // that conflicts because the creator just changed the trip under us.
         setActionError(
           "That didn't go through — the trip may have changed. We've refreshed it.",
         );
-        reload();
+        await reload();
       } finally {
         setBusy(false);
       }
     },
-    [busy, getToken, reload],
+    [busy, reload],
   );
 
   // Poll for fresh vote tallies while voting is open (#51 c14): every 30s,
   // paused while the tab is hidden, and immediately on regaining
   // visibility/focus. reload() is the existing useTrip refetch.
-  useVisibilityInterval(reload, TALLY_REFRESH_MS, isVoting);
+  useVisibilityInterval(() => void reload(), TALLY_REFRESH_MS, isVoting);
 
-  // Optimistic voting: update the local tally immediately so the thumb feels
-  // instant, then persist in the background. No busy-guard (rapid toggles are
+  // Optimistic voting: castVote writes the optimistic vote straight into the
+  // cache (Apollo optimisticResponse + cache update) so the thumb feels
+  // instant, then persists in the background. No busy-guard (rapid toggles are
   // fine) and no full reload on success — the 30s poll reconciles other
   // members' votes. On failure, resync + surface the error.
   function handleVote(taId: string, value: -1 | 0 | 1) {
     if (!trip || !isVoting || !email) return;
-    const myEmail = email.toLowerCase();
-    setTrip((prev) => {
-      if (!prev) return prev;
-      const others = prev.votes.filter(
-        (v) =>
-          !(
-            v.trip_activity_id === taId &&
-            v.member_email.toLowerCase() === myEmail
-          ),
+    void castVote(trip.id, taId, value, email).catch((err: unknown) => {
+      console.error(err);
+      setActionError(
+        "Your vote didn't save — the trip may have changed. We've refreshed it.",
       );
-      const next =
-        value === 0
-          ? others
-          : [
-              ...others,
-              { trip_activity_id: taId, member_email: myEmail, value },
-            ];
-      return { ...prev, votes: next };
+      void reload();
     });
-    void (async () => {
-      try {
-        const token = await getToken();
-        await castVote(trip.id, taId, value, token);
-      } catch (err) {
-        console.error(err);
-        setActionError(
-          "Your vote didn't save — the trip may have changed. We've refreshed it.",
-        );
-        reload();
-      }
-    })();
   }
 
   function handleOpenActivity(a: TripActivity) {
@@ -186,15 +162,13 @@ export function TripDetail() {
   function handleFinalize(keptActivityIds: string[]) {
     if (!trip) return;
     setPromoteOpen(false);
-    void runWithToken((token) =>
-      transitionToPlanning(trip.id, keptActivityIds, token),
-    );
+    void runAction(() => transitionToPlanning(trip.id, keptActivityIds));
   }
 
   function handleRevert() {
     if (!trip) return;
     setConfirmingRevert(false);
-    void runWithToken((token) => revertToVoting(trip.id, token));
+    void runAction(() => revertToVoting(trip.id));
   }
 
   // Drag-reorder candidates during voting: rebuild the ordered id list with the
@@ -207,9 +181,9 @@ export function TripDetail() {
     if (from === -1 || to === -1) return;
     ordered.splice(from, 1);
     ordered.splice(ordered.indexOf(targetId), 0, draggedId);
-    void runWithToken(async (token) => {
+    void runAction(async () => {
       for (let i = 0; i < ordered.length; i++) {
-        await setDisplayOrder(ordered[i], i, token);
+        await setDisplayOrder(ordered[i], i);
       }
     });
   }
@@ -218,8 +192,7 @@ export function TripDetail() {
     setInviteOpen(true);
     // Lazy-load the global account list for the picker autocomplete.
     try {
-      const token = await getToken();
-      setUsers(await fetchUsers(token));
+      setUsers(await fetchUsers());
     } catch (err) {
       console.error(err);
     }
@@ -227,20 +200,19 @@ export function TripDetail() {
 
   async function handleCreateInvite(inviteEmail: string) {
     if (!trip) throw new Error('no trip');
-    const token = await getToken();
-    const invite = await inviteMember(trip.id, inviteEmail, token);
-    reload(); // surface the new pending-invite chip
+    const invite = await inviteMember(trip.id, inviteEmail);
+    await reload(); // surface the new pending-invite chip
     return { invite_token: invite.invite_token };
   }
 
   function handleRemoveMember(memberEmail: string) {
     if (!trip) return;
-    void runWithToken((token) => removeMember(trip.id, memberEmail, token));
+    void runAction(() => removeMember(trip.id, memberEmail));
   }
 
   function handleRevokeInvite(token: string) {
     if (!trip) return;
-    void runWithToken((t) => revokeInvite(trip.id, token, t));
+    void runAction(() => revokeInvite(trip.id, token));
   }
 
   function handleLeave() {
@@ -248,8 +220,7 @@ export function TripDetail() {
     const tripEmail = email;
     void (async () => {
       try {
-        const token = await getToken();
-        await removeMember(trip.id, tripEmail, token);
+        await removeMember(trip.id, tripEmail);
         void navigate('/trips');
       } catch (err) {
         console.error(err);
@@ -270,8 +241,8 @@ export function TripDetail() {
         (a) => a.day_index === dayIndex && a.id !== taId && a.start_time,
       );
       const start_time = defaultStartTimeForDay(onDay);
-      void runWithToken((token) =>
-        assignSlot(taId, { day_index: dayIndex, start_time }, token),
+      void runAction(() =>
+        assignSlot(taId, { day_index: dayIndex, start_time }),
       );
     };
   }
@@ -281,8 +252,8 @@ export function TripDetail() {
     const taId = e.dataTransfer.getData(DRAG_MIME);
     if (!taId) return;
     e.preventDefault();
-    void runWithToken((token) =>
-      assignSlot(taId, { day_index: null, start_time: null }, token),
+    void runAction(() =>
+      assignSlot(taId, { day_index: null, start_time: null }),
     );
   }
 
@@ -304,23 +275,19 @@ export function TripDetail() {
     if (!slotDialog) return;
     const taId = slotDialog.taId;
     setSlotDialog(null);
-    void runWithToken((token) =>
-      assignSlot(taId, { day_index: dayIndex, start_time: startTime }, token),
+    void runAction(() =>
+      assignSlot(taId, { day_index: dayIndex, start_time: startTime }),
     );
   }
 
   function handleMoveToUnscheduled(activity: TripActivity) {
-    void runWithToken((token) =>
-      assignSlot(
-        activity.id,
-        { day_index: null, start_time: null },
-        token,
-      ),
+    void runAction(() =>
+      assignSlot(activity.id, { day_index: null, start_time: null }),
     );
   }
 
   function handleRemove(activity: TripActivity) {
-    void runWithToken((token) => removeTripActivity(activity.id, token));
+    void runAction(() => removeTripActivity(activity.id));
   }
 
   async function handleSaveHeader(input: HeaderEditInput) {
@@ -338,7 +305,7 @@ export function TripDetail() {
       body.start_date = input.start_date;
       body.end_date = input.end_date;
     }
-    await runWithToken((token) => patchTrip(trip.id, body, token));
+    await runAction(() => patchTrip(trip.id, body));
     setEditingHeader(false);
   }
 
@@ -347,8 +314,7 @@ export function TripDetail() {
     setConfirmingDelete(false);
     void (async () => {
       try {
-        const token = await getToken();
-        await deleteTrip(trip.id, token);
+        await deleteTrip(trip.id);
         void navigate('/trips');
       } catch (err) {
         console.error(err);
@@ -359,7 +325,7 @@ export function TripDetail() {
   function handleSubmitMarkPast(ids: string[]) {
     if (!trip) return;
     setMarkPastOpen(false);
-    void runWithToken((token) => markTripPast(trip.id, ids, token));
+    void runAction(() => markTripPast(trip.id, ids));
   }
 
   if (!ownerLoaded || isLoading || claimInProgress) {

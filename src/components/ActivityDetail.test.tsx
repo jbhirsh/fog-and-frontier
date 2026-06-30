@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import type { Activity } from '../data/types';
 import { ActivityDetail } from './ActivityDetail';
@@ -271,7 +271,7 @@ describe('ActivityDetail', () => {
           expect.stringContaining('for everyone'),
         );
         await waitFor(() => {
-          expect(deleteSpy).toHaveBeenCalledWith(activity.id, null);
+          expect(deleteSpy).toHaveBeenCalledWith(activity.id);
         });
         expect(onClose).toHaveBeenCalledTimes(1);
 

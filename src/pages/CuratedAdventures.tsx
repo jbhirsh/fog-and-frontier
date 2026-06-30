@@ -11,7 +11,6 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
-import { useAuthState } from '../lib/authShim';
 import { useCatalogFilters } from '../lib/useCatalogFilters';
 import { filterByBounds, type MapBounds } from '../lib/mapBounds';
 import { useMediaQuery } from '../lib/useMediaQuery';
@@ -82,7 +81,6 @@ const PARK_TYPE_LABELS: Record<'Any' | ParkType, string> = {
 export function CuratedAdventures() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { getToken } = useAuthState();
   const incomingState = location.state as LocationState;
   const initialTarget: TargetTrip | null =
     incomingState?.target_trip_id && incomingState.target_trip_title
@@ -200,14 +198,12 @@ export function CuratedAdventures() {
     if (!targetTrip || submittingTarget) return;
     setSubmittingTarget(true);
     try {
-      const token = await getToken();
       let added = 0;
       let skipped = 0;
       for (const id of selectedForTrip) {
         const { alreadyOnTrip, tripPast } = await addActivityToTrip(
           targetTrip.id,
           id,
-          token,
         );
         if (tripPast) {
           // Trip flipped to past between the navigation and now (e.g. a

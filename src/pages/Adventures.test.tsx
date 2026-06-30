@@ -1,22 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { Activity } from '../data/types';
-import {
-  completedHike,
-  muirWoods,
-  seedActivities,
-} from '../test/fixtures';
+import { completedHike, muirWoods } from '../test/fixtures';
 
 import { Adventures } from './Adventures';
 
 function renderAdventures(list: Activity[]) {
-  seedActivities(list);
   return render(
     <MemoryRouter>
       <Adventures />
     </MemoryRouter>,
+    { activities: list },
   );
 }
 

@@ -1,9 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/clerk-react'
+import { ApolloProvider } from '@apollo/client/react'
 import './index.css'
 import App from './App.tsx'
 import { ClerkAuthProvider } from './lib/authShimClerk'
+import { apolloClient } from './lib/apolloClient'
 import { Sentry, initSentry } from './lib/sentry'
 
 initSentry()
@@ -12,14 +14,22 @@ const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
   | string
   | undefined
 
+// ApolloProvider wraps App in both paths so the data layer works whether or
+// not Clerk is configured. It sits *inside* the Clerk providers so the auth
+// bridge (ClerkAuthProvider) can register the live token getter before any
+// query fires; the no-Clerk path falls back to anonymous (no-token) requests.
+const app = (
+  <ApolloProvider client={apolloClient}>
+    <App />
+  </ApolloProvider>
+)
+
 const tree = publishableKey ? (
   <ClerkProvider publishableKey={publishableKey}>
-    <ClerkAuthProvider>
-      <App />
-    </ClerkAuthProvider>
+    <ClerkAuthProvider>{app}</ClerkAuthProvider>
   </ClerkProvider>
 ) : (
-  <App />
+  app
 )
 
 if (!publishableKey) {

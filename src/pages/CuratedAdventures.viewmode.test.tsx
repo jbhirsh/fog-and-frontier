@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { muirWoods, seedActivities } from '../test/fixtures';
+import { muirWoods } from '../test/fixtures';
 
 // Mock the map so these layout-shell tests never touch Leaflet (which doesn't
 // render in jsdom). We only care that the page mounts the map in the right
@@ -20,6 +20,7 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <CuratedAdventures />
     </MemoryRouter>,
+    { activities: [muirWoods] },
   );
 }
 
@@ -43,9 +44,6 @@ function stubViewport(isLg: boolean) {
 }
 
 describe('Curated Adventures — view modes (#93)', () => {
-  beforeEach(() => {
-    seedActivities([muirWoods]);
-  });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
