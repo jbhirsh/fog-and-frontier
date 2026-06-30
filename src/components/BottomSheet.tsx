@@ -193,7 +193,9 @@ export function BottomSheet({
         <span className="h-1.5 w-10 rounded-full bg-on-surface-variant/30" />
       </button>
       {header && <div className="shrink-0 px-gutter pb-sm">{header}</div>}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-gutter pb-md">
+      {/* pt-2 keeps the first row's card image outline from being clipped by
+          this scroll container's top edge. */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-gutter pt-2 pb-md">
         {children}
       </div>
     </section>

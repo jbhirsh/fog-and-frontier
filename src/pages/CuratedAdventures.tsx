@@ -276,12 +276,15 @@ export function CuratedAdventures() {
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  // Narrower grid in Split (the list shares the row with the map) than in the
-  // full-width List layout.
-  const gridColsClass =
+  // Grid density per layout: Split shares the row with the map; the mobile Map
+  // sheet (#96) packs compact 2-up cards over the map (a single column wasted
+  // space and pushed the map out of view); the full-width List is roomier.
+  const gridClass =
     view === 'split'
-      ? 'grid-cols-1 xl:grid-cols-2'
-      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+      ? 'gap-gutter grid-cols-1 xl:grid-cols-2'
+      : view === 'map'
+        ? 'gap-sm grid-cols-2'
+        : 'gap-sm grid-cols-2 md:gap-gutter lg:grid-cols-3';
 
   const listContent =
     visibleResults.length === 0 ? (
@@ -291,7 +294,7 @@ export function CuratedAdventures() {
           : 'No activities match those filters.'}
       </div>
     ) : (
-      <div className={`grid gap-gutter ${gridColsClass}`}>
+      <div className={`grid ${gridClass}`}>
         {visibleResults.map((a) => (
           <ActivityCard
             key={a.id}
@@ -442,7 +445,7 @@ export function CuratedAdventures() {
             <select
               value={String(maxDistance)}
               onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+              className="h-full w-full cursor-pointer appearance-none bg-transparent pl-8 pr-8 text-body-sm focus:outline-none"
             >
               {DISTANCE_OPTIONS.map((o) => (
                 <option key={o.label} value={String(o.value)}>
@@ -455,7 +458,7 @@ export function CuratedAdventures() {
             <select
               value={duration}
               onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+              className="h-full w-full cursor-pointer appearance-none bg-transparent pl-8 pr-8 text-body-sm focus:outline-none"
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={d}>
@@ -468,7 +471,7 @@ export function CuratedAdventures() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
+              className="h-full w-full cursor-pointer appearance-none bg-transparent pl-8 pr-8 capitalize text-body-sm focus:outline-none"
             >
               {CATEGORY_OPTIONS.map((c) => (
                 <option key={c} value={c} className="capitalize">
@@ -481,7 +484,7 @@ export function CuratedAdventures() {
             <select
               value={parkType}
               onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+              className="h-full w-full cursor-pointer appearance-none bg-transparent pl-8 pr-8 text-body-sm focus:outline-none"
             >
               {PARK_TYPE_OPTIONS.map((p) => (
                 <option key={p} value={p}>
@@ -784,12 +787,15 @@ function FilterPill({
   icon: string;
   children: React.ReactNode;
 }) {
+  // The icon and caret are pointer-events-none overlays and the <select> fills
+  // the whole pill (h-full w-full, padded to clear them), so a tap anywhere on
+  // the pill — not just the text — opens the dropdown.
   return (
-    <label className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40">
+    <label className="relative inline-flex h-9 shrink-0 items-center rounded-full border border-outline-variant bg-surface-container-lowest text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40">
       {/* Fixed-size icon box: clips the Material Symbols ligature so a missing
           icon font (the visual tests stub it) can't blow out the chip width. */}
       <span
-        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
+        className="material-symbols-outlined pointer-events-none absolute left-sm inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
         style={{ fontSize: 18, width: 18, height: 18 }}
         aria-hidden="true"
       >
@@ -799,7 +805,7 @@ function FilterPill({
       {/* Custom caret — the native select arrow is removed via appearance-none
           so the chip reads cleanly; this keeps the dropdown affordance. */}
       <span
-        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
+        className="material-symbols-outlined pointer-events-none absolute right-sm inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
         style={{ fontSize: 18, width: 18, height: 18 }}
         aria-hidden="true"
       >

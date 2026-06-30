@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
@@ -65,6 +65,10 @@ export function ActivityCard({
   const completed = isEffectivelyCompleted(activity, overrides);
   const cover =
     showUserPhotoCount && photos.length > 0 ? photos[0] : activity.coverImage;
+  // Some catalog cover URLs are dead (separate data issue, #36/#68). Fall back
+  // to a category glyph on the placeholder surface instead of the browser's
+  // broken-image icon.
+  const [coverFailed, setCoverFailed] = useState(false);
 
   const distanceLabel =
     miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
@@ -125,12 +129,25 @@ export function ActivityCard({
               : 'outline-0'
           }`}
         >
-          <img
-            alt=""
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
-            src={cover}
-            loading="lazy"
-          />
+          {cover && !coverFailed ? (
+            <img
+              alt=""
+              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
+              src={cover}
+              loading="lazy"
+              onError={() => setCoverFailed(true)}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-surface-variant text-on-surface-variant/40">
+              <span
+                className="material-symbols-outlined"
+                aria-hidden="true"
+                style={{ fontSize: 44 }}
+              >
+                {cat.icon}
+              </span>
+            </div>
+          )}
           {/* Category tag — frosted pill, navy label, accent icon. */}
           <span className="absolute top-sm left-sm inline-flex h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm backdrop-blur-sm font-label-caps text-label-caps text-primary">
             <span
@@ -180,8 +197,8 @@ export function ActivityCard({
         {/* Body sits on the page background — no card surface. Flex column so
             the meta row pins to the bottom and rows stay equal height. */}
         <div className="flex flex-1 flex-col px-xs pt-sm">
-          <div className="flex items-center justify-between gap-sm">
-            <h3 className="min-w-0 flex-1 truncate text-[16px] font-semibold tracking-[-0.015em] text-on-surface group-hover:text-primary-container transition-colors">
+          <div className="flex items-start justify-between gap-sm">
+            <h3 className="min-w-0 flex-1 line-clamp-2 text-[14px] font-semibold tracking-[-0.015em] text-on-surface transition-colors group-hover:text-primary-container md:text-[16px]">
               {activity.name}
             </h3>
             {activity.allTrailsRating != null && (
@@ -197,10 +214,10 @@ export function ActivityCard({
               </span>
             )}
           </div>
-          <p className="mt-xs line-clamp-1 text-body-sm text-on-surface-variant">
+          <p className="mt-xs line-clamp-2 text-[13px] text-on-surface-variant md:text-body-sm">
             {activity.shortDescription}
           </p>
-          <div className="mt-auto flex flex-wrap items-center gap-sm pt-sm text-body-sm text-on-surface-variant">
+          <div className="mt-auto flex flex-wrap items-center gap-x-sm gap-y-xs pt-sm text-[13px] text-on-surface-variant md:text-body-sm">
             <span className="flex items-center gap-xs">
               <span
                 className="material-symbols-outlined"
@@ -210,16 +227,6 @@ export function ActivityCard({
                 schedule
               </span>
               {activity.duration}
-            </span>
-            <span className="flex items-center gap-xs">
-              <span
-                className="material-symbols-outlined"
-                aria-hidden="true"
-                style={{ fontSize: 17 }}
-              >
-                location_on
-              </span>
-              {distanceLabel}
             </span>
             {activity.dogFriendly && (
               <span className="flex items-center gap-xs">
@@ -233,6 +240,17 @@ export function ActivityCard({
                 Dog OK
               </span>
             )}
+            {/* Distance is pinned to the right edge of the meta row. */}
+            <span className="ml-auto flex items-center gap-xs">
+              <span
+                className="material-symbols-outlined"
+                aria-hidden="true"
+                style={{ fontSize: 17 }}
+              >
+                location_on
+              </span>
+              {distanceLabel}
+            </span>
           </div>
         </div>
       </button>
