@@ -104,6 +104,14 @@ export function BottomSheet({
 
   function handlePointerDown(event: React.PointerEvent) {
     if (typeof window === 'undefined') return;
+    // Capture the pointer so the drag keeps tracking as the finger leaves the
+    // grabber and the browser doesn't reinterpret the touch as a scroll.
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture unavailable (e.g. jsdom); the window listeners below
+      // still drive the gesture.
+    }
     // Reset up front: a prior *drag* may have set this without a trailing click
     // to clear it (touch drags ending off the grabber don't synthesize one), and
     // a stale `true` would otherwise swallow this gesture's tap.
@@ -182,13 +190,16 @@ export function BottomSheet({
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
+      {/* Full-width, generously tall grab strip so the whole top of the sheet
+          is draggable — the little pill alone was too small a target to hit,
+          especially on touch. */}
       <button
         type="button"
         aria-label={`Resize list, currently ${snap}. Tap to cycle peek, half, full.`}
         onPointerDown={handlePointerDown}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        className="flex shrink-0 cursor-grab touch-none flex-col items-center pt-sm pb-xs active:cursor-grabbing"
+        className="flex w-full shrink-0 cursor-grab touch-none flex-col items-center pt-sm pb-sm active:cursor-grabbing"
       >
         <span className="h-1.5 w-10 rounded-full bg-on-surface-variant/30" />
       </button>
