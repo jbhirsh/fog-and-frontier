@@ -155,6 +155,19 @@ export function BottomSheet({
     window.addEventListener('pointercancel', onUp);
   }
 
+  // The header row is also a drag handle (bigger target), but taps on the
+  // controls inside it (Hide map / Clear) must still work — so bail out of
+  // starting a drag when the gesture begins on an interactive element.
+  function handleHeaderPointerDown(event: React.PointerEvent) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('button, a, select, input, textarea, [role="button"]')
+    ) {
+      return;
+    }
+    handlePointerDown(event);
+  }
+
   function handleClick() {
     // Swallow the click that terminates a real drag; a true tap cycles.
     if (suppressClickRef.current) {
@@ -190,20 +203,27 @@ export function BottomSheet({
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      {/* Full-width, generously tall grab strip so the whole top of the sheet
-          is draggable — the little pill alone was too small a target to hit,
-          especially on touch. */}
+      {/* Full-width, ~48px-tall grab bar (Apple's min touch target) so the whole
+          top of the sheet is an easy drag/tap target — the little pill alone was
+          far too small to hit, especially on touch. */}
       <button
         type="button"
         aria-label={`Resize list, currently ${snap}. Tap to cycle peek, half, full.`}
         onPointerDown={handlePointerDown}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        className="flex w-full shrink-0 cursor-grab touch-none flex-col items-center pt-sm pb-sm active:cursor-grabbing"
+        className="flex min-h-12 w-full shrink-0 cursor-grab touch-none flex-col items-center justify-center active:cursor-grabbing"
       >
         <span className="h-1.5 w-10 rounded-full bg-on-surface-variant/30" />
       </button>
-      {header && <div className="shrink-0 px-gutter pb-sm">{header}</div>}
+      {header && (
+        <div
+          onPointerDown={handleHeaderPointerDown}
+          className="shrink-0 cursor-grab touch-none px-gutter pb-sm active:cursor-grabbing"
+        >
+          {header}
+        </div>
+      )}
       {/* pt-2 keeps the first row's card image outline from being clipped by
           this scroll container's top edge. */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-gutter pt-2 pb-md">
