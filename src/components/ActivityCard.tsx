@@ -240,7 +240,10 @@ export function ActivityCard({
                 >
                   pets
                 </span>
-                Dog OK
+                {/* Icon-only on the narrow 2-up mobile cards so it doesn't push
+                    the distance onto a second line; label shows at sm+ and is
+                    always read by screen readers. */}
+                <span className="sr-only sm:not-sr-only">Dog OK</span>
               </span>
             )}
             {/* Distance is pinned to the right edge of the meta row. */}
@@ -276,7 +279,12 @@ export function ActivityCard({
               >
                 check_circle
               </span>
-              <span className="font-label-caps text-label-caps">COMPLETED</span>
+              {/* Icon-only on the narrow 2-up mobile cards so the badge doesn't
+                  collide with the top-left category tag; label shows at sm+ and
+                  is always read by screen readers. */}
+              <span className="sr-only font-label-caps text-label-caps sm:not-sr-only">
+                COMPLETED
+              </span>
             </div>
           )}
           {actionSlot}
