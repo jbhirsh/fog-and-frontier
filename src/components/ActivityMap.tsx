@@ -131,7 +131,9 @@ export function ActivityMap({
   return (
     <div
       className={`relative isolate h-full w-full overflow-hidden ${
-        fullBleed ? '' : 'rounded-xl border border-outline-variant/30 shadow-sm'
+        fullBleed
+          ? 'leaflet-fullbleed'
+          : 'rounded-xl border border-outline-variant/30 shadow-sm'
       }`}
     >
       <MapContainer
@@ -142,7 +144,7 @@ export function ActivityMap({
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
-        <MapZoomControls />
+        <MapZoomControls topInset={fullBleed ? 68 : 12} />
         {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
         <Marker
           position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
@@ -200,7 +202,9 @@ export function ActivityMap({
           );
         })}
       </MapContainer>
-      <MapLegend />
+      {/* In full-bleed (mobile map) the sheet covers the bottom, so lift the
+          legend above the sheet's peek height. */}
+      <MapLegend bottomInset={fullBleed ? 124 : 12} />
     </div>
   );
 }
@@ -251,10 +255,10 @@ function BoundsWatcher({
 // z-index for the same reason MapZoomControls does: Leaflet's unlayered CSS
 // would otherwise beat Tailwind v4's layered utilities. Sits bottom-left, clear
 // of Leaflet's bottom-right attribution and the top-right zoom controls.
-function MapLegend() {
+function MapLegend({ bottomInset = 12 }: { bottomInset?: number }) {
   return (
     <div
-      style={{ position: 'absolute', left: 12, bottom: 12, zIndex: 1000 }}
+      style={{ position: 'absolute', left: 12, bottom: bottomInset, zIndex: 1000 }}
       className="flex items-center gap-md rounded-lg border border-white/50 bg-white/70 px-sm py-xs text-body-sm text-on-surface shadow-md backdrop-blur-sm"
     >
       <LegendDot color={COLORS.home} label="Home" />

@@ -143,3 +143,13 @@ body {
      horizontal scroll. */
   overflow-x: hidden;
 }
+
+/* Full-bleed (mobile map, #96): the list sheet covers the bottom ~7rem even at
+   its peek snap, so lift Leaflet's own bottom controls — the required CARTO/OSM
+   tile attribution — above it. The extra `.leaflet-fullbleed` class out-specifies
+   Leaflet's unlayered `.leaflet-bottom { bottom: 0 }`, so no layer/!important
+   needed. Only clears the peek height; when the user expands the sheet the map
+   is secondary and the attribution rides under it. */
+.leaflet-fullbleed .leaflet-bottom {
+  bottom: calc(7rem + 8px);
+}

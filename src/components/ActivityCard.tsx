@@ -67,8 +67,11 @@ export function ActivityCard({
     showUserPhotoCount && photos.length > 0 ? photos[0] : activity.coverImage;
   // Some catalog cover URLs are dead (separate data issue, #36/#68). Fall back
   // to a category glyph on the placeholder surface instead of the browser's
-  // broken-image icon.
-  const [coverFailed, setCoverFailed] = useState(false);
+  // broken-image icon. Track the *failed URL* (not a boolean) so a later cover
+  // change — e.g. a newly-added user photo under `showUserPhotoCount` — isn't
+  // hidden by a stale failure of the previous URL.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showCover = !!cover && failedSrc !== cover;
 
   const distanceLabel =
     miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
@@ -117,7 +120,7 @@ export function ActivityCard({
         // body column shrinks to its content and a long title overflows the
         // card, overlapping the neighbour. Chromium stretches by default, which
         // is why this only reproduces in Safari. Forcing stretch keeps the body
-        // at the card width so the title's `truncate` can take effect.
+        // at the card width so the title's `line-clamp` can take effect.
         className="group flex h-full w-full flex-col items-stretch text-left focus:outline-none"
       >
         {/* Image-led cover. Selected/focus states live on the image, not a
@@ -129,13 +132,13 @@ export function ActivityCard({
               : 'outline-0'
           }`}
         >
-          {cover && !coverFailed ? (
+          {showCover ? (
             <img
               alt=""
               className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
               src={cover}
               loading="lazy"
-              onError={() => setCoverFailed(true)}
+              onError={() => setFailedSrc(cover)}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-surface-variant text-on-surface-variant/40">

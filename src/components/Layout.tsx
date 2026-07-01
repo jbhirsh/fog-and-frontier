@@ -36,6 +36,11 @@ export function Layout() {
   const { pathname } = useLocation();
   const q = params.get('q') ?? '';
   const showSearch = pathname === '/';
+  // On the mobile map view (#96) the map is a full-screen backdrop, so the tall
+  // wrapping header (search + nav rows) would bury its top strip and controls.
+  // Collapse to a slim brand·auth bar below `lg`; the desktop map keeps the full
+  // header (it isn't full-bleed).
+  const isMobileMapView = pathname === '/' && params.get('view') === 'map';
 
   function handleChange(next: string) {
     setParams(
@@ -67,7 +72,9 @@ export function Layout() {
             <form
               role="search"
               onSubmit={(e) => e.preventDefault()}
-              className="order-3 md:order-2 w-full md:w-[min(42vw,520px)]"
+              className={`order-3 md:order-2 w-full md:w-[min(42vw,520px)] ${
+                isMobileMapView ? 'hidden lg:block' : ''
+              }`}
             >
               <label className="flex items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest pl-gutter pr-xs py-xs shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
                 <span className="material-symbols-outlined text-outline">
@@ -97,7 +104,11 @@ export function Layout() {
             </form>
           )}
 
-          <nav className="order-4 md:order-3 w-full md:w-auto md:ml-auto flex items-center justify-center md:justify-end gap-x-sm text-body-sm whitespace-nowrap">
+          <nav
+            className={`order-4 md:order-3 w-full md:w-auto md:ml-auto flex items-center justify-center md:justify-end gap-x-sm text-body-sm whitespace-nowrap ${
+              isMobileMapView ? 'hidden lg:flex' : ''
+            }`}
+          >
             <NavLink to="/" end className={navClass}>
               Curated
             </NavLink>

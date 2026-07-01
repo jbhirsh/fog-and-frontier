@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useMediaQuery } from '../lib/useMediaQuery';
 
 /**
  * The three rest positions of the mobile map's draggable list sheet (#96),
@@ -92,6 +93,7 @@ export function BottomSheet({
   // pointerup on the grabber doesn't also fire the tap-to-cycle.
   const suppressClickRef = useRef(false);
   const [dragging, setDragging] = useState(false);
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   // Live pixel height while dragging; `null` falls back to the snap's CSS height.
   const [liveH, setLiveH] = useState<number | null>(null);
   const liveHRef = useRef<number | null>(null);
@@ -104,6 +106,9 @@ export function BottomSheet({
 
   function handlePointerDown(event: React.PointerEvent) {
     if (typeof window === 'undefined') return;
+    // Ignore extra fingers: a second pointerdown mid-drag would bind a duplicate
+    // window listener set (double-firing onSnapChange) and orphan the first.
+    if (dragRef.current) return;
     // Capture the pointer so the drag keeps tracking as the finger leaves the
     // grabber and the browser doesn't reinterpret the touch as a scroll.
     try {
@@ -197,9 +202,10 @@ export function BottomSheet({
       className="fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl"
       style={{
         height: liveH != null ? `${liveH}px` : SNAP_CSS[snap],
-        transition: dragging
-          ? 'none'
-          : 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+        transition:
+          dragging || reduceMotion
+            ? 'none'
+            : 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >

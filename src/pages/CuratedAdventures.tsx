@@ -155,6 +155,8 @@ export function CuratedAdventures() {
   const mobileMap = view === 'map' && !isLg;
   // Start the mobile map's list sheet collapsed so the map is the prominent
   // surface on entry (the user tapped "Show map"); they drag it up to browse.
+  // Re-collapsed on each "Show map" tap (see the FAB) so a prior full-height
+  // drag doesn't carry over and bury the map next time.
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
 
   // Free-text search now lives in the global header (#4 mockup) and is shared
@@ -386,7 +388,12 @@ export function CuratedAdventures() {
     <div className="flex items-center justify-between gap-sm">
       <button
         type="button"
-        onClick={() => setView('list')}
+        // Drop the map-driven viewport filter on exit — a full-width list
+        // shouldn't stay silently narrowed to a map the user can no longer see.
+        onClick={() => {
+          clearBounds();
+          setView('list');
+        }}
         className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
       >
         <span
@@ -671,7 +678,10 @@ export function CuratedAdventures() {
       {!isLg && view === 'list' && !selectionMode && !selected && !adding && (
         <button
           type="button"
-          onClick={() => setView('map')}
+          onClick={() => {
+            setSheetSnap('peek');
+            setView('map');
+          }}
           aria-label="Show map"
           className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90"
         >

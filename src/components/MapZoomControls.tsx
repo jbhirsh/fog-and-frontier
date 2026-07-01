@@ -5,7 +5,10 @@ import L from 'leaflet';
 // Custom frosted zoom controls, replacing Leaflet's default `zoomControl`. The
 // MapContainer is mounted with `zoomControl={false}` and renders this as a
 // child so `useMap()` has the map in context. Shared across every map. See #88.
-export function MapZoomControls() {
+//
+// `topInset` pushes the controls down when the map is a full-screen backdrop
+// under the slim app header (mobile map mode, #96), so they aren't buried.
+export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
   const map = useMap();
   const ref = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(() => map.getZoom());
@@ -32,7 +35,7 @@ export function MapZoomControls() {
       // Positioning is inline (not Tailwind utilities) on purpose: Leaflet's
       // stylesheet is imported unlayered, and unlayered rules beat Tailwind v4's
       // layered utilities, so a layered `absolute`/`z-` would lose. Inline wins.
-      style={{ position: 'absolute', right: 12, top: 12, zIndex: 1000 }}
+      style={{ position: 'absolute', right: 12, top: topInset, zIndex: 1000 }}
       className="flex flex-col overflow-hidden rounded-lg border border-white/50 bg-white/70 shadow-md backdrop-blur-sm"
     >
       <button
