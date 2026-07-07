@@ -1,124 +1,138 @@
-# Fog and Frontier
+# Fog & Frontier
 
-Bay Area activities tracker. React + Vite app deployed on Vercel, with serverless
-API routes in `api/` and a Turso-hosted libsql database.
+**A full-stack map-based tracker for Bay Area adventures — hikes, food, scenic
+drives, and culture — with collaborative trip planning and AI-assisted
+discovery.**
 
-## Local development
+🌉 **Live demo: [fog-and-frontier.vercel.app](https://fog-and-frontier.vercel.app)**
+
+React 19 + Vite front end · a single consolidated Apollo GraphQL serverless
+function · Turso (libSQL) edge database · Clerk auth · Leaflet maps · Sentry
+observability · Vitest + Playwright in CI.
+
+![Split view — curated list alongside an interactive Leaflet map](docs/screenshots/home-split.png)
+
+## What it does
+
+Fog & Frontier is a curated catalog of Bay Area outdoor activities you can browse,
+map, filter, and plan trips around.
+
+- **Browse & filter** a catalog of curated adventures — filter by distance from
+  home, duration, category (hiking, cycling, water, food, culture, scenic,
+  climbing, camping), park designation, and dog-friendliness. Results are sorted
+  by distance.
+- **Three synced views** — a segmented **List · Split · Map** toggle. Split view
+  puts the catalog next to a live map; panning/zooming narrows the list to
+  what's in view ("Showing N in this area"), and hovering a card highlights its
+  map pin and vice-versa.
+- **Interactive map** — Leaflet with a CARTO Positron basemap and custom circular
+  glyph pins colored by completion status (to-do / completed) and iconed by
+  category.
+- **Activity detail** — rich detail cards with AllTrails ratings, trail
+  stats, park type, and per-activity user photo uploads.
+- **Trip planning** — create a trip, invite members, shortlist activities, and
+  **vote**; trips move through a `voting → planning → past` lifecycle with a
+  day-by-day itinerary (day index, start time, ordering).
+- **AI discovery ("Explore")** — pick a date window (today / tomorrow / this
+  weekend / next 7 days) and Google Gemini searches for local events to do.
+- **Owner-gated editing** — add / edit / delete / mark-complete are gated to
+  owners, **enforced server-side** (the client gate is a UI hint only).
+
+## Screenshots
+
+| Full-screen map | Activity detail |
+| --- | --- |
+| ![Full map view with category glyph pins across the Bay Area](docs/screenshots/map.png) | ![Activity detail modal with AllTrails rating and completion badge](docs/screenshots/activity-detail.png) |
+
+**AI-assisted "Explore" — pick a date window and let Gemini find local events:**
+
+![Explore — Gemini-powered event discovery by date window](docs/screenshots/explore.png)
+
+| Mobile list | Mobile map |
+| --- | --- |
+| <img src="docs/screenshots/mobile-list.png" alt="Mobile list view" width="270"> | <img src="docs/screenshots/mobile-map.png" alt="Mobile map view" width="270"> |
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| **Front end** | React 19, Vite 8, TypeScript, React Router 7, Tailwind CSS v4 |
+| **Maps** | Leaflet + react-leaflet, CARTO Positron basemap |
+| **Data layer** | Apollo Client 4, GraphQL, `graphql-codegen` (typed operations) |
+| **API** | Apollo Server 5 on Express 5, one Vercel serverless function |
+| **Database** | Turso / libSQL edge database (`@libsql/client`) |
+| **Auth** | Clerk (`@clerk/clerk-react` + `@clerk/backend`) |
+| **AI** | Google Gemini (event discovery + activity generation) |
+| **Observability** | Sentry (`@sentry/react`) with source-map upload; structured serverless logging |
+| **Testing / CI** | Vitest (unit), Playwright (visual regression), GitHub Actions |
+| **Hosting** | Vercel |
+
+## Engineering highlights
+
+A few things in here worth a closer look:
+
+- **Schema-first GraphQL, one function.** Eleven REST endpoints were consolidated
+  behind a single Apollo Server handler (`api/graphql.ts`) to stay under Vercel
+  Hobby's 12-function cap — schema in `api/_schema.ts`, resolvers in
+  `api/_resolvers/*`, typed end-to-end via `graphql-codegen`.
+- **Auth you can't bypass from the client.** `requireOwner` (Clerk) gates every
+  mutation and paid AI call server-side; the client `useOwner()` hook only
+  decides what to *render*.
+- **A production safety net born from an outage.** Earlier work shipped a bug that
+  404'd the API and blanked the CSS in prod. The response — a **smoke gate**
+  (canary checks against the real Vercel deployment, including detection of
+  Vercel's no-build cached stubs) and **Playwright visual-regression** on desktop
+  and mobile — is documented in [`PLAN.md`](./PLAN.md).
+- **A strict, type-checked lint setup with a no-suppressions rule.** ESLint runs
+  with type-aware rules, `jsx-a11y`, and import-cycle detection, and the project
+  forbids `eslint-disable` / `@ts-ignore` outright. The debugging notes from
+  honoring that rule live in [`CALIBER_LEARNINGS.md`](./CALIBER_LEARNINGS.md).
+- **Privacy-conscious observability.** Sentry runs with `sendDefaultPii: false`,
+  scrubs query strings from breadcrumbs and events, uploads hidden source maps to
+  de-minify stack traces, and deletes them from the public bundle at build time.
+
+## Getting started
 
 ```sh
-npm ci --legacy-peer-deps   # ESLint 10 has peer-range mismatches with some plugins
-npm run dev                  # vite, port 5173 by default
+npm ci --legacy-peer-deps    # ESLint 10 peer-range mismatches
+npm run dev                  # Vite dev server on http://localhost:5173
 ```
 
-For routes that hit `/api/*`, use `vercel dev` (or set `DEV_DB_PATH` to a local
-SQLite snapshot — see `scripts/snapshot-prod-db.mjs`).
+`npm run dev` serves the UI on port 5173 and needs no secrets to boot. The client
+calls the GraphQL API at the relative path `/api/graphql`, so to develop against
+live data run `vercel dev` (which serves the serverless function) with a
+`.env.local` — see [`CONTRIBUTING.md`](./CONTRIBUTING.md). With no Clerk key set,
+auth falls back to a public, signed-out mode (owner-only editing controls are
+hidden).
 
-## Lint, type-check, build, test
+Common scripts:
 
-| Command                  | What it does                                                 |
-| ------------------------ | ------------------------------------------------------------ |
-| `npm run lint`           | `eslint .` + `stylelint src/**/*.css` (CI gate)              |
-| `npm run lint:js`        | ESLint only                                                  |
-| `npm run lint:css`       | Stylelint only                                               |
-| `npm run lint:fix`       | Auto-fixers for both (review diff before committing CSS — see below) |
-| `npm run typecheck`      | `tsc -b` against `app`, `node`, and `api` projects           |
-| `npm run build`          | `lint` → `typecheck` → `vite build`                          |
-| `npm run test`           | Vitest unit tests                                            |
-| `npm run test:visual`    | Playwright visual regression against `vite preview`          |
+```sh
+npm run lint         # ESLint + Stylelint
+npm run typecheck    # tsc -b (app + node + api projects)
+npm run test         # Vitest unit tests
+npm run test:visual  # Playwright visual regression
+npm run build        # lint → typecheck → vite build
+```
 
-ESLint is type-checked (`tseslint.configs.recommendedTypeChecked`) with
-`jsx-a11y`, `import/no-cycle`, `no-floating-promises`, and `no-misused-promises`
-enabled. Per project policy, **no rule suppressions** — fix the underlying code
-when ESLint flags something. Three TS projects feed the type-aware rules:
+For the full developer guide — architecture, the three-tsconfig layout, the
+Sentry/observability wiring, CI details, and the lint policy — see
+[`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
-- `tsconfig.app.json` — `src/**/*.{ts,tsx}` (DOM + vitest)
-- `tsconfig.api.json` — `api/**/*.ts` (Node, no DOM)
-- `tsconfig.node.json` — `vite.config.ts`, tooling
+## Project structure
 
-### CSS caveat — don't blindly `--fix`
+```
+src/            React app — pages/, components/, lib/ (hooks + data layer), gql/ (generated)
+api/            Apollo GraphQL serverless function — _schema.ts, _resolvers/*, _auth.ts, _db.ts
+scripts/        DB snapshot / seed / migration helpers, CI smoke script
+tests/visual/   Playwright visual-regression specs + baselines
+docs/           Screenshots
+```
 
-`src/index.css` uses Tailwind v4's `@theme` / `@utility` / `@layer` directives.
-Stylelint is intentionally configured with only `stylelint-config-recommended`
-(structural rules), not the stylistic `--standard` preset, because a prior
-auto-fix pass on this file produced broken output in production (see PLAN.md).
-If you run `lint:fix`, eyeball the CSS diff and verify the built CSS in
-`dist/assets/*.css` against the visual regression suite before merging.
+## About
 
-## Architecture notes
-
-- API handlers use Node-style `(req, res)` signatures (`@vercel/node`). Web-API
-  style hangs in `vercel dev`.
-- libsql row values are typed as `InValue` (a union including binary/Date). When
-  reading the `id` column, narrow with `typeof === 'string' | 'number' | 'bigint'`
-  before stringifying — don't `String(row.id)`, which can drop rows or stringify
-  Buffers to `"[object ArrayBuffer]"`.
-- Owner-gated routes live behind `requireOwner` in `api/_auth.ts` (Clerk).
-  Client-side, `useOwner()` is a UI hint only — the server is the gate.
-
-## Production error monitoring (issue #20)
-
-Two layers, both off-by-default for local dev:
-
-- **Serverless** — `api/_log.ts` wraps every `api/*.ts` handler in
-  `withErrorLogging`. Unhandled throws and explicit 5xx branches emit a
-  single-line JSON entry to stderr (`{ level, source, ts, route, method,
-  status, err }`) so Vercel Observability can filter by route/status.
-  Request bodies and the `Authorization` header are never logged; the Gemini
-  API key only lives in outgoing URLs, which are not logged.
-- **Client** — `src/lib/sentry.ts` initializes `@sentry/react` when
-  `VITE_SENTRY_DSN` is present. `Sentry.ErrorBoundary` wraps the React tree
-  in `src/main.tsx`. URL query strings are stripped from breadcrumbs and the
-  event request URL as defense-in-depth (`scrubBreadcrumb` / `scrubEvent`).
-  `sendDefaultPii: false` — no IP, no cookies, no user emails.
-- **Tracing** — `Sentry.reactRouterV7BrowserTracingIntegration` captures
-  page-load + route-change transactions through `BrowserRouter`. `App.tsx`
-  wraps `Routes` with `Sentry.withSentryReactRouterV7Routing` so spans use
-  parameterised path names (e.g. `/explore`) rather than concrete URLs.
-  Sample rate is 10% in production (free-tier quota) and 100% in
-  preview/dev for easier debugging.
-
-### Env vars
-
-| Var                          | Where                                | Purpose                                                                                              |
-| ---------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `VITE_SENTRY_DSN`            | Vercel (all envs)                    | Enables browser Sentry. Omit to disable (local dev).                                                  |
-| `SENTRY_AUTH_TOKEN`          | Vercel (build env, all)              | Lets `@sentry/vite-plugin` upload source maps + register releases. Token needs `project:releases`.    |
-| `VITE_VERCEL_ENV`            | Vite-injected from `VERCEL_ENV`      | `production` / `preview` / `development` → Sentry environment tag. Wired in `vite.config.ts` define. |
-| `VITE_VERCEL_GIT_COMMIT_SHA` | Vite-injected from build env         | Tagged as Sentry release so frames symbolicate to the right upload. Wired in `vite.config.ts` define. |
-
-### Source-map upload (de-minified stack traces)
-
-`vite.config.ts` registers `sentryVitePlugin` whenever `SENTRY_AUTH_TOKEN` is
-set. Build flow:
-
-1. Vite emits hidden source maps (`build.sourcemap: 'hidden'`) — the JS bundle
-   carries no `//# sourceMappingURL` comment, so browsers never fetch the maps.
-2. The Sentry plugin uploads the `.map` files to Sentry, tagged with the
-   release (the Vercel commit SHA).
-3. `filesToDeleteAfterUpload` removes the `.map` files from `dist/` before
-   Vercel publishes the build — maps live on Sentry only, not on the public CDN.
-
-To create the auth token: *Sentry → Settings → Auth Tokens → Create New Token →
-scope `project:releases`*.
-
-### GitHub ↔ Sentry source linking (one-time)
-
-The Sentry GitHub integration ties stack frames to source on `main`. To set up:
-
-1. *Sentry → Settings → Integrations → GitHub* — install the app on
-   `jbhirsh/fog-and-frontier` (or "All repositories"). Verify on
-   *github.com/settings/installations*.
-2. *Sentry GitHub integration → Configurations → Code Mappings* — add
-   `fog_and_frontier` project, repo `jbhirsh/fog-and-frontier`, branch `main`,
-   source root `./`. Stack trace root depends on what frames look like after
-   source-map upload (typically `~/` for Vite browser builds).
-
-Once mapped, issue stack frames link directly to source on GitHub and the
-Sentry-bot leaves PR comments when a PR touches code with open issues.
-
-### Weekly digest / alerts (acceptance criterion)
-
-- **Vercel** — configure under *Project → Observability → Alerts* to email on
-  5xx-rate spikes from `/api/*`.
-- **Sentry** — *Project Settings → Alerts → Issue Owners* + the default weekly
-  digest email cover "what broke this week" without a manual sweep.
+A personal project built and maintained with a
+[Claude Code](https://claude.com/claude-code) workflow — see
+[`CLAUDE.md`](./CLAUDE.md) for the working conventions and
+[`CALIBER_LEARNINGS.md`](./CALIBER_LEARNINGS.md) for accumulated engineering
+notes.
