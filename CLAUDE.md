@@ -6,12 +6,13 @@ Guidance for Claude Code working in this repo.
 
 **Fog and Frontier** — a personal West Coast adventures app. Vite + React 19 + TypeScript on the front end, Vercel serverless functions in `api/`, Turso (libSQL) for persistence, Clerk for auth, Leaflet for maps.
 
-Not a Next.js project. Not Edge runtime. API handlers are Node-style `(req, res)` in `api/*.ts`.
+Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel serverless function** — `api/graphql.ts`, an Apollo Server on Express (issue #91) — with the schema in `api/_schema.ts` and resolvers in `api/_resolvers/*`. The `api/_*.ts` files are its helpers, not separate functions. New function-style handlers, if any, must be Node-style `(req, res)`.
 
 ## Scripts
 
 - `npm run dev` — Vite dev server. For full-stack local dev (API + client) use `vercel dev`.
-- `npm run build` — `tsc -b && vite build`.
+- `npm run build` — `lint`, then `tsc -b`, then `vite build`.
+- `npm run codegen` — `graphql-codegen` → typed GraphQL operations in `src/gql/`.
 - `npm run lint` — ESLint flat config.
 - `npm test` / `test:watch` / `test:coverage` — Vitest.
 - `npm run test:visual` — Playwright visual regression.
@@ -20,7 +21,7 @@ Not a Next.js project. Not Edge runtime. API handlers are Node-style `(req, res)
 ## Layout
 
 - `src/` — React app. `src/pages/`, `src/components/`, `src/lib/`, `src/data/types.ts` (Activity model).
-- `api/` — Vercel functions. `_auth.ts` has `requireOwner` (Clerk-backed server gate). `_db.ts` is the Turso client.
+- `api/` — the GraphQL function. `graphql.ts` is the handler; `_schema.ts` is the SDL; `_resolvers/*` implement it. `_auth.ts` has `requireOwner` (Clerk-backed server gate); `_db.ts` is the Turso client.
 - `public/` — static assets.
 - `scripts/` — DB / migration helpers (Node, `--experimental-strip-types` for `.mts/.ts`).
 - `tests/` — Playwright visual specs. Unit tests live next to source as `*.test.ts(x)`.
