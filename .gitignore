@@ -62,3 +62,6 @@ fog-and-frontier/
 # Planning scratch (not committed)
 PLAN_*.md
 .env*
+
+# Eval output (regenerate with npm run eval)
+eval/results.json

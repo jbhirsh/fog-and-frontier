@@ -1,0 +1,74 @@
+name: Gemini eval
+
+# Output-quality eval for the Gemini resolver (issue #122). Makes 22 paid
+# resolver calls plus up to 16 LLM-judge calls (~38 gemini-2.5-flash calls
+# worst case) per run, so it only runs on PRs that touch the resolver,
+# its schema, or the eval harness itself — plus manual dispatch. No schedule
+# (paid calls). Skips green on forks / when the secret is unset.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/_resolvers/gemini.ts'
+      - 'api/_schema.ts'
+      # The harness also depends on the context shape and the exact error
+      # codes/messages these two define (classifyGeminiError matches them).
+      - 'api/_gqlContext.ts'
+      - 'api/_gqlError.ts'
+      - 'eval/**'
+      - '.github/workflows/eval.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    # Secrets can't be referenced in `if:` conditions, so surface the key as a
+    # job-level env var and gate the paid steps on a step output derived from it.
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Check for GEMINI_API_KEY
+        id: key
+        shell: bash
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GEMINI_API_KEY not available (fork or secret unset) — skipping output-quality eval."
+          fi
+
+      - name: Checkout
+        if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        if: steps.key.outputs.present == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install deps
+        if: steps.key.outputs.present == 'true'
+        run: npm ci --legacy-peer-deps
+
+      - name: Run output-quality eval
+        if: steps.key.outputs.present == 'true'
+        run: npm run eval
+
+      - name: Upload eval results
+        if: always() && steps.key.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.run_id }}
+          path: eval/results.json
+          retention-days: 14

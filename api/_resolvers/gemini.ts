@@ -15,6 +15,35 @@ const ROUTE = '/api/graphql';
 
 // --- generateActivity ------------------------------------------------------
 
+// Legal value sets for ACTIVITY_SCHEMA's enum fields. Exported so the eval
+// harness (eval/, issue #122) grades against the same source of truth instead
+// of a drifting copy; referencing them below serializes identically to the
+// previous inline arrays.
+export const CATEGORY_VALUES = [
+  'hiking', 'cycling', 'water', 'food', 'culture',
+  'scenic', 'climbing', 'camping', 'other',
+] as const;
+export const REGION_VALUES = [
+  'sf', 'north-bay', 'east-bay', 'south-bay', 'peninsula',
+  'central-coast', 'norcal', 'socal', 'oregon', 'washington',
+] as const;
+export const PARK_TYPE_VALUES = [
+  'national', 'state', 'regional', 'county', 'city', 'private', 'none',
+] as const;
+export const DURATION_VALUES = [
+  '1-2 Hours', '2-3 Hours', 'Half Day', 'Full Day', 'Weekend', 'Multi-Day',
+] as const;
+export const DIFFICULTY_VALUES = ['easy', 'moderate', 'advanced'] as const;
+export const PRICE_RANGE_VALUES = ['$', '$$', '$$$', '$$$$'] as const;
+
+// ACTIVITY_SCHEMA's required-field list, hoisted for the same reason as the
+// enum arrays above: the eval harness grades required-field presence and must
+// not drift from what the schema actually demands of the model.
+export const ACTIVITY_REQUIRED_FIELDS = [
+  'name', 'shortDescription', 'longDescription', 'category', 'region',
+  'city', 'lat', 'lng', 'duration', 'difficulty', 'dogFriendly',
+] as const;
+
 const ACTIVITY_SCHEMA = {
   type: 'object',
   properties: {
@@ -30,21 +59,15 @@ const ACTIVITY_SCHEMA = {
     },
     category: {
       type: 'string',
-      enum: [
-        'hiking', 'cycling', 'water', 'food', 'culture',
-        'scenic', 'climbing', 'camping', 'other',
-      ],
+      enum: CATEGORY_VALUES,
     },
     region: {
       type: 'string',
-      enum: [
-        'sf', 'north-bay', 'east-bay', 'south-bay', 'peninsula',
-        'central-coast', 'norcal', 'socal', 'oregon', 'washington',
-      ],
+      enum: REGION_VALUES,
     },
     parkType: {
       type: 'string',
-      enum: ['national', 'state', 'regional', 'county', 'city', 'private', 'none'],
+      enum: PARK_TYPE_VALUES,
       description:
         'Land/park designation that manages the site (e.g. a state park, county park, GGNRA = national). Omit if the activity is not in a park.',
     },
@@ -53,13 +76,13 @@ const ACTIVITY_SCHEMA = {
     lng: { type: 'number' },
     duration: {
       type: 'string',
-      enum: ['1-2 Hours', '2-3 Hours', 'Half Day', 'Full Day', 'Weekend', 'Multi-Day'],
+      enum: DURATION_VALUES,
     },
     durationDetail: {
       type: 'string',
       description: 'Optional travel/time hint, e.g. "~1h drive each way"',
     },
-    difficulty: { type: 'string', enum: ['easy', 'moderate', 'advanced'] },
+    difficulty: { type: 'string', enum: DIFFICULTY_VALUES },
     dogFriendly: { type: 'boolean' },
     hikeDistanceMiles: { type: 'number' },
     hikeElevationFeet: { type: 'number' },
@@ -74,7 +97,7 @@ const ACTIVITY_SCHEMA = {
     },
     priceRange: {
       type: 'string',
-      enum: ['$', '$$', '$$$', '$$$$'],
+      enum: PRICE_RANGE_VALUES,
       description: 'Restaurants only: rough cost tier. Omit for non-restaurants.',
     },
     hours: {
@@ -103,10 +126,7 @@ const ACTIVITY_SCHEMA = {
         'Practical tips: parking, fees, dog rules, best season — keep terse',
     },
   },
-  required: [
-    'name', 'shortDescription', 'longDescription', 'category', 'region',
-    'city', 'lat', 'lng', 'duration', 'difficulty', 'dogFriendly',
-  ],
+  required: ACTIVITY_REQUIRED_FIELDS,
 };
 
 // Non-null scalar fields of `GeneratedActivity` (api/_schema.ts) that are sourced

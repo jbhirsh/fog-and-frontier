@@ -105,6 +105,36 @@ export default defineConfig([
     },
   },
 
+  // Gemini output-quality eval harness (issue #122). Node lib, no DOM, no JSX.
+  // Type-aware via tsconfig.eval.json. Mirrors the api/**/*.ts block.
+  {
+    files: ['eval/**/*.ts'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
+      importPlugin.flatConfigs.recommended,
+      importPlugin.flatConfigs.typescript,
+    ],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        project: ['./tsconfig.eval.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    settings: {
+      'import/resolver': {
+        // eval/*.ts imports siblings with a `.js` extension (NodeNext-style),
+        // which the TS resolver handles automatically.
+        typescript: { project: './tsconfig.eval.json' },
+      },
+    },
+    rules: {
+      'import/no-cycle': ['error', { ignoreExternal: true }],
+      'import/no-named-as-default-member': 'off',
+    },
+  },
+
   // Tooling config files. Node globals, but not type-aware — these files aren't
   // part of any tsconfig include and don't need cross-file project analysis.
   {
