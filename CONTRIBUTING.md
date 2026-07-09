@@ -29,7 +29,7 @@ Turso. Copy `.env.local.example` to `.env.local` and fill in the keys you need.
 | `npm run lint:js`        | ESLint only                                                           |
 | `npm run lint:css`       | Stylelint only                                                        |
 | `npm run lint:fix`       | Auto-fixers for both (review the CSS diff before committing — see below) |
-| `npm run typecheck`      | `tsc -b` across the `app`, `node`, and `api` projects                 |
+| `npm run typecheck`      | `tsc -b` across the `app`, `node`, `api`, and `eval` projects         |
 | `npm run codegen`        | `graphql-codegen` → typed operations in `src/gql/`                    |
 | `npm run build`          | `lint` → `tsc -b` → `vite build`                                      |
 | `npm run test`           | Vitest unit tests                                                     |
@@ -44,14 +44,15 @@ enabled. **Per project policy there are no rule suppressions** — no
 config to make a violation pass. Fix the underlying code instead. (Many of the
 type-level fixes this policy forced are written up in `CALIBER_LEARNINGS.md`.)
 
-### Three TypeScript projects
+### Four TypeScript projects
 
-`tsc -b` builds three referenced projects (`tsconfig.json` is the solution file)
+`tsc -b` builds four referenced projects (`tsconfig.json` is the solution file)
 so the type-aware ESLint rules get correct lib/DOM types per surface:
 
 - `tsconfig.app.json` — `src/**/*.{ts,tsx}` (DOM + Vitest globals)
 - `tsconfig.api.json` — `api/**/*.ts` (Node, no DOM; `strict`)
 - `tsconfig.node.json` — `vite.config.ts` and tooling
+- `tsconfig.eval.json` — `eval/**/*.ts` (Node; the Gemini output-quality harness)
 
 > Gotcha: a Vercel build can fail with `TS2550: Property 'cause' does not exist on
 > type 'Error'` even when a clean local `tsc -b` passes, because Vercel builds from

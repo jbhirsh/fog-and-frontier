@@ -1,0 +1,554 @@
+{
+  "_meta": {
+    "status": "DRAFT — pending owner review",
+    "coordinateSources": "each case's notes field cites its authority",
+    "authoredAt": "2026-07-09"
+  },
+  "cases": [
+    {
+      "id": "gen-alamere-falls",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Alamere Falls hike"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "hiking",
+          "scenic"
+        ],
+        "region": [
+          "north-bay"
+        ],
+        "parkType": [
+          "national"
+        ],
+        "geo": {
+          "lat": 37.934,
+          "lng": -122.7468,
+          "toleranceKm": 15
+        }
+      },
+      "notes": "Point Reyes National Seashore (north Marin). Coords centered on the Palomarin trailhead (NPS Palomarin Trailhead page, 37.934/-122.7468); the falls themselves sit ~4 km NW (NPS Alamere Falls page, 37.9537/-122.7835), so a 15 km tolerance covers whichever point the model returns. parkType national = National Seashore. City intentionally omitted (Bolinas vs Point Reyes Station vs 'Point Reyes' all defensible). Source: nps.gov/pore; as of 2026-07-09."
+    },
+    {
+      "id": "gen-elkhorn-slough-kayak",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Kayaking Elkhorn Slough"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "water"
+        ],
+        "region": [
+          "central-coast"
+        ],
+        "city": [
+          "Moss Landing"
+        ],
+        "geo": {
+          "lat": 36.8,
+          "lng": -121.7841,
+          "toleranceKm": 12
+        }
+      },
+      "notes": "Elkhorn Slough paddling launches from the Moss Landing North Harbor. Coords: Moss Landing / Elkhorn Slough kayak launch (paddling.com location + elkhornslough.org visit/recreation, ~36.800/-121.784). parkType omitted — the launch is a working harbor, not clearly 'in a park' (Elkhorn Slough is a state ecological reserve / National Estuarine Research Reserve; the model may reasonably omit it). As of 2026-07-09."
+    },
+    {
+      "id": "gen-mission-peak",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Mission Peak hike"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "hiking"
+        ],
+        "region": [
+          "east-bay"
+        ],
+        "parkType": [
+          "regional"
+        ],
+        "city": [
+          "Fremont",
+          "Milpitas"
+        ],
+        "geo": {
+          "lat": 37.5044,
+          "lng": -121.9083,
+          "toleranceKm": 12
+        }
+      },
+      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09."
+    },
+    {
+      "id": "gen-lands-end",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Lands End trail, San Francisco"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "hiking",
+          "scenic"
+        ],
+        "region": [
+          "sf"
+        ],
+        "parkType": [
+          "national"
+        ],
+        "city": [
+          "San Francisco"
+        ],
+        "geo": {
+          "lat": 37.786,
+          "lng": -122.5033,
+          "toleranceKm": 10
+        }
+      },
+      "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09."
+    },
+    {
+      "id": "gen-big-basin",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Big Basin Redwoods hike"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "hiking"
+        ],
+        "region": [
+          "south-bay",
+          "central-coast",
+          "peninsula"
+        ],
+        "parkType": [
+          "state"
+        ],
+        "geo": {
+          "lat": 37.1723,
+          "lng": -122.2225,
+          "toleranceKm": 20
+        }
+      },
+      "notes": "Big Basin Redwoods STATE Park, Santa Cruz Mountains → parkType state. Region is genuinely ambiguous (Santa Cruz Mtns read as south-bay, peninsula, or central-coast depending on framing) — that ambiguity is deliberate, so all three are accepted. Coords: park HQ, 21600 Big Basin Way, Boulder Creek (37.1723/-122.2225; parks.ca.gov/bigbasin + Wikipedia infobox). 20 km tolerance because trailheads span a large park. City omitted (Boulder Creek vs 'Big Basin'). As of 2026-07-09. Owner-verified addition (2026-07-09): the park runs a post-CZU-fire day-use parking reservation system — reservations are ENCOURAGED but not required ($8 reserved incl. $2 fee, limited first-come-first-served $10; bicycle/bus arrivals exempt). Source: parks.ca.gov/post/49. Descriptions mentioning day-use/advance parking reservations are factual, not fabricated."
+    },
+    {
+      "id": "gen-muir-woods",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Muir Woods"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "hiking",
+          "scenic"
+        ],
+        "region": [
+          "north-bay"
+        ],
+        "parkType": [
+          "national"
+        ],
+        "geo": {
+          "lat": 37.897,
+          "lng": -122.5817,
+          "toleranceKm": 10
+        }
+      },
+      "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.897/-122.5817 (Wikipedia infobox / NPS). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09."
+    },
+    {
+      "id": "gen-duartes-tavern",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Duarte's Tavern, Pescadero"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "restaurantFields": true,
+        "category": [
+          "food"
+        ],
+        "region": [
+          "peninsula",
+          "central-coast"
+        ],
+        "city": [
+          "Pescadero"
+        ],
+        "geo": {
+          "lat": 37.252,
+          "lng": -122.3824,
+          "toleranceKm": 10
+        }
+      },
+      "notes": "Historic tavern at 202 Stage Rd, Pescadero → category food, restaurantFields (cuisine + priceRange must be present). No parkType (restaurant, per the system prompt's 'omit for non-park' rule). Region ambiguous: coastal San Mateo County reads as peninsula or central-coast, both accepted. Coords: 37.252/-122.3824 (Wikipedia 'Duarte's Tavern' + Yelp address). As of 2026-07-09. Owner-verified addition (2026-07-09): founded 1894 by Portuguese immigrant Frank Duarte as a saloon/barbershop; restaurant era dates to the 1930s (reopened 1935 after Prohibition; Emma Duarte began the pie-making tradition then). Famous for artichoke soup and olallieberry pie; James Beard America's Classics award 2003; run by the fourth Duarte generation. Sources: duartestavern.com history page, Wikipedia, NPR (2009). Descriptions citing the 1894 founding or the since-the-1930s restaurant era are factual, not fabricated."
+    },
+    {
+      "id": "gen-17-mile-drive",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "17-Mile Drive"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "scenic"
+        ],
+        "region": [
+          "central-coast"
+        ],
+        "city": [
+          "Pebble Beach",
+          "Monterey",
+          "Pacific Grove"
+        ],
+        "geo": {
+          "lat": 36.5848,
+          "lng": -121.9651,
+          "toleranceKm": 20
+        }
+      },
+      "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the three towns the loop touches. As of 2026-07-09."
+    },
+    {
+      "id": "gen-cannon-beach",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Cannon Beach, Oregon"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "scenic",
+          "hiking",
+          "water",
+          "other"
+        ],
+        "region": [
+          "oregon"
+        ],
+        "city": [
+          "Cannon Beach"
+        ],
+        "geo": {
+          "lat": 45.8917,
+          "lng": -123.9615,
+          "toleranceKm": 15
+        }
+      },
+      "notes": "Coastal Oregon beach town (Haystack Rock). region oregon is explicitly in-scope per the system prompt. category left generous — a beach town legitimately reads as scenic, hiking, water, or other. Coords: town center 45.8917/-123.9615 (Haystack Rock sits ~1 km SW at 45.8844/-123.9684). Source: latitude.to Cannon Beach OR + Wikipedia Haystack Rock; as of 2026-07-09."
+    },
+    {
+      "id": "gen-castle-rock-bouldering",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Bouldering at Castle Rock State Park"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "climbing"
+        ],
+        "region": [
+          "south-bay",
+          "peninsula",
+          "central-coast"
+        ],
+        "parkType": [
+          "state"
+        ],
+        "city": [
+          "Los Gatos",
+          "Saratoga"
+        ],
+        "geo": {
+          "lat": 37.2316,
+          "lng": -122.1169,
+          "toleranceKm": 15
+        }
+      },
+      "notes": "Castle Rock STATE Park on the Skyline crest → parkType state, category climbing (sandstone bouldering). Region ambiguous across the Santa Cruz Mtns crest (south-bay / peninsula / central-coast) — all accepted. Coords: 37.2316/-122.1169, 15000 Skyline Blvd (Wikipedia 'Castle Rock State Park (California)'). Mailing city is Los Gatos; the park is between Los Gatos and Saratoga, so both accepted. As of 2026-07-09."
+    },
+    {
+      "id": "gen-pinnacles-camping",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Camping at Pinnacles National Park"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "camping"
+        ],
+        "region": [
+          "central-coast"
+        ],
+        "parkType": [
+          "national"
+        ],
+        "geo": {
+          "lat": 36.4932,
+          "lng": -121.1463,
+          "toleranceKm": 20
+        }
+      },
+      "notes": "Pinnacles National Park → parkType national, category camping. Coords centered on Pinnacles Campground (east side, 5000 Hwy 146, Paicines: 36.4932/-121.1463, Recreation.gov #234015 / nps.gov/pinn). 20 km tolerance covers both the east (Paicines) and west (Soledad) approaches. City omitted (Paicines vs 'Pinnacles'). Region central-coast (San Benito/Monterey county). As of 2026-07-09."
+    },
+    {
+      "id": "gen-ggb-sausalito-bike",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Golden Gate Bridge to Sausalito bike ride"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "cycling"
+        ],
+        "region": [
+          "sf",
+          "north-bay"
+        ],
+        "geo": {
+          "lat": 37.8199,
+          "lng": -122.4787,
+          "toleranceKm": 12
+        }
+      },
+      "notes": "Classic bike ride across the Golden Gate Bridge into Sausalito → category cycling. Region ambiguous: starts in SF, ends in Marin (north-bay), so both accepted. Coords centered on the Golden Gate Bridge (37.8199/-122.4787, Wikipedia); Sausalito (37.8591/-122.4853) sits ~4.9 km N, inside the 12 km tolerance. parkType + city omitted (route spans two cities and GGNRA land). As of 2026-07-09."
+    },
+    {
+      "id": "gen-nonsense",
+      "feature": "generateActivity",
+      "kind": "adversarial",
+      "input": {
+        "title": "xqzzt blorf paddleworth ceremony"
+      },
+      "expect": {
+        "graceful": {
+          "allowedErrors": [
+            "BAD_GATEWAY"
+          ],
+          "ifReturned": null
+        }
+      },
+      "expectedFailure": {
+        "reason": "ACTIVITY_SCHEMA forces all required fields with no refusal affordance, so the model fabricates a record for nonsense input; known gap, candidate follow-up issue"
+      },
+      "notes": "Pure-nonsense title with no real-world referent. The IDEAL behavior is to refuse (surface BAD_GATEWAY via the parity guard), so ifReturned=null means 'returning any object at all fails'. But the responseSchema marks name/category/region/lat/lng/etc. as required with no 'unknown' escape hatch, so gemini-2.5-flash almost always hallucinates a plausible-looking Bay Area record instead of erroring — hence expectedFailure. A predicted failure scores as pass and is reported as a KNOWN FINDING; an unexpected pass (the model learned to refuse) flags that the golden set needs review. No coordinates to cite. As of 2026-07-09."
+    },
+    {
+      "id": "gen-out-of-region",
+      "feature": "generateActivity",
+      "kind": "adversarial",
+      "input": {
+        "title": "Red Rocks Amphitheatre concert, Denver"
+      },
+      "expect": {
+        "graceful": {
+          "allowedErrors": [
+            "BAD_GATEWAY"
+          ],
+          "ifReturned": {
+            "geo": {
+              "lat": 39.6655,
+              "lng": -105.2058,
+              "toleranceKm": 30
+            }
+          }
+        }
+      },
+      "notes": "A real, unambiguous place far outside the app's West-Coast scope. The model may either decline (BAD_GATEWAY) or resolve it — but if it resolves it, the coordinates must be HONEST Colorado, not a fabricated Bay Area stand-in. Coords: Red Rocks Amphitheatre, Morrison CO (39.6655/-105.2058, Wikipedia 'Red Rocks Amphitheatre'), ~16 km SW of Denver. No region expectation: every legal REGION_VALUES enum is wrong for Colorado, so grading region would be unfair. 30 km tolerance. As of 2026-07-09."
+    },
+    {
+      "id": "gen-vague",
+      "feature": "generateActivity",
+      "kind": "adversarial",
+      "input": {
+        "title": "something fun outside idk"
+      },
+      "expect": {
+        "graceful": {
+          "allowedErrors": [
+            "BAD_GATEWAY"
+          ],
+          "ifReturned": {
+            "judgeRealPlace": true
+          }
+        }
+      },
+      "notes": "Maximally vague prompt. Declining (BAD_GATEWAY) is acceptable; so is resolving it into a concrete activity — but if it resolves, the judge must confirm it named a REAL place whose coordinates are internally consistent (not an invented location). No fixed coordinates to cite — the judge verifies whatever the model returns. As of 2026-07-09."
+    },
+    {
+      "id": "disc-weekend",
+      "feature": "discover",
+      "kind": "happy",
+      "input": {
+        "range": "weekend"
+      },
+      "expect": {
+        "structural": {
+          "minEvents": 3,
+          "maxEvents": 14,
+          "minFieldCoverage": 0.8
+        },
+        "datesWithinRange": true,
+        "dedupe": true,
+        "judgeEvents": {
+          "minPlausibleFraction": 0.8
+        }
+      },
+      "notes": "Live Google-Search-grounded events for 'this weekend' near Los Gatos. Results are date-dependent and non-deterministic, so this is graded structurally (event count 3–14 — the prompt asks for 6–12, the bounds allow slack — ≥80% of events carry name+startDate+sourceUrl), by date-window overlap (±1 day slack), by name-dedupe, and by an LLM judge requiring ≥80% plausible events. No coordinates. As of 2026-07-09."
+    },
+    {
+      "id": "disc-week",
+      "feature": "discover",
+      "kind": "happy",
+      "input": {
+        "range": "week"
+      },
+      "expect": {
+        "structural": {
+          "minEvents": 3,
+          "maxEvents": 14,
+          "minFieldCoverage": 0.8
+        },
+        "datesWithinRange": true,
+        "dedupe": true,
+        "judgeEvents": {
+          "minPlausibleFraction": 0.8
+        }
+      },
+      "notes": "Live events for 'the next 7 days' near Los Gatos. Same structural + date-window + dedupe + judge grading as the other discover cases; results are live-web and date-dependent. No coordinates. As of 2026-07-09."
+    },
+    {
+      "id": "disc-today",
+      "feature": "discover",
+      "kind": "happy",
+      "input": {
+        "range": "today"
+      },
+      "expect": {
+        "structural": {
+          "minEvents": 3,
+          "maxEvents": 14,
+          "minFieldCoverage": 0.8
+        },
+        "datesWithinRange": true,
+        "dedupe": true,
+        "judgeEvents": {
+          "minPlausibleFraction": 0.8
+        }
+      },
+      "notes": "Live events for 'today' near Los Gatos — the tightest window, so the most likely of the three to legitimately return few results; minEvents=3 is a lenient floor. Graded structurally + date-window + dedupe + judge. No coordinates. As of 2026-07-09."
+    },
+    {
+      "id": "at-mission-peak",
+      "feature": "alltrailsLookup",
+      "kind": "happy",
+      "input": {
+        "url": "https://www.alltrails.com/trail/us/california/mission-peak-loop-from-stanford-avenue-staging-area"
+      },
+      "expect": {
+        "lookup": {
+          "hikeDistanceMiles": {
+            "min": 4.5,
+            "max": 8.5
+          },
+          "hikeElevationFeet": {
+            "min": 1500,
+            "max": 2700
+          },
+          "allTrailsRating": {
+            "min": 4,
+            "max": 5,
+            "nullable": true
+          }
+        }
+      },
+      "notes": "Real AllTrails page — the slug 'mission-peak-loop-from-stanford-avenue-staging-area' appears verbatim in AllTrails' own search-result listing ('11,586 Reviews'). Published stats: ~6.1 mi, ~2,145 ft gain, 4.7★. Bounds widened generously (distance 4.5–8.5, elevation 1500–2700) so trailhead-vs-route rounding still passes; rating nullable because the model may decline to state it. Source: AllTrails search snippet; as of 2026-07-09."
+    },
+    {
+      "id": "at-alamere-falls",
+      "feature": "alltrailsLookup",
+      "kind": "happy",
+      "input": {
+        "url": "https://www.alltrails.com/trail/us/california/alamere-falls-via-coast-trail-from-palomarin-trailhead"
+      },
+      "expect": {
+        "lookup": {
+          "hikeDistanceMiles": {
+            "min": 11,
+            "max": 16
+          },
+          "hikeElevationFeet": {
+            "min": 900,
+            "max": 2600
+          },
+          "allTrailsRating": {
+            "min": 4,
+            "max": 5,
+            "nullable": true
+          }
+        }
+      },
+      "notes": "Real AllTrails page — the slug 'alamere-falls-via-coast-trail-from-palomarin-trailhead' appears verbatim in AllTrails' own search-result listing ('5,257 Reviews'). Published stats: 13.7 mi round trip, ~1,900 ft gain, 4.8★. Bounds set generously (distance 11–16, elevation 900–2600) to absorb source variance in the reported gain; rating nullable. Source: AllTrails search snippet; as of 2026-07-09."
+    },
+    {
+      "id": "at-unknown-trail",
+      "feature": "alltrailsLookup",
+      "kind": "adversarial",
+      "input": {
+        "url": "https://www.alltrails.com/trail/us/california/zzzz-nonexistent-trail-xq"
+      },
+      "expect": {
+        "graceful": {
+          "allNull": true,
+          "allowedErrors": [
+            "BAD_GATEWAY"
+          ]
+        }
+      },
+      "notes": "Syntactically valid alltrails.com URL (passes the resolver's host regex, so it DOES reach the paid call) but a fabricated, non-existent trail slug. Nothing is verifiable, so the honest outcome is all-null lookup fields, or a clean upstream BAD_GATEWAY — both accepted. No coordinates. As of 2026-07-09."
+    },
+    {
+      "id": "at-not-alltrails",
+      "feature": "alltrailsLookup",
+      "kind": "adversarial",
+      "input": {
+        "url": "https://example.com/not-a-trail"
+      },
+      "expect": {
+        "graceful": {
+          "allowedErrors": [
+            "BAD_USER_INPUT"
+          ]
+        }
+      },
+      "notes": "Non-AllTrails URL. The resolver's `/^https?:\\/\\/(www\\.)?alltrails\\.com\\//` guard rejects it with badInput BEFORE any paid Gemini call, so this is fully deterministic — BAD_USER_INPUT is the only acceptable outcome. No coordinates. As of 2026-07-09."
+    }
+  ]
+}

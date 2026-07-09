@@ -23,7 +23,8 @@
     "db:backfill-park-types": "node --experimental-strip-types scripts/backfill-park-types.mjs",
     "db:backfill-restaurant-info": "node --experimental-strip-types scripts/backfill-restaurant-info.mjs",
     "test:visual": "playwright test",
-    "test:visual:update": "playwright test --update-snapshots"
+    "test:visual:update": "playwright test --update-snapshots",
+    "eval": "TZ=America/Los_Angeles tsx eval/run-eval.ts"
   },
   "dependencies": {
     "@apollo/client": "^4.2.3",
@@ -76,6 +77,7 @@
     "stylelint": "^17.11.0",
     "stylelint-config-recommended": "^18.0.0",
     "tailwindcss": "^4.2.4",
+    "tsx": "^4.23.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
