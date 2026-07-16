@@ -7,6 +7,13 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  # Run GitHub's bundled JavaScript actions (claude-code-action et al.) on the
+  # Node 24 runtime instead of the deprecated default.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Least-privilege default for the test job below; the review job widens its own
+# scope where it genuinely needs pull-requests/issues write.
 permissions:
   contents: read
 
@@ -46,3 +53,165 @@ jobs:
       # a warm local build hides) before merge, not after deploy.
       - name: Build
         run: npx vite build
+
+      # Hard cap on the app bundle. The build is not code-split, so the whole
+      # client ships in a single dist/assets/index-*.js — currently ~816 KiB
+      # (835,854 bytes). 1,050,000 leaves ~25% headroom for incremental growth
+      # (new routes/components, a dep bump) without letting a size regression
+      # slip in unnoticed. BSD stat first (local macOS), GNU stat fallback (CI).
+      - name: Bundle size budget
+        run: |
+          main_size=$(stat -f%z dist/assets/index-*.js 2>/dev/null || stat -c%s dist/assets/index-*.js)
+          max=1050000
+          if [ "$main_size" -gt "$max" ]; then
+            echo "::error::Main bundle exceeds budget: $main_size > $max bytes"
+            exit 1
+          fi
+          echo "Bundle size OK: $main_size / $max bytes"
+
+      # Fail the PR on known high/critical vulnerabilities in the code that
+      # actually ships. Scoped to production deps and high+ severity — a
+      # personal repo shouldn't block on moderate dev-dependency churn, which
+      # Dependabot handles on its own cadence.
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+  review:
+    name: Claude Review
+    needs: test
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Let the AI review run on Dependabot's dependency-bump PRs. Without
+          # this, claude-code-action refuses to run for the bot actor and fails
+          # with "Workflow initiated by non-human actor: dependabot (type: Bot)".
+          # Allow-list only this one trusted bot rather than "*".
+          allowed_bots: "dependabot[bot]"
+          prompt: |
+            Review this pull request for correctness, bugs, and adherence to
+            the project's engineering conventions. This is "Fog and Frontier",
+            a personal West Coast adventures app: Vite + React 19 + TypeScript
+            on the front end, a single Vercel serverless function in `api/`
+            (`api/graphql.ts` — an Apollo Server on Express, schema in
+            `api/_schema.ts`, resolvers in `api/_resolvers/*`), Turso (libSQL)
+            for persistence, and Clerk for auth.
+
+            ## Code review focus
+
+            Flag issues in these areas:
+              - Logic errors and edge cases in resolvers, reducers, and pure
+                utilities.
+              - Type safety and null/undefined handling (strict TypeScript).
+              - React pitfalls (stale closures, effect deps, unnecessary
+                re-renders, missing keys).
+              - GraphQL: resolver/schema mismatches; operations that weren't
+                re-`codegen`'d after a schema change (the typed output in
+                `src/gql/` is generated from `api/_schema.ts` and must not
+                drift).
+              - Accessibility regressions in new UI.
+
+            ## Engineering conventions to enforce
+
+            Treat violations of these as review issues and flag them inline:
+
+            **Auth model (critical — get this right):**
+              - The server gate is `requireOwner` in `api/_auth.ts`. Any
+                mutating endpoint or paid/external call (e.g. Gemini) MUST be
+                guarded by it server-side. `useOwner()` in `src/lib/useOwner.ts`
+                is a UI hint ONLY — never the real authorization. Flag any
+                mutating resolver path that reaches a write or paid call
+                without `requireOwner`, and flag any code that treats the
+                client-side owner check as if it were enforcement.
+
+            **Role-gated UI (hide, don't grey out):**
+              - Owner-guarded *mutating* controls (add / edit / delete / other
+                writes) must be **hidden** from non-owners — gate the JSX on
+                `isOwner` (e.g. `{isOwner && <button …/>}`). Flag any
+                owner-gated write control rendered as `disabled={!isOwner}` or
+                with a "Sign in to edit"-style tooltip; that convention was
+                deliberately reversed (hide, don't grey).
+              - *Reads* stay visible to everyone; only the write affordance
+                inside them is hidden.
+              - Do NOT flag sign-in-gated CTAs (any-visitor "Sign in to…"
+                prompts) or trip-creator-gated controls — those are different
+                gates and keep their existing disabled+tooltip presentation.
+
+            **Testing:**
+              - Every new resolver, reducer, or pure util must have a unit test
+                (Vitest + RTL). Flag any new resolver / reducer / utility
+                without a corresponding test.
+              - Tests must be pure logic or RTL — no real network, DB, or
+                browser. Flag tests that hit a live service.
+              - A multi-write DB path must be a single batched write; the test
+                should assert one `db().batch(stmts, 'write')` (see
+                `transitionToPast` / `createTrip` / `patchTrip`). Flag
+                multi-write resolvers that issue separate writes instead of one
+                batch, or that lack the single-batch assertion.
+              - NEVER modify a test to make it pass — the fix belongs in the
+                implementation. If a PR changes an assertion to match new
+                (possibly-wrong) behavior instead of fixing the code, flag it.
+
+            **TypeScript / ESLint:**
+              - All new code must be typed (strict mode).
+              - NEVER use inline `// eslint-disable-*`, `@ts-ignore`,
+                `@ts-expect-error`, or a rule downgrade in config to make a
+                violation pass. If a rule genuinely needs relaxing it must be a
+                narrow, file-scoped override in `eslint.config.js` with a
+                comment explaining why. Flag any inline suppression as a
+                blocking issue.
+
+            **Commit hygiene (inspect `git log` on the PR branch):**
+              - Each commit subject should be imperative and ≤72 chars, with a
+                blank line and a body explaining *why* (not *what*).
+              - Commits authored with Claude should end with a
+                `Co-Authored-By:` trailer.
+              - "Fix X" / "oops" / "typo" commits should be squashed into the
+                feature commit they patch before the PR is opened or updated.
+                CI/infra/workflow fixes are exempt. Flag a visible debugging
+                trail.
+              - No merge commits on the branch — history should be linear
+                (rebase, not merge). Flag any merge commits.
+
+            **Scope:**
+              - The PR should do one thing. Flag unrelated refactors, drive-by
+                formatting changes, or new abstractions the task doesn't need.
+              - Don't add error handling or fallbacks for scenarios that can't
+                happen. Only validate at system boundaries.
+
+            **Security / safety:**
+              - Flag any committed secrets, API keys, or `.env` files.
+              - Flag use of `git add -A` or `--no-verify` patterns if visible
+                in commit messages or scripts.
+              - DO NOT flag floating GitHub Action version tags
+                (e.g. `@v5`, `@v1`) as a supply-chain risk or suggest pinning
+                to commit SHAs. The maintainer has accepted this trade-off and
+                prefers automatic patch/minor updates.
+
+            ## Output format
+
+            For every issue you find on a specific line, call the
+            `mcp__github_inline_comment__create_inline_comment` tool to leave
+            an inline comment anchored to that line. Do not summarize findings
+            in a single top-level comment — use inline comments so each issue
+            is anchored to the relevant code. Only use a top-level summary for
+            overall impressions. Skip style nits already enforced by
+            ESLint/Prettier. Be concise.
+          classify_inline_comments: "true"
+          show_full_output: "true"
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Read,Grep,Glob,Bash(gh:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git blame:*),Bash(git rev-parse:*),Bash(git branch:*),Bash(git ls-files:*),mcp__github_inline_comment__create_inline_comment"
