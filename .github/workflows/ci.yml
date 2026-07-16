@@ -33,5 +33,16 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm test
+      # The typed GraphQL operations in src/gql/ are generated from the SDL in
+      # api/_schema.ts. Regenerate and fail if the checked-in output drifts, so
+      # a schema change that wasn't re-codegen'd can't merge.
+      - name: GraphQL codegen drift
+        run: npm run codegen && git diff --exit-code src/gql/
+
+      - name: Unit tests + coverage
+        run: npm run test:coverage
+
+      # Catch build-only breakage (e.g. Vercel's cache-free tsc surfacing errors
+      # a warm local build hides) before merge, not after deploy.
+      - name: Build
+        run: npx vite build

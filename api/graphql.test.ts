@@ -304,6 +304,14 @@ describe('Query.completed (public)', () => {
       { id: 'a2', completed: false },
     ]);
   });
+
+  it('stringifies a numeric row id and skips a null id', async () => {
+    setup({ completedRows: [{ id: 7, v: 1 }, { id: null, v: 0 }] });
+    const r = await run('{ completed { id completed } }');
+    expect(r.errors).toBeUndefined();
+    // Numeric id → '7'; the null-id row is dropped (rowIdToString → null).
+    expect(r.data?.completed).toEqual([{ id: '7', completed: true }]);
+  });
 });
 
 // ===========================================================================
@@ -416,6 +424,28 @@ describe('owner-gated mutations', () => {
       OWNER,
     );
     expect(cleared.data?.setCompleted).toEqual({ id: 'a1', completed: null });
+  });
+
+  it('saveActivity: persists a completedDate through the Date scalar', async () => {
+    setup();
+    const r = await run(
+      'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id } } }',
+      {
+        i: {
+          id: 'a1',
+          activity: { ...minimalActivity(), completedDate: '2025-07-01' },
+        },
+      },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    const insert = execute.mock.calls.find((c) => {
+      const sql = typeof c[0] === 'string' ? c[0] : (c[0] as { sql: string }).sql;
+      return /INSERT INTO a /.test(sql);
+    });
+    const stored = (insert?.[0] as { args: unknown[] }).args[1] as string;
+    // buildStoredActivity normalizes the Date scalar back to 'YYYY-MM-DD'.
+    expect(JSON.parse(stored)).toMatchObject({ completedDate: '2025-07-01' });
   });
 });
 
@@ -771,6 +801,26 @@ describe('Mutation.createTrip / patchTrip / deleteTrip', () => {
     expect(r.data?.deleteTrip).toEqual({ deletedId: 'trip1' });
     expect(batch).toHaveBeenCalledOnce();
   });
+
+  it('patchTrip: forwards startDate/endDate/coverImageUrl patch keys', async () => {
+    setup({ trip: tripRow({ status: 'planning' }) });
+    const r = await run(
+      'mutation($i: PatchTripInput!){ patchTrip(input:$i){ trip { id } } }',
+      {
+        i: {
+          id: 'trip1',
+          patch: {
+            startDate: '2025-07-02',
+            endDate: '2025-07-05',
+            coverImageUrl: 'http://cover',
+          },
+        },
+      },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.patchTrip as Row).trip).toMatchObject({ id: 'trip1' });
+  });
 });
 
 function voting() {
@@ -835,6 +885,30 @@ describe('Mutation.addTripActivity', () => {
     );
     expect(code(r)).toBe('NOT_FOUND');
   });
+
+  it('trip removed between the membership check and the reload → NOT_FOUND', async () => {
+    // The 1st `SELECT * FROM trips` (membership guard in requireMemberCtx) sees
+    // the trip; the 2nd (the resolver's own reload) finds it gone — exercises
+    // addTripActivity's defensive post-guard NOT_FOUND (a delete/TOCTOU race).
+    let tripSelects = 0;
+    execute.mockImplementation((q: unknown) => {
+      const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+      if (/SELECT \* FROM trips WHERE id = \?/.test(sql)) {
+        tripSelects += 1;
+        return Promise.resolve({ rows: tripSelects === 1 ? [tripRow()] : [] });
+      }
+      if (/SELECT 1 FROM trip_members WHERE trip_id = \? AND member_email/.test(sql)) {
+        return Promise.resolve({ rows: [{ '1': 1 }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    const r = await run(
+      'mutation($i: AddTripActivityInput!){ addTripActivity(input:$i){ tripActivity { id } } }',
+      { i: { tripId: 'trip1', activityId: 'act1' } },
+      OWNER,
+    );
+    expect(code(r)).toBe('NOT_FOUND');
+  });
 });
 
 describe('Mutation.assignSlot / setDisplayOrder', () => {
@@ -887,6 +961,33 @@ describe('Mutation.assignSlot / setDisplayOrder', () => {
       OWNER,
     );
     expect(r.errors).toBeUndefined();
+  });
+
+  it('trip removed after loading the candidate → NOT_FOUND', async () => {
+    // loadTaForMember: the candidate loads and membership passes on the 1st
+    // trips read, but the reload (2nd read) finds the trip gone — exercises the
+    // shared taId-keyed path's defensive post-guard NOT_FOUND.
+    let tripSelects = 0;
+    execute.mockImplementation((q: unknown) => {
+      const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+      if (/SELECT \* FROM trip_activities WHERE id = \?/.test(sql)) {
+        return Promise.resolve({ rows: [taRow()] });
+      }
+      if (/SELECT \* FROM trips WHERE id = \?/.test(sql)) {
+        tripSelects += 1;
+        return Promise.resolve({ rows: tripSelects === 1 ? [tripRow()] : [] });
+      }
+      if (/SELECT 1 FROM trip_members WHERE trip_id = \? AND member_email/.test(sql)) {
+        return Promise.resolve({ rows: [{ '1': 1 }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    const r = await run(
+      'mutation($i: AssignSlotInput!){ assignSlot(input:$i){ tripActivity { id } } }',
+      { i: { taId: 'ta1', displayOrder: 1 } },
+      OWNER,
+    );
+    expect(code(r)).toBe('NOT_FOUND');
   });
 });
 
@@ -1022,17 +1123,40 @@ describe('Mutation.transitionTrip', () => {
     expect(r.data?.transitionTrip).toEqual({ ok: true, status: 'planning', kept: 1 });
   });
 
-  it('to=past freezes + returns markedPastAt', async () => {
+  it('to=past freezes + returns markedPastAt (completedActivityIds omitted → default)', async () => {
     setup({ trip: tripRow({ status: 'planning' }), activities: [] });
     const r = await run(
       'mutation($i: TransitionTripInput!){ transitionTrip(input:$i){ ok status markedPastAt completedActivityIds } }',
-      { i: { id: 'trip1', to: past(), completedActivityIds: [] } },
+      { i: { id: 'trip1', to: past() } }, // completedActivityIds absent → `?? []`
       OWNER,
     );
     const t = r.data?.transitionTrip as Row;
     expect(t.ok).toBe(true);
     expect(t.status).toBe('past');
     expect(t.markedPastAt).toBeTruthy();
+  });
+
+  it('to=voting reopens a planning trip and returns status voting', async () => {
+    setup({ trip: tripRow({ status: 'planning' }), activities: [] });
+    const r = await run(
+      'mutation($i: TransitionTripInput!){ transitionTrip(input:$i){ ok status } }',
+      { i: { id: 'trip1', to: votingStatus() } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.transitionTrip).toEqual({ ok: true, status: 'voting' });
+    expect(batch).toHaveBeenCalled();
+  });
+
+  it('to=planning defaults keptActivityIds when the field is omitted', async () => {
+    setup({ trip: tripRow({ status: 'voting' }), activities: [] });
+    const r = await run(
+      'mutation($i: TransitionTripInput!){ transitionTrip(input:$i){ ok status kept } }',
+      { i: { id: 'trip1', to: planning() } }, // keptActivityIds absent → `?? []`
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.transitionTrip).toEqual({ ok: true, status: 'planning', kept: 0 });
   });
 
   it('to=past when already past → CONFLICT', async () => {
