@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { TripRow } from './_trips.js';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — must be declared before any imports that trigger module eval
@@ -10,14 +11,17 @@ const { verifyToken, getUser } = vi.hoisted(() => ({
   getUser: vi.fn(),
 }));
 
-const { execute } = vi.hoisted(() => ({ execute: vi.fn() }));
+const { execute, batch } = vi.hoisted(() => ({
+  execute: vi.fn(),
+  batch: vi.fn(),
+}));
 
 vi.mock('@clerk/backend', () => ({
   verifyToken,
   createClerkClient: () => ({ users: { getUser } }),
 }));
 
-vi.mock('./_db.js', () => ({ db: () => ({ execute, batch: vi.fn() }) }));
+vi.mock('./_db.js', () => ({ db: () => ({ execute, batch }) }));
 
 // ---------------------------------------------------------------------------
 // Environment — set before the module is imported so the module-level Set sees
@@ -26,7 +30,9 @@ vi.mock('./_db.js', () => ({ db: () => ({ execute, batch: vi.fn() }) }));
 process.env.CLERK_SECRET_KEY = 'sk_test_dummy';
 process.env.OWNER_EMAILS = 'owner@example.com,owner2@example.com';
 
-const { requireMember, requireCreator } = await import('./_trips.js');
+const { requireMember, requireCreator, transitionToPast } = await import(
+  './_trips.js'
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,7 +73,7 @@ const TRIP_ID = 'trip-abc-123';
 const CREATOR_EMAIL = 'owner@example.com';
 const EDITOR_EMAIL = 'editor@example.com';
 
-const tripRow = {
+const tripRow: TripRow = {
   id: TRIP_ID,
   creator_email: CREATOR_EMAIL,
   title: 'Test Trip',
@@ -247,5 +253,81 @@ describe('requireCreator', () => {
     expect(result).toBeNull();
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: 'unauthorized' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// transitionToPast — the status flip and every completion upsert must land in
+// ONE atomic write batch, so a mid-write failure can never freeze the trip
+// 'past' with partial completion state (the 409 guard would block any retry).
+// ---------------------------------------------------------------------------
+
+describe('transitionToPast', () => {
+  afterEach(() => {
+    execute.mockReset();
+    batch.mockReset();
+  });
+
+  function activityRow(overrides: Record<string, unknown>) {
+    return {
+      trip_id: TRIP_ID,
+      snapshot_json: '{}',
+      added_by_email: EDITOR_EMAIL,
+      added_at: 1,
+      start_time: '09:00',
+      display_order: 0,
+      ...overrides,
+    };
+  }
+
+  it('flips status and writes all completion upserts in a single batch', async () => {
+    // getTripActivities SELECT: two eligible (scheduled, catalog-backed) rows.
+    execute.mockResolvedValueOnce({
+      rows: [
+        activityRow({ id: 'ta-1', activity_id: 'act-1', day_index: 0 }),
+        activityRow({ id: 'ta-2', activity_id: 'act-2', day_index: 1 }),
+      ],
+    });
+
+    const result = await transitionToPast(tripRow, ['act-1']);
+
+    // toMark = ['act-1'] (checked), toUnmark = ['act-2'] (eligible, unchecked)
+    expect(result.completedActivityIds).toEqual(['act-1']);
+    expect(result.uncompletedActivityIds).toEqual(['act-2']);
+    expect(typeof result.markedPastAt).toBe('number');
+
+    // The only execute() is the read; every write goes through one batch.
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalledTimes(1);
+
+    type Stmt = { sql: string; args: unknown[] };
+    const [stmts, mode] = batch.mock.calls[0] as [Stmt[], string];
+    expect(mode).toBe('write');
+    expect(stmts).toHaveLength(3); // status UPDATE + 1 mark + 1 unmark
+
+    const statusStmt = stmts.find((s) =>
+      /UPDATE trips SET status = 'past'/.test(s.sql),
+    );
+    expect(statusStmt).toBeDefined();
+    expect(statusStmt?.args).toEqual([result.markedPastAt, TRIP_ID]);
+
+    const markStmt = stmts.find(
+      (s) => /VALUES \(\?, 1\)/.test(s.sql) && s.args[0] === 'act-1',
+    );
+    expect(markStmt).toBeDefined();
+
+    const unmarkStmt = stmts.find(
+      (s) => /VALUES \(\?, 0\)/.test(s.sql) && s.args[0] === 'act-2',
+    );
+    expect(unmarkStmt).toBeDefined();
+  });
+
+  it('rejects an already-past trip (409 CONFLICT) before touching the db', async () => {
+    const pastTrip: TripRow = { ...tripRow, status: 'past' };
+    await expect(transitionToPast(pastTrip, [])).rejects.toMatchObject({
+      extensions: { code: 'CONFLICT' },
+    });
+    expect(execute).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
   });
 });
