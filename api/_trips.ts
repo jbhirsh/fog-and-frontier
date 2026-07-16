@@ -741,26 +741,39 @@ export async function createTrip(
 
   const id = newId();
   const created_at = Date.now();
-  await db().execute({
-    sql: `INSERT INTO trips (
-            id, creator_email, title, description,
-            start_date, end_date, cover_image_url,
-            status, created_at, marked_past_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-    args: [
-      id,
-      creatorEmail,
-      title,
-      description,
-      start_date,
-      end_date,
-      cover_image_url,
-      status,
-      created_at,
-    ],
-  });
 
-  await addTripMember(id, creatorEmail, creatorEmail);
+  // Fold the trip row, the creator's membership row, and every initial
+  // candidate into ONE atomic write batch (matching transitionToPast /
+  // deleteTripById). Sequential executes let a mid-create failure leave a trip
+  // with no creator-member or only some initial activities. Snapshots are
+  // fetched up front — reads can't run inside a batch — so a fetch miss simply
+  // omits that candidate, exactly as the prior loop did.
+  const stmts: InStatement[] = [
+    {
+      sql: `INSERT INTO trips (
+              id, creator_email, title, description,
+              start_date, end_date, cover_image_url,
+              status, created_at, marked_past_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+      args: [
+        id,
+        creatorEmail,
+        title,
+        description,
+        start_date,
+        end_date,
+        cover_image_url,
+        status,
+        created_at,
+      ],
+    },
+    {
+      sql: `INSERT OR IGNORE INTO trip_members
+              (trip_id, member_email, added_by_email, added_at)
+            VALUES (?, ?, ?, ?)`,
+      args: [id, creatorEmail, creatorEmail, created_at],
+    },
+  ];
 
   if (Array.isArray(args.initialActivityIds)) {
     const seen = new Set<string>();
@@ -769,15 +782,17 @@ export async function createTrip(
       seen.add(raw);
       const snapshotJson = await fetchActivitySnapshot(raw);
       if (!snapshotJson) continue;
-      await db().execute({
+      stmts.push({
         sql: `INSERT OR IGNORE INTO trip_activities (
                 id, trip_id, activity_id, snapshot_json,
                 added_by_email, added_at, day_index, start_time, display_order
               ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
-        args: [newId(), id, raw, snapshotJson, creatorEmail, Date.now()],
+        args: [newId(), id, raw, snapshotJson, creatorEmail, created_at],
       });
     }
   }
+
+  await db().batch(stmts, 'write');
 
   const trip = await getTripDetail(id);
   if (!trip) throw new Error('failed to load created trip');
@@ -862,10 +877,16 @@ export async function patchTrip(
     throw badInput('endDate must be on or after startDate');
   }
 
-  await db().execute({
-    sql: `UPDATE trips SET ${sets.join(', ')} WHERE id = ?`,
-    args: [...updateArgs, tripId],
-  });
+  // The trip UPDATE and the out-of-range slot reset must commit together: a
+  // date edit that slides slots back to Unscheduled should never half-apply
+  // (trip dates changed but stale slots left pointing at now-removed days).
+  // Collect both into ONE atomic write batch, matching the other transitions.
+  const stmts: InStatement[] = [
+    {
+      sql: `UPDATE trips SET ${sets.join(', ')} WHERE id = ?`,
+      args: [...updateArgs, tripId],
+    },
+  ];
 
   // If the date range changed, slide any now-out-of-range slot back to
   // Unscheduled so it still renders somewhere.
@@ -877,13 +898,15 @@ export async function patchTrip(
       proposed.start_date,
       proposed.end_date,
     );
-    await db().execute({
+    stmts.push({
       sql: `UPDATE trip_activities
             SET day_index = NULL, start_time = NULL
             WHERE trip_id = ? AND (day_index < 0 OR day_index >= ?)`,
       args: [tripId, newDayCount],
     });
   }
+
+  await db().batch(stmts, 'write');
 
   const updated = await getTripRow(tripId);
   if (!updated) throw notFound('not found');
