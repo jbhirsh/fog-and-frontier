@@ -1,0 +1,27 @@
+# Dependency update automation. Prior to this the repo had no Dependabot /
+# Renovate and no `npm audit` gate, so advisories (e.g. the undici HIGH
+# advisories pulled in transitively via @vercel/node) sat unsurfaced. Weekly
+# npm + github-actions checks, with minor/patch bumps grouped to keep PR noise
+# low; majors still open individually so they get a deliberate review.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      prod-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      dev-minor-patch:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

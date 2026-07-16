@@ -64,17 +64,22 @@ type GqlResponse = {
 
 // Use node:http directly — the shared jsdom setup stubs global fetch to reject
 // ("offline"), which would otherwise intercept this real in-process request.
-function post(query: string): Promise<{ status: number; json: GqlResponse }> {
+function post(
+  query: string,
+  auth?: string,
+): Promise<{ status: number; json: GqlResponse }> {
   const body = JSON.stringify({ query });
+  const headers: Record<string, string | number> = {
+    'content-type': 'application/json',
+    'content-length': Buffer.byteLength(body),
+  };
+  if (auth !== undefined) headers.authorization = auth;
   return new Promise((resolve, reject) => {
     const req = http.request(
       url,
       {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'content-length': Buffer.byteLength(body),
-        },
+        headers,
       },
       (res) => {
         let data = '';
@@ -100,6 +105,19 @@ describe('api/graphql.ts express app (real wiring)', () => {
 
   it('anon → UNAUTHENTICATED via the context guard', async () => {
     const r = await post('{ trips { id } }');
+    expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  });
+
+  // buildContext → bearer() token extraction: an empty "Bearer " and a
+  // non-empty but unverifiable token both resolve to anon (no CLERK_SECRET_KEY
+  // configured here), exercising both sides of the token-trim branch.
+  it('empty Bearer token resolves to anon', async () => {
+    const r = await post('{ trips { id } }', 'Bearer ');
+    expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('unverifiable Bearer token resolves to anon', async () => {
+    const r = await post('{ trips { id } }', 'Bearer sometoken');
     expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
   });
 });

@@ -88,6 +88,7 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
 ## Conventions
 
 - Vercel function handlers: Node-style `(req, res)` — Web API style hangs in `vercel dev`.
+- **Tests ship with the code.** Any new resolver, reducer, or pure util needs its own unit test; run `npm run test:coverage` before pushing (CI enforces an 80% per-file gate — plain `vitest run` skips it). Tests are pure logic or RTL — no real network, DB, or browser. Multi-write DB paths get a test asserting a single `db().batch(stmts, 'write')` (see `transitionToPast`/`createTrip`/`patchTrip`).
 - Never silence lint or type-checker rules without asking first (no `eslint-disable`, no `@ts-ignore`, no rule downgrades in config).
 - Before raising a PR, squash noisy commits (fixups, reverts, "address review") into a clean history.
 - After `gh pr create`, spawn a review subagent to read the diff before reporting back.
