@@ -30,9 +30,8 @@ vi.mock('./_db.js', () => ({ db: () => ({ execute, batch }) }));
 process.env.CLERK_SECRET_KEY = 'sk_test_dummy';
 process.env.OWNER_EMAILS = 'owner@example.com,owner2@example.com';
 
-const { requireMember, requireCreator, transitionToPast } = await import(
-  './_trips.js'
-);
+const { requireMember, requireCreator, transitionToPast, createTrip, patchTrip } =
+  await import('./_trips.js');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -329,5 +328,130 @@ describe('transitionToPast', () => {
     });
     expect(execute).not.toHaveBeenCalled();
     expect(batch).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createTrip — the trip row, the creator's membership row, and every initial
+// candidate must land in ONE atomic write batch. Sequential executes let a
+// mid-create failure leave a trip with no creator-member or only some of its
+// initial activities (data the app then can't reconcile).
+// ---------------------------------------------------------------------------
+
+type Stmt = { sql: string; args: unknown[] };
+
+function sqlOf(call: unknown[]): string {
+  const q = call[0];
+  return typeof q === 'string' ? q : (q as { sql: string }).sql;
+}
+
+describe('createTrip (atomic)', () => {
+  afterEach(() => {
+    execute.mockReset();
+    batch.mockReset();
+  });
+
+  it('writes trip + creator membership + initial activities in a single batch', async () => {
+    // Reads: the initial-activity snapshot lookup and the getTripDetail reload.
+    execute.mockImplementation((q: unknown) => {
+      const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+      if (/SELECT j FROM a WHERE id = \?/.test(sql)) {
+        return Promise.resolve({
+          rows: [{ j: JSON.stringify({ id: 'act-1', name: 'Snap' }) }],
+        });
+      }
+      if (/FROM trips WHERE id = \?/.test(sql)) {
+        return Promise.resolve({ rows: [tripRow] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    batch.mockResolvedValue([]);
+
+    const trip = await createTrip(
+      {
+        title: 'New Trip',
+        startDate: '2025-07-01',
+        endDate: '2025-07-03',
+        initialActivityIds: ['act-1', 'act-1'], // duplicate collapses to one
+      },
+      CREATOR_EMAIL,
+    );
+
+    // Loaded back through getTripDetail (the reload read).
+    expect(trip.id).toBe(TRIP_ID);
+
+    // Every write goes through ONE batch('write').
+    expect(batch).toHaveBeenCalledTimes(1);
+    const [stmts, mode] = batch.mock.calls[0] as [Stmt[], string];
+    expect(mode).toBe('write');
+    expect(stmts.some((s) => /INSERT INTO trips/.test(s.sql))).toBe(true);
+    expect(stmts.some((s) => /INSERT OR IGNORE INTO trip_members/.test(s.sql))).toBe(
+      true,
+    );
+    const activityInserts = stmts.filter((s) =>
+      /INSERT OR IGNORE INTO trip_activities/.test(s.sql),
+    );
+    expect(activityInserts).toHaveLength(1); // deduped
+    expect(activityInserts[0].args[2]).toBe('act-1'); // activity_id column
+
+    // No write ever leaks out through execute() — those calls are reads only.
+    const writeExecs = execute.mock.calls.filter((c) =>
+      /INSERT|UPDATE|DELETE/.test(sqlOf(c)),
+    );
+    expect(writeExecs).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchTrip — the trip UPDATE and the out-of-range slot reset (when the date
+// range changes) must commit together in ONE atomic write batch, so a date
+// edit never half-applies.
+// ---------------------------------------------------------------------------
+
+describe('patchTrip (atomic)', () => {
+  afterEach(() => {
+    execute.mockReset();
+    batch.mockReset();
+  });
+
+  function stubTripReads() {
+    execute.mockImplementation((q: unknown) => {
+      const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+      if (/FROM trips WHERE id = \?/.test(sql)) {
+        return Promise.resolve({ rows: [tripRow] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    batch.mockResolvedValue([]);
+  }
+
+  it('updates trip fields in a single-statement batch when dates are unchanged', async () => {
+    stubTripReads();
+
+    await patchTrip(TRIP_ID, { title: 'Renamed' });
+
+    expect(batch).toHaveBeenCalledTimes(1);
+    const [stmts, mode] = batch.mock.calls[0] as [Stmt[], string];
+    expect(mode).toBe('write');
+    expect(stmts).toHaveLength(1);
+    expect(/UPDATE trips SET/.test(stmts[0].sql)).toBe(true);
+    const writeExecs = execute.mock.calls.filter((c) =>
+      /INSERT|UPDATE|DELETE/.test(sqlOf(c)),
+    );
+    expect(writeExecs).toHaveLength(0);
+  });
+
+  it('folds the out-of-range slot reset into the same batch when dates change', async () => {
+    stubTripReads();
+
+    // tripRow.start_date is '2025-07-01'; shifting it changes the date range.
+    await patchTrip(TRIP_ID, { startDate: '2025-07-02' });
+
+    expect(batch).toHaveBeenCalledTimes(1);
+    const [stmts, mode] = batch.mock.calls[0] as [Stmt[], string];
+    expect(mode).toBe('write');
+    expect(stmts).toHaveLength(2);
+    expect(stmts.some((s) => /UPDATE trips SET/.test(s.sql))).toBe(true);
+    expect(stmts.some((s) => /UPDATE trip_activities/.test(s.sql))).toBe(true);
   });
 });
