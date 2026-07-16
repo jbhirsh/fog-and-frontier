@@ -1172,25 +1172,33 @@ export async function transitionToPast(
   const toMark = Array.from(checkedSet);
   const toUnmark = Array.from(eligibleIds).filter((aid) => !checkedSet.has(aid));
 
+  // Freeze the trip AND write through every completion flag in one atomic
+  // write batch. Doing these as separate sequential executes let a mid-loop
+  // failure leave the trip terminally 'past' with partial completion state and
+  // no way to remediate (a retry hits the 409 guard above). Mirrors the other
+  // transitions (transitionToPlanning/transitionToVoting) — one db().batch.
   const marked_past_at = Date.now();
-  await db().execute({
-    sql: `UPDATE trips SET status = 'past', marked_past_at = ? WHERE id = ?`,
-    args: [marked_past_at, trip.id],
-  });
+  const stmts: InStatement[] = [
+    {
+      sql: `UPDATE trips SET status = 'past', marked_past_at = ? WHERE id = ?`,
+      args: [marked_past_at, trip.id],
+    },
+  ];
   for (const aid of toMark) {
-    await db().execute({
+    stmts.push({
       sql: `INSERT INTO c (id, v) VALUES (?, 1)
             ON CONFLICT(id) DO UPDATE SET v = excluded.v`,
       args: [aid],
     });
   }
   for (const aid of toUnmark) {
-    await db().execute({
+    stmts.push({
       sql: `INSERT INTO c (id, v) VALUES (?, 0)
             ON CONFLICT(id) DO UPDATE SET v = excluded.v`,
       args: [aid],
     });
   }
+  await db().batch(stmts, 'write');
   return {
     markedPastAt: marked_past_at,
     completedActivityIds: toMark,
