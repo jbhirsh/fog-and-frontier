@@ -1,0 +1,37 @@
+name: CI
+
+# Lint, type-check and unit tests on every PR to main. smoke.yml/visual.yml
+# only exercise the deployed preview, so without this job the Vitest suite,
+# ESLint and tsc never gate a PR (they ran only transitively in Vercel's build).
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      # legacy-peer-deps is set in .npmrc; pass it explicitly too, mirroring
+      # visual.yml, so the install is deterministic regardless of npm defaults.
+      - name: Install deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
