@@ -211,6 +211,7 @@ jobs:
             overall impressions. Skip style nits already enforced by
             ESLint/Prettier. Be concise.
           classify_inline_comments: "true"
+          display_report: "true"
           show_full_output: "true"
           claude_args: |
             --max-turns 40
