@@ -214,5 +214,5 @@ jobs:
           display_report: "true"
           show_full_output: "true"
           claude_args: |
-            --max-turns 40
-            --allowedTools "Read,Grep,Glob,Bash(gh:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git blame:*),Bash(git rev-parse:*),Bash(git branch:*),Bash(git ls-files:*),mcp__github_inline_comment__create_inline_comment"
+            --max-turns 80
+            --allowedTools "Read,Grep,Glob,Bash(gh:*),Bash(git fetch:*),Bash(git checkout:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git blame:*),Bash(git rev-parse:*),Bash(git branch:*),Bash(git ls-files:*),mcp__github_inline_comment__create_inline_comment"
