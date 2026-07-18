@@ -7,6 +7,8 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
+    assignees:
+      - jbhirsh
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
@@ -23,5 +25,7 @@ updates:
           - patch
   - package-ecosystem: github-actions
     directory: "/"
+    assignees:
+      - jbhirsh
     schedule:
       interval: weekly
