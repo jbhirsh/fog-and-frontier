@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "prepare": "git config core.hooksPath .githooks || true",
     "build": "npm run lint && tsc -b && vite build",
     "typecheck": "tsc -b",
     "codegen": "graphql-codegen --config codegen.ts",

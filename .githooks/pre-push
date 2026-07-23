@@ -1,0 +1,16 @@
+#!/bin/sh
+# Full pre-flight before code leaves the machine — the half of CI too slow to
+# run on every commit: the Vitest suite under the coverage thresholds CI
+# enforces (plain `vitest run` skips them), plus the production build.
+# `vite build` can fail where `tsc -b` passes (a Vercel cache-free install once
+# surfaced a TS2550 `Error.cause` error a warm local typecheck hid — see
+# CONTRIBUTING.md), so building here closes that gap before it reaches CI.
+#
+# No-op in CI (see pre-commit).
+[ -n "$CI" ] && exit 0
+
+set -e
+echo "▶ pre-push: vitest --coverage"
+npm run test:coverage
+echo "▶ pre-push: production build"
+npm run build
