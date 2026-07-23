@@ -37,6 +37,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Cross-layer architecture rules: api/ ⇹ src/ isolation, src/lib may not
+      # reach the UI, src/data stays a leaf. Complements eslint's import/no-cycle
+      # (which only sees within each lint group).
+      - name: Architecture rules (dependency-cruiser)
+        run: npm run depcruise
+
       - name: Type-check
         run: npm run typecheck
 
