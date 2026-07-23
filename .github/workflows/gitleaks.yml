@@ -1,0 +1,62 @@
+# Secret scanning (gitleaks). GitHub-native secret scanning is off for this
+# repo, and the wiring here touches real credentials — GEMINI_API_KEY, Clerk,
+# Turso, and VERCEL_AUTOMATION_BYPASS_SECRET — so a leaked key needs a sensor
+# that fires *before* it settles into main. .gitignore keeps .env.local out of
+# the index and the Claude review can flag a committed secret, but both are
+# advisory; this job makes a leak a red check instead.
+#
+# Two triggers:
+#   - Pull requests: scan the PR's commit range — fast, targeted, blocks
+#     merge. This per-PR trigger mirrors ci.yml / smoke.yml, which also gate
+#     on pull_request to main.
+#   - Weekly schedule (+ manual dispatch): full-history sweep as a drift
+#     sensor, so a secret introduced outside the PR path (a direct push,
+#     rewritten history, or a new gitleaks rule catching an old leak) still
+#     surfaces. The full history was verified clean when this was added — the
+#     only two hits are localStorage key names allowlisted in .gitleaks.toml.
+#
+# No GITLEAKS_LICENSE is needed: the action is free for personal-account repos.
+# For a future false positive, add it to the .gitleaks.toml allowlist rather
+# than disabling the job.
+name: Gitleaks
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# Read-only: findings surface in the job summary and a results artifact. PR
+# comments are disabled below, so the job never needs write scopes.
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: PR runs diff the PR's commit range; scheduled runs
+          # sweep every commit.
+          fetch-depth: 0
+
+      # v3 is the Node 24-native release (v2 targets the deprecated Node 20).
+      # No input/output/behavior changes from v2 — just the runtime — so the
+      # workflow needs no Node 20 opt-out and stays warning-free.
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          # gitleaks-action reads GITHUB_TOKEN for its PR bookkeeping — posting
+          # review comments (disabled just below) and its license/org check.
+          # The scan itself runs locally against the checked-out history and
+          # needs no extra scope beyond the default read-only `contents`.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          # Pin the scanner so CI is deterministic and matches the version the
+          # history was verified clean against — otherwise the action falls
+          # back to its own hard-coded default, which can shift between
+          # gitleaks-action releases with no change in this repo to signal it.
+          GITLEAKS_VERSION: "8.30.1"
