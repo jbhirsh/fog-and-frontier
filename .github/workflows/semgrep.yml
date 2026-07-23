@@ -1,0 +1,68 @@
+# Static application security testing (Semgrep). This repo ships an
+# authenticated GraphQL API (`api/graphql.ts`) that takes user input, writes to
+# libSQL, and calls out to Gemini — exactly the surface where an injection or a
+# missing auth check hurts most. ESLint and `tsc` catch correctness, not
+# security patterns; Semgrep fills that gap.
+#
+# Two placements on the same free CLI scan (`--config auto`, no
+# SEMGREP_APP_TOKEN, no platform account — the community rulesets are fetched
+# anonymously):
+#   - Pull requests: a blocking gate. `--error` makes Semgrep exit non-zero on
+#     any finding, so a new SAST issue can't merge without being fixed or
+#     precisely allowlisted.
+#   - Weekly schedule (+ manual dispatch): a drift sensor on the shared Monday
+#     06:00 UTC sweep slot (dependabot), catching findings from rule updates or
+#     dependency changes that a quiet PR week wouldn't surface.
+name: Semgrep
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Run GitHub's bundled JavaScript actions on the Node 24 runtime instead of
+  # the deprecated default (mirrors ci.yml).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # Free community rulesets via `--config auto`; no token, no account.
+      # `--error` turns findings into a non-zero exit so the job blocks the PR.
+      #
+      # Three `--exclude-rule`s, each a precise per-rule allowlist for a finding
+      # that conflicts with an accepted convention in this repo (never a code
+      # vulnerability — the app code in src/ and api/ scans clean):
+      #   - github-actions-mutable-action-tag: this repo deliberately tracks
+      #     floating major action tags (@v7, @v1) for automatic patch/minor
+      #     updates and has explicitly accepted that trade-off over SHA-pinning
+      #     (see the Claude Review notes in ci.yml). Pinning is the exact thing
+      #     the maintainer opted out of.
+      #   - dependabot-missing-cooldown / npm-missing-minimum-release-age:
+      #     supply-chain *policy* suggestions (delay newly published versions),
+      #     not defects. Adopting them changes dependency-update behaviour and
+      #     belongs in a deliberate dependency-policy change, not this SAST gate.
+      # Removing an exclude is the way to re-enable a rule — no inline
+      # `// nosemgrep` and no `.semgrepignore` (both banned here).
+      - name: Run Semgrep
+        run: |
+          pipx install semgrep
+          semgrep scan --config auto --error \
+            --exclude-rule yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag \
+            --exclude-rule package_managers.dependabot.dependabot-missing-cooldown.dependabot-missing-cooldown \
+            --exclude-rule package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age
