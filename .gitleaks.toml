@@ -1,0 +1,14 @@
+# gitleaks configuration. Extends the built-in ruleset and allowlists the
+# confirmed false positives found in history, so the weekly full-history sweep
+# in .github/workflows/gitleaks.yml stays green and every future hit is real.
+title = "fog-and-frontier gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "localStorage key name flagged by the entropy-based generic-api-key rule — not a credential. Present in an old src/test fixture and the retired nested fog-and-frontier/ self-copy."
+regexTarget = "line"
+regexes = [
+  '''fogandfrontier\.activities\.v1''',
+]
