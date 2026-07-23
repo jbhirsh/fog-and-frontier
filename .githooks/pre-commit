@@ -1,0 +1,26 @@
+#!/bin/sh
+# Fast local sensors before a commit — the static half of CI, so failures
+# surface here instead of after a push. eslint is cached (under node_modules,
+# already gitignored) so unchanged-file runs are near-instant.
+#
+# No-op in CI: the CI jobs run these as explicit steps, and the semgrep/claude
+# autofix agents (which `npm ci`, then commit) do their own validation — the
+# hook must not fire inside their commits.
+[ -n "$CI" ] && exit 0
+
+set -e
+echo "▶ pre-commit: eslint"
+npx eslint . --cache --cache-location node_modules/.cache/eslint/
+echo "▶ pre-commit: stylelint"
+npm run lint:css
+echo "▶ pre-commit: dependency-cruiser"
+# depcruise arrives in its own branch; skip cleanly until that lands so this
+# hook is valid on its own (mirrors semgrep-autofix.yml's "skip if this script
+# doesn't exist yet").
+if npm run 2>/dev/null | grep -q '^  depcruise'; then
+  npm run depcruise
+else
+  echo "  (depcruise script not present — skipping)"
+fi
+echo "▶ pre-commit: tsc"
+npx tsc -b
