@@ -3,6 +3,9 @@
 # advisories pulled in transitively via @vercel/node) sat unsurfaced. Weekly
 # npm + github-actions checks, with minor/patch bumps grouped to keep PR noise
 # low; majors still open individually so they get a deliberate review.
+#
+# Both ecosystems run on the shared Monday 06:00 UTC weekly sweep slot so all
+# robot output lands together on Monday morning.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -11,6 +14,9 @@ updates:
       - jbhirsh
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
     open-pull-requests-limit: 10
     groups:
       prod-minor-patch:
@@ -29,3 +35,6 @@ updates:
       - jbhirsh
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
