@@ -90,5 +90,8 @@
     "vite": "^8.1.5",
     "vitest": "^4.1.10",
     "vitest-axe": "^0.1.0"
+  },
+  "overrides": {
+    "@sentry/core": "10.67.0"
   }
 }
