@@ -43,7 +43,7 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "graphql": "^17.0.2",
-    "graphql-scalars": "^1.25.0",
+    "graphql-scalars": "^2.0.0",
     "leaflet": "^1.9.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
