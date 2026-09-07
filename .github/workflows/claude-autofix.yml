@@ -107,7 +107,10 @@ jobs:
           # run — dependabot[bot] for a Dependabot PR. Allow that one trusted
           # bot so autofix runs instead of failing the non-human-actor check.
           allowed_bots: "dependabot[bot]"
-          track_progress: true
+          # No track_progress here: the action only accepts it on
+          # pull_request/issue events. This workflow runs on workflow_run, so
+          # setting it failed the run outright — and only ever on the runs that
+          # had unresolved threads to fix, since the step is skipped otherwise.
           prompt: |
             REPO_DIR: ${{ github.workspace }}
             REPO: ${{ github.repository }}
