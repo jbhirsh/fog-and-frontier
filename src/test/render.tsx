@@ -4,7 +4,12 @@ import { MockedProvider } from '@apollo/client/testing/react';
 import type { MockedResponse } from '@apollo/client/testing';
 import type { Activity } from '../data/types';
 import { createApolloCache } from '../lib/apolloClient';
-import { ACTIVITIES_QUERY, COMPLETED_QUERY } from '../lib/gqlDocs';
+import {
+  ACTIVITIES_QUERY,
+  ACTIVITY_REVIEWS_QUERY,
+  COMPLETED_QUERY,
+} from '../lib/gqlDocs';
+import type { ActivityReviewRow } from '../lib/gqlDocs';
 
 // Domain Activity -> the GraphQL ACTIVITIES row (every selected field + the
 // __typenames the normalized cache needs). Inverse of rowToActivity; lets tests
@@ -60,11 +65,19 @@ function completedRows(completed: CompletedSeed[]) {
   }));
 }
 
+export type ReviewSeed = Omit<ActivityReviewRow, '__typename'>;
+
+function reviewRows(reviews: ReviewSeed[]) {
+  return reviews.map((r) => ({ __typename: 'ActivityReview' as const, ...r }));
+}
+
 export type ApolloRenderOptions = Omit<RenderOptions, 'wrapper'> & {
   /** Catalog activities seeded into the cache (read synchronously by reads). */
   activities?: Activity[];
   /** Completed overrides seeded into the cache. */
   completed?: CompletedSeed[];
+  /** Owner reviews (#184) seeded into the cache. */
+  reviews?: ReviewSeed[];
   /** Extra mocks (e.g. for mutations) appended to the defaults. */
   mocks?: MockedResponse[];
 };
@@ -75,16 +88,27 @@ export type ApolloRenderOptions = Omit<RenderOptions, 'wrapper'> & {
 // the background network fetch resolve cleanly.
 export function render(
   ui: ReactElement,
-  { activities, completed = [], mocks = [], ...rtl }: ApolloRenderOptions = {},
+  {
+    activities,
+    completed = [],
+    reviews = [],
+    mocks = [],
+    ...rtl
+  }: ApolloRenderOptions = {},
 ) {
   const cache = createApolloCache();
   const activityData = (activities ?? []).map(toActivityRow);
   const completedData = completedRows(completed);
+  const reviewData = reviewRows(reviews);
 
   if (activities) {
     cache.writeQuery({ query: ACTIVITIES_QUERY, data: { activities: activityData } });
   }
   cache.writeQuery({ query: COMPLETED_QUERY, data: { completed: completedData } });
+  cache.writeQuery({
+    query: ACTIVITY_REVIEWS_QUERY,
+    data: { activityReviews: reviewData },
+  });
 
   const defaultMocks: MockedResponse[] = [
     {
@@ -95,6 +119,11 @@ export function render(
     {
       request: { query: COMPLETED_QUERY },
       result: { data: { completed: completedData } },
+      maxUsageCount: Number.POSITIVE_INFINITY,
+    },
+    {
+      request: { query: ACTIVITY_REVIEWS_QUERY },
+      result: { data: { activityReviews: reviewData } },
       maxUsageCount: Number.POSITIVE_INFINITY,
     },
   ];

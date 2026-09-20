@@ -87,6 +87,16 @@ export const typeDefs = /* GraphQL */ `
 
   type CompletedEntry { id: ID!  completed: Boolean! }
 
+  "An owner's review of an activity (#184). One per owner per activity; rating and note are each optional but a review must carry at least one of them."
+  type ActivityReview {
+    activityId: ID!
+    authorEmail: String!
+    rating: Int
+    note: String
+    createdAt: DateTimeISO!
+    updatedAt: DateTimeISO!
+  }
+
   type Trip {
     id: ID!
     creatorEmail: String!
@@ -237,6 +247,9 @@ export const typeDefs = /* GraphQL */ `
     notes: String
   }
   input SaveActivityInput { id: ID!  activity: ActivityInput! }
+  "Author is always the authenticated caller — never taken from input (#184)."
+  input SaveActivityReviewInput { activityId: ID!  rating: Int  note: String }
+  input DeleteActivityReviewInput { activityId: ID! }
   input DeleteActivityInput { id: ID! }
   input SetCompletedInput { id: ID!  value: Boolean }
   input GenerateActivityInput { title: String!  notes: String }
@@ -278,6 +291,8 @@ export const typeDefs = /* GraphQL */ `
   type SaveActivityPayload { activity: Activity! }
   type DeleteActivityPayload { deletedId: ID! }
   type SetCompletedPayload { id: ID!  completed: Boolean }
+  type SaveActivityReviewPayload { review: ActivityReview! }
+  type DeleteActivityReviewPayload { activityId: ID!  authorEmail: String! }
   type GenerateActivityPayload { activity: GeneratedActivity! }
   type AlltrailsLookupPayload { lookup: AllTrailsLookup! }
   type CreateTripPayload { trip: Trip! }
@@ -304,6 +319,8 @@ export const typeDefs = /* GraphQL */ `
   type Query {
     activities: [Activity!]!
     completed: [CompletedEntry!]!
+    "Every owner review across the catalog — public read, normalized client-side by (activityId, authorEmail)."
+    activityReviews: [ActivityReview!]!
     trips: [TripListItem!]!
     trip(id: ID!): Trip
     users: [User!]!
@@ -314,6 +331,8 @@ export const typeDefs = /* GraphQL */ `
     saveActivity(input: SaveActivityInput!): SaveActivityPayload!
     deleteActivity(input: DeleteActivityInput!): DeleteActivityPayload!
     setCompleted(input: SetCompletedInput!): SetCompletedPayload!
+    saveActivityReview(input: SaveActivityReviewInput!): SaveActivityReviewPayload!
+    deleteActivityReview(input: DeleteActivityReviewInput!): DeleteActivityReviewPayload!
     generateActivity(input: GenerateActivityInput!): GenerateActivityPayload!
     alltrailsLookup(input: AlltrailsLookupInput!): AlltrailsLookupPayload!
     createTrip(input: CreateTripInput!): CreateTripPayload!

@@ -6,6 +6,7 @@ import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
+import { ActivityReviews } from './ActivityReviews';
 import { AddActivity } from './AddActivity';
 
 interface Props {
@@ -311,6 +312,16 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                 {activity.notes}
               </p>
             </div>
+          )}
+
+          {/* Owner reviews (#184) — what each of us thought after doing it.
+              Reviews are about completed activities, so the section only
+              appears once this one is marked done. */}
+          {completed && (
+            // Keyed on the activity: picking a nearby activity swaps `activity`
+            // without unmounting this dialog, and an open review draft must not
+            // follow along and be saved onto a different activity.
+            <ActivityReviews key={activity.id} activityId={activity.id} />
           )}
 
           {nearby.length > 0 && (

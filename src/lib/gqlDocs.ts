@@ -51,6 +51,22 @@ export const COMPLETED_QUERY = graphql(`
   }
 `);
 
+// Owner reviews (#184). One query for the whole set — small result, and it
+// keeps the cache consistent without per-activity query juggling.
+export const ACTIVITY_REVIEWS_QUERY = graphql(`
+  query ActivityReviews {
+    activityReviews {
+      __typename
+      activityId
+      authorEmail
+      rating
+      note
+      createdAt
+      updatedAt
+    }
+  }
+`);
+
 export const TRIPS_QUERY = graphql(`
   query TripsList {
     trips {
@@ -206,6 +222,28 @@ export const ALLTRAILS_LOOKUP = graphql(`
   }
 `);
 
+export const SAVE_ACTIVITY_REVIEW = graphql(`
+  mutation SaveActivityReview($input: SaveActivityReviewInput!) {
+    saveActivityReview(input: $input) {
+      review {
+        __typename
+        activityId
+        authorEmail
+        rating
+        note
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`);
+
+export const DELETE_ACTIVITY_REVIEW = graphql(`
+  mutation DeleteActivityReview($input: DeleteActivityReviewInput!) {
+    deleteActivityReview(input: $input) { activityId authorEmail }
+  }
+`);
+
 export const CREATE_TRIP = graphql(`
   mutation CreateTrip($input: CreateTripInput!) {
     createTrip(input: $input) { trip { id } }
@@ -306,6 +344,9 @@ export type TripActivityRow = TripRow['activities'][number];
 // __typename) is structurally assignable to this, so one mapper covers both.
 export type SnapshotRow = NonNullable<TripActivityRow['snapshot']>;
 export type ActivityLike = Omit<SnapshotRow, '__typename'>;
+
+export type ActivityReviewsData = DocumentType<typeof ACTIVITY_REVIEWS_QUERY>;
+export type ActivityReviewRow = ActivityReviewsData['activityReviews'][number];
 
 export type TripListData = DocumentType<typeof TRIPS_QUERY>;
 export type TripListRow = TripListData['trips'][number];

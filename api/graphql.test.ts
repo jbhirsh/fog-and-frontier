@@ -410,6 +410,26 @@ describe('owner-gated mutations', () => {
     expect(r.data?.deleteActivity).toEqual({ deletedId: 'a1' });
   });
 
+  it('deleteActivity: drops the activity and its reviews in one batch', async () => {
+    setup();
+    await run(
+      'mutation($i: DeleteActivityInput!){ deleteActivity(input:$i){ deletedId } }',
+      { i: { id: 'a1' } },
+      OWNER,
+    );
+    expect(batch).toHaveBeenCalledTimes(1);
+    const [stmts, mode] = batch.mock.calls[0] as [
+      { sql: string; args: unknown[] }[],
+      string,
+    ];
+    expect(mode).toBe('write');
+    expect(stmts.map((s) => s.sql)).toEqual([
+      'DELETE FROM a WHERE id = ?',
+      'DELETE FROM activity_reviews WHERE activity_id = ?',
+    ]);
+    expect(stmts.every((s) => s.args[0] === 'a1')).toBe(true);
+  });
+
   it('setCompleted: value true sets, value null clears', async () => {
     setup();
     const set = await run(

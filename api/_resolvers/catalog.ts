@@ -86,7 +86,17 @@ async function deleteActivity(
   requireOwnerCtx(ctx);
   const id = input.id;
   if (typeof id !== 'string' || !id) throw badInput('missing id');
-  await db().execute({ sql: 'DELETE FROM a WHERE id = ?', args: [id] });
+  // Owner reviews (#184) live in their own table, so they need an explicit
+  // cascade — otherwise a deleted activity leaves review rows behind that no
+  // surface can reach, and a reused id would inherit them. One batch so the
+  // catalog row and its reviews never diverge.
+  await db().batch(
+    [
+      { sql: 'DELETE FROM a WHERE id = ?', args: [id] },
+      { sql: 'DELETE FROM activity_reviews WHERE activity_id = ?', args: [id] },
+    ],
+    'write',
+  );
   return { deletedId: id };
 }
 

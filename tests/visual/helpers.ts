@@ -82,6 +82,11 @@ export async function mockApis(page: Page) {
           })),
         };
         break;
+      case 'ActivityReviews':
+        // No fixture reviews: the section is owner-only until one exists, so
+        // the default (non-owner) baselines stay unchanged (#184).
+        data = { activityReviews: [] };
+        break;
       case 'TripsList':
         data = { trips: [] };
         break;
