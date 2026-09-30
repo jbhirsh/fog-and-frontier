@@ -20,6 +20,10 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # code-quality: write lets the coverage upload below reach GitHub.
+    permissions:
+      contents: read
+      code-quality: write
     steps:
       - uses: actions/checkout@v7
 
@@ -54,6 +58,21 @@ jobs:
 
       - name: Unit tests + coverage
         run: npm run test:coverage
+
+      # GitHub-native coverage: the main ruleset's code coverage rule reads
+      # this report (Code Quality must be enabled). The action credits it to
+      # the PR's head commit and skips fork PRs on its own.
+      - name: Upload coverage to GitHub
+        uses: actions/upload-code-coverage@v1
+        with:
+          file: coverage/cobertura-coverage.xml
+          language: TypeScript
+          label: code-coverage/vitest
+          # Until GitHub code coverage is available on the repo the upload
+          # answers 404; keep that a warning so it can't turn CI red. The
+          # coverage rule on main is the gate, and CI's own 80% per-file
+          # threshold still fails the job above.
+          fail-on-error: false
 
       # Catch build-only breakage (e.g. Vercel's cache-free tsc surfacing errors
       # a warm local build hides) before merge, not after deploy.
@@ -216,6 +235,13 @@ jobs:
             is anchored to the relevant code. Only use a top-level summary for
             overall impressions. Skip style nits already enforced by
             ESLint/Prettier. Be concise.
+
+            An inline comment is a merge blocker: Dependabot PRs merge
+            automatically only once every review thread is resolved, and on
+            them claude-autofix treats each thread as a bug to fix. Keep inline
+            comments for problems that must be fixed before merge; put
+            non-blocking notes (FYIs, "not a blocker", follow-up ideas) in the
+            top-level summary instead.
           classify_inline_comments: "true"
           display_report: "true"
           show_full_output: "true"

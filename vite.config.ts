@@ -58,7 +58,9 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'json-summary'],
+      // Cobertura is what ci.yml uploads to GitHub for the code coverage rule
+      // on main.
+      reporter: ['text', 'html', 'json-summary', 'cobertura'],
       // The `api/**` serverless code is now measured alongside `src/**`. The
       // 80% per-file gate below is UNCHANGED; the excludes fall into three
       // groups: non-code/entry files, generated artifacts, and a documented
