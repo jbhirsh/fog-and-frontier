@@ -111,6 +111,71 @@ describe('ActivityDetail', () => {
     expect(screen.getByText('Beautiful sunset.')).toBeInTheDocument();
   });
 
+  describe('owner reviews (issue #184)', () => {
+    const jessReview = {
+      activityId: completedHike.id,
+      authorEmail: 'owner@example.com',
+      rating: 4,
+      note: 'The ridge was worth it.',
+      createdAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-01T00:00:00.000Z',
+    };
+
+    it('shows the reviews section on a completed activity', async () => {
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />, {
+        reviews: [jessReview],
+      });
+      expect(
+        await screen.findByRole('heading', { name: 'Reviews' }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('The ridge was worth it.')).toBeInTheDocument();
+    });
+
+    it('drops an open review draft when a nearby activity is selected', async () => {
+      const user = userEvent.setup();
+      // jsdom doesn't implement Element.scrollTo, which selectNearby calls to
+      // return the dialog to the top.
+      Object.defineProperty(Element.prototype, 'scrollTo', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+      const nearbyCompleted = {
+        ...muirWoods,
+        id: 'test-nearby-completed',
+        name: 'Nearby Completed Loop',
+        completed: true,
+      };
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />, {
+        activities: [completedHike, nearbyCompleted],
+        reviews: [jessReview],
+      });
+      await user.click(
+        await screen.findByRole('button', { name: /edit review/i }),
+      );
+      expect(screen.getByRole('textbox')).toHaveValue('The ridge was worth it.');
+
+      await user.click(
+        screen.getByRole('button', { name: /Nearby Completed Loop/ }),
+      );
+      // The draft belonged to the previous activity — it must not carry over
+      // and get saved onto this one.
+      await waitFor(() =>
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByText('The ridge was worth it.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not show reviews on an activity we have not done yet', () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(
+        screen.queryByRole('heading', { name: 'Reviews' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it('does not show photo upload when showUploads is false', () => {
     render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
     expect(screen.queryByText('Add photos')).not.toBeInTheDocument();

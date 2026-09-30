@@ -211,12 +211,35 @@ export async function ensureCompletedSchema(): Promise<void> {
   completedInitialized = true;
 }
 
+// Owner reviews (#184): one row per (activity, owner). Deliberately a side
+// table rather than more fields in the `a` JSON blob — reviews must survive a
+// saveActivity rewrite of that blob, and free text would eat into its
+// 8000-char cap. The PK enforces "one review per owner per activity" in the DB
+// and covers the by-activity read.
+let reviewsInitialized = false;
+export async function ensureReviewsSchema(): Promise<void> {
+  if (reviewsInitialized) return;
+  await db().execute(
+    `CREATE TABLE IF NOT EXISTS activity_reviews (
+      activity_id TEXT NOT NULL,
+      author_email TEXT NOT NULL,
+      rating INTEGER,
+      note TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (activity_id, author_email)
+    )`,
+  );
+  reviewsInitialized = true;
+}
+
 // Single entry point for graphql.ts startup: create every table group the API
-// touches (trips/members/invites/votes + activities + completed).
+// touches (trips/members/invites/votes + activities + completed + reviews).
 export async function ensureAllSchemas(): Promise<void> {
   await ensureTripsSchema();
   await ensureActivitiesSchema();
   await ensureCompletedSchema();
+  await ensureReviewsSchema();
 }
 
 const BACKFILL_KEY = 'members_backfill_v1';

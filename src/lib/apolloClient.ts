@@ -33,6 +33,7 @@ const authLink = new SetContextLink(async (prevContext) => {
 // Normalized cache. keyFields per the migration plan (decision #8):
 //   • Trip / TripActivity / Activity   → global identity by `id`
 //   • User                             → global identity by `email`
+//   • ActivityReview                   → identity by (activityId, authorEmail)
 //   • TripMember / TripInvite / TripVote / ActivitySnapshot → embedded
 //     (keyFields:false) — per-trip sub-objects with no independent identity,
 //     which avoids the cross-trip collisions (N1) and the catalog-vs-snapshot
@@ -46,6 +47,9 @@ export function createApolloCache(): InMemoryCache {
       TripActivity: { keyFields: ['id'] },
       Activity: { keyFields: ['id'] },
       User: { keyFields: ['email'] },
+      // Owner reviews (#184) have no `id`; identity is the (activity, author)
+      // pair, which is also the DB primary key.
+      ActivityReview: { keyFields: ['activityId', 'authorEmail'] },
       TripMember: { keyFields: false },
       TripInvite: { keyFields: false },
       TripVote: { keyFields: false },

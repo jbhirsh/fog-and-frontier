@@ -5,6 +5,7 @@ import { tripsMutation, tripsQuery } from './trips.js';
 import { tripActivitiesMutation } from './tripActivities.js';
 import { votingMutation } from './voting.js';
 import { membershipMutation, membershipQuery } from './membership.js';
+import { reviewsMutation, reviewsQuery } from './reviews.js';
 
 // Single resolver map implementing api/_schema.ts. Scalars + Query + Mutation
 // are assembled from the per-domain resolver modules. Embedded types
@@ -14,12 +15,14 @@ export const resolvers = {
   ...scalarResolvers,
   Query: {
     ...catalogQuery,
+    ...reviewsQuery,
     ...tripsQuery,
     ...membershipQuery,
     ...geminiQuery,
   },
   Mutation: {
     ...catalogMutation,
+    ...reviewsMutation,
     ...geminiMutation,
     ...tripsMutation,
     ...tripActivitiesMutation,
