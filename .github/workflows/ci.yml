@@ -218,8 +218,8 @@ jobs:
             ESLint/Prettier. Be concise.
 
             An inline comment is a merge blocker: Dependabot PRs merge
-            automatically only once every review thread is resolved, and
-            claude-autofix treats each thread as a bug to fix. Keep inline
+            automatically only once every review thread is resolved, and on
+            them claude-autofix treats each thread as a bug to fix. Keep inline
             comments for problems that must be fixed before merge; put
             non-blocking notes (FYIs, "not a blocker", follow-up ideas) in the
             top-level summary instead.
