@@ -25,6 +25,10 @@ jobs:
       pull-requests: write
       issues: write
       actions: read
+      # claude-code-action exchanges an OIDC token for the Claude GitHub App's
+      # token before it starts; without this every run that has work to do
+      # fails with "Could not fetch an OIDC token".
+      id-token: write
 
     steps:
       - name: Resolve PR info
@@ -49,6 +53,13 @@ jobs:
             exit 0
           fi
           NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+          # CI can finish after the PR merged and its branch was deleted;
+          # there is nothing left to fix, and checkout would fail.
+          if [ "$(echo "$PR_JSON" | jq -r '.state')" != "open" ]; then
+            echo "PR #$NUMBER is no longer open — skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           BRANCH=$(echo "$PR_JSON" | jq -r '.head.ref')
           LABELS=$(echo "$PR_JSON" | jq -r '[.labels[].name] | join(",")')
           echo "PR #$NUMBER on branch $BRANCH (labels: $LABELS)"
