@@ -216,6 +216,13 @@ jobs:
             is anchored to the relevant code. Only use a top-level summary for
             overall impressions. Skip style nits already enforced by
             ESLint/Prettier. Be concise.
+
+            An inline comment is a merge blocker: Dependabot PRs merge
+            automatically only once every review thread is resolved, and
+            claude-autofix treats each thread as a bug to fix. Keep inline
+            comments for problems that must be fixed before merge; put
+            non-blocking notes (FYIs, "not a blocker", follow-up ideas) in the
+            top-level summary instead.
           classify_inline_comments: "true"
           display_report: "true"
           show_full_output: "true"
