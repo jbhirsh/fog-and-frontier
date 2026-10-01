@@ -125,7 +125,9 @@ jobs:
           # this, claude-code-action refuses to run for the bot actor and fails
           # with "Workflow initiated by non-human actor: dependabot (type: Bot)".
           # Allow-list only this one trusted bot rather than "*".
-          allowed_bots: "dependabot[bot]"
+          # claude[bot] pushes autofix's commits; without it the review
+          # fails on them and, being required, blocks the PR.
+          allowed_bots: "dependabot[bot],claude[bot]"
           prompt: |
             Review this pull request for correctness, bugs, and adherence to
             the project's engineering conventions. This is "Fog and Frontier",
