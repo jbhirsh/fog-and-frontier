@@ -101,7 +101,12 @@ describe('initSentry', () => {
     expect(call.dsn).toBe('https://public@o0.ingest.sentry.io/0');
     expect(call.environment).toBe('production');
     expect(call.release).toBe('abc123');
-    expect(call.sendDefaultPii).toBe(false);
+    expect(call.dataCollection).toEqual({
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+    });
     expect(call.beforeBreadcrumb).toBe(scrubBreadcrumb);
     expect(call.beforeSend).toBe(scrubEvent);
     expect(call.beforeSendTransaction).toBe(scrubTransaction);
