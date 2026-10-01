@@ -7,10 +7,27 @@ import type { Category } from '../data/types';
 // single place to evolve the look. See issue #88.
 
 // CARTO Positron — a light, minimal raster basemap, the closest free match to
-// the Apple-Maps look from the #4 mockups. No API key; attribution required
-// (OSM data + CARTO styling). The `{r}` token serves @2x tiles on retina.
-export const CARTO_TILE_URL =
+// the Apple-Maps look from the #4 mockups. Attribution required (OSM data +
+// CARTO styling). The `{r}` token serves @2x tiles on retina.
+//
+// CARTO now requires a (free) API key on every tile request: keyless requests
+// still return 200 but with "API KEY REQUIRED" baked into the image. The key
+// is a `?key=` query param and is meant to be public (it ships in every tile
+// URL), so it lives in a `VITE_` env var. Request one at
+// https://carto.com/basemaps/apikey and restrict it to the app's domains in
+// the CARTO dashboard.
+const CARTO_TILE_BASE =
   'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+export function cartoTileUrl(apiKey: string | undefined): string {
+  const key = apiKey?.trim();
+  return key ? `${CARTO_TILE_BASE}?key=${encodeURIComponent(key)}` : CARTO_TILE_BASE;
+}
+
+export const CARTO_TILE_URL = cartoTileUrl(
+  import.meta.env.VITE_CARTO_API_KEY as string | undefined,
+);
+
 export const CARTO_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
