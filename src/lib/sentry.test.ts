@@ -101,7 +101,10 @@ describe('initSentry', () => {
     expect(call.dsn).toBe('https://public@o0.ingest.sentry.io/0');
     expect(call.environment).toBe('production');
     expect(call.release).toBe('abc123');
-    expect(call.sendDefaultPii).toBe(false);
+    // The owner chose Sentry 11's default data collection (#193), so nothing
+    // narrows it. Narrowing it again is a decision, not a fix.
+    expect(call).not.toHaveProperty('dataCollection');
+    expect(call).not.toHaveProperty('sendDefaultPii');
     expect(call.beforeBreadcrumb).toBe(scrubBreadcrumb);
     expect(call.beforeSend).toBe(scrubEvent);
     expect(call.beforeSendTransaction).toBe(scrubTransaction);

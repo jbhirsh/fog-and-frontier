@@ -14,8 +14,11 @@ import type { TransactionEvent } from '@sentry/core';
 // Defense in depth: although the Gemini API key only exists server-side and
 // never reaches the browser, strip query strings from any captured URL anyway
 // — Sentry's default breadcrumbs include fetch URLs and we don't want any
-// fingerprint of upstream call patterns leaking either. PII (IP, cookies) is
-// off by default via sendDefaultPii: false.
+// fingerprint of upstream call patterns leaking either. Beyond that, Sentry 11's
+// default data collection applies (user info and IP, cookies, request data):
+// the owner chose it for debugging when adopting Sentry 11 (#193), in place of
+// v10's sendDefaultPii: false. Sentry still filters values whose names look
+// like secrets (auth, token, session, cookie...).
 
 type Breadcrumb = Sentry.Breadcrumb;
 type Event = Sentry.ErrorEvent;
@@ -146,7 +149,6 @@ export function initSentry(): void {
     // (same-origin + localhost) would start propagating sentry-trace +
     // baggage headers to any third-party fetch added later (Clerk, Turso).
     tracePropagationTargets: [/^\//],
-    sendDefaultPii: false,
     beforeBreadcrumb: scrubBreadcrumb,
     beforeSend: scrubEvent,
     beforeSendTransaction: scrubTransaction,
