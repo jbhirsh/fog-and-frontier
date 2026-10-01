@@ -112,7 +112,6 @@ export default defineConfig({
         'src/lib/authShimClerk.tsx',
         'src/lib/generateActivity.ts',
         'src/lib/gqlError.ts',
-        'src/lib/mapPins.ts',
         'src/lib/userActivities.ts',
         'src/lib/userPhotos.ts',
         'src/lib/userTrips.ts',
