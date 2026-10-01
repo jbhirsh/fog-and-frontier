@@ -1,11 +1,16 @@
 # Dependency update automation. Prior to this the repo had no Dependabot /
 # Renovate and no `npm audit` gate, so advisories (e.g. the undici HIGH
 # advisories pulled in transitively via @vercel/node) sat unsurfaced. Weekly
-# npm + github-actions checks, with minor/patch bumps grouped to keep PR noise
-# low; majors still open individually so they get a deliberate review.
+# npm + github-actions checks.
+#
+# Each ecosystem gets one PR per run for everything, majors included, and one
+# for every security fix found at once, instead of a PR per package. That also
+# keeps packages that must move in lockstep together. The cost: a major that
+# needs code changes holds the whole bundle until it's fixed.
 #
 # Both ecosystems run on the shared Monday 06:00 UTC weekly sweep slot so all
-# robot output lands together on Monday morning.
+# robot output lands together on Monday morning. Security updates don't wait
+# for it: they open as soon as an alert does.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -19,16 +24,13 @@ updates:
       timezone: Etc/UTC
     open-pull-requests-limit: 10
     groups:
-      prod-minor-patch:
-        dependency-type: production
-        update-types:
-          - minor
-          - patch
-      dev-minor-patch:
-        dependency-type: development
-        update-types:
-          - minor
-          - patch
+      all-updates:
+        patterns:
+          - "*"
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: "/"
     assignees:
@@ -38,3 +40,11 @@ updates:
       day: monday
       time: "06:00"
       timezone: Etc/UTC
+    groups:
+      all-updates:
+        patterns:
+          - "*"
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
