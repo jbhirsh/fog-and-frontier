@@ -24,8 +24,17 @@ jobs:
     permissions:
       contents: read
       code-quality: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7
+
+      - name: Commit messages
+        # Subject length, body, fixup and merge-commit rules from CLAUDE.md.
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: .github/scripts/check-commits.sh
 
       - uses: actions/setup-node@v7
         with:
@@ -196,16 +205,16 @@ jobs:
                 Flag a rule turned off or downgraded globally.
 
             **Commit hygiene (inspect `git log` on the PR branch):**
-              - Each commit subject should be imperative and ≤72 chars, with a
-                blank line and a body explaining *why* (not *what*).
+              - CI's commit-message check (`.github/scripts/check-commits.sh`)
+                already fails on subject length, a missing body, fixup or
+                "oops" commits and merge commits; don't repeat those.
+              - Each subject should be imperative ("Add X", not "Added X"),
+                and the body should explain *why*, not *what*.
               - Commits authored with Claude should end with a
                 `Co-Authored-By:` trailer.
-              - "Fix X" / "oops" / "typo" commits should be squashed into the
-                feature commit they patch before the PR is opened or updated.
-                CI/infra/workflow fixes are exempt. Flag a visible debugging
-                trail.
-              - No merge commits on the branch — history should be linear
-                (rebase, not merge). Flag any merge commits.
+              - A commit that patches an earlier commit on the branch (a
+                debugging trail) should be squashed into it, whatever its
+                subject says. CI/infra/workflow fixes are exempt.
 
             **Scope:**
               - The PR should do one thing. Flag unrelated refactors, drive-by
