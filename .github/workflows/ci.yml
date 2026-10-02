@@ -145,10 +145,7 @@ jobs:
               - Type safety and null/undefined handling (strict TypeScript).
               - React pitfalls (stale closures, effect deps, unnecessary
                 re-renders, missing keys).
-              - GraphQL: resolver/schema mismatches; operations that weren't
-                re-`codegen`'d after a schema change (the typed output in
-                `src/gql/` is generated from `api/_schema.ts` and must not
-                drift).
+              - GraphQL: resolvers that don't match `api/_schema.ts`.
               - Accessibility regressions in new UI.
 
             ## Engineering conventions to enforce
@@ -194,12 +191,9 @@ jobs:
 
             **TypeScript / ESLint:**
               - All new code must be typed (strict mode).
-              - NEVER use inline `// eslint-disable-*`, `@ts-ignore`,
-                `@ts-expect-error`, or a rule downgrade in config to make a
-                violation pass. If a rule genuinely needs relaxing it must be a
-                narrow, file-scoped override in `eslint.config.js` with a
-                comment explaining why. Flag any inline suppression as a
-                blocking issue.
+              - A lint rule may only be relaxed by a narrow, file-scoped
+                override in `eslint.config.js` with a comment saying why.
+                Flag a rule turned off or downgraded globally.
 
             **Commit hygiene (inspect `git log` on the PR branch):**
               - Each commit subject should be imperative and ≤72 chars, with a
@@ -220,13 +214,62 @@ jobs:
                 happen. Only validate at system boundaries.
 
             **Security / safety:**
-              - Flag any committed secrets, API keys, or `.env` files.
               - Flag use of `git add -A` or `--no-verify` patterns if visible
                 in commit messages or scripts.
               - DO NOT flag floating GitHub Action version tags
                 (e.g. `@v5`, `@v1`) as a supply-chain risk or suggest pinning
                 to commit SHAs. The maintainer has accepted this trade-off and
                 prefers automatic patch/minor updates.
+
+            ## Beyond the diff
+
+            A change can break code it doesn't touch. When the PR changes a
+            function's signature or behavior, a type, an exported constant, an
+            API response, a storage key or a route, find every caller and reader
+            (Grep the repo) and check each still works. Flag a breakage on the
+            changed line and name the file it breaks.
+
+            ## Stored data
+
+            Turso holds live production data. Tables are created in code with
+            `CREATE TABLE IF NOT EXISTS` (see `api/_trips.ts`), which does nothing
+            to a table that already exists, so a column added to one of those
+            statements never reaches production on its own. Flag a schema change
+            without a migration that applies it to the existing table, and a
+            renamed or removed column or table that existing rows or other readers
+            still depend on. Activities are stored as JSON in table `a` (column
+            `j`), so renaming or removing an Activity field breaks existing rows
+            with no schema change at all; flag that unless loading still accepts
+            the old shape. The browser also keeps the user's photos only in
+            localStorage (`fogandfrontier.userPhotos.v1`, `src/lib/userPhotos.ts`);
+            renaming the key or changing its shape loses them.
+
+            ## New dependencies
+
+            When `package.json` gains a runtime dependency (`dependencies`, not
+            `devDependencies`), flag it if existing code, the platform or an
+            already-installed package covers the need. This is about whether the
+            package is needed at all; known vulnerabilities are checked elsewhere.
+
+            ## Documentation drift
+
+            The docs are the tracked Markdown files that describe the code as it
+            is now (`git ls-files '*.md'`): README.md, CLAUDE.md and the like.
+            Plans, changelogs and learnings logs record intent or history; leave
+            those alone. Read the docs against the diff. A statement the PR makes
+            false (a renamed file, function or component; a changed command,
+            script, route, env var, default, limit or version; a moved test
+            location; an architecture description that no longer holds) is a
+            blocking issue:
+              - If the PR's diff includes that line of the doc, put the inline
+                comment on it with a GitHub suggestion block (a fenced block
+                tagged `suggestion`) holding the corrected line(s), so it can be
+                applied in one click.
+              - Otherwise put the inline comment on the changed code line that
+                made the doc wrong. Name the doc file and line, quote the stale
+                text, and give the replacement text.
+            Something the PR adds that the docs don't mention yet is not drift:
+            note it in the top-level summary, not inline.
 
             ## Output format
 
