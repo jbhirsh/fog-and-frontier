@@ -9,6 +9,7 @@ import {
   dogFriendlyTidepools,
   muirWoods,
 } from '../test/fixtures';
+import { HOME_LOCATION, distanceMiles } from '../data/home';
 
 const ALL = [muirWoods, completedHike, dogFriendlyTidepools];
 
@@ -82,6 +83,18 @@ describe('applyCatalogFilters', () => {
     // From Campbell, all fixtures are >25 miles away.
     const result = applyCatalogFilters(ALL, filters({ maxDistance: 25 }));
     expect(result).toEqual([]);
+  });
+
+  it('keeps an activity exactly at the max distance ("Within N mi")', () => {
+    const miles = distanceMiles(
+      HOME_LOCATION.coords,
+      dogFriendlyTidepools.location.coords,
+    );
+    const result = applyCatalogFilters(
+      [dogFriendlyTidepools],
+      filters({ maxDistance: miles }),
+    );
+    expect(result).toEqual([dogFriendlyTidepools]);
   });
 
   it('filters by dog-friendly', () => {

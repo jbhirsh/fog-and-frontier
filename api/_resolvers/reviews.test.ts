@@ -156,12 +156,15 @@ describe('Query.activityReviews (public)', () => {
     expect(row.updatedAt).toBe('2026-03-01T00:00:00.000Z');
   });
 
-  it('skips rows missing their identity columns', async () => {
+  it('skips rows with a missing or non-string identity, or a missing timestamp', async () => {
     execute.mockResolvedValueOnce({
       rows: [
         { activity_id: null, author_email: 'jess@example.com', created_at: 1, updated_at: 1 },
         { activity_id: 'a1', author_email: null, created_at: 1, updated_at: 1 },
         { activity_id: 'a1', author_email: 'jess@example.com', created_at: null, updated_at: 1 },
+        { activity_id: 'a1', author_email: 'jess@example.com', created_at: 1, updated_at: null },
+        { activity_id: 7, author_email: 'jess@example.com', created_at: 1, updated_at: 1 },
+        { activity_id: 'a1', author_email: 7, created_at: 1, updated_at: 1 },
         { activity_id: 'a2', author_email: 'jess@example.com', rating: null, note: 42, created_at: 7, updated_at: 8 },
       ],
     });
@@ -236,6 +239,21 @@ describe('Mutation.saveActivityReview', () => {
   ])('rejects %s', async (_label, input) => {
     const res = await run(SAVE, { input }, JESS);
     expect(code(res)).toBe('BAD_USER_INPUT');
+  });
+
+  it.each([1, 5])('accepts the boundary rating %s', async (rating) => {
+    const res = await run(SAVE, { input: { activityId: 'a1', rating } }, JESS);
+    expect(res.errors).toBeUndefined();
+    const review = (res.data?.saveActivityReview as { review: ReviewRow }).review;
+    expect(review.rating).toBe(rating);
+  });
+
+  it('accepts a note exactly at the cap', async () => {
+    const note = 'x'.repeat(MAX_NOTE_LENGTH);
+    const res = await run(SAVE, { input: { activityId: 'a1', note } }, JESS);
+    expect(res.errors).toBeUndefined();
+    const review = (res.data?.saveActivityReview as { review: ReviewRow }).review;
+    expect(review.note).toBe(note);
   });
 
   it('rejects a note longer than the cap', async () => {

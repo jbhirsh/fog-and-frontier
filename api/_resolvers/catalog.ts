@@ -9,7 +9,7 @@ import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
 
 function rowIdToString(id: unknown): string | null {
   if (typeof id === 'string') return id;
-  if (typeof id === 'number' || typeof id === 'bigint') return id.toString();
+  if (typeof id === 'number') return id.toString();
   return null;
 }
 
@@ -48,16 +48,14 @@ type ActivityInput = Record<string, unknown> & { completedDate?: unknown };
 
 // Build the persisted catalog JSON from a SaveActivityInput. The input lacks
 // `id` (it's a sibling field), so we splice it in; `completedDate` arrives as a
-// Date object from the Date scalar and is normalized back to 'YYYY-MM-DD'.
+// Date object from the Date scalar and is normalized back to 'YYYY-MM-DD'. An
+// absent completedDate stays absent: dateToIso(undefined) is undefined, which
+// JSON.stringify drops.
 function buildStoredActivity(
   id: string,
   activity: ActivityInput,
 ): Record<string, unknown> {
-  const stored: Record<string, unknown> = { id, ...activity };
-  if (activity.completedDate !== undefined) {
-    stored.completedDate = dateToIso(activity.completedDate);
-  }
-  return stored;
+  return { id, ...activity, completedDate: dateToIso(activity.completedDate) };
 }
 
 async function saveActivity(
@@ -67,7 +65,7 @@ async function saveActivity(
 ) {
   requireOwnerCtx(ctx);
   const id = input.id;
-  if (typeof id !== 'string' || !id) throw badInput('missing id');
+  if (!id) throw badInput('missing id');
   const stored = buildStoredActivity(id, input.activity);
   const json = JSON.stringify(stored);
   if (json.length > 8000) throw badInput('activity too large');
@@ -85,7 +83,7 @@ async function deleteActivity(
 ) {
   requireOwnerCtx(ctx);
   const id = input.id;
-  if (typeof id !== 'string' || !id) throw badInput('missing id');
+  if (!id) throw badInput('missing id');
   // Owner reviews (#184) live in their own table, so they need an explicit
   // cascade — otherwise a deleted activity leaves review rows behind that no
   // surface can reach, and a reused id would inherit them. One batch so the
@@ -107,7 +105,7 @@ async function setCompleted(
 ) {
   requireOwnerCtx(ctx);
   const id = input.id;
-  if (typeof id !== 'string' || !id) throw badInput('missing id');
+  if (!id) throw badInput('missing id');
   // value null/absent clears the override; true/false sets it.
   if (input.value == null) {
     await db().execute({ sql: 'DELETE FROM c WHERE id = ?', args: [id] });

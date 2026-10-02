@@ -82,10 +82,15 @@ describe('MembersStrip', () => {
     expect(onRemoveMember).toHaveBeenCalledWith('bob@example.com');
   });
 
-  it('remove ✕ on non-creator member is DISABLED with tooltip when isCreator=false', () => {
+  it('remove ✕ on non-creator member is DISABLED with tooltip when isCreator=false', async () => {
+    const onRemoveMember = vi.fn();
     render(
       <MembersStrip
-        {...defaultProps({ isCreator: false, currentEmail: 'alice@example.com' })}
+        {...defaultProps({
+          isCreator: false,
+          currentEmail: 'alice@example.com',
+          onRemoveMember,
+        })}
       />,
     );
     const removeBtn = screen.getByRole('button', { name: 'Remove bob@example.com' });
@@ -94,6 +99,8 @@ describe('MembersStrip', () => {
       'title',
       'Only the trip creator can remove members',
     );
+    await userEvent.click(removeBtn);
+    expect(onRemoveMember).not.toHaveBeenCalled();
   });
 
   it('clicking revoke calls onRevokeInvite with the invite token', async () => {
@@ -149,5 +156,36 @@ describe('MembersStrip', () => {
     expect(
       screen.queryByRole('button', { name: 'Remove bob@example.com' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('puts the You hint on the current user’s chip only', () => {
+    render(<MembersStrip {...defaultProps({ currentEmail: 'alice@example.com' })} />);
+    const hints = screen.getAllByText('· You');
+    expect(hints).toHaveLength(1);
+    expect(hints[0].parentElement).toHaveTextContent(/^Alice· You$/);
+  });
+
+  it('puts the Creator badge on the creator’s chip only', () => {
+    render(<MembersStrip {...defaultProps()} />);
+    const badges = screen.getAllByText('Creator');
+    expect(badges).toHaveLength(1);
+    expect(badges[0].parentElement).toHaveTextContent(/^Alice/);
+  });
+
+  it('renders for a signed-out viewer with no You hint and no Leave button', () => {
+    render(<MembersStrip {...defaultProps({ currentEmail: null, isCreator: false })} />);
+    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.queryByText('· You')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Leave trip' })).not.toBeInTheDocument();
+  });
+
+  it('matches the current user’s chip case-insensitively', () => {
+    render(
+      <MembersStrip
+        {...defaultProps({ currentEmail: 'Bob@Example.com', isCreator: false })}
+      />,
+    );
+    expect(screen.getAllByText('· You')[0].parentElement).toHaveTextContent(/^Bob/);
+    expect(screen.getByRole('button', { name: 'Leave trip' })).toBeInTheDocument();
   });
 });

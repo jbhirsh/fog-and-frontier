@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cartoTileUrl, glyphPin } from './mapPins';
+import { CATEGORY_ICON, cartoTileUrl, glyphPin } from './mapPins';
 
 const BASE = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
@@ -36,5 +36,21 @@ describe('glyphPin', () => {
     expect(icon.options.popupAnchor).toEqual([0, -22]);
     expect(icon.options.html).toContain('>3</span>');
     expect(icon.options.html).not.toContain('material-symbols-outlined');
+  });
+});
+
+describe('CATEGORY_ICON', () => {
+  it('gives each category the same Material Symbols glyph as its catalog card', () => {
+    expect(CATEGORY_ICON).toEqual({
+      hiking: 'directions_walk',
+      cycling: 'pedal_bike',
+      water: 'water',
+      food: 'restaurant',
+      culture: 'museum',
+      scenic: 'landscape',
+      climbing: 'terrain',
+      camping: 'forest',
+      other: 'explore',
+    });
   });
 });

@@ -20,12 +20,12 @@ export function isEffectivelyCompleted(
 function writeCompletedEntry(
   cache: typeof apolloClient.cache,
   id: string,
-  completed: boolean | null | undefined,
+  completed: boolean | null,
 ): void {
   const existing = cache.readQuery({ query: COMPLETED_QUERY })?.completed ?? [];
   const filtered = existing.filter((e) => e.id !== id);
   const next =
-    completed === null || completed === undefined
+    completed === null
       ? filtered
       : [...filtered, { __typename: 'CompletedEntry' as const, id, completed }];
   cache.writeQuery({ query: COMPLETED_QUERY, data: { completed: next } });
@@ -55,7 +55,7 @@ export async function setCompleted(
 // activities get false to override stale baselines.
 export function applyCompletionMirror(
   completed: string[],
-  uncompleted: string[] = [],
+  uncompleted: string[],
 ): void {
   if (completed.length === 0 && uncompleted.length === 0) return;
   const cache = apolloClient.cache;

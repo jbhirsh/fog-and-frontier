@@ -120,4 +120,17 @@ describe('api/graphql.ts express app (real wiring)', () => {
     const r = await post('{ trips { id } }', 'Bearer sometoken');
     expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
   });
+
+  // formatError logs only genuine server errors (#20); an expected,
+  // client-facing error such as UNAUTHENTICATED must not reach the error log.
+  it('does not log a user-facing error as a server error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const r = await post('{ trips { id } }');
+      expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });

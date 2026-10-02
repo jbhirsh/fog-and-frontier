@@ -21,17 +21,18 @@ type ReviewShape = {
 
 // A review must say *something*. Clearing both fields is a delete, which the
 // client calls explicitly — an empty upsert would otherwise leave a blank card.
-export function normalizeRating(raw: unknown): number | null {
+// The schema's Int / String / ID! input coercion has already rejected a value
+// of the wrong type, so these check only what GraphQL can't express.
+export function normalizeRating(raw: number | null | undefined): number | null {
   if (raw == null) return null;
-  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1 || raw > 5) {
+  if (raw < 1 || raw > 5) {
     throw badInput('rating must be an integer between 1 and 5');
   }
   return raw;
 }
 
-export function normalizeNote(raw: unknown): string | null {
+export function normalizeNote(raw: string | null | undefined): string | null {
   if (raw == null) return null;
-  if (typeof raw !== 'string') throw badInput('note must be a string');
   const trimmed = raw.trim();
   if (!trimmed) return null;
   if (trimmed.length > MAX_NOTE_LENGTH) {
@@ -40,8 +41,8 @@ export function normalizeNote(raw: unknown): string | null {
   return trimmed;
 }
 
-export function requireActivityId(raw: unknown): string {
-  if (typeof raw !== 'string' || !raw) throw badInput('missing activityId');
+export function requireActivityId(raw: string): string {
+  if (!raw) throw badInput('missing activityId');
   return raw;
 }
 
@@ -90,7 +91,11 @@ async function activityReviews() {
 
 async function saveActivityReview(
   _parent: unknown,
-  { input }: { input: { activityId: string; rating?: unknown; note?: unknown } },
+  {
+    input,
+  }: {
+    input: { activityId: string; rating?: number | null; note?: string | null };
+  },
   ctx: GqlContext,
 ) {
   const caller = requireOwnerCtx(ctx);

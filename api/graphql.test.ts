@@ -292,6 +292,33 @@ describe('Query.activities (public)', () => {
       dietary: ['vegetarian', 'vegan'],
     });
   });
+
+  it('skips rows with no usable id or a JSON payload that is not an object', async () => {
+    const valid = (id?: string) =>
+      JSON.stringify({ ...(id ? { id } : {}), ...minimalActivity() });
+    setup({
+      catalog: [
+        { id: 'a1', j: valid('a1') },
+        // A null row id is skipped even when the payload carries its own id.
+        { id: null, j: valid('ghost') },
+        { id: '', j: valid('empty') },
+        // Parseable JSON that isn't an object can't be an activity.
+        { id: 'num', j: '42' },
+        { id: 'str', j: '"just a string"' },
+        { id: 'nul', j: 'null' },
+      ],
+    });
+    const r = await run('{ activities { id name } }');
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.activities).toEqual([{ id: 'a1', name: 'Trail' }]);
+  });
+
+  it('stringifies a numeric row id, including 0', async () => {
+    setup({ catalog: [{ id: 0, j: JSON.stringify(minimalActivity()) }] });
+    const r = await run('{ activities { id name } }');
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.activities).toEqual([{ id: '0', name: 'Trail' }]);
+  });
 });
 
 describe('Query.completed (public)', () => {
@@ -466,6 +493,108 @@ describe('owner-gated mutations', () => {
     const stored = (insert?.[0] as { args: unknown[] }).args[1] as string;
     // buildStoredActivity normalizes the Date scalar back to 'YYYY-MM-DD'.
     expect(JSON.parse(stored)).toMatchObject({ completedDate: '2025-07-01' });
+  });
+});
+
+// Every write the catalog mutations made through execute(), as { sql, args }.
+function executeWrites(): { sql: string; args: unknown[] }[] {
+  return execute.mock.calls
+    .map((c) => c[0] as unknown)
+    .filter((q): q is { sql: string; args: unknown[] } => typeof q === 'object' && q !== null)
+    .filter((q) => /^(INSERT|DELETE|UPDATE)/.test(q.sql));
+}
+
+describe('catalog mutations: owner gate on every write', () => {
+  const DELETE = 'mutation($i: DeleteActivityInput!){ deleteActivity(input:$i){ deletedId } }';
+  const SET = 'mutation($i: SetCompletedInput!){ setCompleted(input:$i){ id completed } }';
+
+  it('deleteActivity: anon → UNAUTHENTICATED, nothing deleted', async () => {
+    setup();
+    const r = await run(DELETE, { i: { id: 'a1' } }, null);
+    expect(code(r)).toBe('UNAUTHENTICATED');
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('deleteActivity: signed-in non-owner → FORBIDDEN, nothing deleted', async () => {
+    setup();
+    const r = await run(DELETE, { i: { id: 'a1' } }, EDITOR);
+    expect(code(r)).toBe('FORBIDDEN');
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('setCompleted: anon → UNAUTHENTICATED, nothing written', async () => {
+    setup();
+    const r = await run(SET, { i: { id: 'a1', value: true } }, null);
+    expect(code(r)).toBe('UNAUTHENTICATED');
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('setCompleted: signed-in non-owner → FORBIDDEN, nothing written', async () => {
+    setup();
+    const r = await run(SET, { i: { id: 'a1', value: null } }, EDITOR);
+    expect(code(r)).toBe('FORBIDDEN');
+    expect(executeWrites()).toEqual([]);
+  });
+});
+
+describe('catalog mutations: input validation and persistence', () => {
+  const SAVE = 'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id } } }';
+  const DELETE = 'mutation($i: DeleteActivityInput!){ deleteActivity(input:$i){ deletedId } }';
+  const SET = 'mutation($i: SetCompletedInput!){ setCompleted(input:$i){ id completed } }';
+
+  it('an empty id → BAD_USER_INPUT on every catalog mutation, nothing written', async () => {
+    setup();
+    const save = await run(SAVE, { i: { id: '', activity: minimalActivity() } }, OWNER);
+    const del = await run(DELETE, { i: { id: '' } }, OWNER);
+    const set = await run(SET, { i: { id: '', value: true } }, OWNER);
+    expect([code(save), code(del), code(set)]).toEqual([
+      'BAD_USER_INPUT',
+      'BAD_USER_INPUT',
+      'BAD_USER_INPUT',
+    ]);
+    expect(executeWrites()).toEqual([]);
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('saveActivity: stored JSON of exactly 8000 chars is accepted, 8001 is not', async () => {
+    // Measure the stored JSON with empty notes, then pad notes so the stored
+    // JSON lands exactly on the limit ("> 8000" is the rejection rule).
+    setup();
+    await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), notes: '' } } }, OWNER);
+    const base = (executeWrites()[0]?.args[1] as string).length;
+    const atLimit = { ...minimalActivity(), notes: 'x'.repeat(8000 - base) };
+    const overLimit = { ...minimalActivity(), notes: 'x'.repeat(8001 - base) };
+
+    execute.mockClear();
+    const ok = await run(SAVE, { i: { id: 'a1', activity: atLimit } }, OWNER);
+    expect(ok.errors).toBeUndefined();
+    expect((executeWrites()[0]?.args[1] as string).length).toBe(8000);
+
+    execute.mockClear();
+    const tooBig = await run(SAVE, { i: { id: 'a1', activity: overLimit } }, OWNER);
+    expect(code(tooBig)).toBe('BAD_USER_INPUT');
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('setCompleted: true / false upsert v = 1 / 0 for the id', async () => {
+    setup();
+    const on = await run(SET, { i: { id: 'a1', value: true } }, OWNER);
+    const off = await run(SET, { i: { id: 'a2', value: false } }, OWNER);
+    expect(on.data?.setCompleted).toEqual({ id: 'a1', completed: true });
+    expect(off.data?.setCompleted).toEqual({ id: 'a2', completed: false });
+    const writes = executeWrites();
+    expect(writes.map((w) => w.args)).toEqual([
+      ['a1', 1],
+      ['a2', 0],
+    ]);
+    expect(writes.every((w) => /^INSERT INTO c /.test(w.sql))).toBe(true);
+  });
+
+  it('setCompleted: null clears the override with a DELETE, never an upsert', async () => {
+    setup();
+    const r = await run(SET, { i: { id: 'a1', value: null } }, OWNER);
+    expect(r.data?.setCompleted).toEqual({ id: 'a1', completed: null });
+    expect(executeWrites()).toEqual([{ sql: 'DELETE FROM c WHERE id = ?', args: ['a1'] }]);
   });
 });
 
@@ -799,6 +928,67 @@ describe('Mutation.createTrip / patchTrip / deleteTrip', () => {
     );
     expect(r.errors).toBeUndefined();
     expect((r.data?.patchTrip as Row).trip).toMatchObject({ id: 'trip1' });
+    expect(batch).toHaveBeenCalledWith(
+      [{ sql: 'UPDATE trips SET description = ? WHERE id = ?', args: ['note', 'trip1'] }],
+      'write',
+    );
+  });
+
+  it('patchTrip: forwards a title edit', async () => {
+    setup({ trip: tripRow({ status: 'planning' }) });
+    const r = await run(
+      'mutation($i: PatchTripInput!){ patchTrip(input:$i){ trip { id } } }',
+      { i: { id: 'trip1', patch: { title: 'Renamed' } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(batch).toHaveBeenCalledWith(
+      [{ sql: 'UPDATE trips SET title = ? WHERE id = ?', args: ['Renamed', 'trip1'] }],
+      'write',
+    );
+  });
+
+  it('patchTrip: an explicit null description clears it (absent-vs-null)', async () => {
+    setup({ trip: tripRow({ status: 'planning', description: 'old' }) });
+    const r = await run(
+      'mutation($i: PatchTripInput!){ patchTrip(input:$i){ trip { id } } }',
+      { i: { id: 'trip1', patch: { description: null } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(batch).toHaveBeenCalledWith(
+      [{ sql: 'UPDATE trips SET description = ? WHERE id = ?', args: [null, 'trip1'] }],
+      'write',
+    );
+  });
+
+  it('patchTrip: trip removed before the payload reload → NOT_FOUND', async () => {
+    // Reads of the trip row: membership guard, patchTrip's own load, its
+    // post-write reload, then the resolver's getTripDetail. The trip vanishes
+    // only on that last one (a concurrent delete), which must surface as
+    // NOT_FOUND rather than a crash mapping a missing trip.
+    let tripSelects = 0;
+    execute.mockImplementation((q: unknown) => {
+      const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+      if (/SELECT \* FROM trips WHERE id = \?/.test(sql)) {
+        tripSelects += 1;
+        return Promise.resolve({
+          rows: tripSelects <= 3 ? [tripRow({ status: 'planning' })] : [],
+        });
+      }
+      if (/SELECT 1 FROM trip_members WHERE trip_id = \? AND member_email/.test(sql)) {
+        return Promise.resolve({ rows: [{ '1': 1 }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    batch.mockResolvedValue([]);
+    const r = await run(
+      'mutation($i: PatchTripInput!){ patchTrip(input:$i){ trip { id } } }',
+      { i: { id: 'trip1', patch: { description: 'note' } } },
+      OWNER,
+    );
+    expect(tripSelects).toBe(4);
+    expect(code(r)).toBe('NOT_FOUND');
   });
 
   it('deleteTrip: non-creator member → FORBIDDEN', async () => {
@@ -840,6 +1030,11 @@ describe('Mutation.createTrip / patchTrip / deleteTrip', () => {
     );
     expect(r.errors).toBeUndefined();
     expect((r.data?.patchTrip as Row).trip).toMatchObject({ id: 'trip1' });
+    const [stmts] = batch.mock.calls[0] as [{ sql: string; args: unknown[] }[]];
+    expect(stmts[0]).toEqual({
+      sql: 'UPDATE trips SET start_date = ?, end_date = ?, cover_image_url = ? WHERE id = ?',
+      args: ['2025-07-02', '2025-07-05', 'http://cover', 'trip1'],
+    });
   });
 });
 
@@ -931,7 +1126,26 @@ describe('Mutation.addTripActivity', () => {
   });
 });
 
+// Args of the slot UPDATE patchTripActivity wrote: [day_index, start_time,
+// display_order, id].
+function slotUpdateArgs(): unknown {
+  const call = execute.mock.calls.find(
+    ([q]) => typeof q !== 'string' && /UPDATE trip_activities/.test((q as { sql: string }).sql),
+  );
+  return (call?.[0] as { args: unknown[] } | undefined)?.args;
+}
+
 describe('Mutation.assignSlot / setDisplayOrder', () => {
+  it('unknown candidate → NOT_FOUND', async () => {
+    setup({ tripActivityRow: null });
+    const r = await run(
+      'mutation($i: AssignSlotInput!){ assignSlot(input:$i){ tripActivity { id } } }',
+      { i: { taId: 'ghost', displayOrder: 1 } },
+      OWNER,
+    );
+    expect(code(r)).toBe('NOT_FOUND');
+  });
+
   it('assignSlot dayIndex during voting → CONFLICT voting_locked', async () => {
     setup({ tripActivityRow: taRow(), trip: tripRow({ status: 'voting' }) });
     const r = await run(
@@ -951,6 +1165,7 @@ describe('Mutation.assignSlot / setDisplayOrder', () => {
     );
     expect(r.errors).toBeUndefined();
     expect((r.data?.assignSlot as Row).tripActivity).toMatchObject({ id: 'ta1' });
+    expect(slotUpdateArgs()).toEqual([null, null, 3, 'ta1']);
   });
 
   it('assignSlot valid slot during planning → updates', async () => {
@@ -961,6 +1176,7 @@ describe('Mutation.assignSlot / setDisplayOrder', () => {
       OWNER,
     );
     expect(r.errors).toBeUndefined();
+    expect(slotUpdateArgs()).toEqual([0, '09:00', 0, 'ta1']);
   });
 
   it('assignSlot inconsistent (only dayIndex, no time) during planning → BAD_USER_INPUT', async () => {
@@ -981,6 +1197,7 @@ describe('Mutation.assignSlot / setDisplayOrder', () => {
       OWNER,
     );
     expect(r.errors).toBeUndefined();
+    expect(slotUpdateArgs()).toEqual([null, null, 5, 'ta1']);
   });
 
   it('trip removed after loading the candidate → NOT_FOUND', async () => {
@@ -1040,6 +1257,24 @@ describe('Mutation.removeTripActivity', () => {
 // ===========================================================================
 // Voting + lifecycle
 // ===========================================================================
+// The trip row is visible to the first `reads` loads (the membership guard),
+// then gone: a concurrent delete landing between the guard and the resolver's
+// own reload.
+function mockTripVanishesAfter(reads: number) {
+  let tripSelects = 0;
+  execute.mockImplementation((q: unknown) => {
+    const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+    if (/SELECT \* FROM trips WHERE id = \?/.test(sql)) {
+      tripSelects += 1;
+      return Promise.resolve({ rows: tripSelects <= reads ? [tripRow()] : [] });
+    }
+    if (/SELECT 1 FROM trip_members WHERE trip_id = \? AND member_email/.test(sql)) {
+      return Promise.resolve({ rows: [{ '1': 1 }] });
+    }
+    return Promise.resolve({ rows: [] });
+  });
+}
+
 describe('Mutation.castVote', () => {
   it('invalid value 2 → BAD_USER_INPUT', async () => {
     setup();
@@ -1073,6 +1308,31 @@ describe('Mutation.castVote', () => {
       memberEmail: OWNER.email,
       value: 1,
     });
+  });
+
+  it('value -1 → returns the downvote', async () => {
+    setup();
+    const r = await run(
+      'mutation($i: CastVoteInput!){ castVote(input:$i){ vote { tripActivityId memberEmail value } } }',
+      { i: { tripId: 'trip1', tripActivityId: 'ta1', value: -1 } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.castVote as Row).vote).toEqual({
+      tripActivityId: 'ta1',
+      memberEmail: OWNER.email,
+      value: -1,
+    });
+  });
+
+  it('trip removed between the membership check and the reload → NOT_FOUND', async () => {
+    mockTripVanishesAfter(1);
+    const r = await run(
+      'mutation($i: CastVoteInput!){ castVote(input:$i){ vote { value } } }',
+      { i: { tripId: 'trip1', tripActivityId: 'ta1', value: 1 } },
+      OWNER,
+    );
+    expect(code(r)).toBe('NOT_FOUND');
   });
 
   it('value 0 → vote removed (null payload)', async () => {
@@ -1177,6 +1437,16 @@ describe('Mutation.transitionTrip', () => {
     );
     expect(r.errors).toBeUndefined();
     expect(r.data?.transitionTrip).toEqual({ ok: true, status: 'planning', kept: 0 });
+  });
+
+  it('trip removed between the creator check and the reload → NOT_FOUND', async () => {
+    mockTripVanishesAfter(1);
+    const r = await run(
+      'mutation($i: TransitionTripInput!){ transitionTrip(input:$i){ ok } }',
+      { i: { id: 'trip1', to: votingStatus() } },
+      OWNER,
+    );
+    expect(code(r)).toBe('NOT_FOUND');
   });
 
   it('to=past when already past → CONFLICT', async () => {

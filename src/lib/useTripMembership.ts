@@ -1,4 +1,5 @@
-// UI hint only — the server-side requireMember check is the actual gate.
+// UI hint only — the server-side requireMemberCtx check (api/_gqlContext.ts)
+// is the actual gate.
 // This hook mirrors the framing of useOwner.ts: it tells the UI whether the
 // current user is a trip member so it can grey out or show editing affordances,
 // but the server will independently reject any unauthorized mutations.

@@ -110,7 +110,7 @@ function ReviewCard({
           {review.rating != null && <StarDisplay rating={review.rating} />}
         </div>
         {/* Owner-gated edit affordance — only ever rendered on your own card. */}
-        {isOwn && onEdit && (
+        {onEdit && (
           <button
             type="button"
             onClick={onEdit}

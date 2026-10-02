@@ -1,12 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { InStatement } from '@libsql/client';
 import { db } from './_db.js';
-import {
-  getCurrentUser,
-  getOwnerEmails,
-  type CurrentUser,
-  type UserRole,
-} from './_auth.js';
+import { getOwnerEmails, type CurrentUser, type UserRole } from './_auth.js';
 import { badInput, conflict, forbidden, notFound } from './_gqlError.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
@@ -51,7 +45,8 @@ export type TripVote = {
   value: -1 | 1;
 };
 
-// Membership context returned by the guards below.
+// Membership context returned by the trip guards in api/_gqlContext.ts
+// (`requireMemberCtx` / `requireCreatorCtx`).
 export type MemberContext = {
   email: string;
   role: UserRole;
@@ -579,50 +574,6 @@ export async function deleteInviteByToken(
   });
 }
 
-// Gate for any trip-scoped action available to members. Non-members get a 404
-// (existence hidden, #51 privacy), anon gets 401. Returns the caller context
-// or null after writing the response.
-export async function requireMember(
-  req: VercelRequest,
-  res: VercelResponse,
-  tripId: string,
-): Promise<MemberContext | null> {
-  const user = await getCurrentUser(req);
-  if (!user) {
-    res.status(401).json({ error: 'unauthorized' });
-    return null;
-  }
-  const trip = await getTripRow(tripId);
-  const member = await isTripMember(tripId, user.email);
-  if (!trip || !member) {
-    // Hide existence from non-members: 404, not 403.
-    res.status(404).json({ error: 'not found' });
-    return null;
-  }
-  return {
-    email: user.email,
-    role: user.role,
-    isCreator: trip.creator_email === user.email,
-  };
-}
-
-// Gate for creator-only actions (delete, mark past, voting↔planning
-// transitions, removing other members). A member who isn't the creator gets
-// 403 — they can see the trip, so existence isn't hidden.
-export async function requireCreator(
-  req: VercelRequest,
-  res: VercelResponse,
-  tripId: string,
-): Promise<MemberContext | null> {
-  const ctx = await requireMember(req, res, tripId);
-  if (!ctx) return null;
-  if (!ctx.isCreator) {
-    res.status(403).json({ error: 'forbidden' });
-    return null;
-  }
-  return ctx;
-}
-
 // ===========================================================================
 // Res-free business logic (issue #91). Lifted out of the deleted REST handlers
 // so the GraphQL resolvers can reuse it. These NEVER touch a `res`: they return
@@ -713,9 +664,10 @@ export async function listTrips(callerEmail: string): Promise<TripListItem[]> {
 export type CreateTripArgs = {
   title: unknown;
   // startDate/endDate arrive as already-validated 'YYYY-MM-DD' strings (the
-  // resolver converts the graphql Date scalar's Date object back to a string).
-  startDate: string | null;
-  endDate: string | null;
+  // resolver converts the graphql Date scalar's Date object back to a string);
+  // createTrip still rejects anything else with isIsoDate.
+  startDate: string | null | undefined;
+  endDate: string | null | undefined;
   description?: string | null;
   coverImageUrl?: string | null;
   initialActivityIds?: readonly string[] | null;

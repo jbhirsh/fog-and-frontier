@@ -67,6 +67,20 @@ function renderReviews(reviews: ReviewSeed[] = []) {
   return render(<ActivityReviews activityId="a1" />, { reviews });
 }
 
+// The stars are the visible rating: a filled glyph per star up to the rating.
+function isFilled(icon: Element): boolean {
+  return (icon as HTMLElement).style.fontVariationSettings === "'FILL' 1";
+}
+
+// A server call that stays in flight until the test settles it.
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<undefined>((res) => {
+    resolve = () => res(undefined);
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   ownerState.isOwner = true;
   ownerState.email = 'jess@example.com';
@@ -90,6 +104,47 @@ describe('reading reviews', () => {
     renderReviews([seed(), TARUN]);
     await screen.findByText('Jess');
     expect(screen.getByText('(you)')).toBeInTheDocument();
+  });
+
+  it('marks only the signed-in owner’s own review as theirs', async () => {
+    renderReviews([seed(), TARUN]);
+    const own = (await screen.findByText('Jess')).closest('article');
+    const theirs = screen.getByText('Tarun').closest('article');
+    expect(own).toHaveTextContent('(you)');
+    expect(theirs).not.toHaveTextContent('(you)');
+  });
+
+  it('fills as many stars as the rating', async () => {
+    renderReviews([TARUN]);
+    const stars = await screen.findByLabelText('3 out of 5 stars');
+    const icons = Array.from(stars.children);
+    expect(icons).toHaveLength(5);
+    expect(icons.map(isFilled)).toEqual([true, true, true, false, false]);
+  });
+
+  it('shows no star rating on a note-only review', async () => {
+    renderReviews([{ ...TARUN, rating: null }]);
+    await screen.findByText('Too windy for me.');
+    expect(screen.queryByLabelText(/out of 5 stars/)).not.toBeInTheDocument();
+  });
+
+  it('renders the note as its own paragraph', async () => {
+    renderReviews([TARUN]);
+    const article = (await screen.findByText('Tarun')).closest('article');
+    expect(
+      within(article as HTMLElement).getByRole('paragraph'),
+    ).toHaveTextContent('Too windy for me.');
+  });
+
+  it('drops the empty-state line once there is a review', async () => {
+    // An owner who hasn't reviewed yet still sees the other owner's review —
+    // so there are reviews, and "no reviews yet" would be wrong.
+    renderReviews([TARUN]);
+    await screen.findByText('Tarun');
+    expect(
+      screen.getByRole('button', { name: /write a review/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/no reviews yet/i)).not.toBeInTheDocument();
   });
 
   it('renders nothing at all for a non-owner when there are no reviews', () => {
@@ -173,6 +228,36 @@ describe('writing a review', () => {
     });
   });
 
+  it('names the one-star choice in the singular', async () => {
+    renderReviews([]);
+    await userEvent.click(
+      await screen.findByRole('button', { name: /write a review/i }),
+    );
+    expect(screen.getByRole('button', { name: '1 star' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '2 stars' })).toBeInTheDocument();
+  });
+
+  it('fills every star up to the chosen rating', async () => {
+    renderReviews([]);
+    await userEvent.click(
+      await screen.findByRole('button', { name: /write a review/i }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: '4 stars' }));
+    const stars = within(screen.getByRole('group', { name: 'Rating' })).getAllByRole(
+      'button',
+    );
+    expect(stars.map((b) => b.getAttribute('aria-pressed'))).toEqual([
+      'true',
+      'true',
+      'true',
+      'true',
+      'false',
+    ]);
+    expect(
+      stars.map((b) => isFilled(b.firstElementChild as Element)),
+    ).toEqual([true, true, true, true, false]);
+  });
+
   it('pre-fills the editor from the existing review', async () => {
     renderReviews([seed()]);
     await userEvent.click(
@@ -207,6 +292,36 @@ describe('writing a review', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /rating or a note/i,
     );
+  });
+
+  it('locks the editor while a save is in flight, then closes it', async () => {
+    const save = deferred();
+    saveSpy.mockReturnValueOnce(save.promise);
+    renderReviews([]);
+    await userEvent.click(
+      await screen.findByRole('button', { name: /write a review/i }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: '3 stars' }));
+    await userEvent.click(screen.getByRole('button', { name: /save review/i }));
+    expect(screen.getByRole('button', { name: /save review/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+    save.resolve();
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('unlocks the editor after a failed save so it can be retried', async () => {
+    saveSpy.mockRejectedValueOnce(new Error('network'));
+    renderReviews([]);
+    await userEvent.click(
+      await screen.findByRole('button', { name: /write a review/i }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: '3 stars' }));
+    await userEvent.click(screen.getByRole('button', { name: /save review/i }));
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: /save review/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeEnabled();
   });
 
   it('surfaces a failed save and keeps the draft open', async () => {
@@ -265,6 +380,34 @@ describe('writing a review', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /couldn't delete your review/i,
     );
+  });
+
+  it('locks the editor while a delete is in flight', async () => {
+    const del = deferred();
+    deleteSpy.mockReturnValueOnce(del.promise);
+    renderReviews([seed()]);
+    await userEvent.click(
+      await screen.findByRole('button', { name: /edit review/i }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /delete review/i }));
+    expect(screen.getByRole('button', { name: /delete review/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /save review/i })).toBeDisabled();
+    del.resolve();
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('unlocks the editor after a failed delete so it can be retried', async () => {
+    deleteSpy.mockRejectedValueOnce(new Error('network'));
+    renderReviews([seed()]);
+    await userEvent.click(
+      await screen.findByRole('button', { name: /edit review/i }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /delete review/i }));
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: /delete review/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /save review/i })).toBeEnabled();
   });
 
   it('offers no delete control when writing a first review', async () => {

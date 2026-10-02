@@ -76,12 +76,7 @@ export function PromoteToPlanningModal({
         <ul className="space-y-sm max-h-96 overflow-y-auto">
           {candidates.map(({ activity, tally }) => {
             const name = activity.snapshot?.name ?? '(deleted activity)';
-            const netLabel =
-              tally.net > 0
-                ? `+${tally.net}`
-                : tally.net < 0
-                  ? `${tally.net}`
-                  : '0';
+            const netLabel = tally.net > 0 ? `+${tally.net}` : `${tally.net}`;
             const isChecked = checked.has(activity.id);
 
             return (

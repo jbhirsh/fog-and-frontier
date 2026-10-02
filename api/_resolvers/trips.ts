@@ -56,8 +56,8 @@ async function createTripResolver(
   const created = await createTrip(
     {
       title: input.title,
-      startDate: dateToIso(input.startDate) ?? null,
-      endDate: dateToIso(input.endDate) ?? null,
+      startDate: dateToIso(input.startDate),
+      endDate: dateToIso(input.endDate),
       description: input.description,
       coverImageUrl: input.coverImageUrl,
       initialActivityIds: input.initialActivityIds,
@@ -86,21 +86,15 @@ async function patchTripResolver(
 ) {
   await requireMemberCtx(ctx, input.id);
   const p = input.patch;
-  // Preserve absent-vs-null: only forward keys the client actually sent.
-  const patch: {
-    title?: unknown;
-    description?: unknown;
-    startDate?: string | null;
-    endDate?: string | null;
-    coverImageUrl?: unknown;
-  } = {};
-  if ('title' in p) patch.title = p.title;
-  if ('description' in p) patch.description = p.description;
-  if ('startDate' in p) patch.startDate = dateToIso(p.startDate);
-  if ('endDate' in p) patch.endDate = dateToIso(p.endDate);
-  if ('coverImageUrl' in p) patch.coverImageUrl = p.coverImageUrl;
-
-  await patchTrip(input.id, patch);
+  // Absent-vs-null survives the hand-off: a key the client didn't send reads
+  // as undefined (dateToIso keeps it undefined), and patchTrip skips undefined.
+  await patchTrip(input.id, {
+    title: p.title,
+    description: p.description,
+    startDate: dateToIso(p.startDate),
+    endDate: dateToIso(p.endDate),
+    coverImageUrl: p.coverImageUrl,
+  });
   // Payload is a full Trip — reload detail (header + activities/members/…).
   const full = await getTripDetail(input.id);
   if (!full) throw notFound('not found');

@@ -73,6 +73,14 @@ describe('scrubBreadcrumb', () => {
     const crumb: Breadcrumb = { category: 'console', message: 'hello' };
     expect(scrubBreadcrumb(crumb)).toBe(crumb);
   });
+
+  it('returns the breadcrumb untouched when its data has no url', () => {
+    const crumb: Breadcrumb = {
+      category: 'console',
+      data: { arguments: ['hello?'], logger: 'console' },
+    };
+    expect(scrubBreadcrumb(crumb)).toBe(crumb);
+  });
 });
 
 describe('initSentry', () => {
@@ -204,6 +212,30 @@ describe('scrubEvent', () => {
     const event = {} as ErrorEvent;
     expect(scrubEvent(event)).toBe(event);
   });
+
+  it('returns the event untouched when the request has no url', () => {
+    const event = { request: { method: 'GET' } } as ErrorEvent;
+    expect(scrubEvent(event)).toBe(event);
+  });
+
+  it('scrubs only the exception values that carry a query string', () => {
+    const noValue: Exception = { type: 'Error' };
+    const plain: Exception = { type: 'Error', value: 'no urls here' };
+    const leaky: Exception = {
+      type: 'TypeError',
+      value: 'failed https://api.example.com/x?token=secret',
+    };
+    const event = {
+      exception: { values: [noValue, plain, leaky] },
+    } as ErrorEvent;
+    const values = scrubEvent(event).exception?.values;
+    expect(values?.[0]).toBe(noValue);
+    expect(values?.[1]).toBe(plain);
+    expect(values?.[2]).toEqual({
+      type: 'TypeError',
+      value: 'failed https://api.example.com/x',
+    });
+  });
 });
 
 describe('scrubTransaction', () => {
@@ -251,6 +283,35 @@ describe('scrubTransaction', () => {
     const event = {
       type: 'transaction',
       spans: [{ data: { 'http.url': 'https://api.example.com/x', 'http.method': 'GET' } }],
+    } as unknown as TransactionEvent;
+    expect(scrubTransaction(event)).toBe(event);
+  });
+
+  it('passes non-string span attributes through untouched', () => {
+    const event = {
+      type: 'transaction',
+      spans: [
+        {
+          data: {
+            'http.status_code': 200,
+            'http.url': 'https://api.example.com/x?token=secret',
+          },
+        },
+      ],
+    } as unknown as TransactionEvent;
+    const span0 = scrubTransaction(event).spans?.[0]?.data;
+    expect(span0).toEqual({
+      'http.status_code': 200,
+      'http.url': 'https://api.example.com/x',
+    });
+  });
+
+  it('returns the event untouched when the trace context data has no query string', () => {
+    const event = {
+      type: 'transaction',
+      contexts: {
+        trace: { data: { 'http.url': 'https://app.example.com/', 'http.status_code': 200 } },
+      },
     } as unknown as TransactionEvent;
     expect(scrubTransaction(event)).toBe(event);
   });

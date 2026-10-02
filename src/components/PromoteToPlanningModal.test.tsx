@@ -169,4 +169,51 @@ describe('PromoteToPlanningModal', () => {
     // Order should be: a1, c3, d4 (candidates array order, b2 excluded)
     expect(onConfirm).toHaveBeenCalledWith(['a1', 'c3', 'd4']);
   });
+
+  it('shows each candidate’s net score, signed, with its up/down votes', () => {
+    render(
+      <PromoteToPlanningModal
+        candidates={candidates}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('net +3 · 4 up / 1 down')).toBeInTheDocument();
+    expect(screen.getByText('net 0 · 2 up / 2 down')).toBeInTheDocument();
+    expect(screen.getByText('net -2 · 1 up / 3 down')).toBeInTheDocument();
+  });
+
+  it('tints the net score by sentiment: positive, neutral, negative', () => {
+    render(
+      <PromoteToPlanningModal
+        candidates={candidates}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+    const positive = screen.getByText('net +3 · 4 up / 1 down');
+    const neutral = screen.getByText('net 0 · 2 up / 2 down');
+    const negative = screen.getByText('net -2 · 1 up / 3 down');
+    expect(positive).toHaveClass('bg-tertiary-container');
+    expect(positive).not.toHaveClass('bg-error-container', 'bg-surface-variant');
+    expect(neutral).toHaveClass('bg-surface-variant');
+    expect(neutral).not.toHaveClass('bg-tertiary-container', 'bg-error-container');
+    expect(negative).toHaveClass('bg-error-container', 'text-error');
+    expect(negative).not.toHaveClass('bg-tertiary-container', 'bg-surface-variant');
+  });
+
+  it('labels a candidate whose activity was deleted', () => {
+    const deleted = makeCandidate('e5', 'Gone', 1, 1, 0);
+    deleted.activity.snapshot = null;
+    render(
+      <PromoteToPlanningModal
+        candidates={[deleted]}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('checkbox', { name: /\(deleted activity\)/ }),
+    ).toBeInTheDocument();
+  });
 });

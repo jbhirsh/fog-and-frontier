@@ -51,17 +51,14 @@ async function assignSlot(
   ctx: GqlContext,
 ) {
   const { ta, trip } = await loadTaForMember(input.taId, ctx);
-  // Forward only the keys the client sent so absent-vs-null is preserved (a
-  // displayOrder-only assignSlot stays allowed during voting).
-  const patch: {
-    dayIndex?: number | null;
-    startTime?: string | null;
-    displayOrder?: number | null;
-  } = {};
-  if ('dayIndex' in input) patch.dayIndex = input.dayIndex;
-  if ('startTime' in input) patch.startTime = input.startTime;
-  if ('displayOrder' in input) patch.displayOrder = input.displayOrder;
-  const updated = await patchTripActivity(ta, trip, patch);
+  // Absent-vs-null survives the hand-off (a displayOrder-only assignSlot stays
+  // allowed during voting): a key the client didn't send reads as undefined,
+  // and patchTripActivity treats undefined as "not provided".
+  const updated = await patchTripActivity(ta, trip, {
+    dayIndex: input.dayIndex,
+    startTime: input.startTime,
+    displayOrder: input.displayOrder,
+  });
   return { tripActivity: mapTripActivity(updated) };
 }
 

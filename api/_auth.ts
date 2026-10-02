@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { db } from './_db.js';
 
@@ -36,26 +35,18 @@ function client() {
   return _client;
 }
 
-function bearerToken(req: VercelRequest): string | null {
-  const h = req.headers.authorization;
-  if (typeof h !== 'string' || !h.startsWith('Bearer ')) return null;
-  return h.slice('Bearer '.length).trim() || null;
-}
-
-// Tri-state caller status so `requireOwner` can distinguish anon (401) from
-// signed-in non-owner (403) per #50 AC. Clerk/network failures collapse to
-// `anon` since we can't trust the identity — same conservative posture as
-// the prior boolean helper.
+// Tri-state caller status so `requireOwnerCtx` (api/_gqlContext.ts) can
+// distinguish anon (UNAUTHENTICATED) from signed-in non-owner (FORBIDDEN) per
+// #50 AC. Clerk/network failures collapse to `anon` since we can't trust the
+// identity — same conservative posture as the prior boolean helper.
 export type CallerStatus =
   | { state: 'anon' }
   | { state: 'non_owner'; email: string }
   | { state: 'owner'; email: string };
 
 // Token-core: resolve a caller from a raw Bearer token string (no req object).
-// The GraphQL context (api/_gqlContext.ts) authenticates from a bare token, so
-// the identity logic lives here and the `(req)` helpers below just extract the
-// token and delegate. Clerk/network failures collapse to `anon` since we can't
-// trust the identity — same conservative posture as the prior boolean helper.
+// The GraphQL context (api/_gqlContext.ts) extracts the token from the request
+// and authenticates from it, so the identity logic lives here.
 export async function getCallerStatusFromToken(
   token: string | null,
 ): Promise<CallerStatus> {
@@ -77,7 +68,7 @@ export async function getCallerStatusFromToken(
     const primary = user.emailAddresses.find(
       (e) => e.id === user.primaryEmailAddressId,
     );
-    email = primary?.emailAddress?.trim().toLowerCase() ?? null;
+    email = primary?.emailAddress.trim().toLowerCase() ?? null;
   } catch {
     return { state: 'anon' };
   }
@@ -88,29 +79,6 @@ export async function getCallerStatusFromToken(
     : { state: 'non_owner', email };
 }
 
-export async function getCallerStatus(req: VercelRequest): Promise<CallerStatus> {
-  return getCallerStatusFromToken(bearerToken(req));
-}
-
-export async function getOwnerEmail(req: VercelRequest): Promise<string | null> {
-  const status = await getCallerStatus(req);
-  return status.state === 'owner' ? status.email : null;
-}
-
-export async function requireOwner(
-  req: VercelRequest,
-  res: VercelResponse,
-): Promise<string | null> {
-  const status = await getCallerStatus(req);
-  if (status.state === 'owner') return status.email;
-  if (status.state === 'non_owner') {
-    res.status(403).json({ error: 'forbidden' });
-  } else {
-    res.status(401).json({ error: 'unauthorized' });
-  }
-  return null;
-}
-
 export type CurrentUser = { email: string; role: UserRole };
 
 // Identifies any authenticated account — owner OR editor — and upserts a row
@@ -118,8 +86,8 @@ export type CurrentUser = { email: string; role: UserRole };
 // stays in sync with the owner allow-list. Returns null for anonymous callers.
 //
 // Callers MUST have run `ensureTripsSchema()` first (it creates the `users`
-// table). Complements `requireOwner`, which remains the gate for site-wide
-// writes and paid endpoints.
+// table). The GraphQL guards in api/_gqlContext.ts build on its result:
+// `requireOwnerCtx` remains the gate for site-wide writes and paid endpoints.
 export async function getCurrentUserFromToken(
   token: string | null,
 ): Promise<CurrentUser | null> {
@@ -143,10 +111,4 @@ export async function getCurrentUserFromToken(
     });
   }
   return { email, role };
-}
-
-export async function getCurrentUser(
-  req: VercelRequest,
-): Promise<CurrentUser | null> {
-  return getCurrentUserFromToken(bearerToken(req));
 }

@@ -14,8 +14,9 @@ import { forbidden, notFound, unauthenticated } from './_gqlError.js';
 // GraphQL request context + auth guards (issue #91). The context authenticates
 // once from the Bearer token (preserving the owner `users`-row upsert side
 // effect via getCurrentUserFromToken). Guards THROW a GraphQLError instead of
-// writing a `res` — they replace the REST `requireOwner`/`requireMember`/
-// `requireCreator` helpers one-for-one.
+// writing a `res`. They are the server-side auth gate for every resolver:
+// `requireOwnerCtx` for site-wide writes and paid calls, `requireMemberCtx` /
+// `requireCreatorCtx` for trip-scoped actions.
 
 export type GqlContext = { caller: CurrentUser | null };
 
@@ -40,7 +41,7 @@ export function requireUserCtx(ctx: GqlContext): CurrentUser {
 }
 
 // Site owner (the real gate for catalog writes + paid Gemini calls). Anon →
-// UNAUTHENTICATED, signed-in non-owner → FORBIDDEN (mirrors the REST 401/403).
+// UNAUTHENTICATED, signed-in non-owner → FORBIDDEN.
 export function requireOwnerCtx(ctx: GqlContext): CurrentUser {
   if (!ctx.caller) throw unauthenticated();
   if (ctx.caller.role !== 'owner') throw forbidden();
@@ -77,8 +78,8 @@ export async function requireCreatorCtx(
 }
 
 // Resolver for `trip(id)`: null for a missing trip OR a non-member (hides
-// existence), UNAUTHENTICATED for anon. Mirrors the REST GET behavior where a
-// non-member can't tell a private trip from a non-existent one.
+// existence), UNAUTHENTICATED for anon, so a non-member can't tell a private
+// trip from a non-existent one.
 export async function loadTripForMemberOrNull(
   ctx: GqlContext,
   tripId: string,

@@ -82,6 +82,15 @@ describe('authorLabel', () => {
     expect(authorLabel('@example.com')).toBe('@example.com');
     expect(authorLabel('+@example.com')).toBe('+@example.com');
   });
+
+  it('ignores leading, trailing and doubled separators', () => {
+    expect(authorLabel('_jess.@example.com')).toBe('Jess');
+    expect(authorLabel('jess..hirsh@example.com')).toBe('Jess Hirsh');
+  });
+
+  it('falls back to the raw value when the local part is only separators', () => {
+    expect(authorLabel('._@example.com')).toBe('._@example.com');
+  });
 });
 
 describe('formatReviewDate', () => {
@@ -97,6 +106,10 @@ describe('formatReviewDate', () => {
 describe('validateDraft', () => {
   it('accepts a rating without a note', () => {
     expect(validateDraft(4, '   ')).toBeNull();
+  });
+
+  it.each([1, 5])('accepts the boundary rating %s', (rating) => {
+    expect(validateDraft(rating, '')).toBeNull();
   });
 
   it('accepts a note without a rating', () => {
@@ -249,6 +262,67 @@ describe('useActivityReviews / saveActivityReview / deleteActivityReview', () =>
     expect(
       apolloClient.cache.readQuery({ query: ACTIVITY_REVIEWS_QUERY }),
     ).toBeNull();
+  });
+
+  // [activityId, authorEmail, rating] for every review in the cached list.
+  function cachedReviews(): [string, string, number | null][] {
+    const data = apolloClient.cache.readQuery({ query: ACTIVITY_REVIEWS_QUERY });
+    return (data?.activityReviews ?? [])
+      .map((r): [string, string, number | null] => [r.activityId, r.authorEmail, r.rating])
+      .sort((a, b) => `${a[0]}|${a[1]}`.localeCompare(`${b[0]}|${b[1]}`));
+  }
+
+  function seedThreeReviews() {
+    listed = [
+      review(),
+      review({ authorEmail: 'tarun@example.com', rating: 3 }),
+      review({ activityId: 'a2', rating: 4 }),
+    ];
+  }
+
+  it("a save replaces only the caller's review of that activity", async () => {
+    seedThreeReviews();
+    const { result } = renderHook(() => useActivityReviews('a1'), { wrapper });
+    await waitFor(() => expect(result.current.reviews).toHaveLength(2));
+    await act(async () => {
+      await saveActivityReview({ activityId: 'a1', rating: 2, note: 'Changed my mind' });
+    });
+    expect(cachedReviews()).toEqual([
+      ['a1', 'jess@example.com', 2],
+      ['a1', 'tarun@example.com', 3],
+      ['a2', 'jess@example.com', 4],
+    ]);
+  });
+
+  it("a delete removes only the caller's review of that activity", async () => {
+    seedThreeReviews();
+    const { result } = renderHook(() => useActivityReviews('a1'), { wrapper });
+    await waitFor(() => expect(result.current.reviews).toHaveLength(2));
+    await act(async () => {
+      await deleteActivityReview('a1');
+    });
+    expect(cachedReviews()).toEqual([
+      ['a1', 'tarun@example.com', 3],
+      ['a2', 'jess@example.com', 4],
+    ]);
+  });
+
+  it('paints a remount from cache, then picks up newer reviews in the background', async () => {
+    listed = [review()];
+    const first = renderHook(() => useActivityReviews('a1'), { wrapper });
+    await waitFor(() => expect(first.result.current.reviews).toHaveLength(1));
+    first.unmount();
+
+    listed = [
+      review(),
+      review({ authorEmail: 'tarun@example.com', updatedAt: '2026-04-01T00:00:00.000Z' }),
+    ];
+    const { result } = renderHook(() => useActivityReviews('a1'), { wrapper });
+    // Cached data is on screen at once, and the refetch behind it is not a
+    // first load.
+    expect(result.current.reviews).toHaveLength(1);
+    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.reviews).toHaveLength(2));
   });
 
   it('removes the review from the cached list on delete', async () => {
