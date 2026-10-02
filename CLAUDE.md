@@ -21,14 +21,14 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 ## Layout
 
 - `src/` — React app. `src/pages/`, `src/components/`, `src/lib/`, `src/data/types.ts` (Activity model).
-- `api/` — the GraphQL function. `graphql.ts` is the handler; `_schema.ts` is the SDL; `_resolvers/*` implement it. `_auth.ts` has `requireOwner` (Clerk-backed server gate); `_db.ts` is the Turso client.
+- `api/` — the GraphQL function. `graphql.ts` is the handler; `_schema.ts` is the SDL; `_resolvers/*` implement it. `_gqlContext.ts` has the server auth gates (`requireOwnerCtx`, `requireMemberCtx` / `requireCreatorCtx` for trips, and `requireUserCtx` for any signed-in account), built on the Clerk token check in `_auth.ts`; `_db.ts` is the Turso client.
 - `public/` — static assets.
 - `scripts/` — DB / migration helpers (Node, `--experimental-strip-types` for `.mts/.ts`).
 - `tests/` — Playwright visual specs. Unit tests live next to source as `*.test.ts(x)`.
 
 ## Auth model
 
-- Server-side: `requireOwner` in `api/_auth.ts` is the real gate for any mutating endpoint or paid call (e.g. Gemini).
+- Server-side: `requireOwnerCtx` in `api/_gqlContext.ts` is the real gate for owner-only writes and paid calls (e.g. Gemini); trip-scoped actions are gated by `requireMemberCtx` / `requireCreatorCtx` in the same file, and `requireUserCtx` admits any signed-in account where something else authorizes the action (`claimInvite`, whose invite token is the authorization).
 - Client-side: `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner emails come from `VITE_OWNER_EMAILS`.
 - Role-gated UI: owner-guarded *mutating* controls are **hidden** from non-owners (not disabled/greyed). See the Role-gated UI section below.
 
@@ -65,9 +65,11 @@ Gates that are **not** the owner gate, and keep their existing presentation:
   delete trip, finalize voting, remove member) — gated on being *this trip's*
   creator, a per-trip role shown to trip members, not the global owner gate.
 
-**Server is the real gate.** `useOwner()` is a UI hint only. `requireOwner` in
-`api/_auth.ts` is the actual enforcement and is unchanged by any of the above —
-hiding a control never replaces server-side authorization.
+**Server is the real gate.** `useOwner()` is a UI hint only. `requireOwnerCtx`
+in `api/_gqlContext.ts` (and `requireMemberCtx` / `requireCreatorCtx` for
+trip-scoped actions, `requireUserCtx` for any signed-in account) is the actual
+enforcement and is unchanged by any of the
+above — hiding a control never replaces server-side authorization.
 
 - Visual regression: owner-gated UI is exercised in Playwright via the
   dev/test-only `window.__TEST_FORCE_OWNER__` flag (see `src/lib/useOwner.ts`).

@@ -20,14 +20,14 @@ export const MIN_RATING = 1;
 export const MAX_RATING = 5;
 
 // Reviews for one activity, most recently updated first (the server's order,
-// re-applied here because the cached list spans every activity).
+// re-applied here because the cached list spans every activity). `filter`
+// returns a fresh array, so the in-place sort never touches the cached `rows`.
 export function reviewsForActivity(
   rows: readonly ActivityReview[],
   activityId: string,
 ): ActivityReview[] {
   return rows
     .filter((r) => r.activityId === activityId)
-    .slice()
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 
@@ -42,10 +42,10 @@ export function findOwnReview(
 
 // Display name from the owner's email — Clerk owns real display names and the
 // `users` row keeps them null, so the local part is what we have.
-// 'jess.hirsh+trips@example.com' -> 'Jess Hirsh'.
+// 'jess.hirsh+trips@example.com' -> 'Jess Hirsh'. A local part with nothing
+// nameable in it ('', '+tag', '._') falls back to the raw email.
 export function authorLabel(email: string): string {
-  const local = email.split('@')[0]?.split('+')[0] ?? '';
-  if (!local) return email;
+  const local = email.split('@')[0].split('+')[0];
   return (
     local
       .split(/[._-]+/)
@@ -127,7 +127,7 @@ export async function saveActivityReview(input: {
       },
     },
     update(cache, { data }) {
-      const review = data?.saveActivityReview?.review;
+      const review = data?.saveActivityReview.review;
       if (!review) return;
       writeReview(cache, review.activityId, review.authorEmail, review);
     },

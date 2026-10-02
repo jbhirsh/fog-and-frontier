@@ -1,5 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 // Structured error logging for Vercel Observability. See issue #20.
 //
 // Goal: every 5xx from /api/* lands in Vercel logs as a single-line JSON object
@@ -10,20 +8,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 //
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
 
-type Handler = (req: VercelRequest, res: VercelResponse) => unknown;
-
 type LogContext = {
   route?: string;
   method?: string;
   status?: number;
   detail?: string;
 };
-
-function routeOf(req: VercelRequest): string {
-  const url = typeof req.url === 'string' ? req.url : '';
-  const q = url.indexOf('?');
-  return q >= 0 ? url.slice(0, q) : url;
-}
 
 type ErrSummary = {
   name: string;
@@ -61,21 +51,4 @@ export function logServerError(err: unknown, ctx: LogContext = {}): void {
     err: summarize(err),
   };
   console.error(JSON.stringify(entry));
-}
-
-export function withErrorLogging(handler: Handler): Handler {
-  return async function wrapped(req: VercelRequest, res: VercelResponse) {
-    try {
-      await handler(req, res);
-    } catch (err) {
-      logServerError(err, {
-        route: routeOf(req),
-        method: req.method,
-        status: 500,
-      });
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'internal server error' });
-      }
-    }
-  };
 }

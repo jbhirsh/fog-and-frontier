@@ -38,14 +38,6 @@ export function toMapBounds(bounds: LeafletLatLngBoundsLike): MapBounds {
   };
 }
 
-function hasValidCoords(
-  activity: Activity,
-): activity is Activity & { location: { coords: { lat: number; lng: number } } } {
-  const coords = activity.location?.coords;
-  if (!coords) return false;
-  return Number.isFinite(coords.lat) && Number.isFinite(coords.lng);
-}
-
 /**
  * Returns true when the given latitude/longitude falls inside `bounds`.
  * Edges are inclusive (matching Leaflet's `LatLngBounds.contains`).
@@ -92,9 +84,11 @@ export function filterByBounds(
   bounds: MapBounds,
 ): Activity[] {
   return activities.filter((activity) => {
-    if (!hasValidCoords(activity)) return false;
-    const { lat, lng } = activity.location.coords;
-    return isWithinBounds(lat, lng, bounds);
+    // Coords are typed as required, but a row can still arrive without them.
+    // Non-finite values need no check here: isWithinBounds rejects them.
+    const coords = activity.location.coords;
+    if (!coords) return false;
+    return isWithinBounds(coords.lat, coords.lng, bounds);
   });
 }
 
@@ -114,7 +108,7 @@ export function debounce<Args extends unknown[]>(
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const debounced = (...args: Args): void => {
-    if (timer !== undefined) clearTimeout(timer);
+    clearTimeout(timer);
     timer = setTimeout(() => {
       timer = undefined;
       fn(...args);
@@ -122,10 +116,8 @@ export function debounce<Args extends unknown[]>(
   };
 
   debounced.cancel = (): void => {
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      timer = undefined;
-    }
+    clearTimeout(timer);
+    timer = undefined;
   };
 
   return debounced;

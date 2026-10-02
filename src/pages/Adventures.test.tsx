@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '../test/render';
+import { render as rtlRender } from '@testing-library/react';
+import { MockedProvider } from '@apollo/client/testing/react';
+import { render, screen, toActivityRow } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { createApolloCache } from '../lib/apolloClient';
+import { ACTIVITIES_QUERY, COMPLETED_QUERY } from '../lib/gqlDocs';
 import type { Activity } from '../data/types';
 import { completedHike, muirWoods } from '../test/fixtures';
 
@@ -97,5 +101,44 @@ describe('Adventures page', () => {
       { ...completedHike, id: 'second', name: 'Second' },
     ]);
     expect(screen.getByText(/^2 trips /)).toBeInTheDocument();
+  });
+
+  it('picks up a completion that lands after the first paint', async () => {
+    // The cached read paints first; the cache-and-network refetch then reports
+    // an activity completed elsewhere, and the page must follow it.
+    const cache = createApolloCache();
+    const activities = [toActivityRow(muirWoods)];
+    cache.writeQuery({ query: ACTIVITIES_QUERY, data: { activities } });
+    cache.writeQuery({ query: COMPLETED_QUERY, data: { completed: [] } });
+    const mocks = [
+      {
+        request: { query: ACTIVITIES_QUERY },
+        result: { data: { activities } },
+      },
+      {
+        request: { query: COMPLETED_QUERY },
+        result: {
+          data: {
+            completed: [
+              {
+                __typename: 'CompletedEntry' as const,
+                id: muirWoods.id,
+                completed: true,
+              },
+            ],
+          },
+        },
+      },
+    ];
+    rtlRender(
+      <MockedProvider cache={cache} mocks={mocks}>
+        <MemoryRouter>
+          <Adventures />
+        </MemoryRouter>
+      </MockedProvider>,
+    );
+    expect(screen.getByText(/No completed adventures yet/)).toBeInTheDocument();
+    expect(await screen.findByText('Test Muir Woods')).toBeInTheDocument();
+    expect(screen.getByText(/^1 trip /)).toBeInTheDocument();
   });
 });

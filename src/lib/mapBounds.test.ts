@@ -86,6 +86,27 @@ describe('isWithinBounds', () => {
     expect(isWithinBounds(55, 0, wrapped)).toBe(false); // the far side
   });
 
+  it('includes both edges of an antimeridian-crossing viewport', () => {
+    const wrapped: MapBounds = { north: 60, south: 50, east: -170, west: 170 };
+    expect(isWithinBounds(55, wrapped.west, wrapped)).toBe(true);
+    expect(isWithinBounds(55, wrapped.east, wrapped)).toBe(true);
+  });
+
+  it('rejects infinite longitudes on an antimeridian-crossing viewport', () => {
+    // Either infinity is numerically past one of the wrapped edges, so only the
+    // finiteness check keeps them out.
+    const wrapped: MapBounds = { north: 60, south: 50, east: -170, west: 170 };
+    expect(isWithinBounds(55, Infinity, wrapped)).toBe(false);
+    expect(isWithinBounds(55, -Infinity, wrapped)).toBe(false);
+  });
+
+  it('treats a zero-width viewport as that one meridian, not the whole world', () => {
+    const line: MapBounds = { north: 38, south: 37, east: -122, west: -122 };
+    expect(isWithinBounds(37.5, -122, line)).toBe(true);
+    expect(isWithinBounds(37.5, -122.5, line)).toBe(false);
+    expect(isWithinBounds(37.5, 0, line)).toBe(false);
+  });
+
   it('matches nothing for inverted latitude bounds (north < south)', () => {
     // Degenerate bounds aren't produced by Leaflet, but document the behavior:
     // an empty latitude range can never contain a point.

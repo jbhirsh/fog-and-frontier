@@ -33,7 +33,6 @@ export function MembersStrip({
     <div className="flex flex-wrap items-center gap-sm">
       {members.map((member) => {
         const isOwnChip = member.email.toLowerCase() === currentLower;
-        const canRemove = isCreator && !member.is_creator;
         const removeDisabled = !isCreator || member.is_creator;
         // Never show the ✕ on the current user's own chip — they get the
         // Leave button instead.
@@ -58,9 +57,7 @@ export function MembersStrip({
             {showRemove && (
               <button
                 type="button"
-                onClick={() => {
-                  if (canRemove) onRemoveMember(member.email);
-                }}
+                onClick={() => onRemoveMember(member.email)}
                 disabled={removeDisabled}
                 title={
                   removeDisabled

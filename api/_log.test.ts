@@ -1,39 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { logServerError, withErrorLogging } from './_log.js';
-
-function fakeReq(opts: Partial<VercelRequest> = {}): VercelRequest {
-  return {
-    url: '/api/discover',
-    method: 'POST',
-    headers: { authorization: 'Bearer secret-token-xyz' },
-    ...opts,
-  } as unknown as VercelRequest;
-}
-
-type CapturingRes = VercelResponse & {
-  statusCode: number;
-  body: unknown;
-  headersSent: boolean;
-};
-
-function fakeRes(): CapturingRes {
-  const res = {
-    statusCode: 0,
-    body: undefined as unknown,
-    headersSent: false,
-    status(code: number) {
-      this.statusCode = code;
-      return this;
-    },
-    json(payload: unknown) {
-      this.body = payload;
-      this.headersSent = true;
-      return this;
-    },
-  };
-  return res as unknown as CapturingRes;
-}
+import { logServerError } from './_log.js';
 
 // Type-safe shim: capture console.error calls into a string[] we own,
 // instead of poking at `vi.spyOn(...).mock.calls` which lints as `any`.
@@ -89,6 +55,25 @@ describe('logServerError', () => {
     expect(typeof parsed.err.stack).toBe('string');
   });
 
+  it('keeps the stack to its first 8 lines, as a string', () => {
+    const err = new Error('deep');
+    const frames = Array.from({ length: 12 }, (_, i) => `    at frame${i} (file.ts:${i}:1)`);
+    err.stack = ['Error: deep', ...frames].join('\n');
+    logServerError(err);
+    const parsed = JSON.parse(cap.lines[0] ?? '') as { err: { stack?: unknown } };
+    expect(parsed.err.stack).toBe(['Error: deep', ...frames.slice(0, 7)].join('\n'));
+  });
+
+  it('logs an Error that has no stack without throwing', () => {
+    const err = new Error('stackless');
+    delete err.stack;
+    expect(() => logServerError(err)).not.toThrow();
+    const parsed = JSON.parse(cap.lines[0] ?? '') as {
+      err: { name: string; message: string; stack?: unknown };
+    };
+    expect(parsed.err).toEqual({ name: 'Error', message: 'stackless' });
+  });
+
   it('handles non-Error throws', () => {
     logServerError('plain string failure');
     const parsed = JSON.parse(cap.lines[0] ?? '') as {
@@ -135,75 +120,5 @@ describe('logServerError', () => {
     });
     expect(cap.lines[0]).not.toContain('AIzaSy-fake-test-key-do-not-use');
     vi.unstubAllEnvs();
-  });
-});
-
-describe('withErrorLogging', () => {
-  let cap: ReturnType<typeof captureConsoleError>;
-
-  beforeEach(() => {
-    cap = captureConsoleError();
-  });
-
-  afterEach(() => {
-    cap.restore();
-  });
-
-  it('passes through successful responses without logging', async () => {
-    const wrapped = withErrorLogging((_req, res) => {
-      res.status(200).json({ ok: true });
-    });
-    const res = fakeRes();
-    await wrapped(fakeReq(), res);
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ ok: true });
-    expect(cap.lines).toHaveLength(0);
-  });
-
-  it('catches throws, logs a structured error, and returns 500', async () => {
-    const wrapped = withErrorLogging(() => {
-      throw new Error('db unreachable');
-    });
-    const res = fakeRes();
-    await wrapped(fakeReq({ url: '/api/activities?id=foo', method: 'GET' }), res);
-    expect(res.statusCode).toBe(500);
-    expect(res.body).toEqual({ error: 'internal server error' });
-    expect(cap.lines).toHaveLength(1);
-    const parsed = JSON.parse(cap.lines[0] ?? '') as {
-      route: string;
-      method: string;
-      status: number;
-      err: { message: string };
-    };
-    // Query string is stripped from the logged route — keeps logs clean.
-    expect(parsed.route).toBe('/api/activities');
-    expect(parsed.method).toBe('GET');
-    expect(parsed.status).toBe(500);
-    expect(parsed.err.message).toBe('db unreachable');
-  });
-
-  it('never logs the Authorization header or request body', async () => {
-    const wrapped = withErrorLogging(() => {
-      throw new Error('boom');
-    });
-    const req = fakeReq();
-    (req as { body?: unknown }).body = { secret: 'do-not-log-me' };
-    const res = fakeRes();
-    await wrapped(req, res);
-    expect(cap.lines[0]).not.toContain('secret-token-xyz'); // Authorization
-    expect(cap.lines[0]).not.toContain('do-not-log-me'); // body
-  });
-
-  it('does not double-respond if the handler already responded before throwing', async () => {
-    const wrapped = withErrorLogging((_req, res) => {
-      res.status(200).json({ partial: true });
-      throw new Error('boom after response');
-    });
-    const res = fakeRes();
-    await wrapped(fakeReq(), res);
-    // Original 200 stands; logger doesn't overwrite headers.
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ partial: true });
-    expect(cap.lines).toHaveLength(1);
   });
 });

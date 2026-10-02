@@ -1,13 +1,15 @@
 import { useAuthState } from './authShim';
 
+// A blank or trailing-comma list leaves an '' entry; it can never match,
+// because useOwner only looks up a non-empty email.
 const ownerEmails = new Set(
   ((import.meta.env.VITE_OWNER_EMAILS as string | undefined) ?? '')
     .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean),
+    .map((e) => e.trim().toLowerCase()),
 );
 
-// UI hint only — server-side requireOwner is the actual gate.
+// UI hint only — server-side requireOwnerCtx (api/_gqlContext.ts) is the
+// actual gate.
 export function useOwner(): {
   isOwner: boolean;
   isLoaded: boolean;
@@ -21,7 +23,6 @@ export function useOwner(): {
   // prod can never flip owner status by setting window.__TEST_FORCE_OWNER__.
   const forceOwner =
     (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
-    typeof window !== 'undefined' &&
     (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ ===
       true;
   return {

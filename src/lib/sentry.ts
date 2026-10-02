@@ -39,7 +39,7 @@ export function scrubEmbeddedQueries(text: string): string {
 
 export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
   const data = breadcrumb.data;
-  if (data && typeof data === 'object') {
+  if (data) {
     const url = (data as { url?: unknown }).url;
     if (typeof url === 'string' && url.includes('?')) {
       return {
@@ -85,7 +85,6 @@ export function scrubTransaction(event: TransactionEvent): TransactionEvent {
   if (Array.isArray(spans)) {
     let spanChanged = false;
     const scrubbedSpans = spans.map((span) => {
-      if (!span.data) return span;
       const scrubbed = scrubUrlAttrs(span.data);
       if (scrubbed !== span.data) {
         spanChanged = true;
