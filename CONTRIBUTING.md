@@ -7,7 +7,7 @@ conventions, see [`CLAUDE.md`](./CLAUDE.md).
 ## Local development
 
 ```sh
-npm ci --legacy-peer-deps   # ESLint 10 has peer-range mismatches with some plugins
+npm ci                       # install exactly what package-lock.json pins
 npm run dev                  # Vite, port 5173 by default
 ```
 

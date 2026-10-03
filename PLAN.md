@@ -45,7 +45,7 @@ Add CI job that runs after Vercel preview deploys and is required before merge. 
 
 - **CI workflow goes at `/Users/JessicaHirsh/Code/Activities/.github/workflows/ci.yml`**, NOT inside `fog-and-frontier/`. GitHub Actions only reads `.github/workflows/` at repo root. Use `defaults.run.working-directory: fog-and-frontier`.
 - A `package-lock.json` must be committed for deterministic `npm ci`. The user's dotfiles globally gitignore lockfiles — `.gitignore` at repo root needs `!package-lock.json` to override.
-- Use `--legacy-peer-deps` for the install — ESLint 10 conflicts with some plugins' peer ranges.
+- Install with plain `npm ci`. `legacy-peer-deps` was used here at first for ESLint 10's peer-range mismatches and has since been dropped (see CLAUDE.md).
 - For discovering the preview URL: query the GitHub deployments API for the latest Vercel "Preview" deployment on the PR head SHA. Alternative: use a Vercel-specific action.
 - The smoke script itself should be a Node script (`scripts/smoke.ts` or `.mjs`) that takes a base URL argument and exits nonzero on failure — usable both in CI and locally.
 - **No new `/api/health` endpoint.** The real endpoints are the canaries (user's call).
