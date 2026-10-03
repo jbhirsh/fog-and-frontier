@@ -7,6 +7,8 @@
 // A changed test file stands for the source file it covers (`x.test.ts`,
 // `x.cache.test.ts` or `__tests__/x.test.ts` next to `x.ts`/`x.tsx`), so a
 // PR that only weakens a test is still mutation-tested against that code.
+// An infix is stripped only when no source matches the full name, so
+// `x.helpers.test.ts` covers `x.helpers.ts` alone, not `x.ts` as well.
 //
 // Prints nothing when no changed file is in scope; the workflow then runs
 // its smoke scope instead.
@@ -22,10 +24,11 @@ const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 function subjects(file) {
   if (!TEST_FILE.test(file)) return [file];
   const base = file.replace(TEST_FILE, '').replace('/__tests__/', '/');
-  const bases = [base, base.replace(/\.[\w-]+$/, '')];
-  return bases
-    .flatMap((b) => [`${b}.ts`, `${b}.tsx`])
-    .filter((candidate) => existsSync(candidate));
+  const sources = (b) => [`${b}.ts`, `${b}.tsx`].filter((c) => existsSync(c));
+  // `x.helpers.test.ts` covers `x.helpers.ts`; only when no such file exists
+  // is the infix a test variant (`x.cache.test.ts` covers `x.ts`).
+  const exact = sources(base);
+  return exact.length > 0 ? exact : sources(base.replace(/\.[\w-]+$/, ''));
 }
 
 const changed = readFileSync(0, 'utf8').split('\n').filter(Boolean);
