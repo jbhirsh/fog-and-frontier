@@ -2,13 +2,12 @@ name: Claude Auto-Fix PR Comments
 
 on:
   workflow_run:
-    # Must match the CI workflow's `name:`. The review step lives inside CI as
-    # the "Claude Review" job, so we fire after CI completes and then act on any
-    # unresolved review threads it left.
-    # CI is also where Claude Review runs. The rest are the other
-    # gating workflows a dependency bump can break; when one fails on a
-    # Dependabot PR, the CI-fix step below takes it.
-    workflows: ["CI", "Smoke gate", "Visual regression", "Mutation"]
+    # Must match each workflow's `name:`. Claude Review (claude-review.yml)
+    # leaves the review threads the review fixer below acts on; any listed
+    # workflow's completion can start that fixer once CI and Claude Review
+    # are both green on the head. When one of these fails on a Dependabot
+    # PR, the CI-fix step below takes it.
+    workflows: ["CI", "Claude Review", "Smoke gate", "Visual regression", "Mutation"]
     types: [completed]
 
 concurrency:
@@ -103,8 +102,8 @@ jobs:
           cache-dependency-path: package-lock.json
 
       # Red checks on a Dependabot PR have no one else to fix them:
-      # Dependabot can't fix its own PRs, and Claude Review only runs once
-      # tests pass. The review fixer works only green builds, so on a red
+      # Dependabot can't fix its own PRs, and Claude Review only reads the
+      # code. The review fixer works only green builds, so on a red
       # one this is the only agent: its push re-runs CI and Claude Review,
       # and the next run works the threads. (If it pushes nothing it has
       # asked the owner to step in, and the red build blocks the merge
@@ -181,7 +180,7 @@ jobs:
 
             This is a Dependabot dependency-update PR and the checks above
             failed on its head. Dependabot can't fix its own PRs, and Claude
-            Review only runs once tests pass, so nobody else will look at
+            Review doesn't fix failing checks, so nobody else will look at
             this. The branch is checked out.
 
             The PR body, the bumped packages' release notes and every log
@@ -280,17 +279,52 @@ jobs:
             --allowedTools "Read,Edit,Write,Glob,Grep,Task,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(gh:*)"
 
       - name: Count unresolved threads
-        # Claude Review runs in CI, so only CI's completion can bring new
-        # threads; the other workflows would just rework skipped ones.
-        # Green CI only: on a red build the review fixer would be changing
-        # code nobody has checked, and could patch the breakage outside the
-        # CI fixer's rules. Claude Review doesn't fail CI for its findings.
-        if: steps.pr.outputs.skip == 'false' && github.event.workflow_run.name == 'CI' && github.event.workflow_run.conclusion == 'success'
+        # Runs on any listed workflow's completion and decides from the PR's
+        # state, not from which run woke it: the concurrency group keeps only
+        # one pending run, so the run that would have seen the review finish
+        # can be replaced by a later workflow's. Green CI only: on a red build
+        # the review fixer would be changing code nobody has checked, and
+        # could patch the breakage outside the CI fixer's rules. Claude Review
+        # no longer waits for CI, so both must be green on the head. Claude
+        # Review doesn't fail for its findings. Not after the CI fixer ran in
+        # this job: if it edited without pushing, the review fixer would
+        # build on its uncommitted changes.
+        if: steps.pr.outputs.skip == 'false' && steps.ci.outputs.fix != 'true'
         id: threads
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OWNER: ${{ github.repository_owner }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR: ${{ steps.pr.outputs.number }}
         run: |
+          set -o pipefail
+          # Fresh from the API: the CI fixer above may have just pushed.
+          HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.head.sha')
+          if [ "$HEAD_SHA" != "$RUN_SHA" ]; then
+            echo "Run is for $RUN_SHA but the PR head is $HEAD_SHA — skipping"
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The latest run of each on this head (a re-run updates its run).
+          for WF in ci.yml claude-review.yml; do
+            STATE=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WF/runs?head_sha=$RUN_SHA&event=pull_request&per_page=1" \
+              --jq '.workflow_runs[0] | "\(.status)/\(.conclusion)"')
+            if [ "$STATE" != "completed/success" ]; then
+              echo "$WF on $RUN_SHA is $STATE — the review fixer waits for CI and Claude Review to both be green"
+              echo "count=0" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          # One round per head: every listed workflow's completion gets here,
+          # so without this two runs could each start a round on one head.
+          # Only markers this workflow posted count: anyone can comment.
+          OWN=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | .body')
+          if echo "$OWN" | grep -qF "<!-- autofix-review-head:$RUN_SHA -->"; then
+            echo "A review-fix round already started on $RUN_SHA — skipping"
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           UNRESOLVED=0
           CURSOR=null
           while : ; do
@@ -318,26 +352,24 @@ jobs:
           # cycle forever. Rounds are counted from marker comments this
           # workflow posts; only its own count, since anyone can comment.
           if [ "$UNRESOLVED" -gt 0 ]; then
-            set -o pipefail
-            ROUNDS=$(gh api "repos/$GITHUB_REPOSITORY/issues/${{ steps.pr.outputs.number }}/comments" --paginate \
-              --jq '.[] | select(.user.login == "github-actions[bot]") | .body' | { grep -c '<!-- autofix-review-round -->' || true; })
+            ROUNDS=$(echo "$OWN" | { grep -c '<!-- autofix-review-round -->' || true; })
             if [ "$ROUNDS" -ge 2 ]; then
               echo "Two review-fix rounds already ran — leaving these threads to a person"
               UNRESOLVED=0
             else
-              BODY=$(printf '<!-- autofix-review-round -->\nAutofix is addressing %s review thread(s). Round %s of 2.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_\n' "$UNRESOLVED" "$((ROUNDS + 1))")
-              gh pr comment "${{ steps.pr.outputs.number }}" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+              BODY=$(printf '<!-- autofix-review-round -->\n<!-- autofix-review-head:%s -->\nAutofix is addressing %s review thread(s). Round %s of 2.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_\n' "$RUN_SHA" "$UNRESOLVED" "$((ROUNDS + 1))")
+              gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$BODY"
             fi
           fi
           echo "count=$UNRESOLVED" >> "$GITHUB_OUTPUT"
 
       - uses: anthropics/claude-code-action@v1
-        if: steps.pr.outputs.skip == 'false' && github.event.workflow_run.name == 'CI' && github.event.workflow_run.conclusion == 'success' && steps.threads.outputs.count != '0'
+        if: steps.pr.outputs.skip == 'false' && steps.ci.outputs.fix != 'true' && steps.threads.outputs.count != '' && steps.threads.outputs.count != '0'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # The Claude Review job runs on Dependabot PRs, so it can leave review
           # threads that this autofix step acts on. This job is triggered by
-          # workflow_run, where github.actor is the actor of the initiating CI
+          # workflow_run, where github.actor is the actor of the initiating
           # run — dependabot[bot] for a Dependabot PR. Allow that one trusted
           # bot so autofix runs instead of failing the non-human-actor check.
           allowed_bots: "dependabot[bot],claude[bot]"
