@@ -41,10 +41,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      # legacy-peer-deps is set in .npmrc; pass it explicitly too, mirroring
-      # visual.yml, so the install is deterministic regardless of npm defaults.
       - name: Install deps
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Lint
         run: npm run lint

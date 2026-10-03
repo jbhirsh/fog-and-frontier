@@ -199,7 +199,7 @@ jobs:
               from which versions.
             - Read the release notes or migration guide of the package the
               errors point at.
-            - Reproduce it with the checks in step 4 (npm ci --legacy-peer-deps first if
+            - Reproduce it with the checks in step 4 (npm ci first if
               `node_modules` is missing).
 
             ## 2. Classify it, then do exactly one of these
@@ -466,7 +466,7 @@ jobs:
             ## Step 5 — validate
 
             Run, in order:
-              - `npm ci --legacy-peer-deps` (only if `node_modules` is missing)
+              - `npm ci` (only if `node_modules` is missing)
               - `npm run lint`
               - `npm run typecheck`
               - `npm run codegen && git diff --exit-code src/gql/`

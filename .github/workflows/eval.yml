@@ -59,7 +59,7 @@ jobs:
 
       - name: Install deps
         if: steps.key.outputs.present == 'true'
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Run output-quality eval
         if: steps.key.outputs.present == 'true'

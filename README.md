@@ -95,7 +95,7 @@ A few things in here worth a closer look:
 ## Getting started
 
 ```sh
-npm ci --legacy-peer-deps    # ESLint 10 peer-range mismatches
+npm ci                       # install exactly what package-lock.json pins
 npm run dev                  # Vite dev server on http://localhost:5173
 ```
 
