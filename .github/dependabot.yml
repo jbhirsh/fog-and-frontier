@@ -23,6 +23,13 @@ updates:
       time: "06:00"
       timezone: Etc/UTC
     open-pull-requests-limit: 10
+    # Apollo Server (@apollo/server and its @apollo/utils.* deps) doesn't
+    # accept graphql 17 yet; delete this ignore once it does. Majors only:
+    # graphql 16 minors and patches still flow, and without this the grouped
+    # PR would keep offering 17, fail to resolve, and hold every other bump.
+    ignore:
+      - dependency-name: graphql
+        update-types: ["version-update:semver-major"]
     groups:
       all-updates:
         patterns:
