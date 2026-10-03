@@ -247,6 +247,31 @@ describe('ActivityDetail', () => {
     });
   });
 
+  it('says so when a photo cannot be saved (storage full)', async () => {
+    const user = userEvent.setup();
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      });
+    const { container } = render(
+      <ActivityDetail activity={completedHike} onClose={() => {}} showUploads />,
+    );
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(input, new File(['x'], 'pic.png', { type: 'image/png' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't save that photo",
+    );
+    expect(screen.getByText(/No photos yet/)).toBeInTheDocument();
+    setItem.mockRestore();
+
+    await user.click(screen.getByLabelText('Dismiss error'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('calls onClose when Escape is pressed', () => {
     const onClose = vi.fn();
     render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
