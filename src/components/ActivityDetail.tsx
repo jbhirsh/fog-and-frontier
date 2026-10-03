@@ -8,6 +8,7 @@ import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { ActivityReviews } from './ActivityReviews';
 import { AddActivity } from './AddActivity';
+import { InlineError } from './InlineError';
 
 interface Props {
   activity: Activity;
@@ -30,7 +31,8 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const setActivity = setOverride;
 
   const allActivities = useAllActivities();
-  const { photos, addPhotos, removePhoto } = useUserPhotos(activity.id);
+  const { photos, addPhotos, removePhoto, saveError, clearSaveError } =
+    useUserPhotos(activity.id);
   const { completed, toggle } = useCompleted(activity);
   const { isOwner } = useOwner();
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
@@ -390,6 +392,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                   </label>
                 )}
               </div>
+              <InlineError message={saveError} onDismiss={clearSaveError} />
               {photos.length === 0 ? (
                 <div className="rounded-lg border-2 border-dashed border-outline-variant p-lg text-center text-on-surface-variant">
                   No photos yet — upload some from this trip.
