@@ -321,6 +321,135 @@ describe('Query.activities (public)', () => {
   });
 });
 
+describe('Query.activities: malformed rows (data boundary)', () => {
+  // Every field the client's ACTIVITIES_QUERY selects, so a value graphql can't
+  // serialize anywhere in the row would surface as an error here.
+  const FULL_SELECTION = `{ activities { id name shortDescription longDescription
+    category region parkType location { city coords { lat lng } } duration
+    durationDetail difficulty dogFriendly coverImage galleryImages allTrailsUrl
+    allTrailsRating hikeDistanceMiles hikeElevationFeet cuisine priceRange hours
+    reservationUrl menuUrl dietary completed completedDate notes } }`;
+
+  const validRow = {
+    id: 'good',
+    name: 'Trail',
+    shortDescription: 's',
+    category: 'hiking',
+    region: 'sf',
+    location: { city: 'X', coords: { lat: 1, lng: 2 } },
+    duration: 'Half Day',
+    coverImage: 'http://img',
+  };
+
+  function catalogRow(id: string, fields: Row): Row {
+    return { id, j: JSON.stringify({ ...fields, id }) };
+  }
+
+  function loggedLines(spy: { mock: { calls: unknown[][] } }): string {
+    return spy.mock.calls.map((c) => String(c[0])).join('\n');
+  }
+
+  const REQUIRED = [
+    'name',
+    'shortDescription',
+    'category',
+    'region',
+    'location',
+    'duration',
+    'coverImage',
+  ] as const;
+
+  it.each(REQUIRED)(
+    'a row missing required %s is skipped and logged; the rest still load',
+    async (field) => {
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const bad: Row = { ...validRow };
+      delete bad[field];
+      setup({ catalog: [catalogRow('good', validRow), catalogRow('bad-row', bad)] });
+      const r = await run(FULL_SELECTION);
+      expect(r.errors).toBeUndefined();
+      expect((r.data?.activities as Row[]).map((a) => a.id)).toEqual(['good']);
+      const logged = loggedLines(errSpy);
+      expect(logged).toContain('bad-row');
+      expect(logged).toContain(field);
+      errSpy.mockRestore();
+    },
+  );
+
+  it.each([
+    ['an out-of-range category', { category: 'skiing' }],
+    ['a location without coords', { location: { city: 'X' } }],
+    ['a non-numeric latitude', { location: { city: 'X', coords: { lat: '1', lng: 2 } } }],
+    ['a non-string name', { name: 42 }],
+  ])('a row with %s is skipped; the rest still load', async (_label, patch) => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup({
+      catalog: [
+        catalogRow('bad-row', { ...validRow, ...patch }),
+        catalogRow('good', validRow),
+      ],
+    });
+    const r = await run(FULL_SELECTION);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.activities as Row[]).map((a) => a.id)).toEqual(['good']);
+    expect(loggedLines(errSpy)).toContain('bad-row');
+    errSpy.mockRestore();
+  });
+
+  it('a JSON row that is not an object is skipped and logged', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup({
+      catalog: [{ id: 'arr', j: '[1,2]' }, catalogRow('good', validRow)],
+    });
+    const r = await run(FULL_SELECTION);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.activities as Row[]).map((a) => a.id)).toEqual(['good']);
+    expect(loggedLines(errSpy)).toContain('arr');
+    errSpy.mockRestore();
+  });
+
+  it('bad optional fields become null instead of failing the query', async () => {
+    setup({
+      catalog: [
+        catalogRow('good', {
+          ...validRow,
+          difficulty: 'extreme',
+          parkType: 'tribal',
+          dogFriendly: 'yes',
+          allTrailsRating: 'n/a',
+          galleryImages: ['http://g1', 7],
+          dietary: 'vegan',
+          longDescription: { text: 'x' },
+          completedDate: 'last summer',
+        }),
+      ],
+    });
+    const r = await run(FULL_SELECTION);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.activities as Row[])[0]).toMatchObject({
+      id: 'good',
+      name: 'Trail',
+      difficulty: null,
+      parkType: null,
+      dogFriendly: null,
+      allTrailsRating: null,
+      galleryImages: ['http://g1'],
+      dietary: null,
+      longDescription: null,
+      completedDate: null,
+    });
+  });
+
+  it('falls back to the row id when the JSON has none', async () => {
+    const noId: Row = { ...validRow };
+    delete noId.id;
+    setup({ catalog: [{ id: 'from-row', j: JSON.stringify(noId) }] });
+    const r = await run('{ activities { id name } }');
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.activities).toEqual([{ id: 'from-row', name: 'Trail' }]);
+  });
+});
+
 describe('Query.completed (public)', () => {
   it('returns completion entries', async () => {
     setup({ completedRows: [{ id: 'a1', v: 1 }, { id: 'a2', v: 0 }] });
