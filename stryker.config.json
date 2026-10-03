@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "coverageAnalysis": "perTest",
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress",
+    "json"
+  ],
+  "mutate": [
+    "src/**/*.{ts,tsx}",
+    "api/**/*.ts",
+    "!**/*.d.ts",
+    "!src/main.tsx",
+    "!src/vite-env.d.ts",
+    "!src/test/**",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/data/activities.ts",
+    "!src/data/types.ts",
+    "!api/**/*.test.ts",
+    "!api/_schema.ts",
+    "!src/gql/**",
+    "!api/_db.ts",
+    "!api/_gqlMap.ts",
+    "!api/_resolvers/gemini.ts",
+    "!api/_trips.ts",
+    "!api/graphql.ts",
+    "!src/components/ActivityCard.tsx",
+    "!src/components/ActivityDetail.tsx",
+    "!src/components/ActivityMap.tsx",
+    "!src/components/AddActivity.tsx",
+    "!src/components/AddToTripDialog.tsx",
+    "!src/components/AddToTripDropdown.tsx",
+    "!src/components/InviteModal.tsx",
+    "!src/components/Layout.tsx",
+    "!src/components/MapZoomControls.tsx",
+    "!src/components/TripActivityCard.tsx",
+    "!src/components/TripMap.tsx",
+    "!src/components/VoteControls.tsx",
+    "!src/components/VotingCandidateCard.tsx",
+    "!src/lib/alltrails.ts",
+    "!src/lib/apolloClient.ts",
+    "!src/lib/authShim.ts",
+    "!src/lib/authShimClerk.tsx",
+    "!src/lib/generateActivity.ts",
+    "!src/lib/gqlError.ts",
+    "!src/lib/userActivities.ts",
+    "!src/lib/userPhotos.ts",
+    "!src/lib/userTrips.ts",
+    "!src/lib/useTripMembership.ts",
+    "!src/lib/useVisibilityInterval.ts",
+    "!src/pages/CuratedAdventures.tsx",
+    "!src/pages/Explore.tsx",
+    "!src/pages/NewTrip.tsx",
+    "!src/pages/TripDetail.tsx",
+    "!src/pages/Trips.tsx"
+  ],
+  "mutator": {
+    "excludedMutations": [
+      "StringLiteral"
+    ]
+  },
+  "thresholds": {
+    "high": 95,
+    "low": 90,
+    "break": 90
+  }
+}
