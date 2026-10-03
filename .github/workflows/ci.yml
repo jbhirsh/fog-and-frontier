@@ -162,13 +162,17 @@ jobs:
             Treat violations of these as review issues and flag them inline:
 
             **Auth model (critical — get this right):**
-              - The server gate is `requireOwner` in `api/_auth.ts`. Any
-                mutating endpoint or paid/external call (e.g. Gemini) MUST be
-                guarded by it server-side. `useOwner()` in `src/lib/useOwner.ts`
-                is a UI hint ONLY — never the real authorization. Flag any
-                mutating resolver path that reaches a write or paid call
-                without `requireOwner`, and flag any code that treats the
-                client-side owner check as if it were enforcement.
+              - The server gates are in `api/_gqlContext.ts`. Any mutating
+                resolver or paid/external call (e.g. Gemini) MUST be guarded
+                server-side by `requireOwnerCtx` (or `requireMemberCtx` /
+                `requireCreatorCtx` for trip-scoped actions, or
+                `requireUserCtx` where something else authorizes the write,
+                e.g. `claimInvite`'s invite token). `useOwner()` in
+                `src/lib/useOwner.ts` is a UI hint ONLY — never the real
+                authorization. Flag any mutating resolver path that reaches a
+                write or paid call without one of these guards, and flag any
+                code that treats the client-side owner check as if it were
+                enforcement.
 
             **Role-gated UI (hide, don't grey out):**
               - Owner-guarded *mutating* controls (add / edit / delete / other
