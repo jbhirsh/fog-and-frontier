@@ -86,7 +86,8 @@ export default defineConfig({
         'src/gql/**',
         // ---- Coverage backlog: pre-existing files below the 80% per-file gate
         // when it was first enforced in CI. Tracked for follow-up; each removal
-        // must come with real tests, never a threshold change. ----
+        // must come with real tests, never a threshold change. The list may
+        // only shrink: src/test/coverageBacklog.test.ts pins it. ----
         // api/ — the rest of api/** IS gated; these are the genuinely-hard ones:
         'api/_db.ts', //         real libSQL client; mocked in every test, no unit seam.
         'api/_gqlMap.ts', //     large snapshot/camelCase mapper, many null-coercion branches.
