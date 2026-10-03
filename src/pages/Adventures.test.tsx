@@ -21,6 +21,21 @@ function renderAdventures(list: Activity[]) {
 }
 
 describe('Adventures page', () => {
+  it('shows an error, not "no adventures yet", when the catalog read fails', async () => {
+    render(
+      <MemoryRouter>
+        <Adventures />
+      </MemoryRouter>,
+      { activitiesError: true },
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't load activities",
+    );
+    expect(
+      screen.queryByText('No completed adventures yet.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows only completed activities', () => {
     renderAdventures([muirWoods, completedHike]);
     expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();

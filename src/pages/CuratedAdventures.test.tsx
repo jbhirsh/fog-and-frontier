@@ -21,6 +21,18 @@ function renderExplore(path = '/') {
 
 describe('Curated Adventures page', () => {
 
+  it('shows an error, not an empty catalog, when the catalog read fails', async () => {
+    render(
+      <MemoryRouter>
+        <CuratedAdventures />
+      </MemoryRouter>,
+      { activitiesError: true },
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't load activities",
+    );
+  });
+
   it('renders all activities by default, sorted by distance', () => {
     renderExplore();
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
