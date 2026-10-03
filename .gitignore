@@ -65,3 +65,7 @@ PLAN_*.md
 
 # Eval output (regenerate with npm run eval)
 eval/results.json
+
+# Mutation testing (npm run test:mutation)
+.stryker-tmp*
+reports/mutation

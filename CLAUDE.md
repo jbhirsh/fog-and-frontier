@@ -15,6 +15,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run codegen` — `graphql-codegen` → typed GraphQL operations in `src/gql/`.
 - `npm run lint` — ESLint flat config.
 - `npm test` / `test:watch` / `test:coverage` — Vitest.
+- `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
 - `npm run test:visual` — Playwright visual regression.
 - `npm run db:snapshot` / `db:seed-preview` / `db:migrate-static` — Turso helpers in `scripts/`.
 
@@ -91,6 +92,7 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
 
 - Vercel function handlers: Node-style `(req, res)` — Web API style hangs in `vercel dev`.
 - **Tests ship with the code.** Any new resolver, reducer, or pure util needs its own unit test; run `npm run test:coverage` before pushing (CI enforces an 80% per-file gate — plain `vitest run` skips it). Tests are pure logic or RTL — no real network, DB, or browser. Multi-write DB paths get a test asserting a single `db().batch(stmts, 'write')` (see `transitionToPast`/`createTrip`/`patchTrip`).
+- **Mutation testing checks the assertions.** `mutation.yml` mutates the files a PR changes (the `mutate` globs in `stryker.config.json`, read by `.github/scripts/mutation-scope.mjs`; a changed test counts as a change to the file it covers) and fails below the `break` score; a weekly sweep covers everything. A surviving mutant means a missing assertion: add the test, or delete the code if it can never matter. The globs mirror the coverage scope in `vite.config.ts`, backlog included, and `src/test/mutationScope.test.ts` fails if the two drift apart. `patches/` holds a `patch-package` fix that makes Stryker's vitest runner name tests the way Vitest 5 matches them (stryker-js#6210); the runner is pinned to 10.0.0 so a release can't break it. Delete the patch and unpin once a Stryker release carries the fix.
 - **Commit hygiene.** Imperative subject ≤72 chars; body explains *why*; end
   with the `Co-Authored-By:` trailer. One logical change per commit; squash
   noisy commits (fixups, reverts, "address review") into a clean history before

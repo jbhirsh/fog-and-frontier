@@ -55,6 +55,8 @@ export default defineConfig({
       '.claude/**',
       'fog-and-frontier/**',
       'tests/visual/**',
+      // Stryker's sandbox copies of the repo (npm run test:mutation).
+      '.stryker-tmp*/**',
     ],
     coverage: {
       provider: 'v8',

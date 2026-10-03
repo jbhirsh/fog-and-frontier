@@ -1,0 +1,101 @@
+# Mutation testing (StrykerJS). Line coverage only proves code ran; mutation
+# testing proves the tests actually *assert* on behavior by mutating the source
+# and checking a test fails.
+#
+# Two placements (the pattern from jbhirsh/BoardGames and jbhirsh/sift):
+#   - Pull requests: mutate only the in-scope files the PR touched — fast,
+#     targeted feedback on exactly the code under review. A PR that changes
+#     no mutable source (data, docs, styles, workflows, a dependency bump)
+#     runs a small smoke scope instead, so the Stryker wiring stays validated
+#     and the check always reports.
+#   - Weekly schedule (+ manual dispatch): full sweep as a drift sensor,
+#     catching test erosion PR-scoped runs can't see (e.g. a test refactor
+#     weakening assertions for untouched code).
+#
+# Both gate on the `break` threshold in stryker.config.json. The files in
+# scope are its `mutate` globs (the files the 80% per-file coverage gate measures,
+# minus its documented coverage backlog); .github/scripts/mutation-scope.mjs
+# reads those globs, so the PR scope can't drift from the full sweep's.
+# Stryker exits nonzero after writing the report, so the report is still
+# uploaded for diagnosis.
+name: Mutation
+
+on:
+  # No `paths:` filter: a workflow skipped by path filtering never reports,
+  # which would leave a required check pending forever.
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Run GitHub's bundled JavaScript actions on the Node 24 runtime (mirrors
+  # ci.yml).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: Mutation Tests (Stryker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history so PR runs can diff against the base branch.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --legacy-peer-deps
+
+      # --diff-filter=d drops deletions: a removed file must not be passed to
+      # --mutate.
+      - name: Determine mutation scope
+        id: scope
+        if: github.event_name == 'pull_request'
+        # Context values enter as an env var, not a ${{ }} splice inside
+        # `run:`, so the shell treats them as data, never as script text.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          MUTATE=$(git diff --name-only --diff-filter=d "origin/${BASE_REF}"...HEAD \
+            | node .github/scripts/mutation-scope.mjs)
+          if [ -z "$MUTATE" ]; then
+            echo "No mutable files changed; running the smoke scope to validate the Stryker wiring."
+            MUTATE="src/lib/viewMode.ts,src/lib/mapBounds.ts"
+          fi
+          echo "Mutating: $MUTATE"
+          echo "mutate=$MUTATE" >> "$GITHUB_OUTPUT"
+
+      - name: Run Stryker (changed files)
+        if: github.event_name == 'pull_request'
+        env:
+          MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
+        run: npx stryker run --mutate "$MUTATE_SCOPE"
+
+      - name: Run Stryker (full sweep)
+        if: github.event_name != 'pull_request'
+        run: npx stryker run
+
+      # always(): when a run trips the break threshold, Stryker exits nonzero
+      # after writing the report — that report is exactly what's needed to
+      # diagnose the failure, so upload it anyway.
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: reports/mutation
+          if-no-files-found: error
+          retention-days: 30

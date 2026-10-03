@@ -8,7 +8,7 @@ on:
     # CI is also where Claude Review runs. The rest are the other
     # gating workflows a dependency bump can break; when one fails on a
     # Dependabot PR, the CI-fix step below takes it.
-    workflows: ["CI", "Smoke gate", "Visual regression"]
+    workflows: ["CI", "Smoke gate", "Visual regression", "Mutation"]
     types: [completed]
 
 concurrency:
