@@ -150,11 +150,11 @@ export function dateToIso(v: unknown): string | null | undefined {
 }
 
 // --- catalog activity ------------------------------------------------------
-// Catalog rows are stored as camelCase JSON (the client Activity model) and are
-// "strictly typed" (audit: 59/59 clean), so we pass the parsed object through
-// and let graphql pick the schema fields. We only ensure `id` (from the row
-// column) and validate `completedDate` to a real 'YYYY-MM-DD' so the public
-// `activities` query can't be 500'd by a stray date string.
+// Catalog rows are stored as camelCase JSON (the client Activity model).
+// saveActivity echoes its schema-validated input through here, so we pass the
+// object through and let graphql pick the schema fields, only ensuring `id`
+// (from the row column) and normalizing parkType/completedDate. Rows read back
+// from the table go through parseCatalogActivity below instead.
 export function mapCatalogActivity(
   parsed: Record<string, unknown>,
   id: string,
@@ -166,6 +166,44 @@ export function mapCatalogActivity(
     // `activities` query can't be 500'd by a stray park designation.
     parkType: enumVal(parsed.parkType, PARK_TYPES),
     completedDate: isoDate(parsed.completedDate),
+  };
+}
+
+// Fields `Activity` declares non-null (api/_schema.ts) besides `id`, which the
+// row column always supplies.
+const REQUIRED_CATALOG_FIELDS = [
+  'name',
+  'shortDescription',
+  'category',
+  'region',
+  'location',
+  'duration',
+  'coverImage',
+] as const;
+
+export type CatalogParseResult =
+  | { ok: true; activity: Record<string, unknown> }
+  | { ok: false; invalid: string[] };
+
+// Read-side guard for a stored catalog row. Rows can be written outside
+// saveActivity's input checks (the scripts/ backfills write `a` directly), and
+// `activities` is `[Activity!]!`: one row graphql can't serialize fails the
+// whole public query. So every field is coerced to the shape the schema
+// declares (via the same helpers as coerceSnapshot): a bad optional field
+// becomes null, and a row missing or mangling a required one is rejected,
+// naming the offending fields so the caller can skip and log it.
+export function parseCatalogActivity(
+  raw: unknown,
+  rowId: string,
+): CatalogParseResult {
+  if (Array.isArray(raw)) return { ok: false, invalid: ['(not an object)'] };
+  const coerced = coerceSnapshot(raw);
+  if (!coerced) return { ok: false, invalid: ['(not an object)'] };
+  const invalid = REQUIRED_CATALOG_FIELDS.filter((f) => coerced[f] === null);
+  if (invalid.length > 0) return { ok: false, invalid };
+  return {
+    ok: true,
+    activity: { ...coerced, id: coerced.id ?? rowId },
   };
 }
 

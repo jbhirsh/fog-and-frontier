@@ -1,16 +1,32 @@
 import { db } from '../_db.js';
 import { badInput } from '../_gqlError.js';
-import { dateToIso, mapCatalogActivity } from '../_gqlMap.js';
+import {
+  dateToIso,
+  mapCatalogActivity,
+  parseCatalogActivity,
+} from '../_gqlMap.js';
+import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
 
 // Catalog activities (`a` table) + completion overrides (`c` table). Reads are
 // public; writes are owner-gated. Activities are stored as camelCase JSON, so
-// reads parse-and-pass-through and writes JSON.stringify the input.
+// reads parse and validate each row (parseCatalogActivity) and writes
+// JSON.stringify the input.
 
 function rowIdToString(id: unknown): string | null {
   if (typeof id === 'string') return id;
   if (typeof id === 'number') return id.toString();
   return null;
+}
+
+// A stored row the schema can't serve. Skipping it keeps one bad row from
+// failing the whole public catalog; logging it (with the row id) is how the
+// owner finds out it needs fixing.
+function skipCatalogRow(id: string, reason: string): void {
+  logServerError(new Error(`skipped invalid catalog row: ${reason}`), {
+    route: '/api/graphql',
+    detail: `activities: row id ${id}`,
+  });
 }
 
 async function activities() {
@@ -20,15 +36,23 @@ async function activities() {
     const id = rowIdToString(row.id);
     if (!id) continue;
     const j = row.j;
-    if (typeof j !== 'string') continue;
+    if (typeof j !== 'string') {
+      skipCatalogRow(id, 'no JSON');
+      continue;
+    }
     let parsed: unknown;
     try {
       parsed = JSON.parse(j);
     } catch {
-      continue; // skip malformed row
+      skipCatalogRow(id, 'malformed JSON');
+      continue;
     }
-    if (!parsed || typeof parsed !== 'object') continue;
-    out.push(mapCatalogActivity(parsed as Record<string, unknown>, id));
+    const result = parseCatalogActivity(parsed, id);
+    if (!result.ok) {
+      skipCatalogRow(id, `invalid ${result.invalid.join(', ')}`);
+      continue;
+    }
+    out.push(result.activity);
   }
   return out;
 }
