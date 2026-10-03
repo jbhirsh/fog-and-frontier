@@ -7,6 +7,7 @@ import {
   isEffectivelyCompleted,
   setCompleted,
   useCompleted,
+  useOverrides,
 } from './userCompleted';
 import { apolloClient } from './apolloClient';
 import { COMPLETED_QUERY } from './gqlDocs';
@@ -216,6 +217,147 @@ describe('userCompleted', () => {
     it('leaves the cache untouched when there is nothing to mirror', () => {
       applyCompletionMirror([], []);
       expect(cachedCompleted()).toBeNull();
+    });
+  });
+
+  // Race: the first COMPLETED read is still in flight when the owner toggles,
+  // and that read was answered before the mutation committed, so it lands
+  // carrying pre-toggle data. The screen must end up matching the server.
+  it('a toggle made while the first read is in flight survives that read landing with older data', async () => {
+    const server = new Map<string, boolean>([['other-activity', true]]);
+    const snapshot = () => ({
+      data: {
+        completed: [...server].map(([id, completed]) => ({
+          __typename: 'CompletedEntry',
+          id,
+          completed,
+        })),
+      },
+    });
+    let reads = 0;
+    let releaseFirstRead: (() => void) | null = null;
+    let mutated = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, opts: { body: string }) => {
+        const body = JSON.parse(opts.body) as {
+          operationName?: string;
+          variables?: { input?: { id: string; value: boolean | null } };
+        };
+        if (body.operationName === 'SetCompleted') {
+          const input = body.variables?.input;
+          if (!input) throw new Error('missing input');
+          if (input.value === null) server.delete(input.id);
+          else server.set(input.id, input.value);
+          mutated = true;
+          return Promise.resolve(
+            jsonResponse({
+              data: {
+                setCompleted: {
+                  __typename: 'SetCompletedPayload',
+                  id: input.id,
+                  completed: input.value,
+                },
+              },
+            }),
+          );
+        }
+        reads += 1;
+        if (reads === 1) {
+          const stale = snapshot(); // answered before the toggle
+          return new Promise<Response>((resolve) => {
+            releaseFirstRead = () => resolve(jsonResponse(stale));
+          });
+        }
+        return Promise.resolve(jsonResponse(snapshot()));
+      }),
+    );
+
+    const { result } = renderHook(
+      () => ({ item: useCompleted(muirWoods), overrides: useOverrides() }),
+      { wrapper },
+    );
+    await waitFor(() => expect(releaseFirstRead).not.toBeNull());
+
+    act(() => result.current.item.toggle());
+    await waitFor(() => expect(mutated).toBe(true));
+    // Let the mutation's response settle before the stale read lands.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    act(() => releaseFirstRead?.());
+
+    const expected = { 'other-activity': true, [muirWoods.id]: true };
+    expect(Object.fromEntries(server)).toEqual(expected);
+    await waitFor(() => expect(result.current.overrides).toEqual(expected));
+    // ...and stays there once everything in flight has settled.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(result.current.overrides).toEqual(expected);
+    expect(result.current.item.completed).toBe(true);
+  });
+
+  it('shows a saved toggle even when the list cannot be read at all', async () => {
+    let reads = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, opts: { body: string }) => {
+        const body = JSON.parse(opts.body) as {
+          operationName?: string;
+          variables?: { input?: { id: string; value: boolean | null } };
+        };
+        if (body.operationName === 'SetCompleted') {
+          const input = body.variables?.input;
+          return Promise.resolve(
+            jsonResponse({
+              data: {
+                setCompleted: {
+                  __typename: 'SetCompletedPayload',
+                  id: input?.id,
+                  completed: input?.value ?? null,
+                },
+              },
+            }),
+          );
+        }
+        reads += 1;
+        return Promise.resolve(jsonResponse({ errors: [{ message: 'boom' }] }));
+      }),
+    );
+    const { result } = renderHook(() => useCompleted(muirWoods), { wrapper });
+    await waitFor(() => expect(reads).toBeGreaterThan(0));
+
+    act(() => result.current.toggle());
+
+    await waitFor(() => expect(result.current.completed).toBe(true));
+  });
+
+  describe('applyCompletionMirror', () => {
+    function cachedList() {
+      return apolloClient.cache.readQuery({ query: COMPLETED_QUERY })?.completed;
+    }
+
+    it('merges into a cached list', () => {
+      apolloClient.cache.writeQuery({
+        query: COMPLETED_QUERY,
+        data: {
+          completed: [
+            { __typename: 'CompletedEntry', id: 'keep', completed: true },
+            { __typename: 'CompletedEntry', id: 'flip', completed: true },
+          ],
+        },
+      });
+      applyCompletionMirror(['new'], ['flip']);
+      expect(
+        Object.fromEntries((cachedList() ?? []).map((e) => [e.id, e.completed])),
+      ).toEqual({ keep: true, flip: false, new: true });
+    });
+
+    it('writes no partial list when nothing is cached yet', () => {
+      applyCompletionMirror(['new'], ['old']);
+      expect(cachedList()).toBeUndefined();
     });
   });
 });

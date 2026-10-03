@@ -324,6 +324,12 @@ describe('markTripPast completion write-through', () => {
       query: ACTIVITIES_QUERY,
       data: { activities: [toActivityRow(muirWoods), toActivityRow(completedHike)] },
     });
+    // The completed list is loaded (as it is wherever badges show); the mirror
+    // only merges into a cached list, never builds one from these ids alone.
+    apolloClient.cache.writeQuery({
+      query: COMPLETED_QUERY,
+      data: { completed: [] },
+    });
     installFetch({
       TransitionTrip: () =>
         jsonResponse({
