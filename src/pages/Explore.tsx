@@ -41,14 +41,66 @@ function isFutureOrToday(e: DiscoverEvent, today: string): boolean {
   return end >= today;
 }
 
+const RANGE_VALUES: readonly string[] = ['today', 'tomorrow', 'weekend', 'week'];
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+function isOptionalString(v: unknown): boolean {
+  return v === undefined || typeof v === 'string';
+}
+
+function isDiscoverEvent(v: unknown): v is DiscoverEvent {
+  return (
+    isRecord(v) &&
+    typeof v.name === 'string' &&
+    typeof v.dateText === 'string' &&
+    isOptionalString(v.startDate) &&
+    isOptionalString(v.endDate) &&
+    typeof v.location === 'string' &&
+    typeof v.blurb === 'string' &&
+    typeof v.sourceUrl === 'string'
+  );
+}
+
+function isDiscoverSource(v: unknown): v is DiscoverSource {
+  return isRecord(v) && typeof v.uri === 'string' && typeof v.title === 'string';
+}
+
+// The cache is whatever this browser kept, possibly from an older build, and
+// it's read during the first render, where a wrong shape would throw into the
+// root error boundary on every reload. Check it here; a cache that doesn't fit
+// reads as none.
+function isCacheShape(v: unknown): v is CacheShape {
+  return (
+    isRecord(v) &&
+    typeof v.range === 'string' &&
+    RANGE_VALUES.includes(v.range) &&
+    typeof v.at === 'number' &&
+    Number.isFinite(v.at) &&
+    Array.isArray(v.events) &&
+    v.events.every(isDiscoverEvent) &&
+    Array.isArray(v.sources) &&
+    v.sources.every(isDiscoverSource)
+  );
+}
+
 function readCache(): CacheShape | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as CacheShape;
+    const parsed: unknown = JSON.parse(raw);
+    if (isCacheShape(parsed)) return parsed;
   } catch {
-    return null;
+    /* unreadable or not JSON: drop it below */
   }
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+  return null;
 }
 
 function writeCache(c: CacheShape) {
