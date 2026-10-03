@@ -145,6 +145,17 @@ const REQUIRED_GENERATED_FIELDS = [
   'duration',
 ] as const;
 
+// Optional fields of GeneratedActivity whose value must come from a fixed set:
+// difficulty/parkType are GraphQL enums (an unknown value fails serialization
+// with an opaque error), and priceRange is a String the client narrows to its
+// PriceRange union. A value outside the set is dropped, like an omitted field.
+// (category, the one required enum, is checked separately.)
+const OPTIONAL_GENERATED_ENUMS: Record<string, readonly string[]> = {
+  difficulty: DIFFICULTY_VALUES,
+  parkType: PARK_TYPE_VALUES,
+  priceRange: PRICE_RANGE_VALUES,
+};
+
 const GENERATE_SYSTEM_PROMPT = `You are a Bay Area outdoor-activity research assistant for a personal travel app called "Fog and Frontier". Given a user's free-form title and optional notes/links, populate a structured Activity record.
 
 Rules:
@@ -157,6 +168,17 @@ Rules:
 - "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.
 - "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).
 - When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.`;
+
+// The thumbnail becomes the activity's coverImage, rendered as an <img src>:
+// accept only an https URL, anything else counts as no thumbnail.
+function httpsUrl(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  try {
+    return new URL(v).protocol === 'https:' ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 async function findWikipediaThumbnail(
   name: string,
@@ -175,12 +197,12 @@ async function findWikipediaThumbnail(
       });
       if (!r.ok) continue;
       const data = (await r.json()) as {
-        query?: { pages?: Record<string, { thumbnail?: { source?: string } }> };
+        query?: { pages?: Record<string, { thumbnail?: { source?: unknown } }> };
       };
       const pages = data.query?.pages;
       if (!pages) continue;
       for (const id of Object.keys(pages)) {
-        const src = pages[id]?.thumbnail?.source;
+        const src = httpsUrl(pages[id]?.thumbnail?.source);
         if (src) return src;
       }
     } catch {
@@ -245,9 +267,9 @@ async function generateActivity(
     throw badGateway('no content in gemini response');
   }
 
-  let parsed: Record<string, unknown>;
+  let json: unknown;
   try {
-    parsed = JSON.parse(text) as Record<string, unknown>;
+    json = JSON.parse(text);
   } catch (err) {
     logServerError(err, {
       route: ROUTE,
@@ -257,6 +279,16 @@ async function generateActivity(
     });
     throw badGateway('gemini returned non-JSON');
   }
+  if (!json || typeof json !== 'object' || Array.isArray(json)) {
+    logServerError(new Error('gemini returned a non-object'), {
+      route: ROUTE,
+      method: 'POST',
+      status: 502,
+      detail: text.slice(0, 500),
+    });
+    throw badGateway('gemini returned a non-object');
+  }
+  const parsed = json as Record<string, unknown>;
 
   // Parity guard (#91 m3): the old REST handler returned Gemini's object verbatim
   // and the client tolerated gaps. Under GraphQL the partly-non-null
@@ -277,6 +309,24 @@ async function generateActivity(
       detail: text.slice(0, 500),
     });
     throw badGateway(detail);
+  }
+
+  // Same channel for the required category holding a value outside its set.
+  if (!(CATEGORY_VALUES as readonly unknown[]).includes(parsed.category)) {
+    const detail = 'gemini response has an out-of-range category';
+    logServerError(new Error(detail), {
+      route: ROUTE,
+      method: 'POST',
+      status: 502,
+      detail: text.slice(0, 500),
+    });
+    throw badGateway(detail);
+  }
+  for (const [field, values] of Object.entries(OPTIONAL_GENERATED_ENUMS)) {
+    const v = parsed[field];
+    if (v !== undefined && v !== null && !values.includes(v as string)) {
+      parsed[field] = null;
+    }
   }
 
   const name = typeof parsed.name === 'string' ? parsed.name : title;

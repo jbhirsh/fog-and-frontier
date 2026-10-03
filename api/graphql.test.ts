@@ -880,6 +880,127 @@ describe('Gemini ops', () => {
     expect(r.errors?.[0].message).toMatch(/lat/);
   });
 
+  const castleRock = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    category: 'hiking',
+    region: 'south-bay',
+    parkType: 'state',
+    city: 'Los Gatos',
+    lat: 37.2,
+    lng: -122.1,
+    duration: 'Half Day',
+    difficulty: 'moderate',
+    dogFriendly: true,
+  };
+  const GENERATE =
+    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name category difficulty parkType priceRange coverImage } } }';
+
+  it('generateActivity: out-of-range category → BAD_GATEWAY naming it', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup();
+    stubFetch(geminiText(JSON.stringify({ ...castleRock, category: 'skiing' })));
+    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(code(r)).toBe('BAD_GATEWAY');
+    expect(r.errors?.[0].message).toContain('category');
+    errSpy.mockRestore();
+  });
+
+  it('generateActivity: drops out-of-range optional enums, keeps the rest', async () => {
+    setup();
+    stubFetch(
+      geminiText(
+        JSON.stringify({
+          ...castleRock,
+          difficulty: 'extreme',
+          parkType: 'tribal',
+          priceRange: 'cheap',
+        }),
+      ),
+    );
+    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.generateActivity as { activity: Row }).activity).toMatchObject({
+      name: 'Castle Rock',
+      category: 'hiking',
+      difficulty: null,
+      parkType: null,
+      priceRange: null,
+    });
+  });
+
+  it('generateActivity: keeps in-range optional enums', async () => {
+    setup();
+    stubFetch(geminiText(JSON.stringify({ ...castleRock, priceRange: '$$' })));
+    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.generateActivity as { activity: Row }).activity).toMatchObject({
+      difficulty: 'moderate',
+      parkType: 'state',
+      priceRange: '$$',
+    });
+  });
+
+  it('generateActivity: gemini JSON that is not an object → BAD_GATEWAY', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup();
+    stubFetch(geminiText('null'));
+    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(code(r)).toBe('BAD_GATEWAY');
+    errSpy.mockRestore();
+  });
+
+  // Routes Gemini to `geminiBody` and every Wikipedia lookup to a page whose
+  // thumbnail source is `thumb`.
+  function stubFetchWithThumbnail(geminiBody: unknown, thumb: unknown) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const body = url.includes('generativelanguage')
+          ? geminiBody
+          : { query: { pages: { '1': { thumbnail: { source: thumb } } } } };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(body),
+          text: () => Promise.resolve(JSON.stringify(body)),
+        });
+      }),
+    );
+  }
+
+  it('generateActivity: uses an https Wikipedia thumbnail as the cover image', async () => {
+    setup();
+    stubFetchWithThumbnail(
+      geminiText(JSON.stringify(castleRock)),
+      'https://upload.wikimedia.org/castle.jpg',
+    );
+    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(
+      (r.data?.generateActivity as { activity: Row }).activity.coverImage,
+    ).toBe('https://upload.wikimedia.org/castle.jpg');
+  });
+
+  it.each([
+    ['a javascript: URL', 'javascript:alert(1)'],
+    ['an http URL', 'http://upload.wikimedia.org/castle.jpg'],
+    ['not a URL', 'castle.jpg'],
+    ['a number', 42],
+    ['an object', { url: 'https://x' }],
+  ])(
+    'generateActivity: ignores a Wikipedia thumbnail that is %s',
+    async (_label, thumb) => {
+      setup();
+      stubFetchWithThumbnail(geminiText(JSON.stringify(castleRock)), thumb);
+      const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      expect(
+        (r.data?.generateActivity as { activity: Row }).activity.coverImage,
+      ).toBeNull();
+    },
+  );
+
   it('alltrailsLookup: non-alltrails URL → BAD_USER_INPUT', async () => {
     setup();
     const r = await run(
