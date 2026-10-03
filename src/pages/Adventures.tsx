@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
+import { InlineError } from '../components/InlineError';
 import type { Activity } from '../data/types';
 import { HOME_LOCATION } from '../data/home';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
-import { useAllActivities } from '../lib/userActivities';
+import { useUserActivities } from '../lib/userActivities';
 
 export function Adventures() {
   const [selected, setSelected] = useState<Activity | null>(null);
   const overrides = useOverrides();
-  const all = useAllActivities();
+  const { activities: all, error } = useUserActivities();
 
   const completed = useMemo(
     () =>
@@ -36,7 +37,9 @@ export function Adventures() {
       </section>
 
       <section className="px-margin py-xl max-w-screen-2xl mx-auto">
-        {completed.length === 0 ? (
+        {completed.length === 0 && error ? (
+          <InlineError message={error} />
+        ) : completed.length === 0 ? (
           <div className="text-center py-xl text-on-surface-variant">
             <p className="font-body-lg">No completed adventures yet.</p>
             <p className="font-body-md mt-sm">

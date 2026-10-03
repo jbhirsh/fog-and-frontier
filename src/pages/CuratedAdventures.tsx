@@ -7,6 +7,7 @@ import { ActivityMap } from '../components/ActivityMap';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
+import { InlineError } from '../components/InlineError';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
@@ -14,7 +15,7 @@ import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { useCatalogFilters } from '../lib/useCatalogFilters';
 import { filterByBounds, type MapBounds } from '../lib/mapBounds';
 import { useMediaQuery } from '../lib/useMediaQuery';
-import { useAllActivities } from '../lib/userActivities';
+import { useUserActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { addActivityToTrip } from '../lib/userTrips';
 
@@ -174,7 +175,7 @@ export function CuratedAdventures() {
     acceptTarget ? initialTarget : null,
   );
   const [submittingTarget, setSubmittingTarget] = useState(false);
-  const all = useAllActivities();
+  const { activities: all, error: loadError } = useUserActivities();
 
   const MAX_BULK_ADD = 50;
   const overBulkCap = selectedForTrip.size > MAX_BULK_ADD;
@@ -504,6 +505,13 @@ export function CuratedAdventures() {
           )}
         </div>
       </div>
+      {/* In the toolbar so List, Split and Map all show it: a failed catalog
+          read must not pass for an empty catalog. */}
+      {loadError && (
+        <div className="max-w-screen-2xl mx-auto pt-sm">
+          <InlineError message={loadError} />
+        </div>
+      )}
     </section>
   );
 

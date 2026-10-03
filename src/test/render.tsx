@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { render as rtlRender, type RenderOptions } from '@testing-library/react';
+import { GraphQLError } from 'graphql';
 import { MockedProvider } from '@apollo/client/testing/react';
 import type { MockedResponse } from '@apollo/client/testing';
 import type { Activity } from '../data/types';
@@ -74,6 +75,8 @@ function reviewRows(reviews: ReviewSeed[]) {
 export type ApolloRenderOptions = Omit<RenderOptions, 'wrapper'> & {
   /** Catalog activities seeded into the cache (read synchronously by reads). */
   activities?: Activity[];
+  /** Make the catalog read fail (nothing cached, the query answers an error). */
+  activitiesError?: boolean;
   /** Completed overrides seeded into the cache. */
   completed?: CompletedSeed[];
   /** Owner reviews (#184) seeded into the cache. */
@@ -90,6 +93,7 @@ export function render(
   ui: ReactElement,
   {
     activities,
+    activitiesError = false,
     completed = [],
     reviews = [],
     mocks = [],
@@ -101,7 +105,7 @@ export function render(
   const completedData = completedRows(completed);
   const reviewData = reviewRows(reviews);
 
-  if (activities) {
+  if (activities && !activitiesError) {
     cache.writeQuery({ query: ACTIVITIES_QUERY, data: { activities: activityData } });
   }
   cache.writeQuery({ query: COMPLETED_QUERY, data: { completed: completedData } });
@@ -111,11 +115,17 @@ export function render(
   });
 
   const defaultMocks: MockedResponse[] = [
-    {
-      request: { query: ACTIVITIES_QUERY },
-      result: { data: { activities: activityData } },
-      maxUsageCount: Number.POSITIVE_INFINITY,
-    },
+    activitiesError
+      ? {
+          request: { query: ACTIVITIES_QUERY },
+          result: { errors: [new GraphQLError('Internal server error')] },
+          maxUsageCount: Number.POSITIVE_INFINITY,
+        }
+      : {
+          request: { query: ACTIVITIES_QUERY },
+          result: { data: { activities: activityData } },
+          maxUsageCount: Number.POSITIVE_INFINITY,
+        },
     {
       request: { query: COMPLETED_QUERY },
       result: { data: { completed: completedData } },

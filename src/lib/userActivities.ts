@@ -86,17 +86,29 @@ function activityToInput(a: Activity) {
   };
 }
 
+export const CATALOG_LOAD_ERROR =
+  "Couldn't load activities. Try again in a moment.";
+
 // Public catalog read. cache-and-network: instant cached render + background
-// refresh (offline persistence was dropped in the GraphQL migration).
-export function useUserActivities(): Activity[] {
-  const { data } = useQuery(ACTIVITIES_QUERY, {
+// refresh (offline persistence was dropped in the GraphQL migration). `error`
+// is a user-facing message when the read failed, so a page can say so instead
+// of rendering the failure as an empty catalog.
+export function useUserActivities(): {
+  activities: Activity[];
+  error: string | null;
+} {
+  const { data, error } = useQuery(ACTIVITIES_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
-  return useMemo(() => (data?.activities ?? []).map(rowToActivity), [data]);
+  const activities = useMemo(
+    () => (data?.activities ?? []).map(rowToActivity),
+    [data],
+  );
+  return { activities, error: error ? CATALOG_LOAD_ERROR : null };
 }
 
 export function useAllActivities(): Activity[] {
-  return useUserActivities();
+  return useUserActivities().activities;
 }
 
 // Owner-only upsert; refetches the catalog so a new card appears (a normalized
