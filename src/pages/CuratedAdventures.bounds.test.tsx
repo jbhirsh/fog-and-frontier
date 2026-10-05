@@ -11,14 +11,17 @@ import type { MapBounds } from '../lib/mapBounds';
 
 // Mock the map: instead of Leaflet, render two buttons that fire the
 // `onBoundsChange` callback with a known viewport, so we can drive the bounds
-// filter deterministically. The fixtures sit in California (lng ~ -122).
+// filter deterministically. The fixtures sit in California (lng ~ -122). The
+// re-fit signal (#106) is exposed as an attribute.
 vi.mock('../components/ActivityMap', () => ({
   ActivityMap: ({
     onBoundsChange,
+    fitSignal,
   }: {
     onBoundsChange?: (b: MapBounds) => void;
+    fitSignal?: number;
   }) => (
-    <div>
+    <div data-testid="activity-map" data-fit-signal={fitSignal}>
       <button
         data-testid="pan-world"
         onClick={() =>
@@ -100,5 +103,22 @@ describe('Curated Adventures — bounds filter (#95)', () => {
     await userEvent.click(screen.getByRole('button', { name: /Clear bounds/ }));
     expect(screen.queryByText(/in this area/)).not.toBeInTheDocument();
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+  });
+
+  it('asks the map to re-fit to every result when the bounds are cleared (#106)', async () => {
+    renderSplit();
+    const map = screen.getByTestId('activity-map');
+    expect(map).toHaveAttribute('data-fit-signal', '0');
+
+    // Panning alone never re-fits: only Clear bounds does.
+    await userEvent.click(screen.getByTestId('pan-empty'));
+    expect(map).toHaveAttribute('data-fit-signal', '0');
+
+    await userEvent.click(screen.getByRole('button', { name: /Clear bounds/ }));
+    expect(map).toHaveAttribute('data-fit-signal', '1');
+
+    await userEvent.click(screen.getByTestId('pan-world'));
+    await userEvent.click(screen.getByRole('button', { name: /Clear bounds/ }));
+    expect(map).toHaveAttribute('data-fit-signal', '2');
   });
 });

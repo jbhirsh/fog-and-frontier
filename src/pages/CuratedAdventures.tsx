@@ -313,7 +313,13 @@ export function CuratedAdventures() {
     (next: MapBounds) => setBounds(next),
     [],
   );
-  const clearBounds = useCallback(() => setBounds(null), []);
+  // "Clear bounds" also flies the map out to fit every result (#106), so the
+  // map and the list agree again; bumping the signal asks the map to re-fit.
+  const [fitSignal, setFitSignal] = useState(0);
+  const clearBounds = useCallback(() => {
+    setBounds(null);
+    setFitSignal((n) => n + 1);
+  }, []);
   const visibleResults = useMemo(
     () => (bounds ? filterByBounds(results, bounds) : results),
     [bounds, results],
@@ -476,7 +482,12 @@ export function CuratedAdventures() {
             <button
               type="button"
               aria-label="Clear bounds"
-              onClick={clearBounds}
+              // Drop the sheet to peek first, so the fit's flight (sized for a
+              // peeking sheet) isn't hidden behind it.
+              onClick={() => {
+                setSheetSnap('peek');
+                clearBounds();
+              }}
               className="font-semibold text-secondary hover:underline"
             >
               Clear
@@ -687,6 +698,7 @@ export function CuratedAdventures() {
               highlightedId={hoveredId}
               onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
               onBoundsChange={handleBoundsChange}
+              fitSignal={fitSignal}
             />
           </div>
           <h1 className="sr-only">Curated Adventures — map</h1>
@@ -726,6 +738,7 @@ export function CuratedAdventures() {
                 highlightedId={hoveredId}
                 onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                 onBoundsChange={handleBoundsChange}
+                fitSignal={fitSignal}
               />
             </div>
           </section>
@@ -757,6 +770,7 @@ export function CuratedAdventures() {
                   highlightedId={hoveredId}
                   onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
                   onBoundsChange={handleBoundsChange}
+                  fitSignal={fitSignal}
                 />
               </div>
             )}

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Activity } from '../data/types';
 import {
+  activitiesBounds,
+  createMoveGate,
+  fitPaddingFor,
   debounce,
   filterByBounds,
   isWithinBounds,
@@ -208,6 +211,146 @@ describe('toMapBounds', () => {
 
     expect(filterByBounds([inside], toMapBounds(leafletLike))).toEqual([inside]);
   });
+
+  // Leaflet reports longitudes past ±180 once the map is panned across world
+  // copies; the adapter wraps them back.
+  const viewport = (west: number, east: number) => ({
+    getNorth: () => 38,
+    getSouth: () => 37,
+    getEast: () => east,
+    getWest: () => west,
+  });
+
+  it('wraps longitudes from a panned-over world copy into [-180, 180)', () => {
+    expect(toMapBounds(viewport(-482, -481))).toEqual({
+      ...bounds,
+      west: -122,
+      east: -121,
+    });
+    expect(toMapBounds(viewport(190, 200))).toEqual({
+      ...bounds,
+      west: -170,
+      east: -160,
+    });
+    expect(toMapBounds(viewport(-600, -590))).toEqual({
+      ...bounds,
+      west: 120,
+      east: 130,
+    });
+  });
+
+  it('wraps a viewport straddling a world-copy seam into an antimeridian window', () => {
+    expect(toMapBounds(viewport(-200, -150))).toEqual({
+      ...bounds,
+      west: 160,
+      east: -150,
+    });
+  });
+
+  it('collapses a viewport a full world wide (or wider) to every longitude', () => {
+    const whole = { ...bounds, west: -180, east: 180 };
+    expect(toMapBounds(viewport(-200, 160))).toEqual(whole);
+    expect(toMapBounds(viewport(-300, 200))).toEqual(whole);
+    // Just under a world wide still wraps.
+    expect(toMapBounds(viewport(-200, 159))).toEqual({
+      ...bounds,
+      west: 160,
+      east: 159,
+    });
+  });
+});
+
+describe('activitiesBounds', () => {
+  it('encloses every activity, as south-west and north-east corners', () => {
+    const corners = activitiesBounds([
+      makeActivity('a', { lat: 37.5, lng: -122.5 }),
+      makeActivity('b', { lat: 36.6, lng: -121.9 }),
+      makeActivity('c', { lat: 38.3, lng: -123.1 }),
+    ]);
+    expect(corners).toEqual([
+      [36.6, -123.1],
+      [38.3, -121.9],
+    ]);
+  });
+
+  it('gives a zero-size box for a single activity', () => {
+    expect(activitiesBounds([makeActivity('a', { lat: 37.5, lng: -122.5 })])).toEqual([
+      [37.5, -122.5],
+      [37.5, -122.5],
+    ]);
+  });
+
+  it('skips activities without usable coordinates', () => {
+    const corners = activitiesBounds([
+      makeActivity('missing'),
+      makeActivity('nan-lat', { lat: Number.NaN, lng: 0 }),
+      makeActivity('inf-lng', { lat: 0, lng: Number.POSITIVE_INFINITY }),
+      makeActivity('ok', { lat: 37.5, lng: -122.5 }),
+    ]);
+    expect(corners).toEqual([
+      [37.5, -122.5],
+      [37.5, -122.5],
+    ]);
+  });
+
+  it('is null when there is nothing to fit', () => {
+    expect(activitiesBounds([])).toBeNull();
+    expect(activitiesBounds([makeActivity('missing')])).toBeNull();
+  });
+});
+
+describe('createMoveGate', () => {
+  it('lets every event through until armed', () => {
+    const gate = createMoveGate();
+    expect(gate.swallow('moveend')).toBe(false);
+    expect(gate.swallow('zoomend')).toBe(false);
+  });
+
+  it('swallows a programmatic move through its moveend, then disarms', () => {
+    const gate = createMoveGate();
+    gate.arm();
+    expect(gate.swallow('zoomend')).toBe(true);
+    expect(gate.swallow('zoomend')).toBe(true);
+    expect(gate.swallow('moveend')).toBe(true);
+    // The next move is the user's again.
+    expect(gate.swallow('zoomend')).toBe(false);
+    expect(gate.swallow('moveend')).toBe(false);
+  });
+
+  it('reports whether a programmatic move is under way', () => {
+    const gate = createMoveGate();
+    expect(gate.isArmed()).toBe(false);
+    gate.arm();
+    expect(gate.isArmed()).toBe(true);
+    gate.swallow('zoomend');
+    expect(gate.isArmed()).toBe(true);
+    gate.swallow('moveend');
+    expect(gate.isArmed()).toBe(false);
+  });
+
+  it('hands the next move back to the user when disarmed', () => {
+    const gate = createMoveGate();
+    gate.arm();
+    gate.disarm();
+    expect(gate.isArmed()).toBe(false);
+    expect(gate.swallow('moveend')).toBe(false);
+  });
+
+  it('arming twice still swallows only one move', () => {
+    const gate = createMoveGate();
+    gate.arm();
+    gate.arm();
+    expect(gate.swallow('moveend')).toBe(true);
+    expect(gate.swallow('moveend')).toBe(false);
+  });
+
+  it('keeps each gate separate', () => {
+    const a = createMoveGate();
+    const b = createMoveGate();
+    a.arm();
+    expect(b.swallow('moveend')).toBe(false);
+    expect(a.swallow('moveend')).toBe(true);
+  });
 });
 
 describe('debounce', () => {
@@ -288,5 +431,42 @@ describe('debounce', () => {
     expect(() => debounced.cancel()).not.toThrow();
     vi.advanceTimersByTime(1000);
     expect(fn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fitPaddingFor', () => {
+  const pad = { top: 100, bottom: 200, side: 48 };
+
+  it('keeps the padding when the map has room for it', () => {
+    expect(fitPaddingFor({ x: 600, y: 600 }, pad)).toEqual(pad);
+    expect(fitPaddingFor({ x: 1000, y: 900 }, pad)).toEqual(pad);
+  });
+
+  it('scales the top and bottom down to leave half the height', () => {
+    // 300px of padding in a 400px map: scaled by 200 / 300.
+    expect(fitPaddingFor({ x: 600, y: 400 }, pad)).toEqual({
+      top: 100 * (2 / 3),
+      bottom: 200 * (2 / 3),
+      side: 48,
+    });
+  });
+
+  it('caps the side padding at a quarter of the width', () => {
+    expect(fitPaddingFor({ x: 160, y: 900 }, pad)?.side).toBe(40);
+    expect(fitPaddingFor({ x: 192, y: 900 }, pad)?.side).toBe(48);
+  });
+
+  it('leaves zero padding alone', () => {
+    expect(fitPaddingFor({ x: 10, y: 10 }, { top: 0, bottom: 0, side: 0 })).toEqual({
+      top: 0,
+      bottom: 0,
+      side: 0,
+    });
+  });
+
+  it('has nothing to fit into for a map with no size', () => {
+    expect(fitPaddingFor({ x: 0, y: 600 }, pad)).toBeNull();
+    expect(fitPaddingFor({ x: 600, y: 0 }, pad)).toBeNull();
+    expect(fitPaddingFor({ x: 1, y: 1 }, pad)).not.toBeNull();
   });
 });

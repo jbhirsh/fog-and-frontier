@@ -189,6 +189,17 @@ describe('Curated Adventures — view modes (#93)', () => {
     expect(screen.getByTestId('activity-map')).toHaveTextContent('map:0');
   });
 
+  it('drops the sheet to peek when its "Clear bounds" refits the map', async () => {
+    renderAt('/?view=map');
+    await userEvent.click(screen.getByRole('button', { name: 'pan empty' }));
+    await userEvent.click(grabber('peek'));
+    expect(grabber('half')).toBeInTheDocument();
+    await userEvent.click(
+      await within(sheet()).findByRole('button', { name: 'Clear bounds' }),
+    );
+    expect(grabber('peek')).toBeInTheDocument();
+  });
+
   it('opens the mobile map from the "Show map" button', async () => {
     renderAt('/');
     await userEvent.click(showMap());

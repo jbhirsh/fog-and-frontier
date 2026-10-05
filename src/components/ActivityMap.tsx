@@ -1,20 +1,13 @@
-import { useEffect, useMemo } from 'react';
-import {
-  MapContainer,
-  Marker,
-  Popup,
-  TileLayer,
-  Tooltip,
-  useMap,
-  useMapEvents,
-} from 'react-leaflet';
+import { useMemo, useState } from 'react';
+import { MapContainer, Marker, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapZoomControls } from './MapZoomControls';
+import { BoundsWatcher, FitToActivities } from './MapViewport';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import type { Activity, Category } from '../data/types';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
-import { debounce, type MapBounds } from '../lib/mapBounds';
+import { createMoveGate, type MapBounds } from '../lib/mapBounds';
 import {
   CARTO_ATTRIBUTION,
   CARTO_TILE_URL,
@@ -93,6 +86,12 @@ interface Props {
    * sheet. Default `false` keeps the framed look of Split and desktop Map.
    */
   fullBleed?: boolean;
+  /**
+   * Bump to fly the map out to fit every plotted activity (#106): "Clear
+   * bounds" does, so the map and the list agree again. Only a change is a
+   * request; the value the map mounts with isn't.
+   */
+  fitSignal?: number;
 }
 
 /**
@@ -112,8 +111,12 @@ export function ActivityMap({
   onPinHoverChange,
   onBoundsChange,
   fullBleed = false,
+  fitSignal = 0,
 }: Props) {
   const overrides = useOverrides();
+  // Shared by the fit and the bounds watcher, so the fit's own flight isn't
+  // reported back as a pan that re-applies the bounds filter (#106).
+  const [moveGate] = useState(createMoveGate);
 
   const plotted = useMemo(
     () =>
@@ -148,7 +151,20 @@ export function ActivityMap({
         {/* In full bleed the map runs under the app header: clear its slim
             mobile form (about 60px) and its 80px md+ row. */}
         <MapZoomControls topInset={fullBleed ? 88 : 12} />
-        {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
+        {onBoundsChange && (
+          <BoundsWatcher onBoundsChange={onBoundsChange} gate={moveGate} />
+        )}
+        <FitToActivities
+          signal={fitSignal}
+          activities={activities}
+          // Keep fitted pins clear of the header and the zoom controls above
+          // and of the legend below. Full bleed, the legend sits above the
+          // peeking sheet and the attribution (bottom 152px, about 36px tall).
+          padding={
+            fullBleed ? { top: 100, bottom: 200 } : { top: 48, bottom: 56 }
+          }
+          gate={moveGate}
+        />
         <Marker
           position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           icon={homeIcon}
@@ -212,47 +228,6 @@ export function ActivityMap({
       <MapLegend bottomInset={fullBleed ? 152 : 12} />
     </div>
   );
-}
-
-// Wrap a longitude into [-180, 180]. Leaflet's getWest()/getEast() can return
-// values outside that range once the user pans across multiple world copies
-// (e.g. west: -200); the activities use normalized longitudes, so the bounds
-// must be normalized too before {@link isWithinBounds} compares them.
-function wrapLng(lng: number): number {
-  return ((((lng + 180) % 360) + 360) % 360) - 180;
-}
-
-// Read the map's current viewport as normalized MapBounds. A viewport spanning
-// a full world (or more) contains every longitude, so collapse it to the whole
-// range rather than wrapping into a misleading antimeridian window.
-function readBounds(map: L.Map): MapBounds {
-  const b = map.getBounds();
-  const north = b.getNorth();
-  const south = b.getSouth();
-  const rawWest = b.getWest();
-  const rawEast = b.getEast();
-  if (rawEast - rawWest >= 360) {
-    return { north, south, west: -180, east: 180 };
-  }
-  return { north, south, west: wrapLng(rawWest), east: wrapLng(rawEast) };
-}
-
-// Reports the viewport to the parent ~400 ms after the map settles from a
-// pan/zoom (#95). Lives inside MapContainer so `useMap()` has the map in
-// context; renders nothing.
-function BoundsWatcher({
-  onBoundsChange,
-}: {
-  onBoundsChange: (bounds: MapBounds) => void;
-}) {
-  const map = useMap();
-  const debounced = useMemo(
-    () => debounce(() => onBoundsChange(readBounds(map)), 400),
-    [map, onBoundsChange],
-  );
-  useMapEvents({ moveend: debounced, zoomend: debounced });
-  useEffect(() => () => debounced.cancel(), [debounced]);
-  return null;
 }
 
 // Frosted color key, ported from the old standalone Map page so status stays
