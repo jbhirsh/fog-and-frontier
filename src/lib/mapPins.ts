@@ -31,9 +31,9 @@ export const CARTO_TILE_URL = cartoTileUrl(
 export const CARTO_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-// Material Symbols glyph per category, used as the semantic icon inside a pin.
-// Mirrors the category icons on ActivityCard so a place reads the same on the
-// map as it does in the catalog.
+// Material Symbols glyph per category: the semantic icon inside a pin, and the
+// single source for ActivityCard's category pill and the CoverImage fallback,
+// so a place reads the same on the map as it does in the catalog.
 export const CATEGORY_ICON: Record<Category, string> = {
   hiking: 'directions_walk',
   cycling: 'pedal_bike',

@@ -8,6 +8,7 @@ import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { ActivityReviews } from './ActivityReviews';
 import { AddActivity } from './AddActivity';
+import { CoverImage } from './CoverImage';
 import { InlineError } from './InlineError';
 
 interface Props {
@@ -99,10 +100,12 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
         className="relative bg-surface-container-lowest w-full max-w-3xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
       >
         <div className="relative aspect-video bg-surface-variant">
-          <img
+          <CoverImage
             alt={activity.name}
+            category={activity.category}
             src={activity.coverImage}
             className="w-full h-full object-cover"
+            glyphSize={64}
           />
           <button
             type="button"
