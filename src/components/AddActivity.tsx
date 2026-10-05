@@ -29,9 +29,6 @@ interface Props {
   onSaved?: (activity: Activity) => void;
 }
 
-const PLACEHOLDER_IMAGE =
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&q=80';
-
 const CATEGORIES: Category[] = [
   'hiking',
   'cycling',
@@ -183,7 +180,10 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
         menuUrl: g.menuUrl,
         dietary: g.dietary,
         notes: g.notes,
-        coverImage: g.coverImage || PLACEHOLDER_IMAGE,
+        // No match → no cover: CoverImage renders the category glyph. A stock
+        // landscape stand-in reads as a wrong photo of the place (#36).
+        coverImage: g.coverImage ?? '',
+        coverCredit: g.coverCredit,
       };
       setDraft(activity);
       setStep('review');
@@ -445,11 +445,15 @@ function ReviewStep({
         />
       </Field>
 
+      {/* The credit belongs to the looked-up image: a hand-pasted URL
+          replaces it, so the now-wrong attribution goes with it. */}
       <Field label="Cover image URL">
         <input
           type="url"
           value={draft.coverImage}
-          onChange={(e) => patch('coverImage', e.target.value)}
+          onChange={(e) =>
+            onChange({ ...draft, coverImage: e.target.value, coverCredit: undefined })
+          }
           className={inputCls}
         />
       </Field>

@@ -1,3 +1,4 @@
+import { findCoverImage } from '../_coverImage.js';
 import { badGateway, badInput } from '../_gqlError.js';
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
@@ -169,49 +170,6 @@ Rules:
 - "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).
 - When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.`;
 
-// The thumbnail becomes the activity's coverImage, rendered as an <img src>:
-// accept only an https URL, anything else counts as no thumbnail.
-function httpsUrl(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  try {
-    return new URL(v).protocol === 'https:' ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-async function findWikipediaThumbnail(
-  name: string,
-  city: string,
-): Promise<string | null> {
-  const queries = [name, city ? `${name} ${city}` : null].filter(
-    (q): q is string => Boolean(q),
-  );
-  for (const q of queries) {
-    try {
-      const url = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=thumbnail&pithumbsize=1200&generator=search&gsrsearch=${encodeURIComponent(
-        q,
-      )}&gsrlimit=1&origin=*`;
-      const r = await fetch(url, {
-        headers: { 'user-agent': 'fog-and-frontier/1.0' },
-      });
-      if (!r.ok) continue;
-      const data = (await r.json()) as {
-        query?: { pages?: Record<string, { thumbnail?: { source?: unknown } }> };
-      };
-      const pages = data.query?.pages;
-      if (!pages) continue;
-      for (const id of Object.keys(pages)) {
-        const src = httpsUrl(pages[id]?.thumbnail?.source);
-        if (src) return src;
-      }
-    } catch {
-      /* try next */
-    }
-  }
-  return null;
-}
-
 async function generateActivity(
   _parent: unknown,
   { input }: { input: { title?: unknown; notes?: unknown } },
@@ -329,10 +287,19 @@ async function generateActivity(
     }
   }
 
-  const name = typeof parsed.name === 'string' ? parsed.name : title;
-  const city = typeof parsed.city === 'string' ? parsed.city : '';
-  const coverImage = await findWikipediaThumbnail(name, city);
-  if (coverImage) parsed.coverImage = coverImage;
+  // Location-aware Wikimedia Commons lookup (#36). The required-field guard
+  // above means name/category/lat/lng are present and typed. No match leaves
+  // the cover unset so the UI shows the category placeholder.
+  const cover = await findCoverImage({
+    name: parsed.name as string,
+    category: parsed.category as string,
+    lat: parsed.lat as number,
+    lng: parsed.lng as number,
+  });
+  if (cover) {
+    parsed.coverImage = cover.url;
+    parsed.coverCredit = cover.credit;
+  }
 
   return { activity: parsed };
 }

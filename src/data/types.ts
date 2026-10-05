@@ -53,6 +53,9 @@ export interface Activity {
   difficulty?: Difficulty;
   dogFriendly?: boolean;
   coverImage: string;
+  // Attribution line for a freely licensed cover (author + license), set when
+  // the cover came from the Wikimedia Commons lookup (#36).
+  coverCredit?: string;
   galleryImages?: string[];
   allTrailsUrl?: string;
   allTrailsRating?: number;

@@ -112,6 +112,19 @@ describe('ActivityDetail', () => {
     expect(hero).toHaveTextContent('directions_walk');
   });
 
+  it('credits a Commons cover under the hero (#36)', () => {
+    const credit = 'Photo: Jo, CC BY-SA 4.0, via Wikimedia Commons';
+    render(
+      <ActivityDetail activity={{ ...muirWoods, coverCredit: credit }} onClose={() => {}} />,
+    );
+    expect(screen.getByText(credit)).toBeInTheDocument();
+  });
+
+  it('shows no credit line for a cover without one', () => {
+    render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    expect(screen.queryByText(/via Wikimedia Commons/)).not.toBeInTheDocument();
+  });
+
   it('shows the COMPLETED badge with date and notes for completed activities', () => {
     render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
     expect(screen.getByText(/COMPLETED/)).toBeInTheDocument();

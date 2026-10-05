@@ -118,6 +118,12 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
+        {activity.coverCredit && (
+          // Commons covers are CC-licensed: credit author + license (#36).
+          <p className="px-md md:px-lg pt-xs font-body-sm text-on-surface-variant">
+            {activity.coverCredit}
+          </p>
+        )}
         <div className="p-md md:p-lg space-y-md">
           <div className="flex flex-wrap items-start justify-between gap-sm">
             <h2 className="font-display text-headline-lg text-primary">

@@ -199,7 +199,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Routes a mocked global fetch by URL: Gemini endpoint vs Wikipedia.
+// Routes a mocked global fetch by URL: Gemini endpoint vs Wikimedia.
 function stubFetch(geminiBody: unknown, opts: { ok?: boolean } = {}) {
   vi.stubGlobal(
     'fetch',
@@ -212,7 +212,7 @@ function stubFetch(geminiBody: unknown, opts: { ok?: boolean } = {}) {
           text: () => Promise.resolve(JSON.stringify(geminiBody)),
         });
       }
-      // Wikipedia thumbnail lookup — return not-ok so coverImage stays null.
+      // Wikimedia cover lookup (#36) — return not-ok so coverImage stays null.
       return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
     }),
   );
@@ -543,6 +543,29 @@ describe('owner-gated mutations', () => {
       cuisine: 'Thai',
       dietary: ['vegan'],
     });
+  });
+
+  it('saveActivity: persists coverCredit and activities reads it back (#36)', async () => {
+    setup();
+    const credit = 'Photo: Jo, CC BY-SA 4.0, via Wikimedia Commons';
+    const r = await run(
+      'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id coverCredit } } }',
+      { i: { id: 'c1', activity: { ...minimalActivity(), coverCredit: credit } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.saveActivity as Row).activity).toEqual({ id: 'c1', coverCredit: credit });
+    const insert = execute.mock.calls.find((c) => {
+      const sql = typeof c[0] === 'string' ? c[0] : (c[0] as { sql: string }).sql;
+      return /INSERT INTO a /.test(sql);
+    });
+    const stored = (insert?.[0] as { args: unknown[] }).args[1] as string;
+    expect(JSON.parse(stored)).toMatchObject({ coverCredit: credit });
+
+    setup({ catalog: [{ id: 'c1', j: stored }] });
+    const read = await run('{ activities { id coverCredit } }');
+    expect(read.errors).toBeUndefined();
+    expect(read.data?.activities).toEqual([{ id: 'c1', coverCredit: credit }]);
   });
 
   it('saveActivity: over-size JSON (>8000 chars) → BAD_USER_INPUT', async () => {
@@ -950,15 +973,23 @@ describe('Gemini ops', () => {
     errSpy.mockRestore();
   });
 
-  // Routes Gemini to `geminiBody` and every Wikipedia lookup to a page whose
-  // thumbnail source is `thumb`.
-  function stubFetchWithThumbnail(geminiBody: unknown, thumb: unknown) {
+  // Routes Gemini to `geminiBody` and the Wikimedia Commons cover lookup (#36)
+  // to one geotagged file with the given imageinfo; Wikipedia finds nothing.
+  function stubFetchWithCommons(geminiBody: unknown, imageinfo: unknown) {
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string) => {
-        const body = url.includes('generativelanguage')
-          ? geminiBody
-          : { query: { pages: { '1': { thumbnail: { source: thumb } } } } };
+        let body: unknown = { query: {} };
+        if (url.includes('generativelanguage')) body = geminiBody;
+        else if (url.includes('list=geosearch')) {
+          body = {
+            query: { geosearch: [{ title: 'File:Castle Rock view.jpg', dist: 120 }] },
+          };
+        } else if (url.includes('prop=imageinfo')) {
+          body = {
+            query: { pages: [{ title: 'File:Castle Rock view.jpg', imageinfo: [imageinfo] }] },
+          };
+        }
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -969,37 +1000,45 @@ describe('Gemini ops', () => {
     );
   }
 
-  it('generateActivity: uses an https Wikipedia thumbnail as the cover image', async () => {
+  const GENERATE_COVER =
+    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { coverImage coverCredit } } }';
+
+  it('generateActivity: sets the Commons cover image and its credit', async () => {
     setup();
-    stubFetchWithThumbnail(
-      geminiText(JSON.stringify(castleRock)),
-      'https://upload.wikimedia.org/castle.jpg',
-    );
-    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    stubFetchWithCommons(geminiText(JSON.stringify(castleRock)), {
+      mime: 'image/jpeg',
+      width: 4000,
+      height: 3000,
+      url: 'https://upload.wikimedia.org/castle.jpg',
+      thumburl: 'https://upload.wikimedia.org/thumb/castle.jpg/1280px-castle.jpg',
+      extmetadata: {
+        Artist: { value: '<a href="//commons.wikimedia.org/wiki/User:Jo">Jo</a>' },
+        LicenseShortName: { value: 'CC BY-SA 4.0' },
+      },
+    });
+    const r = await run(GENERATE_COVER, { i: { title: 'Castle Rock' } }, OWNER);
     expect(r.errors).toBeUndefined();
-    expect(
-      (r.data?.generateActivity as { activity: Row }).activity.coverImage,
-    ).toBe('https://upload.wikimedia.org/castle.jpg');
+    expect((r.data?.generateActivity as { activity: Row }).activity).toEqual({
+      coverImage: 'https://upload.wikimedia.org/thumb/castle.jpg/1280px-castle.jpg',
+      coverCredit: 'Photo: Jo, CC BY-SA 4.0, via Wikimedia Commons',
+    });
   });
 
-  it.each([
-    ['a javascript: URL', 'javascript:alert(1)'],
-    ['an http URL', 'http://upload.wikimedia.org/castle.jpg'],
-    ['not a URL', 'castle.jpg'],
-    ['a number', 42],
-    ['an object', { url: 'https://x' }],
-  ])(
-    'generateActivity: ignores a Wikipedia thumbnail that is %s',
-    async (_label, thumb) => {
-      setup();
-      stubFetchWithThumbnail(geminiText(JSON.stringify(castleRock)), thumb);
-      const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
-      expect(r.errors).toBeUndefined();
-      expect(
-        (r.data?.generateActivity as { activity: Row }).activity.coverImage,
-      ).toBeNull();
-    },
-  );
+  it('generateActivity: no usable Commons image → no cover and no credit', async () => {
+    setup();
+    stubFetchWithCommons(geminiText(JSON.stringify(castleRock)), {
+      mime: 'image/svg+xml',
+      width: 4000,
+      height: 3000,
+      url: 'https://upload.wikimedia.org/castle.svg',
+    });
+    const r = await run(GENERATE_COVER, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.generateActivity as { activity: Row }).activity).toEqual({
+      coverImage: null,
+      coverCredit: null,
+    });
+  });
 
   it('alltrailsLookup: non-alltrails URL → BAD_USER_INPUT', async () => {
     setup();

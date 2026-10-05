@@ -38,6 +38,8 @@ export const typeDefs = /* GraphQL */ `
     difficulty: Difficulty
     dogFriendly: Boolean
     coverImage: String!
+    "Attribution for a freely licensed cover (author, license, source) — #36."
+    coverCredit: String
     galleryImages: [String!]
     allTrailsUrl: String
     allTrailsRating: Float
@@ -69,6 +71,8 @@ export const typeDefs = /* GraphQL */ `
     difficulty: Difficulty
     dogFriendly: Boolean
     coverImage: String
+    "Attribution for a freely licensed cover (author, license, source) — #36."
+    coverCredit: String
     galleryImages: [String!]
     allTrailsUrl: String
     allTrailsRating: Float
@@ -214,6 +218,7 @@ export const typeDefs = /* GraphQL */ `
     allTrailsUrl: String
     notes: String
     coverImage: String
+    coverCredit: String
   }
 
   input CoordsInput { lat: Float!  lng: Float! }
@@ -231,6 +236,8 @@ export const typeDefs = /* GraphQL */ `
     difficulty: Difficulty
     dogFriendly: Boolean
     coverImage: String!
+    "Attribution for a freely licensed cover (author, license, source) — #36."
+    coverCredit: String
     galleryImages: [String!]
     allTrailsUrl: String
     allTrailsRating: Float

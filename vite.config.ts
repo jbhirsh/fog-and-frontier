@@ -91,7 +91,7 @@ export default defineConfig({
         // api/ — the rest of api/** IS gated; these are the genuinely-hard ones:
         'api/_db.ts', //         real libSQL client; mocked in every test, no unit seam.
         'api/_gqlMap.ts', //     large snapshot/camelCase mapper, many null-coercion branches.
-        'api/_resolvers/gemini.ts', // external Gemini + Wikipedia fetch branches.
+        'api/_resolvers/gemini.ts', // external Gemini fetch branches.
         'api/_trips.ts', //      ~1.2k-line module; lines/stmts pass, branch-only miss over many validation paths.
         'api/graphql.ts', //     express error-middleware + formatError paths need failure injection.
         // src/components/ (map + dialog UI, largely untested)

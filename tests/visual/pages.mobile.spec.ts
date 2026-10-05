@@ -46,6 +46,7 @@ const STUB_GENERATED = {
   notes: 'Stubbed notes for visual fixture.',
   coverImage:
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=',
+  coverCredit: null,
 };
 
 test.describe('visual regression — mobile', () => {

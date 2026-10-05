@@ -27,6 +27,7 @@ export const ACTIVITIES_QUERY = graphql(`
       difficulty
       dogFriendly
       coverImage
+      coverCredit
       galleryImages
       allTrailsUrl
       allTrailsRating
@@ -122,6 +123,7 @@ export const TRIP_QUERY = graphql(`
           difficulty
           dogFriendly
           coverImage
+          coverCredit
           galleryImages
           allTrailsUrl
           allTrailsRating
@@ -209,6 +211,7 @@ export const GENERATE_ACTIVITY = graphql(`
         allTrailsUrl
         notes
         coverImage
+        coverCredit
       }
     }
   }
