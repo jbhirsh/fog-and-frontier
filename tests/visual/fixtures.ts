@@ -47,7 +47,7 @@ const FIXTURES: Activity[] = [
     id: 'fixture-completed-scenic',
     name: 'Completed Scenic Drive',
     shortDescription:
-      'Completed card — exercises the COMPLETED badge and the Adventures route.',
+      'Completed card — exercises the COMPLETED badge and the Completed only filter.',
     longDescription: 'Detail.',
     category: 'scenic',
     region: 'north-bay',

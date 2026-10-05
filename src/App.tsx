@@ -4,7 +4,6 @@ import { Layout } from './components/Layout';
 import { OwnerRoute } from './components/OwnerRoute';
 import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
-import { Adventures } from './pages/Adventures';
 import { Trips } from './pages/Trips';
 import { NewTrip } from './pages/NewTrip';
 import { TripDetail } from './pages/TripDetail';
@@ -40,7 +39,12 @@ export default function App() {
               </OwnerRoute>
             }
           />
-          <Route path="/adventures" element={<Adventures />} />
+          {/* The Adventures tab is retired (#5): completed activities are now
+              the catalog's "Completed only" filter. Keep old links working. */}
+          <Route
+            path="/adventures"
+            element={<Navigate to="/?completed=1" replace />}
+          />
           {/* The standalone Map page is superseded by the combined split view
               (#4 / #93). Keep the old URL working by aliasing it to Map mode. */}
           <Route path="/map" element={<Navigate to="/?view=map" replace />} />

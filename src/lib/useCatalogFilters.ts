@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
+import { isEffectivelyCompleted, type Overrides } from './userCompleted';
 
-// The six catalog filters, shared across every surface that lists activities
+// The catalog filters, shared across every surface that lists activities
 // (the Curated grid today; the split view's list + map column next — see #4).
 // Keeping the state and the selector in one place means each surface filters
 // identically and #9 / #5 / #16 can stack onto the same seam rather than
@@ -20,6 +21,8 @@ export interface CatalogFilterState {
   category: CategoryFilter;
   parkType: ParkTypeFilter;
   dogOnly: boolean;
+  /** "Completed only" (#5): keep just the activities marked completed. */
+  completedOnly: boolean;
 }
 
 export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
@@ -29,7 +32,31 @@ export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
   category: 'Any',
   parkType: 'Any',
   dogOnly: false,
+  completedOnly: false,
 };
+
+// "Completed only" is URL-synced as `?completed=1` (#5) so a filtered list is
+// shareable and the retired /adventures route can redirect to it.
+export const COMPLETED_PARAM = 'completed';
+
+/** Whether the URL asks for "Completed only" (`?completed=1`). */
+export function readCompletedOnly(params: URLSearchParams): boolean {
+  return params.get(COMPLETED_PARAM) === '1';
+}
+
+/**
+ * A copy of `params` with "Completed only" set (`?completed=1`) or cleared
+ * (param removed, so the default view has a clean URL). Other params are kept.
+ */
+export function withCompletedOnly(
+  params: URLSearchParams,
+  completedOnly: boolean,
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  if (completedOnly) next.set(COMPLETED_PARAM, '1');
+  else next.delete(COMPLETED_PARAM);
+  return next;
+}
 
 /**
  * Pure selector: apply the catalog filters to a list of activities, returning
@@ -38,13 +65,25 @@ export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
  * This reproduces the exact semantics the Curated grid has always used:
  * distance / duration / category / parkType / dog-friendly gates plus a
  * free-text search over name, short description, city and category.
+ *
+ * "Completed only" uses the effective completion state, so it needs the
+ * per-activity completion `overrides` (see {@link isEffectivelyCompleted});
+ * callers pass them in rather than this pure selector reading a hook.
  */
 export function applyCatalogFilters(
   activities: Activity[],
   filters: CatalogFilterState,
+  overrides: Overrides = {},
 ): Activity[] {
-  const { search, maxDistance, duration, category, parkType, dogOnly } =
-    filters;
+  const {
+    search,
+    maxDistance,
+    duration,
+    category,
+    parkType,
+    dogOnly,
+    completedOnly,
+  } = filters;
   const q = search.trim().toLowerCase();
   return activities
     .map((a) => ({
@@ -58,6 +97,7 @@ export function applyCatalogFilters(
       if (parkType !== 'Any' && (a.parkType ?? 'none') !== parkType)
         return false;
       if (dogOnly && !a.dogFriendly) return false;
+      if (completedOnly && !isEffectivelyCompleted(a, overrides)) return false;
       if (q) {
         const hay = `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -75,12 +115,16 @@ export interface CatalogFilters extends CatalogFilterState {
   setCategory: Dispatch<SetStateAction<CategoryFilter>>;
   setParkType: Dispatch<SetStateAction<ParkTypeFilter>>;
   setDogOnly: Dispatch<SetStateAction<boolean>>;
-  /** Apply the current filters to `activities` (memoized on the inputs). */
-  applyFilters: (activities: Activity[]) => Activity[];
+  setCompletedOnly: Dispatch<SetStateAction<boolean>>;
+  /**
+   * Apply the current filters to `activities` (memoized on the filters), with
+   * the completion `overrides` the "Completed only" filter reads.
+   */
+  applyFilters: (activities: Activity[], overrides?: Overrides) => Activity[];
 }
 
 /**
- * Shared catalog filter state: the six filter values, their setters, and a
+ * Shared catalog filter state: the filter values, their setters, and a
  * memoized {@link applyCatalogFilters} bound to the current state.
  */
 export function useCatalogFilters(): CatalogFilters {
@@ -98,6 +142,9 @@ export function useCatalogFilters(): CatalogFilters {
     INITIAL_CATALOG_FILTERS.parkType,
   );
   const [dogOnly, setDogOnly] = useState(INITIAL_CATALOG_FILTERS.dogOnly);
+  const [completedOnly, setCompletedOnly] = useState(
+    INITIAL_CATALOG_FILTERS.completedOnly,
+  );
 
   const applyFilters = useMemo(() => {
     const filters: CatalogFilterState = {
@@ -107,9 +154,11 @@ export function useCatalogFilters(): CatalogFilters {
       category,
       parkType,
       dogOnly,
+      completedOnly,
     };
-    return (activities: Activity[]) => applyCatalogFilters(activities, filters);
-  }, [search, maxDistance, duration, category, parkType, dogOnly]);
+    return (activities: Activity[], overrides?: Overrides) =>
+      applyCatalogFilters(activities, filters, overrides);
+  }, [search, maxDistance, duration, category, parkType, dogOnly, completedOnly]);
 
   return {
     search,
@@ -118,12 +167,14 @@ export function useCatalogFilters(): CatalogFilters {
     category,
     parkType,
     dogOnly,
+    completedOnly,
     setSearch,
     setMaxDistance,
     setDuration,
     setCategory,
     setParkType,
     setDogOnly,
+    setCompletedOnly,
     applyFilters,
   };
 }
