@@ -179,6 +179,38 @@ only reads `.github/workflows/` there):
   explicit `workflow_dispatch` with `update_snapshots=true` — never auto-committed
   onto a PR branch.
 
+### Dependency updates (Dependabot)
+
+`.github/dependabot.yml` runs a weekly sweep (Monday 06:00 UTC) for npm and
+GitHub Actions. Each ecosystem opens **one grouped PR** with every available
+bump, majors included, plus a separate security group that opens as soon as an
+alert fires. The header comment in that file explains the trade-off.
+
+What happens to each PR:
+
+- **npm PRs merge themselves.** `dependabot-merge.yml` turns on auto-merge, and
+  GitHub merges only when every required check on `main` is green and every
+  review thread is resolved. If a check goes red, `claude-autofix.yml` tries
+  to fix it on the PR branch. Nothing for you to do unless a PR stays open.
+- **GitHub Actions PRs are merged by hand.** The Actions token can't merge a PR
+  that edits `.github/workflows/`. Skim the release notes of any major, check
+  CI is green, and merge.
+
+When a grouped npm PR is stuck (red after autofix, or an unresolved review
+thread):
+
+1. Read the failing check. A peer-dependency conflict or a changed API is
+   usually one package's major.
+2. If that major needs real code changes, add an `ignore` entry for it
+   (`update-types: ["version-update:semver-major"]`) in `dependabot.yml` with a
+   comment saying why and when to remove it. Dependabot then regenerates the
+   group without it. Do the upgrade in its own PR.
+3. Never fix a peer conflict with `legacy-peer-deps`; see the overrides note in
+   `CLAUDE.md`.
+
+Standing ignores: **`graphql` majors**, until Apollo Server accepts graphql 17.
+Delete the ignore once it does.
+
 ## Product context lives in GitHub issues
 
 Issues carry the full rationale — scope decisions, cross-feature coordination,
