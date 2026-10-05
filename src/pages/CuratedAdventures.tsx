@@ -98,10 +98,11 @@ export function CuratedAdventures() {
 
   const { isOwner, email } = useOwner();
   // Adding to a trip is a member power, not an owner-only one (#51): invited
-  // editors can shortlist activities too. Gate the trip-selection affordances
-  // on being signed in; the server enforces per-trip membership on the actual
-  // add. (Catalog "Add activity" stays owner-only below.) A signed-out visitor
-  // arriving via location.state falls back to vanilla Curated.
+  // editors can shortlist activities too. The trip affordances are hidden, not
+  // greyed out, from signed-out visitors (#112); the server enforces per-trip
+  // membership on the actual add. (Catalog "Add activity" stays owner-only
+  // below.) A signed-out visitor arriving via location.state falls back to
+  // vanilla Curated.
   const isSignedIn = !!email;
   const acceptTarget = isSignedIn && initialTarget !== null;
 
@@ -198,6 +199,18 @@ export function CuratedAdventures() {
   const [targetTrip, setTargetTrip] = useState<TargetTrip | null>(
     acceptTarget ? initialTarget : null,
   );
+  // Selection is a signed-in mode (#112), so restart it whenever sign-in
+  // changes. Clerk resolves the session after the first render, so a trip
+  // target that arrived with location.state (a reload keeps it) is applied
+  // once the user is known; signing out drops any selection, whose
+  // "Cancel select" toggle is hidden from signed-out visitors.
+  const [prevSignedIn, setPrevSignedIn] = useState(isSignedIn);
+  if (prevSignedIn !== isSignedIn) {
+    setPrevSignedIn(isSignedIn);
+    setSelectionMode(acceptTarget);
+    setSelectedForTrip(new Set());
+    setTargetTrip(acceptTarget ? initialTarget : null);
+  }
   const [submittingTarget, setSubmittingTarget] = useState(false);
   const { activities: all, error: loadError } = useUserActivities();
 
@@ -334,17 +347,19 @@ export function CuratedAdventures() {
               }
             }}
             actionSlot={
-              selectionMode ? undefined : (
+              // Per-card "Add to trip" shows only while building a trip
+              // (#112), keeping the default browse view uncluttered. An
+              // active trip target (location.state) always opens selection
+              // mode, so selectionMode covers both cases.
+              isSignedIn && selectionMode ? (
                 <AddToTripDropdown
                   activityId={a.id}
-                  disabled={!isSignedIn}
-                  disabledTooltip="Sign in to add to trips"
                   onAdded={(msg) => {
                     setTripAddedToast(msg);
                     window.setTimeout(() => setTripAddedToast(null), 3000);
                   }}
                 />
-              )
+              ) : undefined
             }
           />
         ))}
@@ -516,28 +531,28 @@ export function CuratedAdventures() {
             mobile, right-aligned inline on desktop. */}
         <div className="flex flex-wrap md:flex-nowrap shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
           <ViewModeToggle value={view} onChange={setView} modes={toggleModes} />
-          <button
-            type="button"
-            onClick={() => {
-              if (selectionMode) {
-                clearSelection();
-              } else {
-                setSelectionMode(true);
-              }
-            }}
-            disabled={!isSignedIn && !selectionMode}
-            title={isSignedIn ? undefined : 'Sign in to plan trips'}
-            className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            <span
-              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-              style={{ fontSize: 18, width: 18, height: 18 }}
-              aria-hidden="true"
+          {isSignedIn && (
+            <button
+              type="button"
+              onClick={() => {
+                if (selectionMode) {
+                  clearSelection();
+                } else {
+                  setSelectionMode(true);
+                }
+              }}
+              className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm text-on-surface-variant hover:bg-surface-variant transition-colors whitespace-nowrap"
             >
-              {selectionMode ? 'close' : 'check_box'}
-            </span>
-            {selectionMode ? 'Cancel select' : 'Select for trip'}
-          </button>
+              <span
+                className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+                style={{ fontSize: 18, width: 18, height: 18 }}
+                aria-hidden="true"
+              >
+                {selectionMode ? 'close' : 'check_box'}
+              </span>
+              {selectionMode ? 'Cancel select' : 'Select for trip'}
+            </button>
+          )}
           {isOwner && (
             <button
               type="button"
