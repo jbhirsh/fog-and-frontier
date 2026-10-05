@@ -3,20 +3,21 @@ import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import { useUserPhotos } from '../lib/userPhotos';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
+import { CATEGORY_ICON } from '../lib/mapPins';
+import { CoverImage } from './CoverImage';
 
-const categoryLabels: Record<
-  Activity['category'],
-  { label: string; icon: string }
-> = {
-  hiking: { label: 'HIKING', icon: 'directions_walk' },
-  cycling: { label: 'CYCLING', icon: 'pedal_bike' },
-  water: { label: 'WATER', icon: 'water' },
-  food: { label: 'FOOD', icon: 'restaurant' },
-  culture: { label: 'CULTURE', icon: 'museum' },
-  scenic: { label: 'SCENIC', icon: 'landscape' },
-  climbing: { label: 'CLIMBING', icon: 'terrain' },
-  camping: { label: 'CAMPING', icon: 'forest' },
-  other: { label: 'OTHER', icon: 'explore' },
+// Pill label per category. The glyph comes from the shared CATEGORY_ICON, so
+// the pill, the cover fallback and the map pin always agree.
+const categoryLabels: Record<Activity['category'], string> = {
+  hiking: 'HIKING',
+  cycling: 'CYCLING',
+  water: 'WATER',
+  food: 'FOOD',
+  culture: 'CULTURE',
+  scenic: 'SCENIC',
+  climbing: 'CLIMBING',
+  camping: 'CAMPING',
+  other: 'OTHER',
 };
 
 interface Props {
@@ -58,7 +59,7 @@ export function ActivityCard({
   onHoverChange,
   highlighted,
 }: Props) {
-  const cat = categoryLabels[activity.category];
+  const categoryLabel = categoryLabels[activity.category];
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
   const { photos } = useUserPhotos(activity.id);
   const overrides = useOverrides();
@@ -125,8 +126,9 @@ export function ActivityCard({
               : 'outline-0'
           }`}
         >
-          <img
+          <CoverImage
             alt=""
+            category={activity.category}
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
             src={cover}
             loading="lazy"
@@ -138,9 +140,9 @@ export function ActivityCard({
               aria-hidden="true"
               style={{ fontSize: 15 }}
             >
-              {cat.icon}
+              {CATEGORY_ICON[activity.category]}
             </span>
-            {cat.label}
+            {categoryLabel}
           </span>
           {selectionMode && (
             <div

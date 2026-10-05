@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '../test/render';
+import { act, fireEvent, render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { ActivityCard } from './ActivityCard';
 import {
@@ -92,6 +92,15 @@ describe('ActivityCard', () => {
     expect(container.querySelector('.outline-2')).toBeNull();
     rerender(<ActivityCard activity={muirWoods} highlighted />);
     expect(container.querySelector('.outline-2')).not.toBeNull();
+  });
+
+  it('falls back to the category glyph when the cover fails to load (#120)', () => {
+    const { container } = render(<ActivityCard activity={muirWoods} />);
+    // Only the category pill carries the glyph while the cover loads.
+    expect(screen.getAllByText('directions_walk')).toHaveLength(1);
+    fireEvent.error(container.querySelector('img') as HTMLImageElement);
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getAllByText('directions_walk')).toHaveLength(2);
   });
 
   it('shows the AllTrails rating when present', () => {

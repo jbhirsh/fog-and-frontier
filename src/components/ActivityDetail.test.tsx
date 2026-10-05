@@ -104,6 +104,14 @@ describe('ActivityDetail', () => {
     expect(screen.getByText('Short redwoods description.')).toBeInTheDocument();
   });
 
+  it('shows the category glyph when the hero cover fails to load (#120)', () => {
+    render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    fireEvent.error(screen.getByRole('img', { name: 'Test Muir Woods' }));
+    const hero = screen.getByRole('img', { name: 'Test Muir Woods' });
+    expect(hero.tagName).toBe('DIV');
+    expect(hero).toHaveTextContent('directions_walk');
+  });
+
   it('shows the COMPLETED badge with date and notes for completed activities', () => {
     render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
     expect(screen.getByText(/COMPLETED/)).toBeInTheDocument();
