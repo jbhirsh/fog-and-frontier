@@ -53,6 +53,7 @@ const richActivity: Activity = {
   difficulty: 'easy',
   dogFriendly: false,
   coverImage: 'http://img',
+  coverCredit: 'Photo: Jo, CC BY 4.0, via Wikimedia Commons',
   galleryImages: ['http://g1', 'http://g2'],
   allTrailsUrl: 'http://alltrails',
   allTrailsRating: 4.6,
@@ -122,6 +123,29 @@ describe('rowToActivity ↔ activityToInput round-trip', () => {
       dietary: ['vegetarian', 'vegan'],
       completed: true,
       completedDate: '2025-11-02',
+      coverCredit: 'Photo: Jo, CC BY 4.0, via Wikimedia Commons',
     });
+  });
+
+  it('maps a missing coverCredit to undefined and sends it as null', async () => {
+    const plain: Activity = { ...richActivity, coverCredit: undefined };
+    expect(rowToActivity(toActivityRow(plain)).coverCredit).toBeUndefined();
+    let captured: Record<string, unknown> | undefined;
+    installFetch({
+      SaveActivity: (vars) => {
+        captured = (vars as { input: { activity: Record<string, unknown> } }).input.activity;
+        return jsonResponse({
+          data: {
+            saveActivity: {
+              __typename: 'SaveActivityPayload',
+              activity: { __typename: 'Activity', id: plain.id },
+            },
+          },
+        });
+      },
+      Activities: () => jsonResponse({ data: { activities: [] } }),
+    });
+    await saveUserActivity(plain);
+    expect(captured).toHaveProperty('coverCredit', null);
   });
 });

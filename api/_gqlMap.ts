@@ -85,6 +85,7 @@ export type SnapshotShape = {
   difficulty: string | null;
   dogFriendly: boolean | null;
   coverImage: string | null;
+  coverCredit: string | null;
   galleryImages: string[] | null;
   allTrailsUrl: string | null;
   allTrailsRating: number | null;
@@ -118,6 +119,7 @@ export function coerceSnapshot(raw: unknown): SnapshotShape | null {
     difficulty: enumVal(r.difficulty, DIFFICULTIES),
     dogFriendly: bool(r.dogFriendly),
     coverImage: str(r.coverImage),
+    coverCredit: str(r.coverCredit),
     galleryImages: strArray(r.galleryImages),
     allTrailsUrl: str(r.allTrailsUrl),
     allTrailsRating: num(r.allTrailsRating),

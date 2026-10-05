@@ -42,6 +42,7 @@ function toActivityRow(a: Activity) {
     difficulty: a.difficulty ?? null,
     dogFriendly: a.dogFriendly ?? null,
     coverImage: a.coverImage,
+    coverCredit: a.coverCredit ?? null,
     galleryImages: a.galleryImages ?? null,
     allTrailsUrl: a.allTrailsUrl ?? null,
     allTrailsRating: a.allTrailsRating ?? null,

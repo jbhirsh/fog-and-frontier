@@ -36,6 +36,7 @@ export type GeneratedFields = {
   dietary?: string[];
   notes?: string;
   coverImage?: string;
+  coverCredit?: string;
 };
 
 function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
@@ -64,6 +65,7 @@ function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
     dietary: row.dietary ?? undefined,
     notes: row.notes ?? undefined,
     coverImage: row.coverImage ?? undefined,
+    coverCredit: row.coverCredit ?? undefined,
   };
 }
 

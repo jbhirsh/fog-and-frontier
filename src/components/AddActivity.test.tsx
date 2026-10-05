@@ -47,6 +47,12 @@ vi.mock('../lib/alltrails', () => ({
   lookupAllTrails: lookupSpy,
 }));
 
+const generateSpy = vi.hoisted(() => vi.fn());
+vi.mock('../lib/generateActivity', () => ({
+  generateActivity: generateSpy,
+}));
+
+import type { GeneratedFields } from '../lib/generateActivity';
 import { AddActivity } from './AddActivity';
 
 const baseActivity: Activity = {
@@ -77,6 +83,7 @@ beforeEach(() => {
   ownerState.isOwner = true;
   saveSpy.mockClear();
   lookupSpy.mockReset();
+  generateSpy.mockReset();
 });
 
 describe('AddActivity — edit mode', () => {
@@ -269,5 +276,69 @@ describe('AddActivity — edit mode', () => {
     });
     expect(onSaved).toHaveBeenCalledWith(savedActivity);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AddActivity — cover credit (#36)', () => {
+  const credit = 'Photo: Jo, CC BY-SA 4.0, via Wikimedia Commons';
+  const generated: GeneratedFields = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    category: 'hiking',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.23,
+    lng: -122.1,
+    duration: 'Half Day',
+  };
+
+  async function generateAndSave() {
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    return (saveSpy.mock.calls[0] as [Activity])[0];
+  }
+
+  it('keeps the looked-up cover and its credit', async () => {
+    generateSpy.mockResolvedValue({
+      ...generated,
+      coverImage: 'https://upload.wikimedia.org/castle.jpg',
+      coverCredit: credit,
+    });
+    const saved = await generateAndSave();
+    expect(saved.coverImage).toBe('https://upload.wikimedia.org/castle.jpg');
+    expect(saved.coverCredit).toBe(credit);
+  });
+
+  it('leaves the cover empty, not a stock photo, when nothing matched', async () => {
+    generateSpy.mockResolvedValue(generated);
+    const saved = await generateAndSave();
+    expect(saved.coverImage).toBe('');
+    expect(saved.coverCredit).toBeUndefined();
+  });
+
+  it('keeps the credit when the cover URL is untouched', async () => {
+    render(
+      <AddActivity onClose={() => {}} editActivity={{ ...baseActivity, coverCredit: credit }} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].coverCredit).toBe(credit);
+  });
+
+  it('drops the credit when the owner pastes a different cover URL', async () => {
+    render(
+      <AddActivity onClose={() => {}} editActivity={{ ...baseActivity, coverCredit: credit }} />,
+    );
+    const cover = screen.getByLabelText('Cover image URL');
+    await userEvent.clear(cover);
+    await userEvent.type(cover, 'https://example.com/mine.jpg');
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    const saved = (saveSpy.mock.calls[0] as [Activity])[0];
+    expect(saved.coverImage).toBe('https://example.com/mine.jpg');
+    expect(saved.coverCredit).toBeUndefined();
   });
 });
