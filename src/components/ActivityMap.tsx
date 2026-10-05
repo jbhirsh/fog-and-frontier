@@ -86,6 +86,13 @@ interface Props {
    * disable bounds reporting.
    */
   onBoundsChange?: (bounds: MapBounds) => void;
+  /**
+   * Drop the rounded corners, border and shadow so the map sits edge to edge
+   * as a full-screen backdrop (the mobile map, #96), and lift the zoom
+   * controls, legend and attribution clear of the app header and the list
+   * sheet. Default `false` keeps the framed look of Split and desktop Map.
+   */
+  fullBleed?: boolean;
 }
 
 /**
@@ -104,6 +111,7 @@ export function ActivityMap({
   highlightedId,
   onPinHoverChange,
   onBoundsChange,
+  fullBleed = false,
 }: Props) {
   const overrides = useOverrides();
 
@@ -117,8 +125,18 @@ export function ActivityMap({
     [activities, overrides],
   );
 
+  // `isolate` traps Leaflet's pane z-indices (markers at 600, controls at
+  // 1000) inside the map's own stacking context, so a page-level overlay like
+  // the mobile list sheet (#96) paints above the map instead of having pins
+  // punch through it.
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
+    <div
+      className={`relative isolate h-full w-full overflow-hidden ${
+        fullBleed
+          ? 'leaflet-fullbleed'
+          : 'rounded-xl border border-outline-variant/30 shadow-sm'
+      }`}
+    >
       <MapContainer
         center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
         zoom={8}
@@ -127,7 +145,9 @@ export function ActivityMap({
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
-        <MapZoomControls />
+        {/* In full bleed the map runs under the app header: clear its slim
+            mobile form (about 60px) and its 80px md+ row. */}
+        <MapZoomControls topInset={fullBleed ? 88 : 12} />
         {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
         <Marker
           position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
@@ -185,7 +205,11 @@ export function ActivityMap({
           );
         })}
       </MapContainer>
-      <MapLegend />
+      {/* In full bleed the list sheet covers the bottom 7rem even at peek,
+          and Leaflet's attribution sits just above it (index.css); stack the
+          legend above that line, since on a phone the two are wide enough to
+          overlap and the attribution must stay readable. */}
+      <MapLegend bottomInset={fullBleed ? 152 : 12} />
     </div>
   );
 }
@@ -236,10 +260,10 @@ function BoundsWatcher({
 // z-index for the same reason MapZoomControls does: Leaflet's unlayered CSS
 // would otherwise beat Tailwind v4's layered utilities. Sits bottom-left, clear
 // of Leaflet's bottom-right attribution and the top-right zoom controls.
-function MapLegend() {
+function MapLegend({ bottomInset }: { bottomInset: number }) {
   return (
     <div
-      style={{ position: 'absolute', left: 12, bottom: 12, zIndex: 1000 }}
+      style={{ position: 'absolute', left: 12, bottom: bottomInset, zIndex: 1000 }}
       className="flex items-center gap-md rounded-lg border border-white/50 bg-white/70 px-sm py-xs text-body-sm text-on-surface shadow-md backdrop-blur-sm"
     >
       <LegendDot color={COLORS.home} label="Home" />

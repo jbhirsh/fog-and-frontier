@@ -93,4 +93,17 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'Curated' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Trips' })).toBeInTheDocument();
   });
+
+  // The mobile map is a full-screen backdrop (#96): below `lg` the header
+  // drops its search and nav rows there; lg+ (`lg:` classes) keeps them.
+  it('collapses the header below lg on the map view only', () => {
+    const { unmount } = renderAt('/?view=map');
+    expect(screen.getByRole('search')).toHaveClass('hidden', 'lg:block');
+    expect(screen.getByRole('navigation')).toHaveClass('hidden', 'lg:flex');
+    unmount();
+
+    renderAt('/?view=list');
+    expect(screen.getByRole('search')).not.toHaveClass('hidden');
+    expect(screen.getByRole('navigation')).not.toHaveClass('hidden');
+  });
 });
