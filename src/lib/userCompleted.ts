@@ -89,9 +89,9 @@ export async function setCompleted(
 }
 
 // Mirror the server-side completion write-through (after transitionTrip to=past)
-// into the local cache so badges on Curated / Map / Adventures update without a
-// refresh. Replaces the old localStorage mirror. Unchecked-but-eligible
-// activities get false to override stale baselines. The list is only merged
+// into the local cache so badges and the "Completed only" filter on Curated /
+// Map update without a refresh. Replaces the old localStorage mirror.
+// Unchecked-but-eligible activities get false to override stale baselines. The list is only merged
 // into when it's cached: a list built from these ids alone would stand in for
 // the whole set until the first read lands (see writeCompletedEntry).
 export function applyCompletionMirror(

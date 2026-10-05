@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   applyCatalogFilters,
   INITIAL_CATALOG_FILTERS,
+  readCompletedOnly,
+  withCompletedOnly,
   type CatalogFilterState,
 } from './useCatalogFilters';
 import {
@@ -127,5 +129,74 @@ describe('applyCatalogFilters', () => {
     const input = [...ALL];
     applyCatalogFilters(input, INITIAL_CATALOG_FILTERS);
     expect(input).toEqual(ALL);
+  });
+});
+
+describe('applyCatalogFilters — completed only (#5)', () => {
+  it('is off by default', () => {
+    expect(INITIAL_CATALOG_FILTERS.completedOnly).toBe(false);
+  });
+
+  it('keeps only activities completed in their baseline', () => {
+    const result = applyCatalogFilters(ALL, filters({ completedOnly: true }));
+    expect(result.map((a) => a.id)).toEqual([completedHike.id]);
+  });
+
+  it('honours completion overrides in both directions', () => {
+    // muirWoods is marked completed; completedHike is un-marked.
+    const result = applyCatalogFilters(ALL, filters({ completedOnly: true }), {
+      [muirWoods.id]: true,
+      [completedHike.id]: false,
+    });
+    expect(result.map((a) => a.id)).toEqual([muirWoods.id]);
+  });
+
+  it('ignores overrides while the filter is off', () => {
+    const result = applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS, {
+      [completedHike.id]: false,
+    });
+    expect(result).toHaveLength(ALL.length);
+  });
+
+  it('stacks with the other filters', () => {
+    const result = applyCatalogFilters(
+      ALL,
+      filters({ completedOnly: true, duration: '1-2 Hours' }),
+      { [dogFriendlyTidepools.id]: true },
+    );
+    expect(result.map((a) => a.id)).toEqual([dogFriendlyTidepools.id]);
+  });
+});
+
+describe('completed-only URL param', () => {
+  it('reads ?completed=1 as on', () => {
+    expect(readCompletedOnly(new URLSearchParams('completed=1'))).toBe(true);
+  });
+
+  it('reads a missing or other value as off', () => {
+    expect(readCompletedOnly(new URLSearchParams(''))).toBe(false);
+    expect(readCompletedOnly(new URLSearchParams('completed=0'))).toBe(false);
+    expect(readCompletedOnly(new URLSearchParams('completed=true'))).toBe(
+      false,
+    );
+  });
+
+  it('sets ?completed=1 and keeps the other params', () => {
+    const next = withCompletedOnly(new URLSearchParams('q=tide&view=map'), true);
+    expect(next.toString()).toBe('q=tide&view=map&completed=1');
+  });
+
+  it('removes the param when turned off', () => {
+    const next = withCompletedOnly(
+      new URLSearchParams('completed=1&q=tide'),
+      false,
+    );
+    expect(next.toString()).toBe('q=tide');
+  });
+
+  it('does not mutate the params it was given', () => {
+    const prev = new URLSearchParams('q=tide');
+    withCompletedOnly(prev, true);
+    expect(prev.toString()).toBe('q=tide');
   });
 });

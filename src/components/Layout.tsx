@@ -32,7 +32,7 @@ function NavSeparator() {
 export function Layout() {
   // Catalog search (per the #4 mockup) drives the `?q=` filter. The box is
   // rendered only on the catalog ("/") — see the conditional below — so it
-  // never appears (or writes a stray `?q=`) on Explore / Trips / Adventures.
+  // never appears (or writes a stray `?q=`) on Explore / Trips.
   const [params, setParams] = useSearchParams();
   const { pathname } = useLocation();
   const q = params.get('q') ?? '';
@@ -115,10 +115,6 @@ export function Layout() {
             <NavSeparator />
             <NavLink to="/trips" className={navClass}>
               Trips
-            </NavLink>
-            <NavSeparator />
-            <NavLink to="/adventures" className={navClass}>
-              Adventures
             </NavLink>
           </nav>
 

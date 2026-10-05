@@ -12,10 +12,15 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
-import { useCatalogFilters } from '../lib/useCatalogFilters';
+import {
+  readCompletedOnly,
+  useCatalogFilters,
+  withCompletedOnly,
+} from '../lib/useCatalogFilters';
 import { filterByBounds, type MapBounds } from '../lib/mapBounds';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useUserActivities } from '../lib/userActivities';
+import { useOverrides } from '../lib/userCompleted';
 import { useOwner } from '../lib/useOwner';
 import { addActivityToTrip } from '../lib/userTrips';
 
@@ -112,6 +117,7 @@ export function CuratedAdventures() {
     setParkType,
     dogOnly,
     setDogOnly,
+    setCompletedOnly,
     applyFilters,
   } = useCatalogFilters();
   // Layout mode (#4 / #93). Source of truth is the `?view=` param so the choice
@@ -162,6 +168,21 @@ export function CuratedAdventures() {
   useEffect(() => {
     setSearch(query);
   }, [query, setSearch]);
+
+  // "Completed only" (#5) is likewise URL-sourced (`?completed=1`, which the
+  // retired /adventures route redirects to); the chip below writes the param
+  // and this mirrors it into the shared filter state.
+  const completedOnly = readCompletedOnly(searchParams);
+  useEffect(() => {
+    setCompletedOnly(completedOnly);
+  }, [completedOnly, setCompletedOnly]);
+  function toggleCompletedOnly() {
+    setSearchParams((prev) => withCompletedOnly(prev, !completedOnly), {
+      replace: true,
+    });
+  }
+  // Completion overrides, so "Completed only" agrees with the badges.
+  const overrides = useOverrides();
 
   const [selected, setSelected] = useState<Activity | null>(null);
   const [adding, setAdding] = useState(false);
@@ -235,7 +256,10 @@ export function CuratedAdventures() {
     }
   }
 
-  const results = useMemo(() => applyFilters(all), [applyFilters, all]);
+  const results = useMemo(
+    () => applyFilters(all, overrides),
+    [applyFilters, all, overrides],
+  );
 
   // Bounds filter (#95): when the user pans/zooms an interactive map, narrow the
   // list to the activities inside the current viewport, on top of the catalog
@@ -383,10 +407,12 @@ export function CuratedAdventures() {
       }`}
     >
       <div className="max-w-screen-2xl mx-auto flex flex-col gap-sm md:flex-row md:items-center">
-        {/* Filter chips on a single line that scrolls horizontally instead of
-            wrapping, so the toolbar stays short — especially on mobile, where
-            wrapping previously pushed the map far down the page. */}
-        <div className="flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* On mobile the chips stay on one line that scrolls horizontally, so
+            the toolbar stays short (wrapping there pushed the map far down
+            the page). On desktop they wrap instead: the scrollbar is hidden,
+            so a chip past the edge (e.g. "Completed only" at 1280px) was
+            unreachable in practice. */}
+        <div className="flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <FilterPill icon="location_on">
             <select
               value={String(maxDistance)}
@@ -459,6 +485,28 @@ export function CuratedAdventures() {
               pets
             </span>
             Dog friendly
+          </button>
+          {/* A read filter, so it's shown to everyone (#5). */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={completedOnly}
+            aria-label="Completed only"
+            onClick={toggleCompletedOnly}
+            className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+              completedOnly
+                ? 'border-primary bg-primary text-on-primary'
+                : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+            }`}
+          >
+            <span
+              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+              style={{ fontSize: 18, width: 18, height: 18 }}
+              aria-hidden="true"
+            >
+              check_circle
+            </span>
+            Completed only
           </button>
         </div>
         {/* View toggle + trip actions: their own row below the filters on

@@ -372,8 +372,8 @@ export async function markTripPast(
   const result = data?.transitionTrip;
   const completed = result?.completedActivityIds ?? [];
   const uncompleted = result?.uncompletedActivityIds ?? [];
-  // Mirror the server-side completion write-through into the cache so badges on
-  // Curated / Map / Adventures update without a hard refresh.
+  // Mirror the server-side completion write-through into the cache so badges
+  // (and the "Completed only" filter) update without a hard refresh.
   applyCompletionMirror(completed, uncompleted);
   return {
     marked_past_at: result?.markedPastAt
