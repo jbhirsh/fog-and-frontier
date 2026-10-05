@@ -63,15 +63,6 @@ test.describe('visual regression — mobile', () => {
     });
   });
 
-  test('adventures list', async ({ page }) => {
-    await page.goto('/adventures');
-    await waitForVisualReady(page);
-    await assertNoHorizontalOverflow(page);
-    await expect(page).toHaveScreenshot('adventures-mobile.png', {
-      fullPage: true,
-    });
-  });
-
   test('explore empty state', async ({ page }) => {
     // Explore is owner-only (#111): a non-owner is redirected home, so flip
     // the dev/test-only override before boot to snapshot the owner view.
@@ -144,7 +135,9 @@ test.describe('visual regression — mobile', () => {
     // Pre-seed user photos for the completed-scenic fixture so the
     // "Your Photos" section has real thumbnails on first render.
     await seedPhotos(page, COMPLETED_FIXTURE_ID, 2);
-    await page.goto('/adventures');
+    // The Adventures page is retired (#5); its list is now the catalog's
+    // "Completed only" filter.
+    await page.goto('/?completed=1');
     await waitForVisualReady(page);
     await page
       .getByRole('button', { name: /Completed Scenic Drive/ })

@@ -19,7 +19,7 @@ function renderAt(path: string) {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<div>explore-content</div>} />
-          <Route path="/adventures" element={<div>adv-content</div>} />
+          <Route path="/trips" element={<div>trips-content</div>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -35,7 +35,7 @@ describe('Layout', () => {
     renderAt('/');
     expect(screen.getByText('explore-content')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Explore' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Adventures' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Trips' })).toBeInTheDocument();
   });
 
   it('marks the Curated link active on the home route', () => {
@@ -50,17 +50,26 @@ describe('Layout', () => {
     ).not.toHaveAttribute('aria-current');
   });
 
-  it('marks the Adventures link active on /adventures', () => {
-    renderAt('/adventures');
-    expect(screen.getByText('adv-content')).toBeInTheDocument();
-    const adv = screen.getByRole('link', { name: 'Adventures' });
-    expect(adv).toHaveAttribute('aria-current', 'page');
+  it('marks the Trips link active on /trips', () => {
+    renderAt('/trips');
+    expect(screen.getByText('trips-content')).toBeInTheDocument();
+    const trips = screen.getByRole('link', { name: 'Trips' });
+    expect(trips).toHaveAttribute('aria-current', 'page');
+  });
+
+  // The Adventures tab is retired (#5): completed activities are the
+  // catalog's "Completed only" filter now.
+  it('has no Adventures tab', () => {
+    renderAt('/');
+    expect(
+      screen.queryByRole('link', { name: 'Adventures' }),
+    ).not.toBeInTheDocument();
   });
 
   it('renders the brand and footer', () => {
     // The footer is suppressed on the catalog ("/") so the split view owns the
     // page scroll; assert it on another route.
-    renderAt('/adventures');
+    renderAt('/trips');
     expect(screen.getAllByText('Fog and Frontier').length).toBeGreaterThan(0);
     expect(screen.getByText(/Inspired by the Pacific Coast/)).toBeInTheDocument();
   });

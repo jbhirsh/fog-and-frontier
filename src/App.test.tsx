@@ -23,4 +23,17 @@ describe('App', () => {
     expect(await screen.findByText('Curated Adventures')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });
+
+  // The Adventures page is retired (#5); its URL now lands on the catalog's
+  // "Completed only" filter.
+  it('redirects /adventures to the completed-only catalog', async () => {
+    window.history.replaceState(null, '', '/adventures');
+    render(<App />, { activities: [muirWoods] });
+    expect(await screen.findByText('Curated Adventures')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.search).toBe('?completed=1');
+    expect(
+      screen.getByRole('switch', { name: 'Completed only' }),
+    ).toHaveAttribute('aria-checked', 'true');
+  });
 });

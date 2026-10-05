@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import type { CompletedSeed } from '../test/render';
 import {
   completedHike,
   dogFriendlyTidepools,
@@ -10,12 +11,18 @@ import {
 
 import { CuratedAdventures } from './CuratedAdventures';
 
-function renderExplore(path = '/') {
+function LocationProbe() {
+  const { search } = useLocation();
+  return <output data-testid="search">{search}</output>;
+}
+
+function renderExplore(path = '/', completed: CompletedSeed[] = []) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <CuratedAdventures />
+      <LocationProbe />
     </MemoryRouter>,
-    { activities: [muirWoods, completedHike, dogFriendlyTidepools] },
+    { activities: [muirWoods, completedHike, dogFriendlyTidepools], completed },
   );
 }
 
@@ -75,7 +82,7 @@ describe('Curated Adventures page', () => {
 
   it('toggles dog-friendly filter', async () => {
     renderExplore();
-    const toggle = screen.getByRole('switch');
+    const toggle = screen.getByRole('switch', { name: 'Dog friendly' });
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-checked', 'true');
@@ -90,5 +97,54 @@ describe('Curated Adventures page', () => {
     );
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Test Muir Woods')).toBeInTheDocument();
+  });
+
+  describe('Completed only (#5)', () => {
+    it('is off by default and shows every activity', () => {
+      renderExplore();
+      expect(
+        screen.getByRole('switch', { name: 'Completed only' }),
+      ).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    });
+
+    it('filters to completed activities from ?completed=1', async () => {
+      renderExplore('/?completed=1');
+      expect(
+        screen.getByRole('switch', { name: 'Completed only' }),
+      ).toHaveAttribute('aria-checked', 'true');
+      expect(await screen.findByText(/^1 place · sorted/)).toBeInTheDocument();
+      expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
+      expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
+      expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
+    });
+
+    it('toggles the filter and syncs ?completed=1 to the URL', async () => {
+      renderExplore('/?q=test');
+      const toggle = screen.getByRole('switch', { name: 'Completed only' });
+      await userEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByTestId('search')).toHaveTextContent(
+        '?q=test&completed=1',
+      );
+      expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
+      expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
+
+      await userEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getByTestId('search')).toHaveTextContent(/^\?q=test$/);
+      expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    });
+
+    it('uses the completion overrides, not just the baseline flag', async () => {
+      renderExplore('/?completed=1', [
+        { id: muirWoods.id, completed: true },
+        { id: completedHike.id, completed: false },
+      ]);
+      expect(await screen.findByText('Test Muir Woods')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Test Completed Hike'),
+      ).not.toBeInTheDocument();
+    });
   });
 });

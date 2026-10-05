@@ -22,12 +22,6 @@ test.describe('visual regression — desktop', () => {
     await expect(page).toHaveScreenshot('curated.png', { fullPage: true });
   });
 
-  test('adventures list', async ({ page }) => {
-    await page.goto('/adventures');
-    await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('adventures.png', { fullPage: true });
-  });
-
   test('explore empty state', async ({ page }) => {
     // Explore is owner-only (#111): a non-owner is redirected home, so flip
     // the dev/test-only override before boot to snapshot the owner view.

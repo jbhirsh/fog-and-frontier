@@ -19,8 +19,8 @@ map, filter, and plan trips around.
 
 - **Browse & filter** a catalog of curated adventures — filter by distance from
   home, duration, category (hiking, cycling, water, food, culture, scenic,
-  climbing, camping), park designation, and dog-friendliness. Results are sorted
-  by distance.
+  climbing, camping), park designation, dog-friendliness, and "Completed only"
+  (the places you've already done). Results are sorted by distance.
 - **Three synced views** — a segmented **List · Split · Map** toggle. Split view
   puts the catalog next to a live map; panning/zooming narrows the list to
   what's in view ("Showing N in this area"), and hovering a card highlights its

@@ -1,7 +1,6 @@
 import { useRef, type ReactNode } from 'react';
 import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
-import { useUserPhotos } from '../lib/userPhotos';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import { CoverImage } from './CoverImage';
@@ -23,7 +22,6 @@ const categoryLabels: Record<Activity['category'], string> = {
 interface Props {
   activity: Activity;
   onClick?: () => void;
-  showUserPhotoCount?: boolean;
   selected?: boolean;
   selectionMode?: boolean;
   /**
@@ -52,7 +50,6 @@ interface Props {
 export function ActivityCard({
   activity,
   onClick,
-  showUserPhotoCount,
   selected,
   selectionMode,
   actionSlot,
@@ -61,11 +58,8 @@ export function ActivityCard({
 }: Props) {
   const categoryLabel = categoryLabels[activity.category];
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
-  const { photos } = useUserPhotos(activity.id);
   const overrides = useOverrides();
   const completed = isEffectivelyCompleted(activity, overrides);
-  const cover =
-    showUserPhotoCount && photos.length > 0 ? photos[0] : activity.coverImage;
 
   const distanceLabel =
     miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
@@ -130,7 +124,7 @@ export function ActivityCard({
             alt=""
             category={activity.category}
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
-            src={cover}
+            src={activity.coverImage}
             loading="lazy"
           />
           {/* Category tag — frosted pill, navy label, accent icon. */}
@@ -162,20 +156,6 @@ export function ActivityCard({
                   check
                 </span>
               )}
-            </div>
-          )}
-          {showUserPhotoCount && photos.length > 0 && (
-            <div className="absolute bottom-sm right-sm flex items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm py-xs text-primary backdrop-blur-sm">
-              <span
-                className="material-symbols-outlined"
-                aria-hidden="true"
-                style={{ fontSize: 16 }}
-              >
-                photo_library
-              </span>
-              <span className="font-label-caps text-label-caps">
-                {photos.length}
-              </span>
             </div>
           )}
         </div>
