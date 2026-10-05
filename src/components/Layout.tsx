@@ -11,6 +11,7 @@ import {
   UserButton,
 } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../lib/authShim';
+import { useOwner } from '../lib/useOwner';
 
 function navClass({ isActive }: { isActive: boolean }) {
   // Active state carries a non-color cue (underline + weight) as well as color,
@@ -36,6 +37,8 @@ export function Layout() {
   const { pathname } = useLocation();
   const q = params.get('q') ?? '';
   const showSearch = pathname === '/';
+  // Explore is an owner-only surface (#111); its route is guarded in App.tsx.
+  const { isOwner } = useOwner();
 
   function handleChange(next: string) {
     setParams(
@@ -101,10 +104,14 @@ export function Layout() {
             <NavLink to="/" end className={navClass}>
               Curated
             </NavLink>
-            <NavSeparator />
-            <NavLink to="/explore" className={navClass}>
-              Explore
-            </NavLink>
+            {isOwner && (
+              <>
+                <NavSeparator />
+                <NavLink to="/explore" className={navClass}>
+                  Explore
+                </NavLink>
+              </>
+            )}
             <NavSeparator />
             <NavLink to="/trips" className={navClass}>
               Trips

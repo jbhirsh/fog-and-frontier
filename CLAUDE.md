@@ -54,8 +54,14 @@ Rules of thumb:
   only the *write* affordance inside it (the "Add photos" upload control) is
   hidden. The completion **status** in `ActivityDetail` is rendered as a
   static badge for non-owners; only the interactive toggle is owner-only.
-- **There are no owner-only reads today** (no CSV export / admin view). If one
-  is added, make an explicit decision (hide vs. keep) and document it here.
+- **Owner-only reads are an explicit decision, recorded here.** The first is
+  the **Explore** surface (#111): its one action, Discover, is a paid
+  owner-only call, so non-owners would only reach a dead end. Decision: hide
+  the tab *and* guard the route — the `/explore` NavLink in `Layout.tsx` is
+  gated on `isOwner`, and `OwnerRoute` (`src/components/OwnerRoute.tsx`)
+  renders nothing until auth loads, then redirects non-owners to `/`. #19 plans
+  the next one (an owner-only "Your Photos" gallery); until it lands, that
+  gallery follows the "Reads stay" rule above.
 
 Gates that are **not** the owner gate, and keep their existing presentation:
 
