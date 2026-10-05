@@ -4,17 +4,12 @@ import { addActivityToTrip, useTripsList } from '../lib/userTrips';
 
 type Props = {
   activityId: string;
-  disabled?: boolean;
-  disabledTooltip?: string;
   onAdded?: (message: string) => void;
 };
 
-export function AddToTripDropdown({
-  activityId,
-  disabled,
-  disabledTooltip,
-  onAdded,
-}: Props) {
+// Callers render this only for signed-in users building a trip (#112), so it
+// has no disabled state: signed-out visitors never see it.
+export function AddToTripDropdown({ activityId, onAdded }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -45,22 +40,20 @@ export function AddToTripDropdown({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          if (disabled) return;
           setOpen((v) => !v);
         }}
-        disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Add to trip"
-        title={disabled ? disabledTooltip : 'Add to trip'}
-        className="inline-flex items-center gap-xs px-sm py-xs bg-primary text-on-primary border border-primary rounded-full hover:opacity-90 font-body-md text-sm shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-surface-container-lowest disabled:text-on-surface-variant disabled:border-outline-variant/40"
+        title="Add to trip"
+        className="inline-flex items-center gap-xs px-sm py-xs bg-primary text-on-primary border border-primary rounded-full hover:opacity-90 font-body-md text-sm shadow-md"
       >
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
           {open ? 'close' : 'add_circle'}
         </span>
         Trip
       </button>
-      {open && !disabled && (
+      {open && (
         <DropdownMenu
           activityId={activityId}
           onClose={() => setOpen(false)}
