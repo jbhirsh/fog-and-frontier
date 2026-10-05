@@ -63,14 +63,19 @@ Rules of thumb:
   the next one (an owner-only "Your Photos" gallery); until it lands, that
   gallery follows the "Reads stay" rule above.
 
-Gates that are **not** the owner gate, and keep their existing presentation:
+Gates that are **not** the owner gate:
 
-- **Sign-in-gated CTAs** (`useTripMembership` / "is signed in"), e.g. "Select
-  for trip" and "Add to trip" in `CuratedAdventures`. These prompt any visitor
-  to sign in and legitimately stay rendered (disabled + "Sign in to…" tooltip).
+- **Sign-in-gated CTAs** ("is signed in", i.e. `useOwner().email`), e.g.
+  "Select for trip" and "Add to trip" in `CuratedAdventures`, follow the same hide
+  rule (#112): **not rendered for signed-out visitors** — no disabled state,
+  no "Sign in to…" tooltip. Signed-in users (owners *and* invited editors) see
+  them, since adding to a trip is a member power (#51). The per-card "Add to
+  trip" renders only while building a trip (selection mode, which an incoming
+  trip target also opens), keeping the default browse view uncluttered.
 - **Trip-creator-gated** controls in `TripDetail` (reopen voting, mark past,
   delete trip, finalize voting, remove member) — gated on being *this trip's*
   creator, a per-trip role shown to trip members, not the global owner gate.
+  They keep their existing presentation for the members who see them.
 
 **Server is the real gate.** `useOwner()` is a UI hint only. `requireOwnerCtx`
 in `api/_gqlContext.ts` (and `requireMemberCtx` / `requireCreatorCtx` for
