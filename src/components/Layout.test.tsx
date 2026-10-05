@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './Layout';
+
+const ownerState = vi.hoisted(() => ({ isOwner: true }));
+
+vi.mock('../lib/useOwner', () => ({
+  useOwner: () => ({
+    isOwner: ownerState.isOwner,
+    isLoaded: true,
+    email: null,
+  }),
+}));
 
 function renderAt(path: string) {
   return render(
@@ -17,6 +27,10 @@ function renderAt(path: string) {
 }
 
 describe('Layout', () => {
+  beforeEach(() => {
+    ownerState.isOwner = true;
+  });
+
   it('renders nav links and the routed child', () => {
     renderAt('/');
     expect(screen.getByText('explore-content')).toBeInTheDocument();
@@ -49,5 +63,25 @@ describe('Layout', () => {
     renderAt('/adventures');
     expect(screen.getAllByText('Fog and Frontier').length).toBeGreaterThan(0);
     expect(screen.getByText(/Inspired by the Pacific Coast/)).toBeInTheDocument();
+  });
+
+  // Explore is an owner-only surface (#111): hidden, not greyed out.
+  it('shows the Explore tab to the owner', () => {
+    renderAt('/');
+    expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute(
+      'href',
+      '/explore',
+    );
+  });
+
+  it('hides the Explore tab from non-owners', () => {
+    ownerState.isOwner = false;
+    renderAt('/');
+    expect(
+      screen.queryByRole('link', { name: 'Explore' }),
+    ).not.toBeInTheDocument();
+    // The rest of the nav is unaffected.
+    expect(screen.getByRole('link', { name: 'Curated' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Trips' })).toBeInTheDocument();
   });
 });

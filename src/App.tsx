@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { Layout } from './components/Layout';
+import { OwnerRoute } from './components/OwnerRoute';
 import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
 import { Adventures } from './pages/Adventures';
@@ -29,7 +30,16 @@ export default function App() {
         />
         <Route element={<Layout />}>
           <Route path="/" element={<CuratedAdventures />} />
-          <Route path="/explore" element={<Explore />} />
+          {/* Explore is owner-only (#111): Discover is a paid owner call, so a
+              non-owner would only ever see a dead end here. */}
+          <Route
+            path="/explore"
+            element={
+              <OwnerRoute>
+                <Explore />
+              </OwnerRoute>
+            }
+          />
           <Route path="/adventures" element={<Adventures />} />
           {/* The standalone Map page is superseded by the combined split view
               (#4 / #93). Keep the old URL working by aliasing it to Map mode. */}
