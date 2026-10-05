@@ -19,28 +19,22 @@ const OPTIONS: readonly Option[] = [
 type Props = {
   value: ViewMode;
   onChange: (mode: ViewMode) => void;
-  /**
-   * Which segments to show, in order. Defaults to all three. The split view
-   * passes `['list', 'map']` below `lg`, where Split has no two-column layout.
-   */
-  modes?: readonly ViewMode[];
 };
 
 /**
  * iOS-style segmented control for switching between the List · Split · Map
- * layouts. Frosted pill track with a navy (`primary`) active segment.
+ * layouts. Frosted pill track with a navy (`primary`) active segment. Shown
+ * only at `lg+`: below it Split has no two-column layout, so the mobile UX is
+ * a floating "Show map" button instead (see CuratedAdventures, #96).
  *
  * Accessible as a radiogroup: arrow keys move (and select) between segments,
  * with a roving tabindex so the group is a single tab stop.
  */
-export function ViewModeToggle({ value, onChange, modes }: Props) {
+export function ViewModeToggle({ value, onChange }: Props) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const options = modes
-    ? OPTIONS.filter((o) => modes.includes(o.value))
-    : OPTIONS;
 
   function focusAndSelect(index: number) {
-    const next = options[index];
+    const next = OPTIONS[index];
     onChange(next.value);
     refs.current[index]?.focus();
   }
@@ -51,13 +45,13 @@ export function ViewModeToggle({ value, onChange, modes }: Props) {
   ) {
     let nextIndex: number | null = null;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (index + 1) % options.length;
+      nextIndex = (index + 1) % OPTIONS.length;
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (index - 1 + options.length) % options.length;
+      nextIndex = (index - 1 + OPTIONS.length) % OPTIONS.length;
     } else if (event.key === 'Home') {
       nextIndex = 0;
     } else if (event.key === 'End') {
-      nextIndex = options.length - 1;
+      nextIndex = OPTIONS.length - 1;
     }
     if (nextIndex !== null) {
       event.preventDefault();
@@ -71,7 +65,7 @@ export function ViewModeToggle({ value, onChange, modes }: Props) {
       aria-label="View mode"
       className="inline-flex items-center gap-xs rounded-xl bg-surface-container p-xs"
     >
-      {options.map((option, index) => {
+      {OPTIONS.map((option, index) => {
         const selected = option.value === value;
         return (
           <button

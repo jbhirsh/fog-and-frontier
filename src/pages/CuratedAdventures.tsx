@@ -7,10 +7,12 @@ import { ActivityMap } from '../components/ActivityMap';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
+import { BottomSheet } from '../components/BottomSheet';
 import { InlineError } from '../components/InlineError';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
+import type { SheetSnap } from '../lib/bottomSheetSnap';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import {
   readCompletedOnly,
@@ -124,7 +126,8 @@ export function CuratedAdventures() {
   // Layout mode (#4 / #93). Source of truth is the `?view=` param so the choice
   // is shareable and survives reloads; when absent we default to Split on
   // desktop and List on mobile. `isLg` also gates mounting the map column —
-  // below `lg` the split collapses to list-only (the mobile map sheet is #96).
+  // below `lg` there's no Split; Map there is a full-screen map with the list
+  // in a bottom sheet (#96).
   const [searchParams, setSearchParams] = useSearchParams();
   const isLg = useMediaQuery('(min-width: 1024px)');
   const viewParam = searchParams.get('view');
@@ -133,10 +136,9 @@ export function CuratedAdventures() {
     : isLg
       ? 'split'
       : 'list';
-  // Split needs the two-column desktop layout; below `lg` there's no room (the
-  // mobile map experience is #96), so a `?view=split` link or a stray toggle
-  // falls back to List there instead of showing Split selected over a
-  // list-only page.
+  // Split needs the two-column desktop layout; below `lg` there's no room, so
+  // a `?view=split` link (or a window narrowed while in Split) falls back to
+  // List there instead.
   const view: ViewMode =
     requestedView === 'split' && !isLg ? 'list' : requestedView;
   function setView(next: ViewMode) {
@@ -153,15 +155,21 @@ export function CuratedAdventures() {
     );
   }
   // Whether Split mode should mount its map column. Below `lg` the split
-  // collapses to list-only (the mobile map sheet is #96), so we skip mounting
-  // Leaflet there entirely. Map mode renders its own map unconditionally.
+  // collapses to list-only, so we skip mounting Leaflet there entirely. Map
+  // mode renders its own map unconditionally.
   const splitMapVisible = view === 'split' && isLg;
-
-  // Split is a desktop-only layout, so the segmented control only offers it at
-  // lg+; on smaller screens it's List · Map (the mobile map UX is #96).
-  const toggleModes: ViewMode[] = isLg
-    ? ['list', 'split', 'map']
-    : ['list', 'map'];
+  // Mobile Map mode (#96): a full-screen map with the list riding in a
+  // draggable bottom sheet, Apple-Maps style. Only below `lg`; at lg+ Split
+  // already pairs the list and the map side by side.
+  const mobileMap = view === 'map' && !isLg;
+  // The sheet starts collapsed so the map is the prominent surface the user
+  // just asked for; "Show map" re-collapses it so a previous full-height drag
+  // doesn't bury the map next time.
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
+  function showMobileMap() {
+    setSheetSnap('peek');
+    setView('map');
+  }
 
   // Free-text search now lives in the global header (#4 mockup) and is shared
   // via the `?q=` param; mirror it into the catalog filter state.
@@ -230,6 +238,17 @@ export function CuratedAdventures() {
     setSelectionMode(false);
     setSelectedForTrip(new Set());
     setTargetTrip(null);
+  }
+
+  // The mobile map's sheet (#96) sits above the selection bar and the trip
+  // dialog, and "Show map" steps aside while selecting. A selection can only
+  // reach the mobile map by the window narrowing mid-select (Map at lg+, then
+  // an iPad turned to portrait), so end it there rather than leave the bar
+  // buried with card taps still toggling selection.
+  const [prevMobileMap, setPrevMobileMap] = useState(mobileMap);
+  if (prevMobileMap !== mobileMap) {
+    setPrevMobileMap(mobileMap);
+    if (mobileMap) clearSelection();
   }
 
   async function handleAddToTarget() {
@@ -301,8 +320,8 @@ export function CuratedAdventures() {
   );
 
   // Pin click (#94): open detail and scroll the matching card into view. The
-  // card only exists in list/split layouts; in map mode the querySelector simply
-  // returns null.
+  // card exists in Split and in the mobile map's sheet; in desktop Map mode the
+  // querySelector simply returns null.
   function handlePinActivate(activity: Activity) {
     setSelected(activity);
     if (typeof document === 'undefined') return;
@@ -315,12 +334,15 @@ export function CuratedAdventures() {
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  // Narrower grid in Split (the list shares the row with the map) than in the
-  // full-width List layout.
+  // Narrower grid in Split (the list shares the row with the map) and in the
+  // mobile map's sheet (two cards a row only once there's room for them) than
+  // in the full-width List layout.
   const gridColsClass =
     view === 'split'
       ? 'grid-cols-1 xl:grid-cols-2'
-      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+      : view === 'map'
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
 
   const listContent =
     visibleResults.length === 0 ? (
@@ -415,9 +437,169 @@ export function CuratedAdventures() {
     </div>
   );
 
+  // Header of the mobile map's list sheet (#96). It stays visible at `peek`, so
+  // it carries the way back to the list and the same count / bounds summary
+  // the list header shows. The exit reads "Hide map" rather than "List"
+  // because the sheet already is the list.
+  const mobileSheetHeader = (
+    <div className="flex items-center justify-between gap-sm">
+      <button
+        type="button"
+        // Drop the map-driven viewport filter on the way out: the full-width
+        // list shouldn't stay narrowed to a map the user can no longer see.
+        onClick={() => {
+          clearBounds();
+          setView('list');
+        }}
+        className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
+      >
+        <span
+          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+          style={{ fontSize: 18, width: 18, height: 18 }}
+          aria-hidden="true"
+        >
+          close
+        </span>
+        Hide map
+      </button>
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center gap-sm text-body-sm text-on-surface-variant"
+      >
+        {bounds ? (
+          <>
+            <span>
+              Showing <b className="text-on-surface">{visibleResults.length}</b>{' '}
+              in this area
+            </span>
+            <button
+              type="button"
+              aria-label="Clear bounds"
+              onClick={clearBounds}
+              className="font-semibold text-secondary hover:underline"
+            >
+              Clear
+            </button>
+          </>
+        ) : (
+          <span>
+            <b className="text-on-surface">{results.length}</b> place
+            {results.length === 1 ? '' : 's'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
   // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
   // scrolls beneath it); in Split it sits above the page-scrolled columns; in
   // Map it's the fixed top row of a viewport-height flex column (below).
+  // The filter chips, shared by the toolbar and the mobile map's sheet (#96).
+  // On mobile they stay on one line that scrolls horizontally, so the toolbar
+  // stays short (wrapping there pushed the map far down the page). On desktop
+  // they wrap instead: the scrollbar is hidden, so a chip past the edge (e.g.
+  // "Completed only" at 1280px) was unreachable in practice.
+  const filterChips = (
+    <div className="flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <FilterPill icon="location_on">
+        <select
+          value={String(maxDistance)}
+          onChange={(e) => setMaxDistance(Number(e.target.value))}
+          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+        >
+          {DISTANCE_OPTIONS.map((o) => (
+            <option key={o.label} value={String(o.value)}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </FilterPill>
+      <FilterPill icon="schedule">
+        <select
+          value={duration}
+          onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
+          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+        >
+          {DURATION_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              {d === 'Any' ? 'Any duration' : d}
+            </option>
+          ))}
+        </select>
+      </FilterPill>
+      <FilterPill icon="category">
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
+          className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
+        >
+          {CATEGORY_OPTIONS.map((c) => (
+            <option key={c} value={c} className="capitalize">
+              {c === 'Any' ? 'Any category' : c}
+            </option>
+          ))}
+        </select>
+      </FilterPill>
+      <FilterPill icon="forest">
+        <select
+          value={parkType}
+          onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
+          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+        >
+          {PARK_TYPE_OPTIONS.map((p) => (
+            <option key={p} value={p}>
+              {PARK_TYPE_LABELS[p]}
+            </option>
+          ))}
+        </select>
+      </FilterPill>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={dogOnly}
+        aria-label="Dog friendly"
+        onClick={() => setDogOnly((v) => !v)}
+        className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+          dogOnly
+            ? 'border-primary bg-primary text-on-primary'
+            : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+        }`}
+      >
+        <span
+          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+          style={{ fontSize: 18, width: 18, height: 18 }}
+          aria-hidden="true"
+        >
+          pets
+        </span>
+        Dog friendly
+      </button>
+      {/* A read filter, so it's shown to everyone (#5). */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={completedOnly}
+        aria-label="Completed only"
+        onClick={toggleCompletedOnly}
+        className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+          completedOnly
+            ? 'border-primary bg-primary text-on-primary'
+            : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+        }`}
+      >
+        <span
+          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+          style={{ fontSize: 18, width: 18, height: 18 }}
+          aria-hidden="true"
+        >
+          check_circle
+        </span>
+        Completed only
+      </button>
+    </div>
+  );
+
   const filterToolbar = (
     <section
       className={`border-b border-outline-variant/20 bg-surface px-gutter py-sm z-40 backdrop-blur-xl ${
@@ -425,112 +607,14 @@ export function CuratedAdventures() {
       }`}
     >
       <div className="max-w-screen-2xl mx-auto flex flex-col gap-sm md:flex-row md:items-center">
-        {/* On mobile the chips stay on one line that scrolls horizontally, so
-            the toolbar stays short (wrapping there pushed the map far down
-            the page). On desktop they wrap instead: the scrollbar is hidden,
-            so a chip past the edge (e.g. "Completed only" at 1280px) was
-            unreachable in practice. */}
-        <div className="flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <FilterPill icon="location_on">
-            <select
-              value={String(maxDistance)}
-              onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
-            >
-              {DISTANCE_OPTIONS.map((o) => (
-                <option key={o.label} value={String(o.value)}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <FilterPill icon="schedule">
-            <select
-              value={duration}
-              onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
-            >
-              {DURATION_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d === 'Any' ? 'Any duration' : d}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <FilterPill icon="category">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
-            >
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c} value={c} className="capitalize">
-                  {c === 'Any' ? 'Any category' : c}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <FilterPill icon="forest">
-            <select
-              value={parkType}
-              onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
-            >
-              {PARK_TYPE_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {PARK_TYPE_LABELS[p]}
-                </option>
-              ))}
-            </select>
-          </FilterPill>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={dogOnly}
-            aria-label="Dog friendly"
-            onClick={() => setDogOnly((v) => !v)}
-            className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-              dogOnly
-                ? 'border-primary bg-primary text-on-primary'
-                : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-            }`}
-          >
-            <span
-              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-              style={{ fontSize: 18, width: 18, height: 18 }}
-              aria-hidden="true"
-            >
-              pets
-            </span>
-            Dog friendly
-          </button>
-          {/* A read filter, so it's shown to everyone (#5). */}
-          <button
-            type="button"
-            role="switch"
-            aria-checked={completedOnly}
-            aria-label="Completed only"
-            onClick={toggleCompletedOnly}
-            className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-              completedOnly
-                ? 'border-primary bg-primary text-on-primary'
-                : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-            }`}
-          >
-            <span
-              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-              style={{ fontSize: 18, width: 18, height: 18 }}
-              aria-hidden="true"
-            >
-              check_circle
-            </span>
-            Completed only
-          </button>
-        </div>
+        {filterChips}
         {/* View toggle + trip actions: their own row below the filters on
             mobile, right-aligned inline on desktop. */}
         <div className="flex flex-wrap md:flex-nowrap shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
-          <ViewModeToggle value={view} onChange={setView} modes={toggleModes} />
+          {/* Split only exists at lg+, so the segmented control does too;
+              below it, a floating "Show map" button (below) opens the
+              full-screen map and the sheet's "Hide map" closes it (#96). */}
+          {isLg && <ViewModeToggle value={view} onChange={setView} />}
           {isSignedIn && (
             <button
               type="button"
@@ -581,9 +665,52 @@ export function CuratedAdventures() {
     </section>
   );
 
+  // The floating "Show map" button (#96) is the mobile list's way into the
+  // map. It steps aside while the selection bar owns the bottom of the screen;
+  // the dialogs open above it.
+  const showMapButton = !isLg && view === 'list' && !selectionMode;
+
   return (
     <>
-      {view === 'map' ? (
+      {mobileMap ? (
+        // Mobile (#96): the map is a full-screen backdrop behind the
+        // translucent app header, and the list rides over it in a draggable
+        // sheet. No filter toolbar competes for the height: the sheet header
+        // carries the exit and the count, and its body the filter chips.
+        <>
+          <div className="fixed inset-0 z-0">
+            <ActivityMap
+              fullBleed
+              activities={results}
+              onSelect={setSelected}
+              onActivate={handlePinActivate}
+              highlightedId={hoveredId}
+              onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
+              onBoundsChange={handleBoundsChange}
+            />
+          </div>
+          <h1 className="sr-only">Curated Adventures — map</h1>
+          <BottomSheet
+            snap={sheetSnap}
+            onSnapChange={setSheetSnap}
+            label="Activities on the map"
+            header={mobileSheetHeader}
+          >
+            {/* The toolbar isn't shown on the mobile map, so the sheet
+                carries its filter chips: otherwise active filters would
+                narrow the pins with no way to see or change them here. */}
+            <div className="pb-sm">{filterChips}</div>
+            {/* The toolbar that shows a failed catalog read elsewhere isn't
+                here, and a failed read must not pass for an empty catalog. */}
+            {loadError && (
+              <div className="pb-sm">
+                <InlineError message={loadError} />
+              </div>
+            )}
+            {listContent}
+          </BottomSheet>
+        </>
+      ) : view === 'map' ? (
         <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden">
           {filterToolbar}
           {/* Map fills exactly the space below the nav: a flex child in a
@@ -620,7 +747,7 @@ export function CuratedAdventures() {
             </div>
             {/* Map column: sticky at top-20, fills the viewport and stays put as
               the list scrolls past. Mounted only at lg+ (below it the split
-              collapses to list-only; the mobile map sheet is #96). */}
+              collapses to list-only). */}
             {splitMapVisible && (
               <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
                 <ActivityMap
@@ -640,13 +767,34 @@ export function CuratedAdventures() {
           {filterToolbar}
           <section
             className={`px-gutter py-md max-w-screen-2xl mx-auto ${
-              selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
+              selectionMode && selectedForTrip.size > 0
+                ? 'pb-32'
+                : showMapButton
+                  ? 'pb-24'
+                  : ''
             }`}
           >
             {listHeader}
             {listContent}
           </section>
         </>
+      )}
+
+      {showMapButton && (
+        <button
+          type="button"
+          onClick={showMobileMap}
+          className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90"
+        >
+          <span
+            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            style={{ fontSize: 20, width: 20, height: 20 }}
+            aria-hidden="true"
+          >
+            map
+          </span>
+          Show map
+        </button>
       )}
 
       {selectionMode && (

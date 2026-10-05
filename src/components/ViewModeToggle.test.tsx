@@ -157,19 +157,4 @@ describe('ViewModeToggle', () => {
     await userEvent.keyboard('{ArrowUp}');
     expect(onChange).toHaveBeenLastCalledWith('split');
   });
-
-  it('shows only the requested modes, in order, and navigates among them', async () => {
-    const onChange = vi.fn<(m: ViewMode) => void>();
-    render(
-      <ViewModeToggle value="list" onChange={onChange} modes={['map', 'list']} />,
-    );
-    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
-      expect.stringContaining('List'),
-      expect.stringContaining('Map'),
-    ]);
-    expect(screen.queryByRole('radio', { name: 'Split' })).not.toBeInTheDocument();
-    screen.getByRole('radio', { name: 'List' }).focus();
-    await userEvent.keyboard('{ArrowRight}');
-    expect(onChange).toHaveBeenLastCalledWith('map');
-  });
 });
