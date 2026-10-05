@@ -447,7 +447,10 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
               <InlineError message={saveError} onDismiss={clearSaveError} />
               {photos.length === 0 ? (
                 <div className="rounded-lg border-2 border-dashed border-outline-variant p-lg text-center text-on-surface-variant">
-                  No photos yet — upload some from this trip.
+                  {/* Only owners can upload, so only they get the nudge (#206). */}
+                  {isOwner
+                    ? 'No photos yet — upload some from this trip.'
+                    : 'No photos yet.'}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-sm">
@@ -461,19 +464,22 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                         alt={`${activity.name} ${i + 1}`}
                         className="w-full h-full object-cover"
                       />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(i)}
-                        aria-label="Remove photo"
-                        className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-11 h-11 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                      >
-                        <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: 18 }}
+                      {/* Owner-gated write: hidden from non-owners (#67, #206). */}
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(i)}
+                          aria-label="Remove photo"
+                          className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-11 h-11 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         >
-                          delete
-                        </span>
-                      </button>
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: 18 }}
+                          >
+                            delete
+                          </span>
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
