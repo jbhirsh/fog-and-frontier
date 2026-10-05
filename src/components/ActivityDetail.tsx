@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import type { Activity } from '../data/types';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
@@ -6,6 +6,12 @@ import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
+import { CATEGORY_ICON } from '../lib/mapPins';
+import {
+  NEARBY_GROUP_HEADING,
+  NEARBY_RADIUS_MILES,
+  nearbyByCategory,
+} from '../lib/nearbyActivities';
 import { ActivityReviews } from './ActivityReviews';
 import { AddActivity } from './AddActivity';
 import { CoverImage } from './CoverImage';
@@ -16,9 +22,6 @@ interface Props {
   onClose: () => void;
   showUploads?: boolean;
 }
-
-const NEARBY_RADIUS_MILES = 15;
-const MAX_NEARBY = 6;
 
 export function ActivityDetail({ activity: initial, onClose, showUploads }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -39,17 +42,11 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
   const [editing, setEditing] = useState(false);
 
-  const nearby = useMemo(() => {
-    return allActivities
-      .filter((a) => a.id !== activity.id)
-      .map((a) => ({
-        a,
-        miles: distanceMiles(activity.location.coords, a.location.coords),
-      }))
-      .filter((x) => x.miles <= NEARBY_RADIUS_MILES)
-      .sort((x, y) => x.miles - y.miles)
-      .slice(0, MAX_NEARBY);
-  }, [allActivities, activity]);
+  const nearbyGroups = useMemo(
+    () => nearbyByCategory(activity, allActivities),
+    [allActivities, activity],
+  );
+  const nearbyIdPrefix = useId();
 
   function selectNearby(a: Activity) {
     setActivity(a);
@@ -329,7 +326,10 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
             <ActivityReviews key={activity.id} activityId={activity.id} />
           )}
 
-          {nearby.length > 0 && (
+          {/* Nearby, grouped by category (#65). Hidden entirely when nothing
+              is within range: an empty "nothing nearby" panel on most remote
+              activities would be noise, not information. */}
+          {nearbyGroups.length > 0 && (
             <section className="space-y-sm">
               <h3 className="font-headline-md text-headline-md text-primary">
                 Nearby — do at the same time
@@ -338,35 +338,59 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
                 Other activities within {NEARBY_RADIUS_MILES} miles of{' '}
                 {activity.location.city}.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-                {nearby.map(({ a, miles: m }) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => selectNearby(a)}
-                    className="flex gap-sm items-stretch text-left rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container transition-colors"
+              {nearbyGroups.map(({ category, items }) => {
+                const headingId = `${nearbyIdPrefix}-${category}`;
+                return (
+                  <section
+                    key={category}
+                    aria-labelledby={headingId}
+                    className="space-y-xs"
                   >
-                    <div className="w-24 shrink-0 bg-surface-variant">
-                      <img
-                        src={a.coverImage}
-                        alt={a.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <h4
+                      id={headingId}
+                      className="flex items-center gap-xs font-label-caps text-label-caps text-on-surface-variant"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 16 }}
+                      >
+                        {CATEGORY_ICON[category]}
+                      </span>
+                      {NEARBY_GROUP_HEADING[category]}
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+                      {items.map(({ activity: a, miles: m }) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => selectNearby(a)}
+                          className="flex gap-sm items-stretch text-left rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container transition-colors"
+                        >
+                          <div className="w-24 shrink-0 bg-surface-variant">
+                            <img
+                              src={a.coverImage}
+                              alt={a.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0 py-xs pr-sm">
+                            <div className="font-body-md font-bold text-on-surface truncate">
+                              {a.name}
+                            </div>
+                            <div className="font-body-sm text-on-surface-variant truncate">
+                              {a.location.city} · {m.toFixed(1)} mi away
+                            </div>
+                            <div className="font-body-sm text-on-surface-variant truncate">
+                              {a.duration}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                    <div className="flex-1 min-w-0 py-xs pr-sm">
-                      <div className="font-body-md font-bold text-on-surface truncate">
-                        {a.name}
-                      </div>
-                      <div className="font-body-sm text-on-surface-variant truncate">
-                        {a.location.city} · {m.toFixed(1)} mi away
-                      </div>
-                      <div className="font-body-sm text-on-surface-variant truncate">
-                        {a.duration}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                  </section>
+                );
+              })}
             </section>
           )}
 

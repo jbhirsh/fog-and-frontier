@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '../test/render';
+import { fireEvent, render, screen, waitFor, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import type { Activity } from '../data/types';
 import { ActivityDetail } from './ActivityDetail';
@@ -181,6 +181,122 @@ describe('ActivityDetail', () => {
       expect(
         screen.queryByRole('heading', { name: 'Reviews' }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('nearby, grouped by category (issue #65)', () => {
+    // Offsets due north of muirWoods; 0.01° of latitude is ~0.69 mi.
+    const near = (
+      id: string,
+      name: string,
+      category: Activity['category'],
+      hundredths: number,
+    ): Activity => ({
+      ...muirWoods,
+      id,
+      name,
+      category,
+      location: {
+        city: 'Mill Valley, CA',
+        coords: {
+          lat: muirWoods.location.coords.lat + hundredths / 100,
+          lng: muirWoods.location.coords.lng,
+        },
+      },
+    });
+
+    const lunch = near('n-lunch', 'Trailside Tacos', 'food', 6);
+    const hikes = [1, 2, 3, 4].map((n) =>
+      near(`n-hike-${n}`, `Ridge Hike ${n}`, 'hiking', n),
+    );
+    const vista = near('n-vista', 'Overlook Vista', 'scenic', 5);
+    const faraway = near('n-far', 'Faraway Diner', 'food', 40);
+
+    function stubScrollTo() {
+      // jsdom doesn't implement Element.scrollTo, which selectNearby calls.
+      Object.defineProperty(Element.prototype, 'scrollTo', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+    }
+
+    it('renders one labelled group per category, food first for a hike', () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />, {
+        activities: [muirWoods, ...hikes, vista, lunch, faraway],
+      });
+      expect(screen.getAllByRole('region')).toHaveLength(3);
+      // Each heading leads with its category's map-pin glyph (CATEGORY_ICON).
+      expect(
+        screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent),
+      ).toEqual([
+        'restaurantNearby food',
+        'directions_walkNearby hikes',
+        'landscapeNearby scenic spots',
+      ]);
+
+      const food = screen.getByRole('region', { name: 'Nearby food' });
+      expect(
+        within(food).getByRole('button', { name: /Trailside Tacos/ }),
+      ).toBeInTheDocument();
+      // Out of range, so absent even though it's food.
+      expect(screen.queryByText('Faraway Diner')).not.toBeInTheDocument();
+
+      // Per-category cap: the three nearest hikes, nearest first; the fourth
+      // is dropped without crowding out food or the vista.
+      const hikeGroup = screen.getByRole('region', { name: 'Nearby hikes' });
+      expect(
+        within(hikeGroup)
+          .getAllByRole('button')
+          .map((b) => within(b).getByRole('img').getAttribute('alt')),
+      ).toEqual(['Ridge Hike 1', 'Ridge Hike 2', 'Ridge Hike 3']);
+      expect(
+        within(
+          screen.getByRole('region', { name: 'Nearby scenic spots' }),
+        ).getByRole('button', { name: /Overlook Vista/ }),
+      ).toBeInTheDocument();
+
+      // The open activity never lists itself.
+      expect(
+        screen.queryByRole('button', { name: /Test Muir Woods/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('swaps the detail to a nearby activity on tap and regroups around it', async () => {
+      const user = userEvent.setup();
+      stubScrollTo();
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />, {
+        activities: [muirWoods, lunch, vista],
+      });
+      await user.click(screen.getByRole('button', { name: /Trailside Tacos/ }));
+
+      expect(
+        screen.getByRole('dialog', { name: 'Trailside Tacos' }),
+      ).toBeInTheDocument();
+      // Now centred on the restaurant: it drops out of its own list, the hike
+      // it was reached from appears, and food no longer leads (the open
+      // activity is food), so groups go by nearest member.
+      expect(
+        screen.queryByRole('region', { name: 'Nearby food' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent),
+      ).toEqual(['landscapeNearby scenic spots', 'directions_walkNearby hikes']);
+      expect(
+        within(
+          screen.getByRole('region', { name: 'Nearby hikes' }),
+        ).getByRole('button', { name: /Test Muir Woods/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('hides the section when nothing is within range', () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />, {
+        activities: [muirWoods, faraway],
+      });
+      expect(
+        screen.queryByRole('heading', { name: /Nearby — do at the same time/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
     });
   });
 
