@@ -360,6 +360,66 @@ describe('ActivityDetail', () => {
     });
   });
 
+  describe('Your Photos by role (issue #206)', () => {
+    function seedPhotos(activityId: string, photos: string[]) {
+      localStorage.setItem(
+        'fogandfrontier.userPhotos.v1',
+        JSON.stringify({ [activityId]: photos }),
+      );
+    }
+
+    it('shows non-owners the photos without any Remove photo button', () => {
+      ownerState.isOwner = false;
+      seedPhotos(completedHike.id, [
+        'data:image/png;base64,AAA',
+        'data:image/png;base64,BBB',
+      ]);
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(screen.getByAltText('Test Completed Hike 1')).toBeInTheDocument();
+      expect(screen.getByAltText('Test Completed Hike 2')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Remove photo' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('gives owners a Remove photo button on every photo', () => {
+      seedPhotos(completedHike.id, [
+        'data:image/png;base64,AAA',
+        'data:image/png;base64,BBB',
+      ]);
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(
+        screen.getAllByRole('button', { name: 'Remove photo' }),
+      ).toHaveLength(2);
+    });
+
+    it('invites only owners to upload from the empty state', () => {
+      render(
+        <ActivityDetail
+          activity={completedHike}
+          onClose={() => {}}
+          showUploads
+        />,
+      );
+      expect(
+        screen.getByText('No photos yet — upload some from this trip.'),
+      ).toBeInTheDocument();
+    });
+
+    it('gives non-owners a neutral empty state', () => {
+      ownerState.isOwner = false;
+      render(
+        <ActivityDetail
+          activity={completedHike}
+          onClose={() => {}}
+          showUploads
+        />,
+      );
+      expect(screen.getByText('No photos yet.')).toBeInTheDocument();
+      expect(screen.queryByText(/upload some/)).not.toBeInTheDocument();
+    });
+  });
+
   it('uploads, displays, and removes a photo', async () => {
     const user = userEvent.setup();
     const { container } = render(
