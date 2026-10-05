@@ -6,6 +6,7 @@ import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
+import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import {
   NEARBY_GROUP_HEADING,
@@ -40,6 +41,10 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const { completed, toggle } = useCompleted(activity);
   const { isOwner } = useOwner();
   const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
+  const directionsHref = directionsUrl(
+    activity.location.coords,
+    isApplePlatform(),
+  );
   const [editing, setEditing] = useState(false);
 
   const nearbyGroups = useMemo(
@@ -153,6 +158,20 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
 
           <div className="flex flex-wrap gap-sm md:gap-md text-on-surface-variant">
             <Stat icon="location_on" label={`${miles.toFixed(1)} mi from ${HOME_LOCATION.label}`} />
+            {/* A read: open to every visitor, not owner-gated (#87). */}
+            {directionsHref && (
+              <a
+                href={directionsHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-xs min-h-11 text-primary-container hover:underline font-medium"
+              >
+                <span className="material-symbols-outlined text-body-md">
+                  directions
+                </span>
+                Get directions
+              </a>
+            )}
             <Stat
               icon="schedule"
               label={activity.durationDetail ?? activity.duration}

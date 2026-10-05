@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import type { Activity } from '../data/types';
@@ -439,6 +439,66 @@ describe('ActivityDetail', () => {
   it('omits the trail-details panel when no hike fields are present', () => {
     render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
     expect(screen.queryByText('TRAIL DETAILS')).not.toBeInTheDocument();
+  });
+
+  describe('get directions (issue #87)', () => {
+    function stubUserAgent(ua: string) {
+      const spy = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(ua);
+      onTestFinished(() => spy.mockRestore());
+    }
+
+    it('links to Google Maps directions in a new tab on non-Apple devices', () => {
+      stubUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0',
+      );
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      const link = screen.getByRole('link', { name: /Get directions/ });
+      expect(link).toHaveAttribute(
+        'href',
+        'https://www.google.com/maps/dir/?api=1&destination=37.8917%2C-122.5719',
+      );
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('links to Apple Maps on Apple devices', () => {
+      stubUserAgent(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Safari/604.1',
+      );
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(
+        screen.getByRole('link', { name: /Get directions/ }),
+      ).toHaveAttribute(
+        'href',
+        'https://maps.apple.com/?daddr=37.8917%2C-122.5719',
+      );
+    });
+
+    it('is shown to non-owners too (a read, not owner-gated)', () => {
+      ownerState.isOwner = false;
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(
+        screen.getByRole('link', { name: /Get directions/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('is absent when the activity has no usable coordinates', () => {
+      render(
+        <ActivityDetail
+          activity={{
+            ...muirWoods,
+            location: {
+              ...muirWoods.location,
+              coords: { lat: Number.NaN, lng: Number.NaN },
+            },
+          }}
+          onClose={() => {}}
+        />,
+      );
+      expect(
+        screen.queryByRole('link', { name: /Get directions/ }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it('calls onClose when the backdrop is clicked', () => {
