@@ -172,9 +172,9 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
 
-  // Plain Node scripts (smoke gate, db snapshot, seed). Untyped JS.
+  // Plain Node scripts (smoke gate, db snapshot, seed, CI helpers). Untyped JS.
   {
-    files: ['scripts/**/*.{js,mjs}', 'eslint.config.js'],
+    files: ['scripts/**/*.{js,mjs}', '.github/scripts/**/*.mjs', 'eslint.config.js'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },

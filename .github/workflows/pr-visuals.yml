@@ -1,0 +1,49 @@
+name: PR visuals
+
+# A PR that changes the UI must show it: .github/scripts/pr-visuals.mjs fails
+# when a component or stylesheet changes and the description has no image,
+# GIF or video and no ticked "No visible UI change". It runs on description
+# edits too, so adding the pictures turns it green without a new push. Whether
+# a change to motion needs a GIF rather than a still is a judgment call that
+# Claude Review makes (claude-review.yml).
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+# A new push or edit supersedes the previous run.
+concurrency:
+  group: pr-visuals-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  visuals:
+    name: PR visuals
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Check the description shows UI changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          # Passed through the environment, never interpolated into the script.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -o pipefail
+          # The files API pages through large PRs, where `gh pr diff` gives up.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+            --jq '.[].filename' \
+            | node .github/scripts/pr-visuals.mjs

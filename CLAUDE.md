@@ -116,6 +116,15 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
 - **Never** `git add -A`/`git add .` (stage files explicitly), modify a test to
   make it pass (fix the implementation instead), install packages outside the
   project root, or use `--no-verify`.
+- **Show UI changes in the PR.** A PR that changes a component or stylesheet
+  puts before/after visuals in its description (`.github/pull_request_template.md`):
+  screenshots for how things look, GIFs for how things move or respond (drag,
+  animation, open/close, scroll, multi-step flows). Host the images on a
+  `pr-screenshots/<topic>` branch whose tree has a `vercel.json` with
+  `{"git":{"deploymentEnabled":false}}`, so they cost no deploy. The
+  `PR visuals` check (`.github/scripts/pr-visuals.mjs`) fails a UI change with
+  no picture unless "No visible UI change" is ticked; Claude Review asks for a
+  GIF when motion changes.
 - **Review before raising a PR.** Review the full diff (e.g. a review subagent
   reading it) before opening the PR — review gates PR creation, rather than
   opening first and reviewing after.
