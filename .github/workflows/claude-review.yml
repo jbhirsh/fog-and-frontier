@@ -149,6 +149,19 @@ jobs:
                 to commit SHAs. The maintainer has accepted this trade-off and
                 prefers automatic patch/minor updates.
 
+            ## Visual evidence
+
+            Read the PR description (`gh pr view <number> --json body`). The
+            "PR visuals" check already fails a UI change with no picture at
+            all; your job is the judgment it can't make. If the diff changes how
+            something on screen moves or responds (a transition or animation,
+            drag or gesture handling, something opening, closing or collapsing,
+            scroll behavior, or a multi-step flow) and the description has no
+            GIF or video (an image ending in `.gif`, a `<video>`, or a
+            `github.com/user-attachments/assets/` link), leave an inline comment
+            on the main changed line asking for before/after GIFs. Still
+            screenshots are enough for changes to how things look.
+
             ## Beyond the diff
 
             A change can break code it doesn't touch. When the PR changes a

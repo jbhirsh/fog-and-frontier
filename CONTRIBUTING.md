@@ -165,8 +165,8 @@ Create the auth token at *Sentry → Settings → Auth Tokens* with scope
 
 ## CI
 
-Two GitHub Actions workflows guard `main` (both live at the repo root — Actions
-only reads `.github/workflows/` there):
+Among the GitHub Actions workflows that guard `main` (all live at the repo root —
+Actions only reads `.github/workflows/` there):
 
 - **Smoke gate** (`.github/workflows/smoke.yml`) — waits for the Vercel
   deployment matching the head SHA, then runs `scripts/smoke.mjs` canary checks
@@ -178,6 +178,15 @@ only reads `.github/workflows/` there):
   live under `tests/visual/**/*-snapshots/` and are only regenerated via an
   explicit `workflow_dispatch` with `update_snapshots=true` — never auto-committed
   onto a PR branch.
+- **PR visuals** (`.github/workflows/pr-visuals.yml`) — fails a PR that
+  changes a component or stylesheet when its description has no image, GIF or
+  video and "No visible UI change" isn't ticked. It re-runs on description
+  edits. To record a GIF, run the flow in Playwright with
+  `recordVideo: { dir, size }` on the browser context, then convert it:
+  `ffmpeg -i in.webm -vf "fps=12,scale=320:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse" out.gif`.
+  Commit images to a `pr-screenshots/<topic>` branch whose tree carries a
+  `vercel.json` with deploys off, and link them by their
+  `raw.githubusercontent.com` URL.
 
 ### Dependency updates (Dependabot)
 
