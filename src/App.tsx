@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { Layout } from './components/Layout';
 import { DistanceOriginProvider } from './components/DistanceOriginProvider';
+import { DrivingMilesProvider } from './components/DrivingMilesProvider';
 import { OwnerRoute } from './components/OwnerRoute';
 import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
@@ -19,8 +20,10 @@ export default function App() {
   return (
     <BrowserRouter>
       {/* Asks for the visitor's location on their first visit, for "miles
-          from you" (#66); distances fall back to home without it. */}
+          from you" (#66); distances fall back to home without it. Road miles
+          from there replace the straight-line estimate once they load. */}
       <DistanceOriginProvider>
+        <DrivingMilesProvider>
         <SentryRoutes>
           {/* Clerk OAuth (e.g., "Sign in with Google") sends the browser to
               <site>/sso-callback after the identity provider hands control back
@@ -58,6 +61,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </SentryRoutes>
+        </DrivingMilesProvider>
       </DistanceOriginProvider>
     </BrowserRouter>
   );

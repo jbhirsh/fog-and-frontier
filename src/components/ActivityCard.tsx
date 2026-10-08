@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import type { Activity } from '../data/types';
-import { distanceMiles } from '../data/home';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
+import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import { CoverImage } from './CoverImage';
@@ -59,14 +59,13 @@ export function ActivityCard({
 }: Props) {
   const categoryLabel = categoryLabels[activity.category];
   const origin = useDistanceOrigin();
-  const miles = distanceMiles(origin.coords, activity.location.coords);
+  const distance = useDistanceTo()(activity);
   const overrides = useOverrides();
   const completed = isEffectivelyCompleted(activity, overrides);
 
-  // "From you" or "from San Jose" (#66), never bare miles.
-  const distanceLabel = `${
-    miles < 10 ? miles.toFixed(1) : Math.round(miles)
-  } mi from ${origin.name}`;
+  // Road miles "from you" or "from San Jose" (#66), never bare miles; "≈"
+  // marks the straight-line estimate shown until road miles load.
+  const distanceLabel = `${formatMiles(distance)} mi from ${origin.name}`;
 
   // Pointer hover and keyboard focus both light the matching pin (#94); track
   // them separately and emit their OR, so moving the mouse away doesn't drop a

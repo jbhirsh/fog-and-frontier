@@ -41,6 +41,7 @@ type Documents = {
     "\n  mutation RemoveMember($input: RemoveMemberInput!) {\n    removeMember(input: $input) { removedEmail }\n  }\n": typeof types.RemoveMemberDocument,
     "\n  mutation RevokeInvite($input: RevokeInviteInput!) {\n    revokeInvite(input: $input) { revokedToken }\n  }\n": typeof types.RevokeInviteDocument,
     "\n  mutation ClaimInvite($input: ClaimInviteInput!) {\n    claimInvite(input: $input) { tripId }\n  }\n": typeof types.ClaimInviteDocument,
+    "\n  query DrivingMiles($lat: Float!, $lng: Float!) {\n    drivingMiles(lat: $lat, lng: $lng) { id miles }\n  }\n": typeof types.DrivingMilesDocument,
 };
 const documents: Documents = {
     "\n  query Activities {\n    activities {\n      id\n      name\n      shortDescription\n      longDescription\n      category\n      region\n      parkType\n      location { city coords { lat lng } }\n      duration\n      durationDetail\n      difficulty\n      dogFriendly\n      coverImage\n      coverCredit\n      galleryImages\n      allTrailsUrl\n      allTrailsRating\n      hikeDistanceMiles\n      hikeElevationFeet\n      cuisine\n      priceRange\n      hours\n      reservationUrl\n      menuUrl\n      dietary\n      completed\n      completedDate\n      notes\n    }\n  }\n": types.ActivitiesDocument,
@@ -70,6 +71,7 @@ const documents: Documents = {
     "\n  mutation RemoveMember($input: RemoveMemberInput!) {\n    removeMember(input: $input) { removedEmail }\n  }\n": types.RemoveMemberDocument,
     "\n  mutation RevokeInvite($input: RevokeInviteInput!) {\n    revokeInvite(input: $input) { revokedToken }\n  }\n": types.RevokeInviteDocument,
     "\n  mutation ClaimInvite($input: ClaimInviteInput!) {\n    claimInvite(input: $input) { tripId }\n  }\n": types.ClaimInviteDocument,
+    "\n  query DrivingMiles($lat: Float!, $lng: Float!) {\n    drivingMiles(lat: $lat, lng: $lng) { id miles }\n  }\n": types.DrivingMilesDocument,
 };
 
 /**
@@ -194,6 +196,10 @@ export function graphql(source: "\n  mutation RevokeInvite($input: RevokeInviteI
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation ClaimInvite($input: ClaimInviteInput!) {\n    claimInvite(input: $input) { tripId }\n  }\n"): (typeof documents)["\n  mutation ClaimInvite($input: ClaimInviteInput!) {\n    claimInvite(input: $input) { tripId }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DrivingMiles($lat: Float!, $lng: Float!) {\n    drivingMiles(lat: $lat, lng: $lng) { id miles }\n  }\n"): (typeof documents)["\n  query DrivingMiles($lat: Float!, $lng: Float!) {\n    drivingMiles(lat: $lat, lng: $lng) { id miles }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

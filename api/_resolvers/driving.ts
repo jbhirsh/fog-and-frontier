@@ -1,0 +1,173 @@
+import { db } from '../_db.js';
+import { badInput } from '../_gqlError.js';
+import { logServerError } from '../_log.js';
+
+// Road miles from a point to every catalog activity (#66). The catalog's
+// straight-line distances understate the drive, often by a third on Bay Area
+// roads, so the client asks for real driving distances and shows those. They
+// come from OpenRouteService's matrix API (one request covers the whole
+// catalog) using ORS_API_KEY. Without a key, or when the service fails, the
+// query returns nothing and the client keeps its straight-line estimate.
+//
+// The origin is rounded to two decimals (about 1 km) before it leaves for
+// OpenRouteService or becomes a cache key: plenty for a mileage label, and
+// the visitor's exact position is never sent on.
+
+export const ORS_MATRIX_URL =
+  'https://api.openrouteservice.org/v2/matrix/driving-car';
+
+/** Destinations per matrix request, within the free plan's per-request cap. */
+export const ORS_BATCH = 1000;
+
+/** How long a computed origin's distances are reused. */
+export const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** Origins kept in memory; the oldest is dropped past this. */
+export const CACHE_MAX = 200;
+
+/** How long to wait for OpenRouteService before giving up. */
+export const ORS_TIMEOUT_MS = 8000;
+
+/**
+ * Where road miles are looked up: the West Coast the catalog covers, with
+ * room to spare. An origin outside it gets none (straight-line estimates
+ * instead), so a script walking the globe can't spend the daily quota.
+ */
+export const SERVICE_AREA = { south: 32, north: 49.5, west: -125, east: -114 };
+
+interface Point {
+  lat: number;
+  lng: number;
+}
+
+interface Destination {
+  id: string;
+  coords: Point;
+}
+
+/** Two decimals, about 1 km. */
+export function coarse(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Driving miles from `origin` to each destination, keyed by id. A destination
+ * the router can't reach (an island, a bad coordinate) is left out.
+ */
+export async function fetchDrivingMiles(
+  apiKey: string,
+  origin: Point,
+  destinations: Destination[],
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  for (let start = 0; start < destinations.length; start += ORS_BATCH) {
+    const batch = destinations.slice(start, start + ORS_BATCH);
+    const res = await fetch(ORS_MATRIX_URL, {
+      method: 'POST',
+      signal: AbortSignal.timeout(ORS_TIMEOUT_MS),
+      headers: {
+        Authorization: apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        locations: [
+          [origin.lng, origin.lat],
+          ...batch.map((d) => [d.coords.lng, d.coords.lat]),
+        ],
+        sources: [0],
+        destinations: batch.map((_, i) => i + 1),
+        metrics: ['distance'],
+        units: 'mi',
+      }),
+    });
+    if (!res.ok) throw new Error(`openrouteservice matrix: HTTP ${res.status}`);
+    const body = (await res.json()) as { distances?: unknown };
+    const row: unknown = Array.isArray(body.distances) ? body.distances[0] : null;
+    if (!Array.isArray(row) || row.length !== batch.length) {
+      throw new Error('openrouteservice matrix: malformed response');
+    }
+    batch.forEach((d, i) => {
+      const miles: unknown = row[i];
+      if (typeof miles === 'number') out.set(d.id, miles);
+    });
+  }
+  return out;
+}
+
+// The catalog's ids and coordinates, read straight from the stored JSON. A row
+// without usable coordinates is skipped (`activities` reports bad rows), as is
+// (0, 0), the app's "never set" location, which no road reaches.
+async function catalogDestinations(): Promise<Destination[]> {
+  const rs = await db().execute('SELECT id, j FROM a');
+  const out: Destination[] = [];
+  for (const row of rs.rows) {
+    const id = typeof row.id === 'string' || typeof row.id === 'number' ? String(row.id) : null;
+    if (id === null || typeof row.j !== 'string') continue;
+    let parsed: { location?: { coords?: unknown } } | null;
+    try {
+      parsed = JSON.parse(row.j) as typeof parsed;
+    } catch {
+      continue;
+    }
+    const { lat, lng } = (parsed?.location?.coords ?? {}) as Record<string, unknown>;
+    if (typeof lat !== 'number' || typeof lng !== 'number') continue;
+    if (lat === 0 && lng === 0) continue;
+    out.push({ id, coords: { lat, lng } });
+  }
+  return out;
+}
+
+interface CacheEntry {
+  at: number;
+  /** The destinations asked for, so a new or moved activity recomputes. */
+  fingerprint: string;
+  miles: Map<string, number>;
+}
+
+// Per function instance. Origins are coarse, so visitors near each other and
+// repeat visits share an entry, keeping well inside the free plan's quota.
+const cache = new Map<string, CacheEntry>();
+
+/** Test hook: forget every cached origin. */
+export function clearDrivingCache(): void {
+  cache.clear();
+}
+
+async function drivingMiles(
+  _: unknown,
+  { lat, lng }: { lat: number; lng: number },
+): Promise<{ id: string; miles: number }[]> {
+  if (!(Math.abs(lat) <= 90 && Math.abs(lng) <= 180)) {
+    throw badInput('lat must be within ±90 and lng within ±180');
+  }
+  const apiKey = process.env.ORS_API_KEY;
+  if (!apiKey) return [];
+  const { south, north, west, east } = SERVICE_AREA;
+  if (lat < south || lat > north || lng < west || lng > east) return [];
+
+  const origin = { lat: coarse(lat), lng: coarse(lng) };
+  const key = `${origin.lat},${origin.lng}`;
+  const destinations = await catalogDestinations();
+  const fingerprint = destinations
+    .map((d) => `${d.id}@${d.coords.lat},${d.coords.lng}`)
+    .join(';');
+
+  let entry = cache.get(key);
+  if (!entry || entry.fingerprint !== fingerprint || Date.now() - entry.at > CACHE_TTL_MS) {
+    let miles: Map<string, number>;
+    try {
+      miles = await fetchDrivingMiles(apiKey, origin, destinations);
+    } catch (err) {
+      logServerError(err, { route: '/api/graphql', detail: 'drivingMiles' });
+      return [];
+    }
+    entry = { at: Date.now(), fingerprint, miles };
+    // Re-inserting moves a recomputed origin to the newest end.
+    cache.delete(key);
+    cache.set(key, entry);
+    if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+  }
+  return [...entry.miles].map(([id, miles]) => ({ id, miles }));
+}
+
+export const drivingQuery = { drivingMiles };

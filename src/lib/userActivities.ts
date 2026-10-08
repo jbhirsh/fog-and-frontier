@@ -121,7 +121,8 @@ export async function saveUserActivity(activity: Activity): Promise<void> {
     variables: {
       input: { id: activity.id, activity: activityToInput(activity) },
     },
-    refetchQueries: [{ query: ACTIVITIES_QUERY }],
+    // Road miles too (#66), so a new or moved activity isn't left at "≈".
+    refetchQueries: [{ query: ACTIVITIES_QUERY }, 'DrivingMiles'],
     awaitRefetchQueries: true,
   });
 }
