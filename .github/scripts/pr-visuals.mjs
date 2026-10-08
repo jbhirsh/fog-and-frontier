@@ -9,7 +9,6 @@
 // It only knows components and stylesheets under src/: UI that changes
 // through a .ts module, index.html or public/ isn't caught, nor is a
 // reference-style markdown image (![alt][ref]). Reviewers cover those.
-import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const UI_FILE = /^src\/.+\.(tsx|css)$/;
@@ -63,7 +62,13 @@ export function checkPrVisuals({ files, body }) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const files = readFileSync(0, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+  // Stream stdin rather than readFileSync(0): on the runner, stdin is a
+  // non-blocking pipe from `gh api`, and a synchronous read that finds it
+  // empty throws EAGAIN instead of waiting for the file list.
+  let input = '';
+  process.stdin.setEncoding('utf8');
+  for await (const chunk of process.stdin) input += chunk;
+  const files = input.split('\n').map((l) => l.trim()).filter(Boolean);
   const result = checkPrVisuals({ files, body: process.env.PR_BODY });
   if (result.ok) {
     console.log(`PR visuals: ok (${result.reason}).`);
