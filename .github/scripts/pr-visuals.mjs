@@ -45,11 +45,13 @@ function withoutComments(text) {
 }
 
 // What renders: the template's example table sits in an HTML comment, and a
-// tag quoted in code isn't a picture, so neither may count.
+// tag quoted in code isn't a picture, so neither may count. Code goes first,
+// as in GitHub's renderer: a `<!--` quoted in backticks is text, not the start
+// of a comment that would hide the rest of the description.
 export function visibleText(body) {
-  return withoutComments(body ?? '')
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`[^`\n]*`/g, '');
+  return withoutComments(
+    (body ?? '').replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, ''),
+  );
 }
 
 export function checkPrVisuals({ files, body }) {

@@ -70,6 +70,11 @@ describe('checkPrVisuals', () => {
     ).toBe(true);
   });
 
+  it('treats a comment opener quoted in code as text, not a comment', () => {
+    const body = 'Fills in the template\'s `<!--` block.\n<img src="after.png">';
+    expect(checkPrVisuals({ files: ui, body }).ok).toBe(true);
+  });
+
   it('ignores pictures quoted in code', () => {
     expect(checkPrVisuals({ files: ui, body: 'Use `<img src="a.png">` here' }).ok).toBe(false);
     expect(
