@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { Layout } from './components/Layout';
+import { DistanceOriginProvider } from './components/DistanceOriginProvider';
 import { OwnerRoute } from './components/OwnerRoute';
 import { CuratedAdventures } from './pages/CuratedAdventures';
 import { Explore } from './pages/Explore';
@@ -17,43 +18,47 @@ const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 export default function App() {
   return (
     <BrowserRouter>
-      <SentryRoutes>
-        {/* Clerk OAuth (e.g., "Sign in with Google") sends the browser to
-            <site>/sso-callback after the identity provider hands control back
-            to Clerk. This route lets Clerk finish the handshake and then
-            navigate the user back to where they started. Must be outside
-            Layout so the chrome doesn't flash. */}
-        <Route
-          path="/sso-callback"
-          element={<AuthenticateWithRedirectCallback />}
-        />
-        <Route element={<Layout />}>
-          <Route path="/" element={<CuratedAdventures />} />
-          {/* Explore is owner-only (#111): Discover is a paid owner call, so a
-              non-owner would only ever see a dead end here. */}
+      {/* Asks for the visitor's location on their first visit, for "miles
+          from you" (#66); distances fall back to home without it. */}
+      <DistanceOriginProvider>
+        <SentryRoutes>
+          {/* Clerk OAuth (e.g., "Sign in with Google") sends the browser to
+              <site>/sso-callback after the identity provider hands control back
+              to Clerk. This route lets Clerk finish the handshake and then
+              navigate the user back to where they started. Must be outside
+              Layout so the chrome doesn't flash. */}
           <Route
-            path="/explore"
-            element={
-              <OwnerRoute>
-                <Explore />
-              </OwnerRoute>
-            }
+            path="/sso-callback"
+            element={<AuthenticateWithRedirectCallback />}
           />
-          {/* The Adventures tab is retired (#5): completed activities are now
-              the catalog's "Completed only" filter. Keep old links working. */}
-          <Route
-            path="/adventures"
-            element={<Navigate to="/?completed=1" replace />}
-          />
-          {/* The standalone Map page is superseded by the combined split view
-              (#4 / #93). Keep the old URL working by aliasing it to Map mode. */}
-          <Route path="/map" element={<Navigate to="/?view=map" replace />} />
-          <Route path="/trips" element={<Trips />} />
-          <Route path="/trips/new" element={<NewTrip />} />
-          <Route path="/trips/:id" element={<TripDetail />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </SentryRoutes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<CuratedAdventures />} />
+            {/* Explore is owner-only (#111): Discover is a paid owner call, so a
+                non-owner would only ever see a dead end here. */}
+            <Route
+              path="/explore"
+              element={
+                <OwnerRoute>
+                  <Explore />
+                </OwnerRoute>
+              }
+            />
+            {/* The Adventures tab is retired (#5): completed activities are now
+                the catalog's "Completed only" filter. Keep old links working. */}
+            <Route
+              path="/adventures"
+              element={<Navigate to="/?completed=1" replace />}
+            />
+            {/* The standalone Map page is superseded by the combined split view
+                (#4 / #93). Keep the old URL working by aliasing it to Map mode. */}
+            <Route path="/map" element={<Navigate to="/?view=map" replace />} />
+            <Route path="/trips" element={<Trips />} />
+            <Route path="/trips/new" element={<NewTrip />} />
+            <Route path="/trips/:id" element={<TripDetail />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </SentryRoutes>
+      </DistanceOriginProvider>
     </BrowserRouter>
   );
 }
