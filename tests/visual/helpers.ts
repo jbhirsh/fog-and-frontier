@@ -61,6 +61,12 @@ function toActivityRow(a: Activity) {
 }
 
 export async function mockApis(page: Page) {
+  // Distances measure from the visitor once they share a location (#66). Pin
+  // the snapshots to the "declined" answer so they always read "from
+  // San Jose", whatever a headless browser does with the location prompt.
+  await page.addInitScript(() => {
+    localStorage.setItem('fogandfrontier.location.v1', 'denied');
+  });
   // The client now talks to the single GraphQL endpoint — route by operationName
   // (the old per-route REST mocks are gone with the 11 handlers).
   await page.route('**/api/graphql', async (route) => {

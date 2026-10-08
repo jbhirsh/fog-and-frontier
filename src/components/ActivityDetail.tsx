@@ -1,7 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import type { Activity } from '../data/types';
-import { HOME_LOCATION, distanceMiles } from '../data/home';
+import { distanceMiles } from '../data/home';
+import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useUserPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
@@ -40,7 +41,8 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
     useUserPhotos(activity.id);
   const { completed, toggle } = useCompleted(activity);
   const { isOwner } = useOwner();
-  const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
+  const origin = useDistanceOrigin();
+  const miles = distanceMiles(origin.coords, activity.location.coords);
   const directionsHref = directionsUrl(
     activity.location.coords,
     isApplePlatform(),
@@ -163,7 +165,7 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
           </div>
 
           <div className="flex flex-wrap gap-sm md:gap-md text-on-surface-variant">
-            <Stat icon="location_on" label={`${miles.toFixed(1)} mi from ${HOME_LOCATION.label}`} />
+            <Stat icon="location_on" label={`${miles.toFixed(1)} mi from ${origin.label}`} />
             {/* A read: open to every visitor, not owner-gated (#87). */}
             {directionsHref && (
               <a
