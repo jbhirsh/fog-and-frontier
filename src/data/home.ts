@@ -1,6 +1,8 @@
 // Update this to your home location — distances on activity cards are computed from here.
 export const HOME_LOCATION = {
   label: 'Campbell, CA',
+  // The short form for tight spots like a card's distance badge.
+  shortLabel: 'Campbell',
   coords: { lat: 37.2872, lng: -121.9500 },
 };
 

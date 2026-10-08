@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import type { Activity } from '../data/types';
-import { HOME_LOCATION, distanceMiles } from '../data/home';
+import { distanceMiles } from '../data/home';
+import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import { CoverImage } from './CoverImage';
@@ -57,12 +58,15 @@ export function ActivityCard({
   highlighted,
 }: Props) {
   const categoryLabel = categoryLabels[activity.category];
-  const miles = distanceMiles(HOME_LOCATION.coords, activity.location.coords);
+  const origin = useDistanceOrigin();
+  const miles = distanceMiles(origin.coords, activity.location.coords);
   const overrides = useOverrides();
   const completed = isEffectivelyCompleted(activity, overrides);
 
-  const distanceLabel =
-    miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
+  // "From you" or "from Campbell" (#66), never bare miles.
+  const distanceLabel = `${
+    miles < 10 ? miles.toFixed(1) : Math.round(miles)
+  } mi from ${origin.name}`;
 
   // Pointer hover and keyboard focus both light the matching pin (#94); track
   // them separately and emit their OR, so moving the mouse away doesn't drop a
