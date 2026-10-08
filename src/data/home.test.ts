@@ -6,14 +6,14 @@ describe('distanceMiles', () => {
     expect(distanceMiles({ lat: 37, lng: -122 }, { lat: 37, lng: -122 })).toBe(0);
   });
 
-  it('approximates Campbell to San Francisco at ~40 miles', () => {
+  it('approximates San Jose to San Francisco at ~42 miles', () => {
     const sf = { lat: 37.7749, lng: -122.4194 };
     const d = distanceMiles(HOME_LOCATION.coords, sf);
     expect(d).toBeGreaterThan(38);
     expect(d).toBeLessThan(45);
   });
 
-  it('approximates Campbell to LA at ~290 miles', () => {
+  it('approximates San Jose to LA at ~305 miles', () => {
     const la = { lat: 34.0522, lng: -118.2437 };
     const d = distanceMiles(HOME_LOCATION.coords, la);
     expect(d).toBeGreaterThan(280);
@@ -27,7 +27,7 @@ describe('distanceMiles', () => {
   });
 
   it('exposes a configured home location', () => {
-    expect(HOME_LOCATION.label).toMatch(/Campbell/);
+    expect(HOME_LOCATION.label).toMatch(/San Jose/);
     expect(HOME_LOCATION.coords.lat).toBeGreaterThan(36);
     expect(HOME_LOCATION.coords.lat).toBeLessThan(38);
   });

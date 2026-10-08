@@ -282,7 +282,7 @@ describe('FitToActivities', () => {
     const { gate, rerender } = renderFit(0, []);
     rerender(1);
     expect(fake.map.flyTo).toHaveBeenCalledExactlyOnceWith(
-      [37.2872, -121.95],
+      [37.3382, -121.8863],
       8,
       { animate: true },
     );

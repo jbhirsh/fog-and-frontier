@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { MapZoomControls } from './MapZoomControls';
 import { BoundsWatcher, FitToActivities } from './MapViewport';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
+import { useDistanceOrigin } from '../lib/distanceOrigin';
 import type { Activity, Category } from '../data/types';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 import { createMoveGate, type MapBounds } from '../lib/mapBounds';
@@ -114,6 +115,7 @@ export function ActivityMap({
   fitSignal = 0,
 }: Props) {
   const overrides = useOverrides();
+  const origin = useDistanceOrigin();
   // Shared by the fit and the bounds watcher, so the fit's own flight isn't
   // reported back as a pan that re-applies the bounds filter (#106).
   const [moveGate] = useState(createMoveGate);
@@ -123,9 +125,9 @@ export function ActivityMap({
       activities.map((a) => ({
         a,
         completed: isEffectivelyCompleted(a, overrides),
-        miles: distanceMiles(HOME_LOCATION.coords, a.location.coords),
+        miles: distanceMiles(origin.coords, a.location.coords),
       })),
-    [activities, overrides],
+    [activities, overrides, origin],
   );
 
   // `isolate` traps Leaflet's pane z-indices (markers at 600, controls at
@@ -165,13 +167,17 @@ export function ActivityMap({
           }
           gate={moveGate}
         />
-        <Marker
-          position={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
-          icon={homeIcon}
-        >
+        {/* Where distances are measured from (#66): the visitor, or home. */}
+        <Marker position={[origin.coords.lat, origin.coords.lng]} icon={homeIcon}>
           <Popup>
-            <div className="font-bold">{HOME_LOCATION.label}</div>
-            <div className="text-on-surface-variant">Home base</div>
+            {origin.source === 'device' ? (
+              <div className="font-bold">You are here</div>
+            ) : (
+              <>
+                <div className="font-bold">{origin.label}</div>
+                <div className="text-on-surface-variant">Home base</div>
+              </>
+            )}
           </Popup>
         </Marker>
         {plotted.map(({ a, completed, miles }) => {
@@ -205,7 +211,8 @@ export function ActivityMap({
                   <div className="space-y-xs min-w-[200px]">
                     <div className="font-bold text-body-md">{a.name}</div>
                     <div className="text-body-sm text-on-surface-variant">
-                      {a.location.city} · {Math.round(miles)} mi · {a.duration}
+                      {a.location.city} · {Math.round(miles)} mi from{' '}
+                      {origin.name} · {a.duration}
                     </div>
                     <button
                       type="button"

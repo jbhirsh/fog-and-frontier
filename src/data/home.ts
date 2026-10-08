@@ -1,7 +1,9 @@
 // Update this to your home location — distances on activity cards are computed from here.
 export const HOME_LOCATION = {
-  label: 'Campbell, CA',
-  coords: { lat: 37.2872, lng: -121.9500 },
+  label: 'San Jose, CA',
+  // The short form for tight spots like a card's distance badge.
+  shortLabel: 'San Jose',
+  coords: { lat: 37.3382, lng: -121.8863 },
 };
 
 // Haversine distance in miles between two lat/lng points.
