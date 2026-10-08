@@ -3,13 +3,19 @@ import { render, screen, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { muirWoods } from '../test/fixtures';
-import { distanceMiles } from '../data/home';
 import {
   deviceOrigin,
   DistanceOriginCtx,
   HOME_ORIGIN,
   type DistanceOrigin,
 } from '../lib/distanceOrigin';
+import {
+  DrivingMilesCtx,
+  NO_DRIVING_MILES,
+  distanceTo,
+  formatMiles,
+  type DrivingMiles,
+} from '../lib/drivingMiles';
 import { CuratedAdventures } from './CuratedAdventures';
 
 // Distances say where they're measured from (#66): "from you" once the
@@ -18,20 +24,22 @@ import { CuratedAdventures } from './CuratedAdventures';
 // About 10 miles south of Muir Woods.
 const NEAR_SF = deviceOrigin({ latitude: 37.75, longitude: -122.45 });
 
-function renderAt(origin: DistanceOrigin) {
+function renderAt(origin: DistanceOrigin, driving: DrivingMiles = NO_DRIVING_MILES) {
   return render(
     <DistanceOriginCtx.Provider value={origin}>
-      <MemoryRouter>
-        <CuratedAdventures />
-      </MemoryRouter>
+      <DrivingMilesCtx.Provider value={driving}>
+        <MemoryRouter>
+          <CuratedAdventures />
+        </MemoryRouter>
+      </DrivingMilesCtx.Provider>
     </DistanceOriginCtx.Provider>,
     { activities: [muirWoods] },
   );
 }
 
-function badge(origin: DistanceOrigin) {
-  const miles = distanceMiles(origin.coords, muirWoods.location.coords);
-  return `${miles < 10 ? miles.toFixed(1) : Math.round(miles)} mi from ${origin.name}`;
+// Before road miles load, the badge is the straight-line estimate ("≈").
+function badge(origin: DistanceOrigin, driving: DrivingMiles = NO_DRIVING_MILES) {
+  return `${formatMiles(distanceTo(origin, driving, muirWoods))} mi from ${origin.name}`;
 }
 
 describe('Curated Adventures — distance origin (#66)', () => {
@@ -76,7 +84,22 @@ describe('Curated Adventures — distance origin (#66)', () => {
     renderAt(NEAR_SF);
     await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
     const dialog = await screen.findByRole('dialog');
-    const miles = distanceMiles(NEAR_SF.coords, muirWoods.location.coords);
-    expect(within(dialog).getByText(`${miles.toFixed(1)} mi from you`)).toBeInTheDocument();
+    const miles = formatMiles(distanceTo(NEAR_SF, NO_DRIVING_MILES, muirWoods), true);
+    expect(within(dialog).getByText(`${miles} mi from you`)).toBeInTheDocument();
+  });
+
+  it('shows, filters and details by road miles once they load', async () => {
+    // Straight-line, Muir Woods is ~55 mi from San Jose; say it's 20 by road.
+    const driving = new Map([[muirWoods.id, 20]]);
+    renderAt(HOME_ORIGIN, driving);
+    expect(screen.getByText('20 mi from San Jose')).toBeInTheDocument();
+    await userEvent.selectOptions(
+      screen.getByDisplayValue('Any distance'),
+      'Within 25 mi of San Jose',
+    );
+    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('20.0 mi from San Jose, CA')).toBeInTheDocument();
   });
 });

@@ -357,3 +357,11 @@ export type TripListRow = TripListData['trips'][number];
 export type GeneratedActivityRow = DocumentType<
   typeof GENERATE_ACTIVITY
 >['generateActivity']['activity'];
+
+// Road miles from the distance origin to each activity (#66). Variables are
+// the coarse (~1 km) origin; see src/lib/drivingMiles.ts.
+export const DRIVING_MILES_QUERY = graphql(`
+  query DrivingMiles($lat: Float!, $lng: Float!) {
+    drivingMiles(lat: $lat, lng: $lng) { id miles }
+  }
+`);

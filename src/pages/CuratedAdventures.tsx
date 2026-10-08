@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
+import { useDrivingMiles } from '../lib/drivingMiles';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { ActivityMap } from '../components/ActivityMap';
@@ -288,9 +289,10 @@ export function CuratedAdventures() {
   }
 
   const origin = useDistanceOrigin();
+  const driving = useDrivingMiles();
   const results = useMemo(
-    () => applyFilters(all, overrides, origin.coords),
-    [applyFilters, all, overrides, origin],
+    () => applyFilters(all, overrides, origin.coords, driving),
+    [applyFilters, all, overrides, origin, driving],
   );
 
   // Bounds filter (#95): when the user pans/zooms an interactive map, narrow the

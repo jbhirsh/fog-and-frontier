@@ -31,6 +31,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 
 - Server-side: `requireOwnerCtx` in `api/_gqlContext.ts` is the real gate for owner-only writes and paid calls (e.g. Gemini); trip-scoped actions are gated by `requireMemberCtx` / `requireCreatorCtx` in the same file, and `requireUserCtx` admits any signed-in account where something else authorizes the action (`claimInvite`, whose invite token is the authorization).
 - Client-side: `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner emails come from `VITE_OWNER_EMAILS`.
+- Public by decision: `drivingMiles` (#66) calls OpenRouteService with no auth gate, because the owner chose road miles for every visitor. It's a free service rather than a paid one, and a Turso-counted hourly budget (`ors_usage`) caps it: 20 uncached lookups an hour, of which signed-out callers may use 12, for West Coast origins only. Over budget it returns nothing and the client shows the "≈" straight-line estimate. Any other public external call needs its own recorded decision here.
 - Role-gated UI: owner-guarded *mutating* controls are **hidden** from non-owners (not disabled/greyed). See the Role-gated UI section below.
 
 ## Role-gated UI — hide owner-guarded controls from non-owners

@@ -121,7 +121,10 @@ export async function saveUserActivity(activity: Activity): Promise<void> {
     variables: {
       input: { id: activity.id, activity: activityToInput(activity) },
     },
-    refetchQueries: [{ query: ACTIVITIES_QUERY }],
+    // Road miles too (#66). The server forgets its cached catalog on save, so
+    // the new or moved activity usually gets road miles straight away; if the
+    // refetch lands on another instance, within a minute.
+    refetchQueries: [{ query: ACTIVITIES_QUERY }, 'DrivingMiles'],
     awaitRefetchQueries: true,
   });
 }

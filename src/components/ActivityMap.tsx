@@ -4,8 +4,9 @@ import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapZoomControls } from './MapZoomControls';
 import { BoundsWatcher, FitToActivities } from './MapViewport';
-import { HOME_LOCATION, distanceMiles } from '../data/home';
+import { HOME_LOCATION } from '../data/home';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
+import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
 import type { Activity, Category } from '../data/types';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 import { createMoveGate, type MapBounds } from '../lib/mapBounds';
@@ -116,6 +117,7 @@ export function ActivityMap({
 }: Props) {
   const overrides = useOverrides();
   const origin = useDistanceOrigin();
+  const distanceTo = useDistanceTo();
   // Shared by the fit and the bounds watcher, so the fit's own flight isn't
   // reported back as a pan that re-applies the bounds filter (#106).
   const [moveGate] = useState(createMoveGate);
@@ -125,9 +127,9 @@ export function ActivityMap({
       activities.map((a) => ({
         a,
         completed: isEffectivelyCompleted(a, overrides),
-        miles: distanceMiles(origin.coords, a.location.coords),
+        distance: distanceTo(a),
       })),
-    [activities, overrides, origin],
+    [activities, overrides, distanceTo],
   );
 
   // `isolate` traps Leaflet's pane z-indices (markers at 600, controls at
@@ -180,7 +182,7 @@ export function ActivityMap({
             )}
           </Popup>
         </Marker>
-        {plotted.map(({ a, completed, miles }) => {
+        {plotted.map(({ a, completed, distance }) => {
           const highlighted = a.id === highlightedId;
           return (
             <Marker
@@ -211,7 +213,7 @@ export function ActivityMap({
                   <div className="space-y-xs min-w-[200px]">
                     <div className="font-bold text-body-md">{a.name}</div>
                     <div className="text-body-sm text-on-surface-variant">
-                      {a.location.city} · {Math.round(miles)} mi from{' '}
+                      {a.location.city} · {formatMiles(distance)} mi from{' '}
                       {origin.name} · {a.duration}
                     </div>
                     <button

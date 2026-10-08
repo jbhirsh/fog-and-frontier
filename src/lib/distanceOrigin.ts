@@ -5,8 +5,8 @@ import { HOME_LOCATION } from '../data/home';
 // location on their first visit; with it, distances, distance sorting, the
 // distance filter and the map's home pin follow the visitor ("from you").
 // Without it (declined, failed, unsupported) they fall back to the fixed home
-// point ("from San Jose"). The position is a UI input only: it stays in the
-// browser and is never stored or sent anywhere.
+// point ("from San Jose"). The position is never stored; only a coarse
+// (~1 km) version leaves the browser, to fetch road miles (drivingMiles.ts).
 
 export interface DistanceOrigin {
   source: 'device' | 'home';
