@@ -1,5 +1,6 @@
 import { scalarResolvers } from './scalars.js';
 import { catalogMutation, catalogQuery } from './catalog.js';
+import { drivingQuery } from './driving.js';
 import { geminiMutation, geminiQuery } from './gemini.js';
 import { tripsMutation, tripsQuery } from './trips.js';
 import { tripActivitiesMutation } from './tripActivities.js';
@@ -15,6 +16,7 @@ export const resolvers = {
   ...scalarResolvers,
   Query: {
     ...catalogQuery,
+    ...drivingQuery,
     ...reviewsQuery,
     ...tripsQuery,
     ...membershipQuery,

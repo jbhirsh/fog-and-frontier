@@ -169,6 +169,9 @@ export const typeDefs = /* GraphQL */ `
 
   type User { email: String!  displayName: String }
 
+  "Road miles from a point to one catalog activity (#66)."
+  type DrivingDistance { id: ID!  miles: Float! }
+
   type DiscoverResult {
     range: DiscoverRange!
     events: [DiscoverEvent!]!
@@ -332,6 +335,8 @@ export const typeDefs = /* GraphQL */ `
     trip(id: ID!): Trip
     users: [User!]!
     discover(range: DiscoverRange = weekend): DiscoverResult!
+    "Driving miles from (lat, lng) to each catalog activity the router can reach. Empty when routing is unavailable; the client then keeps straight-line miles."
+    drivingMiles(lat: Float!, lng: Float!): [DrivingDistance!]!
   }
 
   type Mutation {

@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import { isEffectivelyCompleted, type Overrides } from './userCompleted';
+import type { DrivingMiles } from './drivingMiles';
 
 // The catalog filters, shared across every surface that lists activities
 // (the Curated grid today; the split view's list + map column next — see #4).
@@ -61,7 +62,8 @@ export function withCompletedOnly(
 /**
  * Pure selector: apply the catalog filters to a list of activities, returning
  * a new list sorted by distance from `from` (nearest first): the visitor's
- * position when they shared it (#66), else {@link HOME_LOCATION}.
+ * position when they shared it (#66), else {@link HOME_LOCATION}. Distances
+ * are road miles from `driving` where known, else straight-line.
  *
  * This reproduces the exact semantics the Curated grid has always used:
  * distance / duration / category / parkType / dog-friendly gates plus a
@@ -76,6 +78,7 @@ export function applyCatalogFilters(
   filters: CatalogFilterState,
   overrides: Overrides = {},
   from: { lat: number; lng: number } = HOME_LOCATION.coords,
+  driving: DrivingMiles = new Map(),
 ): Activity[] {
   const {
     search,
@@ -90,7 +93,7 @@ export function applyCatalogFilters(
   return activities
     .map((a) => ({
       a,
-      miles: distanceMiles(from, a.location.coords),
+      miles: driving.get(a.id) ?? distanceMiles(from, a.location.coords),
     }))
     .filter(({ a, miles }) => {
       if (miles > maxDistance) return false;
@@ -127,6 +130,7 @@ export interface CatalogFilters extends CatalogFilterState {
     activities: Activity[],
     overrides?: Overrides,
     from?: { lat: number; lng: number },
+    driving?: DrivingMiles,
   ) => Activity[];
 }
 
@@ -167,7 +171,8 @@ export function useCatalogFilters(): CatalogFilters {
       activities: Activity[],
       overrides?: Overrides,
       from?: { lat: number; lng: number },
-    ) => applyCatalogFilters(activities, filters, overrides, from);
+      driving?: DrivingMiles,
+    ) => applyCatalogFilters(activities, filters, overrides, from, driving);
   }, [search, maxDistance, duration, category, parkType, dogOnly, completedOnly]);
 
   return {

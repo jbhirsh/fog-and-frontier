@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { fixtureActivities, fixtureCompleted } from './fixtures';
 import type { Activity } from '../../src/data/types';
+import { distanceMiles } from '../../src/data/home';
 
 // 1x1 transparent PNG. Returned for every external image so screenshots don't
 // depend on the network or on which remote photos happen to load.
@@ -70,9 +71,11 @@ export async function mockApis(page: Page) {
   // The client now talks to the single GraphQL endpoint — route by operationName
   // (the old per-route REST mocks are gone with the 11 handlers).
   await page.route('**/api/graphql', async (route) => {
-    const op = (
-      route.request().postDataJSON() as { operationName?: string } | null
-    )?.operationName;
+    const body = route.request().postDataJSON() as {
+      operationName?: string;
+      variables?: { lat?: number; lng?: number };
+    } | null;
+    const op = body?.operationName;
     let data: Record<string, unknown> = {};
     switch (op) {
       case 'Activities':
@@ -100,6 +103,19 @@ export async function mockApis(page: Page) {
       case 'UsersList':
         data = { users: [] };
         break;
+      case 'DrivingMiles': {
+        // Road miles (#66): a deterministic stand-in, 1.3x the straight line,
+        // so snapshots show the loaded state rather than the "≈" estimate.
+        const from = { lat: body?.variables?.lat ?? 0, lng: body?.variables?.lng ?? 0 };
+        data = {
+          drivingMiles: Object.values(fixtureActivities).map((a) => ({
+            __typename: 'DrivingDistance',
+            id: a.id,
+            miles: Math.round(distanceMiles(from, a.location.coords) * 13) / 10,
+          })),
+        };
+        break;
+      }
       case 'Discover':
         data = {
           discover: {

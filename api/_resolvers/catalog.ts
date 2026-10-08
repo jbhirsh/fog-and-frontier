@@ -7,6 +7,7 @@ import {
 } from '../_gqlMap.js';
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
+import { forgetCatalog } from './driving.js';
 
 // Catalog activities (`a` table) + completion overrides (`c` table). Reads are
 // public; writes are owner-gated. Activities are stored as camelCase JSON, so
@@ -97,6 +98,7 @@ async function saveActivity(
     sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET j = excluded.j, t = excluded.t',
     args: [id, json, Date.now()],
   });
+  forgetCatalog(); // road miles (#66) pick up a new or moved pin
   return { activity: mapCatalogActivity(stored, id) };
 }
 
@@ -119,6 +121,7 @@ async function deleteActivity(
     ],
     'write',
   );
+  forgetCatalog();
   return { deletedId: id };
 }
 

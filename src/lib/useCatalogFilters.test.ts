@@ -99,6 +99,26 @@ describe('applyCatalogFilters', () => {
     );
   });
 
+  it('sorts and filters by road miles where the server has them', () => {
+    // Straight-line, the tide pools are nearest; by road, say Muir Woods is.
+    const driving = new Map([
+      [muirWoods.id, 20],
+      [dogFriendlyTidepools.id, 40],
+    ]);
+    const sorted = applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS, {}, HOME_LOCATION.coords, driving);
+    expect(sorted[0].id).toBe(muirWoods.id);
+    // The radius uses road miles too; completedHike has none, so it is
+    // measured straight-line (> 25 mi from San Jose) and drops out.
+    const within = applyCatalogFilters(
+      ALL,
+      filters({ maxDistance: 25 }),
+      {},
+      HOME_LOCATION.coords,
+      driving,
+    );
+    expect(within.map((a) => a.id)).toEqual([muirWoods.id]);
+  });
+
   it('filters by max distance', () => {
     // From San Jose, all fixtures are >25 miles away.
     const result = applyCatalogFilters(ALL, filters({ maxDistance: 25 }));
