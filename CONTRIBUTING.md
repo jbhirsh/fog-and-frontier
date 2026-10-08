@@ -170,7 +170,8 @@ Actions only reads `.github/workflows/` there):
 
 - **Smoke gate** (`.github/workflows/smoke.yml`) — waits for the Vercel
   deployment matching the head SHA, then runs `scripts/smoke.mjs` canary checks
-  (`/api/graphql` returns real data, the HTML links a built CSS asset). It
+  (`/api/graphql` returns real data, an anonymous trips query is refused with
+  `UNAUTHENTICATED`, the HTML links a built CSS asset). It
   detects and retries Vercel's occasional no-build cached-stub deployments and
   fails with an actionable message. Re-runs against prod after merge.
 - **Visual regression** (`.github/workflows/visual.yml`) — Playwright

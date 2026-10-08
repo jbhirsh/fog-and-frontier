@@ -18,8 +18,12 @@
  * Single-function migration (#91): every REST endpoint now lives behind one
  * GraphQL function at /api/graphql. The read-only canary POSTs
  *   { activities { id } completed { id } }
- * and asserts the catalog floor — no mutations against prod.
+ * and asserts the catalog floor — no mutations against prod. A second,
+ * anonymous canary (#58, scripts/smoke-trips.mjs) checks the trips query still
+ * validates and refuses an anonymous caller with UNAUTHENTICATED.
  */
+
+import { judgeTripsCanary, TRIPS_QUERY } from './smoke-trips.mjs';
 
 const SENTINEL_ACTIVITY_SLUG = 'the-horse-park-at-woodside';
 const TIMEOUT_MS = 15_000;
@@ -180,6 +184,37 @@ async function checkGraphql() {
   );
 }
 
+// Anonymous trips canary (#58): no token, so the API must refuse, and refusing
+// proves the query validates and the resolver and its auth gate run.
+async function checkTrips() {
+  const url = new URL('/api/graphql', baseUrl).toString();
+  let res;
+  try {
+    res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: TRIPS_QUERY }),
+    });
+  } catch (err) {
+    record('GraphQL trips (anonymous)', false, `request failed: ${err.message ?? err}`);
+    return;
+  }
+  const contentType = res.headers.get('content-type') ?? '';
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch (err) {
+    // A JSON content type with a body that won't parse is its own failure;
+    // for any other type, judgeTripsCanary reports the content type.
+    if (res.status === 200 && contentType.includes('application/json')) {
+      record('GraphQL trips (anonymous)', false, `body was not JSON: ${err.message ?? err}`);
+      return;
+    }
+  }
+  const { ok, detail } = judgeTripsCanary({ status: res.status, contentType, payload });
+  record('GraphQL trips (anonymous)', ok, detail);
+}
+
 async function checkHtmlAndCss() {
   const url = new URL('/', baseUrl).toString();
   let html;
@@ -234,6 +269,7 @@ async function checkHtmlAndCss() {
 
 console.log(`Smoke gate against ${baseUrl} (SMOKE_ENV=${process.env.SMOKE_ENV ?? 'Production (default)'}, strict=${STRICT})`);
 await checkGraphql();
+await checkTrips();
 await checkHtmlAndCss();
 
 const passed = results.filter((r) => r.ok).length;
