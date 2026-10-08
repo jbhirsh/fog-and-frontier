@@ -60,7 +60,8 @@ export function withCompletedOnly(
 
 /**
  * Pure selector: apply the catalog filters to a list of activities, returning
- * a new list sorted by distance from {@link HOME_LOCATION} (nearest first).
+ * a new list sorted by distance from `from` (nearest first): the visitor's
+ * position when they shared it (#66), else {@link HOME_LOCATION}.
  *
  * This reproduces the exact semantics the Curated grid has always used:
  * distance / duration / category / parkType / dog-friendly gates plus a
@@ -74,6 +75,7 @@ export function applyCatalogFilters(
   activities: Activity[],
   filters: CatalogFilterState,
   overrides: Overrides = {},
+  from: { lat: number; lng: number } = HOME_LOCATION.coords,
 ): Activity[] {
   const {
     search,
@@ -88,7 +90,7 @@ export function applyCatalogFilters(
   return activities
     .map((a) => ({
       a,
-      miles: distanceMiles(HOME_LOCATION.coords, a.location.coords),
+      miles: distanceMiles(from, a.location.coords),
     }))
     .filter(({ a, miles }) => {
       if (miles > maxDistance) return false;
@@ -118,9 +120,14 @@ export interface CatalogFilters extends CatalogFilterState {
   setCompletedOnly: Dispatch<SetStateAction<boolean>>;
   /**
    * Apply the current filters to `activities` (memoized on the filters), with
-   * the completion `overrides` the "Completed only" filter reads.
+   * the completion `overrides` the "Completed only" filter reads, measuring
+   * distance from `from` (home by default).
    */
-  applyFilters: (activities: Activity[], overrides?: Overrides) => Activity[];
+  applyFilters: (
+    activities: Activity[],
+    overrides?: Overrides,
+    from?: { lat: number; lng: number },
+  ) => Activity[];
 }
 
 /**
@@ -156,8 +163,11 @@ export function useCatalogFilters(): CatalogFilters {
       dogOnly,
       completedOnly,
     };
-    return (activities: Activity[], overrides?: Overrides) =>
-      applyCatalogFilters(activities, filters, overrides);
+    return (
+      activities: Activity[],
+      overrides?: Overrides,
+      from?: { lat: number; lng: number },
+    ) => applyCatalogFilters(activities, filters, overrides, from);
   }, [search, maxDistance, duration, category, parkType, dogOnly, completedOnly]);
 
   return {

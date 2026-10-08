@@ -74,7 +74,7 @@ describe('Curated Adventures page', () => {
     renderExplore();
     const distanceSelect = screen.getByDisplayValue('Any distance');
     await userEvent.selectOptions(distanceSelect, '25');
-    // From Campbell, all fixtures are >25 miles away.
+    // From San Jose, all fixtures are >25 miles away.
     expect(
       screen.getByText('No activities match those filters.'),
     ).toBeInTheDocument();

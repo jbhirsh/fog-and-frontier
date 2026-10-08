@@ -29,7 +29,7 @@ describe('applyCatalogFilters', () => {
 
   it('sorts by distance from home (nearest first)', () => {
     const result = applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS);
-    // Tide pools (Moss Beach) is closest to Campbell; the two Mill Valley
+    // Tide pools (Moss Beach) is closest to San Jose; the two Mill Valley
     // fixtures are farther north.
     expect(result[0].id).toBe(dogFriendlyTidepools.id);
   });
@@ -81,8 +81,26 @@ describe('applyCatalogFilters', () => {
     );
   });
 
+  it('measures distance from the given origin when there is one (#66)', () => {
+    // Standing at Muir Woods: it, then the nearby completed hike, come first.
+    const atMuirWoods = muirWoods.location.coords;
+    expect(
+      applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS, {}, atMuirWoods).map((a) => a.id),
+    ).toEqual([muirWoods.id, completedHike.id, dogFriendlyTidepools.id]);
+    // The radius is measured from there too.
+    expect(
+      applyCatalogFilters(ALL, filters({ maxDistance: 5 }), {}, atMuirWoods).map((a) => a.id),
+    ).toEqual([muirWoods.id, completedHike.id]);
+  });
+
+  it('measures from home without an origin', () => {
+    expect(applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS, {})).toEqual(
+      applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS, {}, HOME_LOCATION.coords),
+    );
+  });
+
   it('filters by max distance', () => {
-    // From Campbell, all fixtures are >25 miles away.
+    // From San Jose, all fixtures are >25 miles away.
     const result = applyCatalogFilters(ALL, filters({ maxDistance: 25 }));
     expect(result).toEqual([]);
   });

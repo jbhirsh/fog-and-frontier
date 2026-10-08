@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { HOME_LOCATION } from '../data/home';
+import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { ActivityMap } from '../components/ActivityMap';
@@ -33,13 +33,9 @@ type LocationState = {
   target_trip_title?: string;
 } | null;
 
-const DISTANCE_OPTIONS = [
-  { label: 'Any distance', value: Infinity },
-  { label: 'Within 25 mi', value: 25 },
-  { label: 'Within 50 mi', value: 50 },
-  { label: 'Within 100 mi', value: 100 },
-  { label: 'Within 250 mi', value: 250 },
-];
+// "Within N mi of you / of San Jose" (#66): the radius is measured from the
+// visitor when they shared their location, else from home.
+const DISTANCE_LIMITS = [25, 50, 100, 250];
 
 const DURATION_OPTIONS: ('Any' | Duration)[] = [
   'Any',
@@ -291,9 +287,10 @@ export function CuratedAdventures() {
     }
   }
 
+  const origin = useDistanceOrigin();
   const results = useMemo(
-    () => applyFilters(all, overrides),
-    [applyFilters, all, overrides],
+    () => applyFilters(all, overrides, origin.coords),
+    [applyFilters, all, overrides, origin],
   );
 
   // Bounds filter (#95): when the user pans/zooms an interactive map, narrow the
@@ -404,7 +401,7 @@ export function CuratedAdventures() {
         </h1>
         <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
           {results.length} place{results.length === 1 ? '' : 's'} · sorted by
-          distance from {HOME_LOCATION.label}
+          distance from {origin.label}
         </p>
       </div>
       {/* Bounds indicator (#95): why the list narrowed, with a way to undo. */}
@@ -519,9 +516,10 @@ export function CuratedAdventures() {
           onChange={(e) => setMaxDistance(Number(e.target.value))}
           className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
         >
-          {DISTANCE_OPTIONS.map((o) => (
-            <option key={o.label} value={String(o.value)}>
-              {o.label}
+          <option value={String(Infinity)}>Any distance</option>
+          {DISTANCE_LIMITS.map((miles) => (
+            <option key={miles} value={String(miles)}>
+              Within {miles} mi of {origin.name}
             </option>
           ))}
         </select>
