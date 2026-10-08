@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Fog and Frontier",
+  "short_name": "Fog & Frontier",
+  "description": "Curated adventures along the West Coast.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f9fb",
+  "theme_color": "#f7f9fb",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
