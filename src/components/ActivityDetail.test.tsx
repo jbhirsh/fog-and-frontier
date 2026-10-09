@@ -23,6 +23,32 @@ vi.mock('../lib/useOwner', () => ({
   }),
 }));
 
+// Owner photos (#19) come from the API; the hook has its own tests. Here a
+// stand-in hands back whatever each test sets.
+const photoState = vi.hoisted(() => ({
+  photos: [] as { id: string; activityId: string; url: string; createdAt: string }[],
+  loading: false,
+  loadError: null as string | null,
+  uploading: false,
+  saveError: null as string | null,
+  addPhotos: vi.fn(),
+  removePhoto: vi.fn(),
+  clearSaveError: vi.fn(),
+  calls: [] as [string, boolean][],
+}));
+
+vi.mock('../lib/userPhotos', async () => {
+  const actual =
+    await vi.importActual<typeof import('../lib/userPhotos')>('../lib/userPhotos');
+  return {
+    ...actual,
+    useActivityPhotos: (activityId: string, isOwner: boolean) => {
+      photoState.calls.push([activityId, isOwner]);
+      return photoState;
+    },
+  };
+});
+
 const deleteSpy = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('../lib/userActivities', async () => {
@@ -334,19 +360,6 @@ describe('ActivityDetail', () => {
     });
   });
 
-  it('does not show photo upload when showUploads is false', () => {
-    render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-    expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
-  });
-
-  it('shows an empty state in upload mode when no photos exist', () => {
-    render(
-      <ActivityDetail activity={completedHike} onClose={() => {}} showUploads />,
-    );
-    expect(screen.getByText('Add photos')).toBeInTheDocument();
-    expect(screen.getByText(/No photos yet/)).toBeInTheDocument();
-  });
-
   describe('non-owner presentation (issue #67)', () => {
     it('hides the Mark-as-completed toggle for non-owners', () => {
       ownerState.isOwner = false;
@@ -366,128 +379,154 @@ describe('ActivityDetail', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('hides the photo-upload control for non-owners in upload mode', () => {
+  });
+
+  describe('Your Photos (owner-only, #19)', () => {
+    beforeEach(() => {
+      photoState.photos = [];
+      photoState.loading = false;
+      photoState.loadError = null;
+      photoState.uploading = false;
+      photoState.saveError = null;
+      photoState.addPhotos.mockReset();
+      photoState.removePhoto.mockReset();
+      photoState.clearSaveError.mockReset();
+      photoState.calls = [];
+    });
+
+    const two = [
+      { id: 'p1', activityId: completedHike.id, url: 'https://blob.test/p1', createdAt: '' },
+      { id: 'p2', activityId: completedHike.id, url: 'https://blob.test/p2', createdAt: '' },
+    ];
+
+    it('asks for photos only as an owner', () => {
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(photoState.calls.at(-1)).toEqual([completedHike.id, true]);
       ownerState.isOwner = false;
-      render(
-        <ActivityDetail
-          activity={completedHike}
-          onClose={() => {}}
-          showUploads
-        />,
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(photoState.calls.at(-1)).toEqual([muirWoods.id, false]);
+    });
+
+    it('shows the section to owners on a completed activity, or in upload mode', () => {
+      const { unmount } = render(
+        <ActivityDetail activity={completedHike} onClose={() => {}} />,
       );
-      // The Your Photos section (a read) still renders, but Add photos is gone.
+      expect(screen.getByRole('heading', { name: 'Your Photos' })).toBeInTheDocument();
+      unmount();
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} showUploads />);
+      expect(screen.getByRole('heading', { name: 'Your Photos' })).toBeInTheDocument();
+    });
+
+    it('leaves it out for an activity not done yet, outside upload mode', () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(screen.queryByRole('heading', { name: 'Your Photos' })).not.toBeInTheDocument();
       expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
-      expect(screen.getByText(/No photos yet/)).toBeInTheDocument();
     });
-  });
 
-  describe('Your Photos by role (issue #206)', () => {
-    function seedPhotos(activityId: string, photos: string[]) {
-      localStorage.setItem(
-        'fogandfrontier.userPhotos.v1',
-        JSON.stringify({ [activityId]: photos }),
-      );
-    }
-
-    it('shows non-owners the photos without any Remove photo button', () => {
+    it('hides the whole section, photos included, from non-owners', () => {
       ownerState.isOwner = false;
-      seedPhotos(completedHike.id, [
-        'data:image/png;base64,AAA',
-        'data:image/png;base64,BBB',
-      ]);
+      photoState.photos = two;
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} showUploads />);
+      expect(screen.queryByRole('heading', { name: 'Your Photos' })).not.toBeInTheDocument();
+      expect(screen.queryByAltText('Test Completed Hike 1')).not.toBeInTheDocument();
+      expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
+      expect(screen.queryByText(/No photos yet/)).not.toBeInTheDocument();
+    });
+
+    it('invites an upload from the empty state', () => {
       render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
-      expect(screen.getByAltText('Test Completed Hike 1')).toBeInTheDocument();
-      expect(screen.getByAltText('Test Completed Hike 2')).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: 'Remove photo' }),
-      ).not.toBeInTheDocument();
+      expect(screen.getByText('No photos yet — upload some from this trip.')).toBeInTheDocument();
+      expect(screen.getByText('Add photos')).toBeInTheDocument();
     });
 
-    it('gives owners a Remove photo button on every photo', () => {
-      seedPhotos(completedHike.id, [
-        'data:image/png;base64,AAA',
-        'data:image/png;base64,BBB',
-      ]);
+    it('shows each photo from its link, with a Remove button', async () => {
+      photoState.photos = two;
       render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
-      expect(
-        screen.getAllByRole('button', { name: 'Remove photo' }),
-      ).toHaveLength(2);
-    });
-
-    it('invites only owners to upload from the empty state', () => {
-      render(
-        <ActivityDetail
-          activity={completedHike}
-          onClose={() => {}}
-          showUploads
-        />,
+      expect(screen.getByAltText('Test Completed Hike 1')).toHaveAttribute(
+        'src',
+        'https://blob.test/p1',
       );
-      expect(
-        screen.getByText('No photos yet — upload some from this trip.'),
-      ).toBeInTheDocument();
-    });
-
-    it('gives non-owners a neutral empty state', () => {
-      ownerState.isOwner = false;
-      render(
-        <ActivityDetail
-          activity={completedHike}
-          onClose={() => {}}
-          showUploads
-        />,
+      expect(screen.getByAltText('Test Completed Hike 2')).toHaveAttribute(
+        'src',
+        'https://blob.test/p2',
       );
-      expect(screen.getByText('No photos yet.')).toBeInTheDocument();
-      expect(screen.queryByText(/upload some/)).not.toBeInTheDocument();
+      const remove = screen.getAllByRole('button', { name: 'Remove photo' });
+      expect(remove).toHaveLength(2);
+      await userEvent.click(remove[1]);
+      expect(photoState.removePhoto).toHaveBeenCalledWith('p2');
+      expect(screen.queryByText(/No photos yet/)).not.toBeInTheDocument();
     });
-  });
 
-  it('uploads, displays, and removes a photo', async () => {
-    const user = userEvent.setup();
-    const { container } = render(
-      <ActivityDetail activity={completedHike} onClose={() => {}} showUploads />,
-    );
-    const input = container.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
-    const file = new File(['x'], 'pic.png', { type: 'image/png' });
-    await user.upload(input, file);
-
-    const img = await screen.findByAltText(/Test Completed Hike 1/);
-    expect(img).toBeInTheDocument();
-
-    const removeBtn = screen.getByLabelText('Remove photo');
-    await user.click(removeBtn);
-
-    await waitFor(() => {
-      expect(
-        screen.queryByAltText(/Test Completed Hike 1/),
-      ).not.toBeInTheDocument();
+    it('hands chosen files to the upload, and clears the picker', async () => {
+      const { container } = render(
+        <ActivityDetail activity={completedHike} onClose={() => {}} />,
+      );
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+      expect(input).toHaveAttribute('accept', 'image/*');
+      expect(input).toHaveAttribute('multiple');
+      const file = new File(['x'], 'pic.heic', { type: 'image/heic' });
+      await userEvent.upload(input, file);
+      expect(photoState.addPhotos).toHaveBeenCalledTimes(1);
+      expect(Array.from(photoState.addPhotos.mock.calls[0][0] as FileList)).toEqual([file]);
+      expect(input.value).toBe('');
     });
-  });
 
-  it('says so when a photo cannot be saved (storage full)', async () => {
-    const user = userEvent.setup();
-    const setItem = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new DOMException('quota', 'QuotaExceededError');
-      });
-    const { container } = render(
-      <ActivityDetail activity={completedHike} onClose={() => {}} showUploads />,
-    );
-    const input = container.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
-    await user.upload(input, new File(['x'], 'pic.png', { type: 'image/png' }));
+    it('ignores an empty pick', () => {
+      const { container } = render(
+        <ActivityDetail activity={completedHike} onClose={() => {}} />,
+      );
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [] } });
+      expect(photoState.addPhotos).not.toHaveBeenCalled();
+    });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      "Couldn't save that photo",
-    );
-    expect(screen.getByText(/No photos yet/)).toBeInTheDocument();
-    setItem.mockRestore();
+    it('shows progress while uploading, and takes no more files', () => {
+      photoState.uploading = true;
+      const { container } = render(
+        <ActivityDetail activity={completedHike} onClose={() => {}} />,
+      );
+      expect(screen.getByText('Uploading…')).toBeInTheDocument();
+      expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
+      expect(container.querySelector('input[type="file"]')).toBeDisabled();
+    });
 
-    await user.click(screen.getByLabelText('Dismiss error'));
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    it('stops offering uploads once the activity is full', () => {
+      photoState.photos = Array.from({ length: 20 }, (_, i) => ({
+        ...two[0],
+        id: `p${i}`,
+      }));
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Remove photo' })).toHaveLength(20);
+    });
+
+    it('offers uploads while there is room for one more', () => {
+      photoState.photos = Array.from({ length: 19 }, (_, i) => ({ ...two[0], id: `p${i}` }));
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(screen.getByText('Add photos')).toBeInTheDocument();
+    });
+
+    it('shows nothing in place of the photos while they load', () => {
+      photoState.loading = true;
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(screen.getByRole('heading', { name: 'Your Photos' })).toBeInTheDocument();
+      expect(screen.queryByText(/No photos yet/)).not.toBeInTheDocument();
+    });
+
+    it('says when the photos can’t load', () => {
+      photoState.loadError = "Couldn't load your photos. Try again in a moment.";
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load your photos");
+      expect(screen.queryByText(/No photos yet/)).not.toBeInTheDocument();
+    });
+
+    it('shows a failed upload, which can be dismissed', async () => {
+      photoState.saveError = "Couldn't upload that photo. Try again.";
+      render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't upload that photo");
+      await userEvent.click(screen.getByLabelText('Dismiss error'));
+      expect(photoState.clearSaveError).toHaveBeenCalled();
+    });
   });
 
   it('calls onClose when Escape is pressed', () => {

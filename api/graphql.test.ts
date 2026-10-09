@@ -589,7 +589,7 @@ describe('owner-gated mutations', () => {
     expect(r.data?.deleteActivity).toEqual({ deletedId: 'a1' });
   });
 
-  it('deleteActivity: drops the activity and its reviews in one batch', async () => {
+  it('deleteActivity: drops the activity, its reviews and its photos in one batch', async () => {
     setup();
     await run(
       'mutation($i: DeleteActivityInput!){ deleteActivity(input:$i){ deletedId } }',
@@ -605,6 +605,7 @@ describe('owner-gated mutations', () => {
     expect(stmts.map((s) => s.sql)).toEqual([
       'DELETE FROM a WHERE id = ?',
       'DELETE FROM activity_reviews WHERE activity_id = ?',
+      'DELETE FROM activity_photos WHERE activity_id = ?',
     ]);
     expect(stmts.every((s) => s.args[0] === 'a1')).toBe(true);
   });

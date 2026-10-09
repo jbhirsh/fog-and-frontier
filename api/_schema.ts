@@ -101,6 +101,14 @@ export const typeDefs = /* GraphQL */ `
     updatedAt: DateTimeISO!
   }
 
+  "An owner's photo of an activity (#19), kept in private Blob storage. Owner-only. url is a signed link that expires within the hour."
+  type ActivityPhoto {
+    id: ID!
+    activityId: ID!
+    url: String!
+    createdAt: DateTimeISO!
+  }
+
   type Trip {
     id: ID!
     creatorEmail: String!
@@ -260,6 +268,9 @@ export const typeDefs = /* GraphQL */ `
   "Author is always the authenticated caller — never taken from input (#184)."
   input SaveActivityReviewInput { activityId: ID!  rating: Int  note: String }
   input DeleteActivityReviewInput { activityId: ID! }
+  input PhotoUploadInput { activityId: ID! }
+  input AddActivityPhotoInput { activityId: ID!  pathname: String! }
+  input RemoveActivityPhotoInput { id: ID! }
   input DeleteActivityInput { id: ID! }
   input SetCompletedInput { id: ID!  value: Boolean }
   input GenerateActivityInput { title: String!  notes: String }
@@ -303,6 +314,10 @@ export const typeDefs = /* GraphQL */ `
   type SetCompletedPayload { id: ID!  completed: Boolean }
   type SaveActivityReviewPayload { review: ActivityReview! }
   type DeleteActivityReviewPayload { activityId: ID!  authorEmail: String! }
+  "Where to upload one photo, and a short-lived client token that can write only there."
+  type PhotoUploadPayload { pathname: String!  clientToken: String! }
+  type AddActivityPhotoPayload { photo: ActivityPhoto! }
+  type RemoveActivityPhotoPayload { removedId: ID! }
   type GenerateActivityPayload { activity: GeneratedActivity! }
   type AlltrailsLookupPayload { lookup: AllTrailsLookup! }
   type CreateTripPayload { trip: Trip! }
@@ -331,6 +346,8 @@ export const typeDefs = /* GraphQL */ `
     completed: [CompletedEntry!]!
     "Every owner review across the catalog — public read, normalized client-side by (activityId, authorEmail)."
     activityReviews: [ActivityReview!]!
+    "An activity's photos, oldest first (#19). Owner-only."
+    activityPhotos(activityId: ID!): [ActivityPhoto!]!
     trips: [TripListItem!]!
     trip(id: ID!): Trip
     users: [User!]!
@@ -345,6 +362,9 @@ export const typeDefs = /* GraphQL */ `
     setCompleted(input: SetCompletedInput!): SetCompletedPayload!
     saveActivityReview(input: SaveActivityReviewInput!): SaveActivityReviewPayload!
     deleteActivityReview(input: DeleteActivityReviewInput!): DeleteActivityReviewPayload!
+    photoUpload(input: PhotoUploadInput!): PhotoUploadPayload!
+    addActivityPhoto(input: AddActivityPhotoInput!): AddActivityPhotoPayload!
+    removeActivityPhoto(input: RemoveActivityPhotoInput!): RemoveActivityPhotoPayload!
     generateActivity(input: GenerateActivityInput!): GenerateActivityPayload!
     alltrailsLookup(input: AlltrailsLookupInput!): AlltrailsLookupPayload!
     createTrip(input: CreateTripInput!): CreateTripPayload!

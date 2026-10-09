@@ -7,8 +7,12 @@ import App from './App.tsx'
 import { ClerkAuthProvider } from './lib/authShimClerk'
 import { apolloClient } from './lib/apolloClient'
 import { Sentry, initSentry } from './lib/sentry'
+import { dropLegacyPhotos } from './lib/userPhotos'
 
 initSentry()
+// Photos moved to private Blob storage (#19); free what the old per-device
+// copies took.
+dropLegacyPhotos()
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
   | string

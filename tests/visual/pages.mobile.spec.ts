@@ -174,9 +174,10 @@ test.describe('visual regression — mobile', () => {
   });
 
   test('activity detail — your photos section', async ({ page }) => {
-    // Pre-seed user photos for the completed-scenic fixture so the
-    // "Your Photos" section has real thumbnails on first render.
-    await seedPhotos(page, COMPLETED_FIXTURE_ID, 2);
+    // Your Photos is owner-only (#19): sign in as the owner, and give the
+    // completed-scenic fixture two photos so the section has thumbnails.
+    await signIn(page);
+    seedPhotos(page, COMPLETED_FIXTURE_ID, 2);
     // The Adventures page is retired (#5); its list is now the catalog's
     // "Completed only" filter.
     await page.goto('/?completed=1');
@@ -187,7 +188,9 @@ test.describe('visual regression — mobile', () => {
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
     await waitForVisualReady(page);
-    // Scroll the photos heading into view so the snapshot frames it.
+    // Scroll the photos heading into view so the snapshot frames it, once the
+    // photos have loaded.
+    await page.getByAltText('Completed Scenic Drive 2').waitFor();
     await page
       .getByRole('heading', { name: 'Your Photos' })
       .scrollIntoViewIfNeeded();

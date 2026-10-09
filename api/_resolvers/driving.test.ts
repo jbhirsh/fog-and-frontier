@@ -66,6 +66,8 @@ function fakeDb(q: string | { sql: string; args: unknown[] }) {
   const sql = typeof q === 'string' ? q : q.sql;
   if (sql === 'SELECT id, j FROM a') return { rows: catalogRows };
   if (sql.startsWith('INSERT INTO a ')) return { rows: [] };
+  // deleteActivity looks up the activity's photos (#19); none here.
+  if (sql.includes('FROM activity_photos')) return { rows: [] };
   if (sql.startsWith('CREATE TABLE IF NOT EXISTS ors_usage')) return { rows: [] };
   if (sql.startsWith('INSERT INTO ors_usage') && typeof q !== 'string') {
     expect(sql).toMatch(/ON CONFLICT \(hour\) DO UPDATE SET n = n \+ 1 WHERE n < \?\s+RETURNING n/);
