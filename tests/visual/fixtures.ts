@@ -70,3 +70,122 @@ export const fixtureActivities: Record<string, Activity> =
 export const fixtureCompleted: Record<string, boolean> = {
   'fixture-completed-scenic': true,
 };
+
+// ---- Trips (#59) -----------------------------------------------------------
+// The signed-in visitor for trips snapshots: tests set
+// window.__TEST_FORCE_EMAIL__ to this (see src/lib/authShim.ts).
+export const FIXTURE_EMAIL = 'jess@example.com';
+const FRIEND_EMAIL = 'tarun@example.com';
+const AT = '2026-09-01T17:00:00.000Z';
+
+export interface FixtureTripActivity {
+  id: string;
+  activityId: string;
+  addedByEmail: string;
+  dayIndex: number | null;
+  startTime: string | null;
+  displayOrder: number;
+}
+
+export interface FixtureTrip {
+  id: string;
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string;
+  status: 'voting' | 'planning' | 'past';
+  activities: FixtureTripActivity[];
+  votes: { tripActivityId: string; memberEmail: string; value: number }[];
+}
+
+// Planning: two activities scheduled on day 1, an empty day 2, and one
+// activity still unscheduled, so the detail snapshot covers the map, both day
+// tabs, the itinerary (filled and empty days) and the Unscheduled panel.
+const PLANNING: FixtureTrip = {
+  id: 'fixture-trip-planning',
+  title: 'Coast Weekend',
+  description: 'Two days down the coast with a stop for food.',
+  startDate: '2026-11-07',
+  endDate: '2026-11-08',
+  status: 'planning',
+  activities: [
+    {
+      id: 'ta-hike',
+      activityId: 'fixture-long-name-hiking',
+      addedByEmail: FIXTURE_EMAIL,
+      dayIndex: 0,
+      startTime: '09:00',
+      displayOrder: 0,
+    },
+    {
+      id: 'ta-food',
+      activityId: 'fixture-short-food',
+      addedByEmail: FRIEND_EMAIL,
+      dayIndex: 0,
+      startTime: '13:30',
+      displayOrder: 1,
+    },
+    {
+      id: 'ta-drive',
+      activityId: 'fixture-completed-scenic',
+      addedByEmail: FIXTURE_EMAIL,
+      dayIndex: null,
+      startTime: null,
+      displayOrder: 0,
+    },
+  ],
+  votes: [],
+};
+
+// Voting: every candidate unscheduled, with a mix of votes cast.
+const VOTING: FixtureTrip = {
+  id: 'fixture-trip-voting',
+  title: 'Spring Getaway',
+  description: null,
+  startDate: '2027-03-20',
+  endDate: '2027-03-22',
+  status: 'voting',
+  activities: [
+    {
+      id: 'tv-hike',
+      activityId: 'fixture-long-name-hiking',
+      addedByEmail: FIXTURE_EMAIL,
+      dayIndex: null,
+      startTime: null,
+      displayOrder: 0,
+    },
+    {
+      id: 'tv-food',
+      activityId: 'fixture-short-food',
+      addedByEmail: FRIEND_EMAIL,
+      dayIndex: null,
+      startTime: null,
+      displayOrder: 1,
+    },
+    {
+      id: 'tv-drive',
+      activityId: 'fixture-completed-scenic',
+      addedByEmail: FRIEND_EMAIL,
+      dayIndex: null,
+      startTime: null,
+      displayOrder: 2,
+    },
+  ],
+  votes: [
+    { tripActivityId: 'tv-hike', memberEmail: FIXTURE_EMAIL, value: 1 },
+    { tripActivityId: 'tv-hike', memberEmail: FRIEND_EMAIL, value: 1 },
+    { tripActivityId: 'tv-food', memberEmail: FRIEND_EMAIL, value: -1 },
+  ],
+};
+
+export const fixtureTrips: Record<string, FixtureTrip> = {
+  [PLANNING.id]: PLANNING,
+  [VOTING.id]: VOTING,
+};
+
+export const fixtureTripMembers = [
+  { email: FIXTURE_EMAIL, displayName: 'Jess', addedByEmail: FIXTURE_EMAIL, addedAt: AT, isCreator: true },
+  { email: FRIEND_EMAIL, displayName: 'Tarun', addedByEmail: FIXTURE_EMAIL, addedAt: AT, isCreator: false },
+];
+
+export const FIXTURE_TRIP_CREATED_AT = AT;

@@ -21,9 +21,10 @@ export default defineConfig({
   },
   webServer: {
     // Build in --mode test so import.meta.env.MODE === 'test' in the bundle.
-    // That gates the dev/test-only owner override in src/lib/useOwner.ts on
+    // That gates the dev/test-only overrides — the owner flag in
+    // src/lib/useOwner.ts and the signed-in email in src/lib/authShim.ts — on
     // (DEV || MODE === 'test'); production deployments use the default
-    // (`production`) mode and the override branch is dead-code-eliminated.
+    // (`production`) mode and the override branches are dead-code-eliminated.
     command:
       'npx vite build --mode test && npm run preview -- --port 4173 --strictPort',
     url: 'http://localhost:4173',

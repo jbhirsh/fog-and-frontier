@@ -85,7 +85,10 @@ enforcement and is unchanged by any of the
 above — hiding a control never replaces server-side authorization.
 
 - Visual regression: owner-gated UI is exercised in Playwright via the
-  dev/test-only `window.__TEST_FORCE_OWNER__` flag (see `src/lib/useOwner.ts`).
+  dev/test-only `window.__TEST_FORCE_OWNER__` flag (see `src/lib/useOwner.ts`),
+  and signed-in views (the trips pages, #59) via `window.__TEST_FORCE_EMAIL__`
+  (see `src/lib/authShim.ts`; the `signIn` helper in `tests/visual/helpers.ts`
+  sets both).
   Default (non-owner) snapshots must therefore show owner controls *absent*.
   Run `npm run test:visual:update` after changing owner-gated presentation.
 

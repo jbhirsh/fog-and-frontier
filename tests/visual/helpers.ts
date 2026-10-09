@@ -1,5 +1,13 @@
 import { expect, type Page } from '@playwright/test';
-import { fixtureActivities, fixtureCompleted } from './fixtures';
+import {
+  FIXTURE_EMAIL,
+  FIXTURE_TRIP_CREATED_AT,
+  fixtureActivities,
+  fixtureCompleted,
+  fixtureTripMembers,
+  fixtureTrips,
+  type FixtureTrip,
+} from './fixtures';
 import type { Activity } from '../../src/data/types';
 import { distanceMiles } from '../../src/data/home';
 
@@ -61,6 +69,93 @@ function toActivityRow(a: Activity) {
   };
 }
 
+// GraphQL rows for the fixture trips (#59), with the __typenames the Apollo
+// cache needs.
+function toTripListRow(t: FixtureTrip) {
+  const scheduled = t.activities.filter((a) => a.dayIndex !== null).length;
+  return {
+    __typename: 'TripListItem',
+    id: t.id,
+    creatorEmail: FIXTURE_EMAIL,
+    title: t.title,
+    description: t.description,
+    startDate: t.startDate,
+    endDate: t.endDate,
+    coverImageUrl: null,
+    status: t.status,
+    createdAt: FIXTURE_TRIP_CREATED_AT,
+    markedPastAt: null,
+    scheduledCount: scheduled,
+    unscheduledCount: t.activities.length - scheduled,
+  };
+}
+
+function toTripRow(t: FixtureTrip) {
+  return {
+    __typename: 'Trip',
+    id: t.id,
+    creatorEmail: FIXTURE_EMAIL,
+    title: t.title,
+    description: t.description,
+    startDate: t.startDate,
+    endDate: t.endDate,
+    coverImageUrl: null,
+    status: t.status,
+    createdAt: FIXTURE_TRIP_CREATED_AT,
+    markedPastAt: null,
+    activities: t.activities.map((a) => ({
+      __typename: 'TripActivity',
+      id: a.id,
+      tripId: t.id,
+      activityId: a.activityId,
+      addedByEmail: a.addedByEmail,
+      addedAt: FIXTURE_TRIP_CREATED_AT,
+      dayIndex: a.dayIndex,
+      startTime: a.startTime,
+      displayOrder: a.displayOrder,
+      snapshot: { ...toActivityRow(fixtureActivities[a.activityId]), __typename: 'ActivitySnapshot' },
+    })),
+    members: fixtureTripMembers.map((m) => ({ __typename: 'TripMember', ...m })),
+    invites: [],
+    votes: t.votes.map((v) => ({ __typename: 'TripVote', ...v })),
+  };
+}
+
+// Signs the page in as the fixture member (dev/test-only flag in
+// src/lib/authShim.ts), so the trips pages render their signed-in views.
+// The fixture member is also an owner (they can create trips), so the owner
+// flag is set too.
+export async function signIn(page: Page) {
+  await page.addInitScript((email) => {
+    const w = window as { __TEST_FORCE_EMAIL__?: string; __TEST_FORCE_OWNER__?: boolean };
+    w.__TEST_FORCE_EMAIL__ = email;
+    w.__TEST_FORCE_OWNER__ = true;
+  }, FIXTURE_EMAIL);
+}
+
+// Trips views (#59), shared by the desktop and mobile specs: the list, the
+// create form, and a trip's detail page in its planning and voting states.
+// `ready` is text that only appears once the view's mocked data has rendered,
+// so a slow runner can't snapshot a loading state.
+export const TRIP_VIEWS = [
+  { name: 'trips-list', path: '/trips', map: false, ready: 'Spring Getaway' },
+  { name: 'trips-new', path: '/trips/new', map: false, ready: 'Open voting first' },
+  { name: 'trip-planning', path: '/trips/fixture-trip-planning', map: true, ready: 'Coast Weekend' },
+  { name: 'trip-voting', path: '/trips/fixture-trip-voting', map: false, ready: 'Spring Getaway' },
+] as const;
+
+export async function settleTripView(
+  page: Page,
+  view: { map: boolean; ready: string },
+) {
+  await expect(page.getByText(view.ready).first()).toBeVisible();
+  await waitForVisualReady(page);
+  if (view.map) {
+    await page.locator('.leaflet-container').first().waitFor({ state: 'attached' });
+    await page.waitForTimeout(400);
+  }
+}
+
 export async function mockApis(page: Page) {
   // Distances measure from the visitor once they share a location (#66). Pin
   // the snapshots to the "declined" answer so they always read "from
@@ -73,7 +168,7 @@ export async function mockApis(page: Page) {
   await page.route('**/api/graphql', async (route) => {
     const body = route.request().postDataJSON() as {
       operationName?: string;
-      variables?: { lat?: number; lng?: number };
+      variables?: { lat?: number; lng?: number; id?: string };
     } | null;
     const op = body?.operationName;
     let data: Record<string, unknown> = {};
@@ -98,8 +193,13 @@ export async function mockApis(page: Page) {
         data = { activityReviews: [] };
         break;
       case 'TripsList':
-        data = { trips: [] };
+        data = { trips: Object.values(fixtureTrips).map(toTripListRow) };
         break;
+      case 'TripDetail': {
+        const trip = fixtureTrips[body?.variables?.id ?? ''];
+        data = { trip: trip ? toTripRow(trip) : null };
+        break;
+      }
       case 'UsersList':
         data = { users: [] };
         break;
