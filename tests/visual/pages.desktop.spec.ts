@@ -28,6 +28,19 @@ test.describe('visual regression — desktop', () => {
     await expect(page).toHaveScreenshot('curated.png', { fullPage: true });
   });
 
+  // Permalinks (#86): a link straight to an activity opens its detail over
+  // the catalog.
+  test('activity permalink — opened from a link', async ({ page }) => {
+    await page.goto('/activity/fixture-short-food');
+    await page.getByRole('dialog').waitFor();
+    await waitForVisualReady(page);
+    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
+    await page.waitForTimeout(400);
+    await expect(page).toHaveScreenshot('activity-permalink.png', {
+      fullPage: true,
+    });
+  });
+
   test('explore empty state', async ({ page }) => {
     // Explore is owner-only (#111): a non-owner is redirected home, so flip
     // the dev/test-only override before boot to snapshot the owner view.
