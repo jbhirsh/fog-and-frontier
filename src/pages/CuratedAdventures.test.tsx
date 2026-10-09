@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, useLocation } from 'react-router-dom';
+import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
 import type { CompletedSeed } from '../test/render';
 import {
   completedHike,
@@ -12,14 +13,21 @@ import {
 import { CuratedAdventures } from './CuratedAdventures';
 
 function LocationProbe() {
-  const { search } = useLocation();
-  return <output data-testid="search">{search}</output>;
+  const { pathname, search } = useLocation();
+  return (
+    <>
+      <output data-testid="path">{pathname}</output>
+      <output data-testid="search">{search}</output>
+    </>
+  );
 }
 
 function renderExplore(path = '/', completed: CompletedSeed[] = []) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <CuratedAdventures />
+      <ActivityPermalinkRoutes>
+        <Route path="*" element={<CuratedAdventures />} />
+      </ActivityPermalinkRoutes>
       <LocationProbe />
     </MemoryRouter>,
     { activities: [muirWoods, completedHike, dogFriendlyTidepools], completed },
@@ -90,13 +98,25 @@ describe('Curated Adventures page', () => {
     expect(screen.getByText('Test Tide Pools')).toBeInTheDocument();
   });
 
-  it('opens the detail dialog when a card is clicked', async () => {
-    renderExplore();
+  // Cards open their permalink (#86) over the catalog, which keeps its
+  // filters underneath; closing goes back to it.
+  it('opens a card at its permalink and closes back to the filtered catalog', async () => {
+    renderExplore('/?q=muir');
     await userEvent.click(
       screen.getByRole('button', { name: /Test Muir Woods/ }),
     );
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Test Muir Woods')).toBeInTheDocument();
+    expect(screen.getByTestId('path')).toHaveTextContent(
+      `/activity/${muirWoods.id}`,
+    );
+    expect(screen.getByTestId('search')).toBeEmptyDOMElement();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('path')).toHaveTextContent(/^\/$/);
+    expect(screen.getByTestId('search')).toHaveTextContent('?q=muir');
+    expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
   });
 
   describe('Completed only (#5)', () => {

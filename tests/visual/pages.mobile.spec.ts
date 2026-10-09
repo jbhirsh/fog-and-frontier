@@ -153,6 +153,26 @@ test.describe('visual regression — mobile', () => {
     });
   });
 
+  // Permalinks (#86): a link straight to an activity (a restaurant, sharing
+  // the one route) opens its detail over the catalog.
+  test('activity permalink — opened from a link', async ({ page }) => {
+    await page.goto('/activity/fixture-short-food');
+    await page.getByRole('dialog').waitFor();
+    await waitForVisualReady(page);
+    await expect(page).toHaveScreenshot('activity-permalink-mobile.png', {
+      fullPage: true,
+    });
+  });
+
+  test('activity permalink — not found', async ({ page }) => {
+    await page.goto('/activity/no-such-activity');
+    await page.getByRole('dialog', { name: 'Activity not found' }).waitFor();
+    await waitForVisualReady(page);
+    await expect(page).toHaveScreenshot('activity-not-found-mobile.png', {
+      fullPage: true,
+    });
+  });
+
   test('activity detail — your photos section', async ({ page }) => {
     // Pre-seed user photos for the completed-scenic fixture so the
     // "Your Photos" section has real thumbnails on first render.

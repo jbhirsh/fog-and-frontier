@@ -302,6 +302,27 @@ describe('ActivityDetail', () => {
       ).toBeInTheDocument();
     });
 
+    it('hands a nearby tap to onSelectNearby instead of swapping in place', async () => {
+      const user = userEvent.setup();
+      stubScrollTo();
+      const onSelectNearby = vi.fn();
+      render(
+        <ActivityDetail
+          activity={muirWoods}
+          onClose={() => {}}
+          onSelectNearby={onSelectNearby}
+        />,
+        { activities: [muirWoods, lunch] },
+      );
+      await user.click(screen.getByRole('button', { name: /Trailside Tacos/ }));
+      expect(onSelectNearby).toHaveBeenCalledWith(lunch);
+      // The route decides what opens next (#86); until it does, the detail
+      // stays put.
+      expect(
+        screen.getByRole('dialog', { name: 'Test Muir Woods' }),
+      ).toBeInTheDocument();
+    });
+
     it('hides the section when nothing is within range', () => {
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />, {
         activities: [muirWoods, faraway],
@@ -625,6 +646,20 @@ describe('ActivityDetail', () => {
         confirmSpy.mockRestore();
       },
     );
+
+    it('closes before the delete goes out, so a permalink never shows not found', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const onClose = vi.fn();
+      render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /delete activity/i }),
+      );
+      await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
+      expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(
+        deleteSpy.mock.invocationCallOrder.at(-1)!,
+      );
+      confirmSpy.mockRestore();
+    });
 
     it('does nothing when the owner cancels the confirm dialog', async () => {
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);

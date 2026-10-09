@@ -17,6 +17,8 @@ import type { Activity } from '../data/types';
 import { SignInButton } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
+import { useOpenActivity } from '../lib/activityRoute';
+import { useAllActivities } from '../lib/userActivities';
 import { useVisibilityInterval } from '../lib/useVisibilityInterval';
 import {
   assignSlot,
@@ -72,6 +74,8 @@ export function TripDetail() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [detail, setDetail] = useState<Activity | null>(null);
+  const catalog = useAllActivities();
+  const openActivity = useOpenActivity();
 
   const isPast = trip?.status === 'past';
   const isVoting = trip?.status === 'voting';
@@ -155,8 +159,15 @@ export function TripDetail() {
     });
   }
 
+  // A trip activity still in the catalog opens its permalink (#86); one that
+  // has left it (or never had a catalog id) shows the snapshot taken when it
+  // was added, in place.
   function handleOpenActivity(a: TripActivity) {
-    if (a.snapshot) setDetail(a.snapshot);
+    if (a.activity_id && catalog.some((c) => c.id === a.activity_id)) {
+      openActivity(a.activity_id);
+    } else if (a.snapshot) {
+      setDetail(a.snapshot);
+    }
   }
 
   function handleFinalize(keptActivityIds: string[]) {
