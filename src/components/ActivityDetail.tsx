@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Activity } from '../data/types';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
-import { useUserPhotos } from '../lib/userPhotos';
+import { MAX_PHOTOS_PER_ACTIVITY, useActivityPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
@@ -44,10 +44,18 @@ export function ActivityDetail({
   const setActivity = setOverride;
 
   const allActivities = useAllActivities();
-  const { photos, addPhotos, removePhoto, saveError, clearSaveError } =
-    useUserPhotos(activity.id);
   const { completed, toggle } = useCompleted(activity);
   const { isOwner } = useOwner();
+  const {
+    photos,
+    loading: photosLoading,
+    loadError: photosLoadError,
+    uploading,
+    addPhotos,
+    removePhoto,
+    saveError,
+    clearSaveError,
+  } = useActivityPhotos(activity.id, isOwner && (completed || !!showUploads));
   const origin = useDistanceOrigin();
   const distance = useDistanceTo()(activity);
   const directionsHref = directionsUrl(
@@ -431,22 +439,29 @@ export function ActivityDetail({
             </section>
           )}
 
-          {(completed || showUploads) && (
+          {/* Owner-only read (#19): the photos are the owners' own, kept in
+              private storage, so the whole section is theirs alone. */}
+          {isOwner && (completed || showUploads) && (
             <section className="space-y-sm">
               <div className="flex items-center justify-between">
                 <h3 className="font-headline-md text-headline-md text-primary">
                   Your Photos
                 </h3>
-                {isOwner && (
-                  <label className="bg-secondary text-on-secondary px-md py-sm rounded-full font-medium transition-opacity flex items-center gap-xs cursor-pointer hover:opacity-90">
+                {photos.length < MAX_PHOTOS_PER_ACTIVITY && (
+                  <label
+                    className={`bg-secondary text-on-secondary px-md py-sm rounded-full font-medium transition-opacity flex items-center gap-xs ${
+                      uploading ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:opacity-90'
+                    }`}
+                  >
                     <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                      add_a_photo
+                      {uploading ? 'hourglass_top' : 'add_a_photo'}
                     </span>
-                    Add photos
+                    {uploading ? 'Uploading…' : 'Add photos'}
                     <input
                       type="file"
                       accept="image/*"
                       multiple
+                      disabled={uploading}
                       className="hidden"
                       onChange={(e) => {
                         handleFiles(e.target.files);
@@ -457,41 +472,37 @@ export function ActivityDetail({
                 )}
               </div>
               <InlineError message={saveError} onDismiss={clearSaveError} />
-              {photos.length === 0 ? (
+              {photosLoading ? null : photosLoadError ? (
+                <InlineError message={photosLoadError} />
+              ) : photos.length === 0 ? (
                 <div className="rounded-lg border-2 border-dashed border-outline-variant p-lg text-center text-on-surface-variant">
-                  {/* Only owners can upload, so only they get the nudge (#206). */}
-                  {isOwner
-                    ? 'No photos yet — upload some from this trip.'
-                    : 'No photos yet.'}
+                  No photos yet — upload some from this trip.
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-sm">
-                  {photos.map((src, i) => (
+                  {photos.map((photo, i) => (
                     <div
-                      key={i}
+                      key={photo.id}
                       className="relative aspect-square rounded-lg overflow-hidden bg-surface-variant group"
                     >
                       <img
-                        src={src}
+                        src={photo.url}
                         alt={`${activity.name} ${i + 1}`}
                         className="w-full h-full object-cover"
                       />
-                      {/* Owner-gated write: hidden from non-owners (#67, #206). */}
-                      {isOwner && (
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(i)}
-                          aria-label="Remove photo"
-                          className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-11 h-11 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                      <button
+                        type="button"
+                        onClick={() => void removePhoto(photo.id)}
+                        aria-label="Remove photo"
+                        className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-11 h-11 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                      >
+                        <span
+                          className="material-symbols-outlined"
+                          style={{ fontSize: 18 }}
                         >
-                          <span
-                            className="material-symbols-outlined"
-                            style={{ fontSize: 18 }}
-                          >
-                            delete
-                          </span>
-                        </button>
-                      )}
+                          delete
+                        </span>
+                      </button>
                     </div>
                   ))}
                 </div>

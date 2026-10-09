@@ -42,6 +42,7 @@
     "@libsql/client": "^0.18.0",
     "@sentry/react": "^11.2.0",
     "@types/leaflet": "^1.9.22",
+    "@vercel/blob": "^2.8.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "graphql": "^16.14.2",

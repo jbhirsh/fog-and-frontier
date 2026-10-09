@@ -8,6 +8,7 @@ import {
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
 import { forgetCatalog } from './driving.js';
+import { deleteBlobs, deletePhotosOf, pathnamesFrom } from './photos.js';
 
 // Catalog activities (`a` table) + completion overrides (`c` table). Reads are
 // public; writes are owner-gated. Activities are stored as camelCase JSON, so
@@ -110,18 +111,29 @@ async function deleteActivity(
   requireOwnerCtx(ctx);
   const id = input.id;
   if (!id) throw badInput('missing id');
-  // Owner reviews (#184) live in their own table, so they need an explicit
-  // cascade — otherwise a deleted activity leaves review rows behind that no
-  // surface can reach, and a reused id would inherit them. One batch so the
-  // catalog row and its reviews never diverge.
-  await db().batch(
+  // Owner reviews (#184) and photos (#19) live in their own tables, so they
+  // need an explicit cascade — otherwise a deleted activity leaves rows behind
+  // that no surface can reach, and a reused id would inherit them. One batch
+  // so the catalog row and its side rows never diverge. The photos' blobs go
+  // after it, and a failure there is logged rather than failing a delete that
+  // already happened: it leaves only unlisted blobs, not a broken row.
+  const results = await db().batch(
     [
       { sql: 'DELETE FROM a WHERE id = ?', args: [id] },
       { sql: 'DELETE FROM activity_reviews WHERE activity_id = ?', args: [id] },
+      deletePhotosOf(id),
     ],
     'write',
   );
   forgetCatalog();
+  try {
+    await deleteBlobs(pathnamesFrom(results[2]?.rows ?? []));
+  } catch (err) {
+    logServerError(err, {
+      route: '/api/graphql',
+      detail: `deleteActivity: photos of ${id} left in Blob`,
+    });
+  }
   return { deletedId: id };
 }
 

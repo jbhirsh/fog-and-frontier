@@ -228,13 +228,37 @@ export async function ensureReviewsSchema(): Promise<void> {
   reviewsInitialized = true;
 }
 
+// Owner photos (#19): one row per photo kept in private Blob storage. The
+// bytes live in Blob under `pathname`; this table is what lists them per
+// activity and enforces the per-activity cap. Owner-only, read and write.
+let photosInitialized = false;
+export async function ensurePhotosSchema(): Promise<void> {
+  if (photosInitialized) return;
+  await db().execute(
+    `CREATE TABLE IF NOT EXISTS activity_photos (
+      id TEXT PRIMARY KEY,
+      activity_id TEXT NOT NULL,
+      pathname TEXT NOT NULL UNIQUE,
+      added_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
+  );
+  await db().execute(
+    `CREATE INDEX IF NOT EXISTS activity_photos_by_activity
+       ON activity_photos (activity_id, created_at)`,
+  );
+  photosInitialized = true;
+}
+
 // Single entry point for graphql.ts startup: create every table group the API
-// touches (trips/members/invites/votes + activities + completed + reviews).
+// touches (trips/members/invites/votes + activities + completed + reviews +
+// photos).
 export async function ensureAllSchemas(): Promise<void> {
   await ensureTripsSchema();
   await ensureActivitiesSchema();
   await ensureCompletedSchema();
   await ensureReviewsSchema();
+  await ensurePhotosSchema();
 }
 
 const BACKFILL_KEY = 'members_backfill_v1';

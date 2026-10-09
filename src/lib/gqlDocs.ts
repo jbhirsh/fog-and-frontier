@@ -247,6 +247,32 @@ export const DELETE_ACTIVITY_REVIEW = graphql(`
   }
 `);
 
+// Owner photos (#19). Owner-only, read and write; `url` is a signed link that
+// expires within the hour, so the list is refetched rather than kept.
+export const ACTIVITY_PHOTOS_QUERY = graphql(`
+  query ActivityPhotos($activityId: ID!) {
+    activityPhotos(activityId: $activityId) { __typename id activityId url createdAt }
+  }
+`);
+
+export const PHOTO_UPLOAD = graphql(`
+  mutation PhotoUpload($input: PhotoUploadInput!) {
+    photoUpload(input: $input) { pathname clientToken }
+  }
+`);
+
+export const ADD_ACTIVITY_PHOTO = graphql(`
+  mutation AddActivityPhoto($input: AddActivityPhotoInput!) {
+    addActivityPhoto(input: $input) { photo { __typename id activityId url createdAt } }
+  }
+`);
+
+export const REMOVE_ACTIVITY_PHOTO = graphql(`
+  mutation RemoveActivityPhoto($input: RemoveActivityPhotoInput!) {
+    removeActivityPhoto(input: $input) { removedId }
+  }
+`);
+
 export const CREATE_TRIP = graphql(`
   mutation CreateTrip($input: CreateTripInput!) {
     createTrip(input: $input) { trip { id } }
@@ -350,6 +376,7 @@ export type ActivityLike = Omit<SnapshotRow, '__typename'>;
 
 export type ActivityReviewsData = DocumentType<typeof ACTIVITY_REVIEWS_QUERY>;
 export type ActivityReviewRow = ActivityReviewsData['activityReviews'][number];
+export type ActivityPhotoRow = DocumentType<typeof ACTIVITY_PHOTOS_QUERY>['activityPhotos'][number];
 
 export type TripListData = DocumentType<typeof TRIPS_QUERY>;
 export type TripListRow = TripListData['trips'][number];

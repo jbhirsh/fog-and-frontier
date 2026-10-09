@@ -18,10 +18,10 @@ const BLANK_PNG_BYTES = Buffer.from(
   'base64',
 );
 
-// Same blank PNG as a data URL — used by `seedPhotos` when we want the user
-// photo store pre-populated before the page boots.
-const BLANK_PNG_DATA_URL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
+// Owner photos (#19) by page: how many each activity has. `seedPhotos` fills
+// it, and the mocked `activityPhotos` read serves it. The photo links point
+// off-site, so the image stub below answers them with the blank PNG.
+const photoSeeds = new WeakMap<Page, Record<string, number>>();
 
 // Domain Activity -> the GraphQL `Activity` row the client now reads: camelCase
 // fields + the __typenames the Apollo cache needs on every (nested) object.
@@ -168,7 +168,7 @@ export async function mockApis(page: Page) {
   await page.route('**/api/graphql', async (route) => {
     const body = route.request().postDataJSON() as {
       operationName?: string;
-      variables?: { lat?: number; lng?: number; id?: string };
+      variables?: { lat?: number; lng?: number; id?: string; activityId?: string };
     } | null;
     const op = body?.operationName;
     let data: Record<string, unknown> = {};
@@ -192,6 +192,20 @@ export async function mockApis(page: Page) {
         // the default (non-owner) baselines stay unchanged (#184).
         data = { activityReviews: [] };
         break;
+      case 'ActivityPhotos': {
+        const activityId = body?.variables?.activityId ?? '';
+        const count = photoSeeds.get(page)?.[activityId] ?? 0;
+        data = {
+          activityPhotos: Array.from({ length: count }, (_, i) => ({
+            __typename: 'ActivityPhoto',
+            id: `${activityId}-photo-${i + 1}`,
+            activityId,
+            url: `https://blob.example/${activityId}/photo-${i + 1}.jpg`,
+            createdAt: '2026-10-01T00:00:00.000Z',
+          })),
+        };
+        break;
+      }
       case 'TripsList':
         data = { trips: Object.values(fixtureTrips).map(toTripListRow) };
         break;
@@ -271,21 +285,10 @@ export async function waitForVisualReady(page: Page) {
   await page.waitForTimeout(200);
 }
 
-// Pre-populate the user-photo store so the "Your Photos" section renders with
-// real thumbnails on first paint. Storage key must match src/lib/userPhotos.ts.
-export async function seedPhotos(page: Page, activityId: string, count = 2) {
-  await page.addInitScript(
-    ([id, n, png]) => {
-      const store = {
-        [id as string]: Array.from({ length: n as number }, () => png as string),
-      };
-      localStorage.setItem(
-        'fogandfrontier.userPhotos.v1',
-        JSON.stringify(store),
-      );
-    },
-    [activityId, count, BLANK_PNG_DATA_URL],
-  );
+// Gives an activity owner photos (#19), served by mockApis' `activityPhotos`.
+// Owner-only, so pair it with signIn.
+export function seedPhotos(page: Page, activityId: string, count = 2) {
+  photoSeeds.set(page, { ...photoSeeds.get(page), [activityId]: count });
 }
 
 // Fails the test if anything in the page extends past the viewport on the x
