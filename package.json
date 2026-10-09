@@ -26,6 +26,7 @@
     "test:mutation": "stryker run",
     "db:seed-preview": "node scripts/seed-preview-db.mjs",
     "db:snapshot": "node scripts/snapshot-prod-db.mjs",
+    "links:check": "node scripts/check-links.mjs",
     "db:migrate-static": "node --experimental-strip-types scripts/migrate-static-to-turso.mjs",
     "db:backfill-park-types": "node --experimental-strip-types scripts/backfill-park-types.mjs",
     "db:backfill-restaurant-info": "node --experimental-strip-types scripts/backfill-restaurant-info.mjs",
