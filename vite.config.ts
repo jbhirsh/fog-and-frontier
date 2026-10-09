@@ -115,7 +115,6 @@ export default defineConfig({
         'src/lib/generateActivity.ts',
         'src/lib/gqlError.ts',
         'src/lib/userActivities.ts',
-        'src/lib/userPhotos.ts',
         'src/lib/userTrips.ts',
         'src/lib/useTripMembership.ts',
         'src/lib/useVisibilityInterval.ts',

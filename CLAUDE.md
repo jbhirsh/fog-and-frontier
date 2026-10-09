@@ -32,6 +32,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - Server-side: `requireOwnerCtx` in `api/_gqlContext.ts` is the real gate for owner-only writes and paid calls (e.g. Gemini); trip-scoped actions are gated by `requireMemberCtx` / `requireCreatorCtx` in the same file, and `requireUserCtx` admits any signed-in account where something else authorizes the action (`claimInvite`, whose invite token is the authorization).
 - Client-side: `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner emails come from `VITE_OWNER_EMAILS`.
 - Public by decision: `drivingMiles` (#66) calls OpenRouteService with no auth gate, because the owner chose road miles for every visitor. It's a free service rather than a paid one, and a Turso-counted hourly budget (`ors_usage`) caps it: 20 uncached lookups an hour, of which signed-out callers may use 12, for West Coast origins only. Over budget it returns nothing and the client shows the "≈" straight-line estimate. Any other public external call needs its own recorded decision here.
+- Owner photos (#19) live in a private Vercel Blob store (`BLOB_READ_WRITE_TOKEN`, from the store connected to the project). The bytes never pass through the function: `photoUpload` hands the browser a client token that can write one JPEG pathname for ten minutes, and `activityPhotos` returns signed links that expire within the hour. Every photo call is owner-only, and an activity holds at most 20, which keeps the store inside the Hobby limits (exceeding them pauses Blob for 30 days).
 - Role-gated UI: owner-guarded *mutating* controls are **hidden** from non-owners (not disabled/greyed). See the Role-gated UI section below.
 
 ## Role-gated UI — hide owner-guarded controls from non-owners
@@ -50,19 +51,20 @@ Rules of thumb:
 - **Mutating + owner-gated → hide.** Gate the JSX on `isOwner` (e.g.
   `{isOwner && <button …/>}`). No `disabled={!isOwner}`, no
   `title="Sign in to edit"`.
-- **Reads stay.** If a surface is a *read* (viewing data — e.g. the "Your
-  Photos" gallery, or a completion-status badge), keep it visible to everyone;
-  only the *write* affordance inside it (the "Add photos" upload control) is
-  hidden. The completion **status** in `ActivityDetail` is rendered as a
-  static badge for non-owners; only the interactive toggle is owner-only.
+- **Reads stay.** If a surface is a *read* (viewing data — e.g. a
+  completion-status badge, or the owners' reviews), keep it visible to
+  everyone; only the *write* affordance inside it is hidden. The completion
+  **status** in `ActivityDetail` is rendered as a static badge for non-owners;
+  only the interactive toggle is owner-only.
 - **Owner-only reads are an explicit decision, recorded here.** The first is
   the **Explore** surface (#111): its one action, Discover, is a paid
   owner-only call, so non-owners would only reach a dead end. Decision: hide
   the tab *and* guard the route — the `/explore` NavLink in `Layout.tsx` is
   gated on `isOwner`, and `OwnerRoute` (`src/components/OwnerRoute.tsx`)
-  renders nothing until auth loads, then redirects non-owners to `/`. #19 plans
-  the next one (an owner-only "Your Photos" gallery); until it lands, that
-  gallery follows the "Reads stay" rule above.
+  renders nothing until auth loads, then redirects non-owners to `/`. The
+  second is the **Your Photos** gallery (#19): the photos are the owners' own,
+  so `ActivityDetail` renders the whole section only for owners, and the
+  server's `activityPhotos` read is owner-gated too.
 
 Gates that are **not** the owner gate:
 

@@ -28,6 +28,10 @@ type Documents = {
     "\n  mutation AlltrailsLookup($input: AlltrailsLookupInput!) {\n    alltrailsLookup(input: $input) {\n      lookup { allTrailsRating hikeDistanceMiles hikeElevationFeet }\n    }\n  }\n": typeof types.AlltrailsLookupDocument,
     "\n  mutation SaveActivityReview($input: SaveActivityReviewInput!) {\n    saveActivityReview(input: $input) {\n      review {\n        __typename\n        activityId\n        authorEmail\n        rating\n        note\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": typeof types.SaveActivityReviewDocument,
     "\n  mutation DeleteActivityReview($input: DeleteActivityReviewInput!) {\n    deleteActivityReview(input: $input) { activityId authorEmail }\n  }\n": typeof types.DeleteActivityReviewDocument,
+    "\n  query ActivityPhotos($activityId: ID!) {\n    activityPhotos(activityId: $activityId) { __typename id activityId url createdAt }\n  }\n": typeof types.ActivityPhotosDocument,
+    "\n  mutation PhotoUpload($input: PhotoUploadInput!) {\n    photoUpload(input: $input) { pathname clientToken }\n  }\n": typeof types.PhotoUploadDocument,
+    "\n  mutation AddActivityPhoto($input: AddActivityPhotoInput!) {\n    addActivityPhoto(input: $input) { photo { __typename id activityId url createdAt } }\n  }\n": typeof types.AddActivityPhotoDocument,
+    "\n  mutation RemoveActivityPhoto($input: RemoveActivityPhotoInput!) {\n    removeActivityPhoto(input: $input) { removedId }\n  }\n": typeof types.RemoveActivityPhotoDocument,
     "\n  mutation CreateTrip($input: CreateTripInput!) {\n    createTrip(input: $input) { trip { id } }\n  }\n": typeof types.CreateTripDocument,
     "\n  mutation PatchTrip($input: PatchTripInput!) {\n    patchTrip(input: $input) { trip { id } }\n  }\n": typeof types.PatchTripDocument,
     "\n  mutation DeleteTrip($input: DeleteTripInput!) {\n    deleteTrip(input: $input) { deletedId }\n  }\n": typeof types.DeleteTripDocument,
@@ -58,6 +62,10 @@ const documents: Documents = {
     "\n  mutation AlltrailsLookup($input: AlltrailsLookupInput!) {\n    alltrailsLookup(input: $input) {\n      lookup { allTrailsRating hikeDistanceMiles hikeElevationFeet }\n    }\n  }\n": types.AlltrailsLookupDocument,
     "\n  mutation SaveActivityReview($input: SaveActivityReviewInput!) {\n    saveActivityReview(input: $input) {\n      review {\n        __typename\n        activityId\n        authorEmail\n        rating\n        note\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": types.SaveActivityReviewDocument,
     "\n  mutation DeleteActivityReview($input: DeleteActivityReviewInput!) {\n    deleteActivityReview(input: $input) { activityId authorEmail }\n  }\n": types.DeleteActivityReviewDocument,
+    "\n  query ActivityPhotos($activityId: ID!) {\n    activityPhotos(activityId: $activityId) { __typename id activityId url createdAt }\n  }\n": types.ActivityPhotosDocument,
+    "\n  mutation PhotoUpload($input: PhotoUploadInput!) {\n    photoUpload(input: $input) { pathname clientToken }\n  }\n": types.PhotoUploadDocument,
+    "\n  mutation AddActivityPhoto($input: AddActivityPhotoInput!) {\n    addActivityPhoto(input: $input) { photo { __typename id activityId url createdAt } }\n  }\n": types.AddActivityPhotoDocument,
+    "\n  mutation RemoveActivityPhoto($input: RemoveActivityPhotoInput!) {\n    removeActivityPhoto(input: $input) { removedId }\n  }\n": types.RemoveActivityPhotoDocument,
     "\n  mutation CreateTrip($input: CreateTripInput!) {\n    createTrip(input: $input) { trip { id } }\n  }\n": types.CreateTripDocument,
     "\n  mutation PatchTrip($input: PatchTripInput!) {\n    patchTrip(input: $input) { trip { id } }\n  }\n": types.PatchTripDocument,
     "\n  mutation DeleteTrip($input: DeleteTripInput!) {\n    deleteTrip(input: $input) { deletedId }\n  }\n": types.DeleteTripDocument,
@@ -144,6 +152,22 @@ export function graphql(source: "\n  mutation SaveActivityReview($input: SaveAct
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteActivityReview($input: DeleteActivityReviewInput!) {\n    deleteActivityReview(input: $input) { activityId authorEmail }\n  }\n"): (typeof documents)["\n  mutation DeleteActivityReview($input: DeleteActivityReviewInput!) {\n    deleteActivityReview(input: $input) { activityId authorEmail }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ActivityPhotos($activityId: ID!) {\n    activityPhotos(activityId: $activityId) { __typename id activityId url createdAt }\n  }\n"): (typeof documents)["\n  query ActivityPhotos($activityId: ID!) {\n    activityPhotos(activityId: $activityId) { __typename id activityId url createdAt }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation PhotoUpload($input: PhotoUploadInput!) {\n    photoUpload(input: $input) { pathname clientToken }\n  }\n"): (typeof documents)["\n  mutation PhotoUpload($input: PhotoUploadInput!) {\n    photoUpload(input: $input) { pathname clientToken }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddActivityPhoto($input: AddActivityPhotoInput!) {\n    addActivityPhoto(input: $input) { photo { __typename id activityId url createdAt } }\n  }\n"): (typeof documents)["\n  mutation AddActivityPhoto($input: AddActivityPhotoInput!) {\n    addActivityPhoto(input: $input) { photo { __typename id activityId url createdAt } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RemoveActivityPhoto($input: RemoveActivityPhotoInput!) {\n    removeActivityPhoto(input: $input) { removedId }\n  }\n"): (typeof documents)["\n  mutation RemoveActivityPhoto($input: RemoveActivityPhotoInput!) {\n    removeActivityPhoto(input: $input) { removedId }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

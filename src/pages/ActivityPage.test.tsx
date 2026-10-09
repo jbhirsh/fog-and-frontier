@@ -87,14 +87,6 @@ describe('ActivityPage (#86)', () => {
     expect(screen.getByRole('dialog', { name: 'Test Cafe' })).toBeInTheDocument();
   });
 
-  it('offers photo uploads only on a completed activity', () => {
-    const { unmount } = renderAt([`/activity/${completedHike.id}`], CATALOG);
-    expect(screen.getByText('Your Photos')).toBeInTheDocument();
-    unmount();
-    renderAt([`/activity/${muirWoods.id}`], CATALOG);
-    expect(screen.queryByText('Your Photos')).not.toBeInTheDocument();
-  });
-
   it('closes a link opened fresh to the catalog', async () => {
     renderAt([`/activity/${muirWoods.id}`], CATALOG);
     const dialog = screen.getByRole('dialog', { name: muirWoods.name });
@@ -191,6 +183,15 @@ describe('ActivityPage (#86)', () => {
     });
     afterEach(() => {
       delete (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__;
+    });
+
+    // Your Photos is owner-only (#19).
+    it('offers photo uploads only on a completed activity', () => {
+      const { unmount } = renderAt([`/activity/${completedHike.id}`], CATALOG);
+      expect(screen.getByText('Your Photos')).toBeInTheDocument();
+      unmount();
+      renderAt([`/activity/${muirWoods.id}`], CATALOG);
+      expect(screen.queryByText('Your Photos')).not.toBeInTheDocument();
     });
 
     it("drops one activity's open edit form when Back moves to another", async () => {
