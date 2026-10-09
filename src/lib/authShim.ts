@@ -26,5 +26,16 @@ const NO_AUTH: AuthState = {
 export const AuthCtx = createContext<AuthState>(NO_AUTH);
 
 export function useAuthState(): AuthState {
-  return useContext(AuthCtx);
+  const state = useContext(AuthCtx);
+  // Dev/test-only: Playwright signs in as window.__TEST_FORCE_EMAIL__ to
+  // snapshot signed-in views (the trips pages, #59) without a Clerk session.
+  // Like __TEST_FORCE_OWNER__ in useOwner, the mode check is evaluated at
+  // build time, so production ignores the flag.
+  if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
+    const forced = (window as { __TEST_FORCE_EMAIL__?: unknown }).__TEST_FORCE_EMAIL__;
+    if (typeof forced === 'string' && forced) {
+      return { ...state, isLoaded: true, email: forced };
+    }
+  }
+  return state;
 }

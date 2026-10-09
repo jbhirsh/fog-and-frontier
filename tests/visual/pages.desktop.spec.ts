@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { mockApis, waitForVisualReady } from './helpers';
+import {
+  TRIP_VIEWS,
+  mockApis,
+  settleTripView,
+  signIn,
+  waitForVisualReady,
+} from './helpers';
 
 // Desktop visual sweep — runs only under the `desktop` project (1280x800).
 // Mobile coverage lives in pages.mobile.spec.ts; each project's testMatch in
@@ -35,4 +41,20 @@ test.describe('visual regression — desktop', () => {
       fullPage: true,
     });
   });
+});
+
+// Trips views (#59), signed in as the fixture member.
+test.describe('visual regression — trips (desktop)', () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+    await mockApis(page);
+  });
+
+  for (const view of TRIP_VIEWS) {
+    test(view.name, async ({ page }) => {
+      await page.goto(view.path);
+      await settleTripView(page, view.map);
+      await expect(page).toHaveScreenshot(`${view.name}.png`, { fullPage: true });
+    });
+  }
 });

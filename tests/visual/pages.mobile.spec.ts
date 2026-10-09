@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 import {
+  TRIP_VIEWS,
   mockApis,
+  settleTripView,
+  signIn,
   waitForVisualReady,
   seedPhotos,
   assertNoHorizontalOverflow,
@@ -237,4 +240,20 @@ test.describe('visual regression — mobile', () => {
       fullPage: true,
     });
   });
+});
+
+// Trips views (#59), signed in as the fixture member.
+test.describe('visual regression — trips (mobile)', () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+    await mockApis(page);
+  });
+
+  for (const view of TRIP_VIEWS) {
+    test(view.name, async ({ page }) => {
+      await page.goto(view.path);
+      await settleTripView(page, view.map);
+      await expect(page).toHaveScreenshot(`${view.name}.png`, { fullPage: true });
+    });
+  }
 });
