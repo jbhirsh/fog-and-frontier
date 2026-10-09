@@ -1,0 +1,57 @@
+# Link audit (#68). Checks every outbound link the live catalog surfaces
+# (AllTrails, menu and reservation links, cover images) so rotted links show
+# up without a manual sweep.
+#
+# Weekly on the shared Monday 06:00 UTC sweep slot, plus manual dispatch. Not
+# a PR gate: a link dying on someone else's site isn't a PR's fault, and the
+# catalog lives in Turso, not the repo. The run fails when a link is dead, so
+# GitHub's failed-run email is the alert; the report is the job summary.
+# Links a script can't judge (AllTrails answers every script with 403) are
+# listed for checking by hand and don't fail the run.
+name: Link audit
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# One audit at a time: a manual run during the scheduled one would double the
+# load on the hosts it checks.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  # Run GitHub's bundled JavaScript actions on the Node 24 runtime instead of
+  # the deprecated default (mirrors ci.yml).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: Check links
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # Node built-ins only, so no install. Reads production's public
+      # `activities` query: no secrets.
+      - name: Check links
+        env:
+          LINKS_REPORT: links-report.md
+        run: |
+          set +e
+          node scripts/check-links.mjs
+          status=$?
+          if [ -f links-report.md ]; then
+            cat links-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Link audit crashed (exit $status) before writing a report; see the log."
+            echo "Link audit crashed (exit $status) before writing a report; see the log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
