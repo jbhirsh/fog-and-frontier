@@ -111,7 +111,6 @@ export default defineConfig({
         // src/lib/
         'src/lib/alltrails.ts',
         'src/lib/apolloClient.ts',
-        'src/lib/authShim.ts',
         'src/lib/authShimClerk.tsx',
         'src/lib/generateActivity.ts',
         'src/lib/gqlError.ts',
