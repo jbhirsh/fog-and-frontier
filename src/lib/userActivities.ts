@@ -94,19 +94,26 @@ export const CATALOG_LOAD_ERROR =
 // Public catalog read. cache-and-network: instant cached render + background
 // refresh (offline persistence was dropped in the GraphQL migration). `error`
 // is a user-facing message when the read failed, so a page can say so instead
-// of rendering the failure as an empty catalog.
+// of rendering the failure as an empty catalog. `loading` is the first load
+// only (nothing cached yet), so a permalink can tell "not loaded" from "no
+// such activity" (#86).
 export function useUserActivities(): {
   activities: Activity[];
   error: string | null;
+  loading: boolean;
 } {
-  const { data, error } = useQuery(ACTIVITIES_QUERY, {
+  const { data, error, loading } = useQuery(ACTIVITIES_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
   const activities = useMemo(
     () => (data?.activities ?? []).map(rowToActivity),
     [data],
   );
-  return { activities, error: error ? CATALOG_LOAD_ERROR : null };
+  return {
+    activities,
+    error: error ? CATALOG_LOAD_ERROR : null,
+    loading: loading && !data,
+  };
 }
 
 export function useAllActivities(): Activity[] {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route } from 'react-router-dom';
+import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
 import { muirWoods } from '../test/fixtures';
 import {
   deviceOrigin,
@@ -29,7 +30,9 @@ function renderAt(origin: DistanceOrigin, driving: DrivingMiles = NO_DRIVING_MIL
     <DistanceOriginCtx.Provider value={origin}>
       <DrivingMilesCtx.Provider value={driving}>
         <MemoryRouter>
-          <CuratedAdventures />
+          <ActivityPermalinkRoutes>
+            <Route path="*" element={<CuratedAdventures />} />
+          </ActivityPermalinkRoutes>
         </MemoryRouter>
       </DrivingMilesCtx.Provider>
     </DistanceOriginCtx.Provider>,

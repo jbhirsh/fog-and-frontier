@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useDrivingMiles } from '../lib/drivingMiles';
 import { ActivityCard } from '../components/ActivityCard';
-import { ActivityDetail } from '../components/ActivityDetail';
 import { ActivityMap } from '../components/ActivityMap';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
@@ -22,6 +21,7 @@ import {
 } from '../lib/useCatalogFilters';
 import { filterByBounds, type MapBounds } from '../lib/mapBounds';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { useOpenActivity } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
 import { useOverrides } from '../lib/userCompleted';
 import { useOwner } from '../lib/useOwner';
@@ -193,7 +193,8 @@ export function CuratedAdventures() {
   // Completion overrides, so "Completed only" agrees with the badges.
   const overrides = useOverrides();
 
-  const [selected, setSelected] = useState<Activity | null>(null);
+  // Opening a card goes to its permalink (#86), drawn over this page.
+  const openActivity = useOpenActivity();
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
   const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
@@ -328,7 +329,7 @@ export function CuratedAdventures() {
   // card exists in Split and in the mobile map's sheet; in desktop Map mode the
   // querySelector simply returns null.
   function handlePinActivate(activity: Activity) {
-    setSelected(activity);
+    openActivity(activity.id);
     if (typeof document === 'undefined') return;
     const safeId =
       typeof CSS !== 'undefined' && CSS.escape
@@ -370,7 +371,7 @@ export function CuratedAdventures() {
               if (selectionMode) {
                 toggleSelected(a.id);
               } else {
-                setSelected(a);
+                openActivity(a.id);
               }
             }}
             actionSlot={
@@ -693,7 +694,7 @@ export function CuratedAdventures() {
             <ActivityMap
               fullBleed
               activities={results}
-              onSelect={setSelected}
+              onSelect={(a) => openActivity(a.id)}
               onActivate={handlePinActivate}
               highlightedId={hoveredId}
               onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
@@ -733,7 +734,7 @@ export function CuratedAdventures() {
             <div className="h-full w-full">
               <ActivityMap
                 activities={results}
-                onSelect={setSelected}
+                onSelect={(a) => openActivity(a.id)}
                 onActivate={handlePinActivate}
                 highlightedId={hoveredId}
                 onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
@@ -765,7 +766,7 @@ export function CuratedAdventures() {
               <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
                 <ActivityMap
                   activities={results}
-                  onSelect={setSelected}
+                  onSelect={(a) => openActivity(a.id)}
                   onActivate={handlePinActivate}
                   highlightedId={hoveredId}
                   onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
@@ -889,14 +890,6 @@ export function CuratedAdventures() {
             window.setTimeout(() => setTripAddedToast(null), 3000);
             clearSelection();
           }}
-        />
-      )}
-
-      {selected && (
-        <ActivityDetail
-          activity={selected}
-          onClose={() => setSelected(null)}
-          showUploads={!!selected.completed}
         />
       )}
 

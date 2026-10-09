@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { render, screen } from './test/render';
-import { muirWoods } from './test/fixtures';
+import userEvent from '@testing-library/user-event';
+import { render, screen, within } from './test/render';
+import { dogFriendlyTidepools, muirWoods } from './test/fixtures';
 
 import App from './App';
 
@@ -35,5 +36,31 @@ describe('App', () => {
     expect(
       screen.getByRole('switch', { name: 'Completed only' }),
     ).toHaveAttribute('aria-checked', 'true');
+  });
+
+  // Activity permalinks (#86).
+  it('opens a linked activity over the catalog', () => {
+    window.history.replaceState(null, '', `/activity/${muirWoods.id}`);
+    render(<App />, { activities: [muirWoods, dogFriendlyTidepools] });
+    expect(
+      screen.getByRole('dialog', { name: 'Test Muir Woods' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Curated Adventures')).toBeInTheDocument();
+    expect(window.location.pathname).toBe(`/activity/${muirWoods.id}`);
+  });
+
+  it('puts an opened card in the URL, and Back closes it', async () => {
+    render(<App />, { activities: [muirWoods, dogFriendlyTidepools] });
+    await userEvent.click(
+      screen.getByRole('button', { name: /Test Tide Pools/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Test Tide Pools')).toBeInTheDocument();
+    expect(window.location.pathname).toBe(`/activity/${dogFriendlyTidepools.id}`);
+
+    window.history.back();
+    await screen.findByText('Curated Adventures');
+    await expect.poll(() => screen.queryByRole('dialog')).toBeNull();
+    expect(window.location.pathname).toBe('/');
   });
 });

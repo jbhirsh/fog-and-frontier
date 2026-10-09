@@ -23,9 +23,16 @@ interface Props {
   activity: Activity;
   onClose: () => void;
   showUploads?: boolean;
+  /** Opens a nearby activity; without it, the detail swaps in place. */
+  onSelectNearby?: (activity: Activity) => void;
 }
 
-export function ActivityDetail({ activity: initial, onClose, showUploads }: Props) {
+export function ActivityDetail({
+  activity: initial,
+  onClose,
+  showUploads,
+  onSelectNearby,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [override, setOverride] = useState<Activity | null>(null);
   const [prevInitial, setPrevInitial] = useState(initial);
@@ -56,7 +63,8 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
   const nearbyIdPrefix = useId();
 
   function selectNearby(a: Activity) {
-    setActivity(a);
+    if (onSelectNearby) onSelectNearby(a);
+    else setActivity(a);
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -84,8 +92,10 @@ export function ActivityDetail({ activity: initial, onClose, showUploads }: Prop
       `Delete "${activity.name}" for everyone? This removes it from the shared catalog for all viewers. This can't be undone.`,
     );
     if (!ok) return;
-    await deleteUserActivity(activity.id);
+    // Close first: under a permalink (#86) the activity leaving the catalog
+    // would otherwise flash "not found" while the close is under way.
     onClose();
+    await deleteUserActivity(activity.id);
   }
 
   return (
