@@ -51,7 +51,9 @@ export function VotingCandidateCard({
         votingOpen && draggable ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
-      <div className="flex gap-md p-sm">
+      {/* Below md the controls wrap onto their own row (#228): beside the
+          thumbnail they left the name a few pixels wide on a phone. */}
+      <div className="flex flex-wrap md:flex-nowrap gap-x-md gap-y-sm p-sm">
         {/* Drag handle */}
         {votingOpen && draggable && (
           <div className="flex items-center shrink-0 text-on-surface-variant/50">
@@ -87,8 +89,9 @@ export function VotingCandidateCard({
           </div>
         )}
 
-        {/* Right side: vote controls + remove */}
-        <div className="flex flex-col items-end gap-xs shrink-0">
+        {/* Vote controls + remove: a row of their own on a phone, the right
+            side of the card from md up. */}
+        <div className="basis-full md:basis-auto flex md:flex-col items-center md:items-end justify-end md:justify-start gap-sm md:gap-xs shrink-0">
           <VoteControls
             tally={tally}
             myVote={myVote}
@@ -101,7 +104,7 @@ export function VotingCandidateCard({
               type="button"
               aria-label="Remove candidate"
               onClick={onRemove}
-              className="font-body-md text-sm px-sm py-xs rounded-full border border-error/40 text-error hover:bg-error-container transition-colors"
+              className="font-body-md text-sm px-sm py-xs min-h-11 md:min-h-auto rounded-full border border-error/40 text-error hover:bg-error-container transition-colors"
             >
               ✕ Remove
             </button>
@@ -138,11 +141,12 @@ function CardBody({
         )}
       </div>
       <div className="flex-1 min-w-0 space-y-xs">
-        <div className="font-headline-md text-body-lg text-on-surface line-clamp-1">
+        {/* The full name on a phone, wrapping as it needs; one line from md. */}
+        <div className="font-headline-md text-body-lg text-on-surface break-words md:break-normal md:line-clamp-1">
           {name}
         </div>
         {cityLine && (
-          <div className="font-body-md text-sm text-on-surface-variant line-clamp-1">
+          <div className="font-body-md text-sm text-on-surface-variant break-words md:break-normal md:line-clamp-1">
             {cityLine}
           </div>
         )}
