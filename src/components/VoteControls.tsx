@@ -83,7 +83,8 @@ function ThumbButton({
       disabled={disabled}
       title={disabled ? disabledTooltip : undefined}
       onClick={onClick}
-      className={`flex items-center gap-xs px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed ${
+      // 44px tall on touch screens (#228); compact from md, as before.
+      className={`flex items-center gap-xs px-sm py-xs min-h-11 min-w-11 md:min-h-0 md:min-w-0 font-body-md text-sm transition-colors disabled:cursor-not-allowed ${
         active ? `${activeClass} font-medium` : 'text-on-surface-variant'
       } ${disabled ? '' : 'hover:bg-surface-variant'}`}
     >
