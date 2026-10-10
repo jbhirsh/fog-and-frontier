@@ -30,7 +30,30 @@ interface Props {
    * on screen, so moving between activities doesn't replay it.
    */
   animateIn?: boolean;
+  /**
+   * Its place in the browse list it was opened from (#64), with the steps to
+   * the previous and next activity; a step is missing at that end of the list.
+   */
+  sequence?: {
+    index: number;
+    total: number;
+    onPrev?: () => void;
+    onNext?: () => void;
+    /** The step that brought this activity up, to keep focus on its button. */
+    cameBy?: 'prev' | 'next';
+  };
 }
+
+/** Keys typed into a field are the field's, not a step through the list. */
+function isTyping(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  );
+}
+
+const STEP_BUTTON =
+  'w-11 h-11 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default';
 
 // Each needs motion-safe: on its own, so reduced motion opens with a cut.
 const SCRIM_IN = 'motion-safe:animate-scrim-in';
@@ -42,6 +65,7 @@ export function ActivityDetail({
   showUploads,
   onSelectNearby,
   animateIn = true,
+  sequence,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [override, setOverride] = useState<Activity | null>(null);
@@ -100,6 +124,35 @@ export function ActivityDetail({
     };
   }, [onClose, editing]);
 
+  // Left and Right step through the list, like its buttons, unless the edit
+  // form is up or the key is someone typing.
+  const onPrev = sequence?.onPrev;
+  const onNext = sequence?.onNext;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (editing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || isTyping(e.target)) {
+        return;
+      }
+      const step = e.key === 'ArrowLeft' ? onPrev : e.key === 'ArrowRight' ? onNext : undefined;
+      if (!step) return;
+      e.preventDefault();
+      step();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing, onPrev, onNext]);
+
+  // A step remounts the detail; keep focus on the control that made it, or
+  // its partner once the end of the list has disabled it.
+  const prevRef = useRef<HTMLButtonElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const cameBy = sequence?.cameBy;
+  useEffect(() => {
+    if (!cameBy) return;
+    const [mine, other] = cameBy === 'prev' ? [prevRef, nextRef] : [nextRef, prevRef];
+    (mine.current?.disabled ? other.current : mine.current)?.focus();
+  }, [cameBy]);
+
   const handleFiles = (files: FileList | null) => {
     if (files && files.length) void addPhotos(files);
   };
@@ -139,6 +192,38 @@ export function ActivityDetail({
             className="w-full h-full object-cover"
             glyphSize={64}
           />
+          {sequence && (
+            <nav
+              aria-label="Adventures in this list"
+              className="absolute top-sm left-sm flex items-center gap-xs bg-surface-container-lowest/90 backdrop-blur-sm rounded-full p-xs"
+            >
+              <button
+                ref={prevRef}
+                type="button"
+                onClick={sequence.onPrev}
+                disabled={!sequence.onPrev}
+                aria-label="Previous adventure"
+                aria-keyshortcuts="ArrowLeft"
+                className={STEP_BUTTON}
+              >
+                <span className="material-symbols-outlined">chevron_left</span>
+              </button>
+              <span className="font-body-sm text-on-surface-variant tabular-nums px-xs">
+                {sequence.index + 1} of {sequence.total}
+              </span>
+              <button
+                ref={nextRef}
+                type="button"
+                onClick={sequence.onNext}
+                disabled={!sequence.onNext}
+                aria-label="Next adventure"
+                aria-keyshortcuts="ArrowRight"
+                className={STEP_BUTTON}
+              >
+                <span className="material-symbols-outlined">chevron_right</span>
+              </button>
+            </nav>
+          )}
           <button
             type="button"
             onClick={onClose}

@@ -119,6 +119,30 @@ describe('Curated Adventures page', () => {
     expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
   });
 
+  // Prev/next (#64) steps through the list as shown: its filters and order.
+  it('opens a card with the list as shown, to step through', async () => {
+    renderExplore('/');
+    const order = Array.from(document.querySelectorAll('[data-activity-id]'), (el) =>
+      el.getAttribute('data-activity-id'),
+    );
+    expect(order).toHaveLength(3);
+    const second = [muirWoods, completedHike, dogFriendlyTidepools].find(
+      (a) => a.id === order[1],
+    )!;
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(second.name) }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('2 of 3')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Next adventure' }));
+    expect(screen.getByTestId('path')).toHaveTextContent(`/activity/${order[2]}`);
+  });
+
+  it('has nothing to step through when the filters leave one card', async () => {
+    renderExplore('/?q=muir');
+    await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByRole('button', { name: 'Next adventure' })).toBeNull();
+  });
+
   describe('Completed only (#5)', () => {
     it('is off by default and shows every activity', () => {
       renderExplore();

@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { ActivityDetail } from '../components/ActivityDetail';
-import { useCloseActivity, useOpenActivity } from '../lib/activityRoute';
+import {
+  listPosition,
+  type ListPosition,
+  readActivityState,
+  useCloseActivity,
+  useOpenActivity,
+} from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
 
 /**
@@ -23,6 +29,16 @@ export function ActivityPage() {
   const [openedWith, setOpenedWith] = useState(id);
   if (openedWith !== undefined && id !== openedWith) setOpenedWith(undefined);
 
+  // Stepping through the list it was opened from (#64): each step opens the
+  // neighbour one deeper, so Back retraces them and close leaves them all.
+  const location = useLocation();
+  const [cameBy, setCameBy] = useState<'prev' | 'next'>();
+  const position = listPosition(readActivityState(location.state)?.list, id ?? '');
+  const step = (to: string, by: 'prev' | 'next') => {
+    setCameBy(by);
+    open(to);
+  };
+
   const activity = activities.find((a) => a.id === id);
   if (activity) {
     return (
@@ -35,6 +51,7 @@ export function ActivityPage() {
         onSelectNearby={(a) => open(a.id)}
         showUploads={!!activity.completed}
         animateIn={activity.id === openedWith}
+        sequence={position ? sequenceOf(position, step, cameBy) : undefined}
       />
     );
   }
@@ -48,6 +65,20 @@ export function ActivityPage() {
       onClose={close}
     />
   );
+}
+
+function sequenceOf(
+  { index, total, prev, next }: ListPosition,
+  step: (to: string, by: 'prev' | 'next') => void,
+  cameBy: 'prev' | 'next' | undefined,
+) {
+  return {
+    index,
+    total,
+    onPrev: prev ? () => step(prev, 'prev') : undefined,
+    onNext: next ? () => step(next, 'next') : undefined,
+    cameBy,
+  };
 }
 
 function Missing({

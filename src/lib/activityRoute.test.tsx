@@ -15,6 +15,7 @@ import {
   activityPath,
   backgroundFor,
   isActivityPath,
+  listPosition,
   readActivityState,
   useCloseActivity,
   useOpenActivity,
@@ -62,6 +63,19 @@ describe('readActivityState', () => {
     expect(readActivityState({ ...base, cold: 'yes' })?.cold).toBe(false);
   });
 
+  it('reads the list it was opened from, when it is a list of ids', () => {
+    const base = { backgroundLocation: TRIPS, depth: 1 };
+    expect(readActivityState({ ...base, list: ['a', 'b'] })).toEqual({
+      ...base,
+      cold: false,
+      list: ['a', 'b'],
+    });
+    expect(readActivityState({ ...base, list: [] })?.list).toEqual([]);
+    for (const list of ['a,b', ['a', 2], { 0: 'a' }, null]) {
+      expect(readActivityState({ ...base, list })).not.toHaveProperty('list');
+    }
+  });
+
   it.each([
     ['nothing', null],
     ['a string', 'state'],
@@ -73,6 +87,30 @@ describe('readActivityState', () => {
     ['a depth that is not a number', { backgroundLocation: TRIPS, depth: '1' }],
   ])('ignores %s', (_, state) => {
     expect(readActivityState(state)).toBeNull();
+  });
+});
+
+describe('listPosition (#64)', () => {
+  const list = ['a', 'b', 'c'];
+
+  it('places an activity between its neighbours', () => {
+    expect(listPosition(list, 'b')).toEqual({ index: 1, total: 3, prev: 'a', next: 'c' });
+  });
+
+  it('steps through a list of two', () => {
+    expect(listPosition(['a', 'b'], 'a')).toEqual({ index: 0, total: 2, prev: null, next: 'b' });
+  });
+
+  it("stops at the ends: it doesn't wrap around", () => {
+    expect(listPosition(list, 'a')).toEqual({ index: 0, total: 3, prev: null, next: 'b' });
+    expect(listPosition(list, 'c')).toEqual({ index: 2, total: 3, prev: 'b', next: null });
+  });
+
+  it('is nothing without a list to step through', () => {
+    expect(listPosition(undefined, 'a')).toBeNull();
+    expect(listPosition([], 'a')).toBeNull();
+    expect(listPosition(['a'], 'a')).toBeNull();
+    expect(listPosition(list, 'elsewhere')).toBeNull();
   });
 });
 
@@ -110,6 +148,12 @@ function Harness() {
       </button>
       <button type="button" onClick={() => open('tam')}>
         open tam
+      </button>
+      <button type="button" onClick={() => open('muir', ['muir', 'tam'])}>
+        open muir from a list
+      </button>
+      <button type="button" onClick={() => open('tam', ['tam'])}>
+        open tam from another list
       </button>
       <button type="button" onClick={close}>
         close
@@ -174,6 +218,24 @@ describe('useOpenActivity', () => {
       depth: 2,
       cold: false,
     });
+  });
+
+  it('carries the list it was opened from (#64)', async () => {
+    renderAt('/');
+    await userEvent.click(screen.getByRole('button', { name: 'open muir from a list' }));
+    expect(state()).toMatchObject({ depth: 1, list: ['muir', 'tam'] });
+    // A step or a nearby pick from the open detail keeps it, one deeper.
+    await userEvent.click(screen.getByRole('button', { name: 'open tam' }));
+    expect(state()).toMatchObject({ depth: 2, list: ['muir', 'tam'] });
+    // A new list replaces it.
+    await userEvent.click(screen.getByRole('button', { name: 'open tam from another list' }));
+    expect(state()).toMatchObject({ depth: 3, list: ['tam'] });
+  });
+
+  it('opens without a list from anywhere else', async () => {
+    renderAt('/trips/t1');
+    await userEvent.click(screen.getByRole('button', { name: 'open muir' }));
+    expect(state()).not.toHaveProperty('list');
   });
 
   it('opens over the catalog from an activity reached by a link', async () => {

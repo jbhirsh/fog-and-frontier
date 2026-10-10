@@ -36,6 +36,12 @@ function Catalog() {
       <button type="button" onClick={() => open(muirWoods.id)}>
         open Muir Woods
       </button>
+      <button type="button" onClick={() => open(completedHike.id, LIST)}>
+        open the hike from the list
+      </button>
+      <label>
+        Search <input />
+      </label>
       <Link to="/trips">trips</Link>
     </>
   );
@@ -55,6 +61,8 @@ function renderAt(entries: InitialEntry[], activities?: Activity[]) {
 }
 
 const CATALOG = [muirWoods, completedHike, dogFriendlyTidepools];
+// The browse list as shown: filtered and sorted, so not the catalog's order.
+const LIST = [dogFriendlyTidepools.id, completedHike.id, muirWoods.id];
 
 function path() {
   return screen.getByTestId('path').textContent;
@@ -116,6 +124,101 @@ describe('ActivityPage (#86)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(path()).toBe('/');
+  });
+
+  describe('stepping through the list (#64)', () => {
+    const prev = () => screen.getByRole('button', { name: 'Previous adventure' });
+    const next = () => screen.getByRole('button', { name: 'Next adventure' });
+    const openFromList = () =>
+      userEvent.click(screen.getByRole('button', { name: 'open the hike from the list' }));
+
+    it('steps to the neighbours in the order of the list it was opened from', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      const nav = screen.getByRole('navigation', { name: 'Adventures in this list' });
+      expect(within(nav).getByText('2 of 3')).toBeInTheDocument();
+      await userEvent.click(next());
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      expect(screen.getByRole('dialog', { name: muirWoods.name })).toBeInTheDocument();
+      expect(screen.getByText('3 of 3')).toBeInTheDocument();
+      await userEvent.click(prev());
+      await userEvent.click(prev());
+      expect(screen.getByRole('dialog', { name: dogFriendlyTidepools.name })).toBeInTheDocument();
+      expect(screen.getByText('1 of 3')).toBeInTheDocument();
+    });
+
+    it("stops at the ends rather than wrapping", async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.click(next());
+      expect(next()).toBeDisabled();
+      expect(prev()).toBeEnabled();
+      await userEvent.click(prev());
+      await userEvent.click(prev());
+      expect(prev()).toBeDisabled();
+      expect(next()).toBeEnabled();
+    });
+
+    it('retraces the steps with Back, and closes past all of them', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.click(next());
+      await userEvent.click(screen.getByRole('button', { name: 'back' }));
+      expect(path()).toBe(`/activity/${completedHike.id}`);
+      await userEvent.click(next());
+      await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(path()).toBe('/');
+    });
+
+    it('steps with the Left and Right keys', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.keyboard('{ArrowRight}');
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      // Nothing past the end.
+      await userEvent.keyboard('{ArrowRight}');
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      await userEvent.keyboard('{ArrowLeft}{ArrowLeft}');
+      expect(path()).toBe(`/activity/${dogFriendlyTidepools.id}`);
+    });
+
+    it('leaves arrow keys alone with a modifier, or while typing', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}');
+      await userEvent.keyboard('{Alt>}{ArrowRight}{/Alt}');
+      await userEvent.keyboard('{Control>}{ArrowRight}{/Control}');
+      await userEvent.keyboard('{Meta>}{ArrowRight}{/Meta}');
+      expect(path()).toBe(`/activity/${completedHike.id}`);
+      const field = screen.getByRole('textbox', { name: 'Search', hidden: true });
+      field.focus();
+      await userEvent.keyboard('{ArrowRight}');
+      expect(path()).toBe(`/activity/${completedHike.id}`);
+    });
+
+    it('keeps focus on the step it took, or its partner at the end', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.click(prev());
+      // The first activity: Previous is disabled now, so Next has focus.
+      expect(next()).toHaveFocus();
+      await userEvent.click(next());
+      expect(next()).toHaveFocus();
+      // The last: Next is disabled, so Previous has focus.
+      await userEvent.click(next());
+      expect(prev()).toHaveFocus();
+      await userEvent.click(prev());
+      expect(prev()).toHaveFocus();
+    });
+
+    it('shows no steps without a list, or for an activity not in it', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      expect(screen.queryByRole('navigation', { name: 'Adventures in this list' })).toBeNull();
+      await userEvent.keyboard('{ArrowRight}');
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+    });
   });
 
   describe('open animation (#63)', () => {
