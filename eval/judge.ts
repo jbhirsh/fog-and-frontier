@@ -10,6 +10,7 @@
 // All failure text here is built from HTTP status codes and fixed strings only;
 // we never interpolate a caught error, the URL, or the key.
 
+import { HOME_BASE } from '../api/_home.js';
 import type { CheckResult } from './types.js';
 
 const JUDGE_MODEL = 'gemini-2.5-flash';
@@ -363,7 +364,7 @@ ${JSON.stringify(activity, null, 2)}`;
   return { name: REAL_PLACE_CHECK, status: pass ? 'pass' : 'fail', detail };
 }
 
-const EVENTS_SYSTEM_PROMPT = `You judge whether local-events listings are specific, real, attendable events versus generic filler or fabrications. The events are for the Los Gatos / San Francisco Bay Area.
+const EVENTS_SYSTEM_PROMPT = `You judge whether local-events listings are specific, real, attendable events versus generic filler or fabrications. The events are for the ${HOME_BASE} / San Francisco Bay Area.
 
 For each event decide "plausible":
 - plausible=true: a specific, dated, real-sounding event at a real, nameable venue — a concert, farmers market, festival, gallery opening, group hike, race, etc. — with a concrete blurb that fits the name and location.
