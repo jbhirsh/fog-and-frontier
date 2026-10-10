@@ -372,7 +372,8 @@ export const activities: Activity[] = [
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
-      'https://upload.wikimedia.org/wikipedia/commons/1/13/Tunnel_View%2C_Yosemite_Valley%2C_Yosemite_NP_-_Diliff.jpg',
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Cook%27s_Meadow.jpg/1280px-Cook%27s_Meadow.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    coverCredit: 'Photo: Win Mon, CC BY-SA 4.0, via Wikimedia Commons',
     allTrailsUrl:
       'https://www.alltrails.com/trail/us/california/sentinel-meadow-cooks-meadow-loop-trail',
     allTrailsRating: 4.6,
@@ -783,7 +784,8 @@ export const activities: Activity[] = [
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
-      'https://upload.wikimedia.org/wikipedia/commons/1/1f/Ford_house%2C_Mendocino%2C_California.jpg',
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Mendocino_Headlands_State_Park_-_DSC01832.JPG/1280px-Mendocino_Headlands_State_Park_-_DSC01832.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    coverCredit: 'Photo: Daderot, CC0, via Wikimedia Commons',
   },
 
   // ─────────────── Scenic West Coast ───────────────
@@ -938,7 +940,8 @@ export const activities: Activity[] = [
     durationDetail: 'Full Day or Weekend',
     difficulty: 'moderate',
     coverImage:
-      'https://upload.wikimedia.org/wikipedia/commons/3/3f/Julia_Pfeiffer_Burns_State_Park.jpg',
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Big_Sur_River_in_Pfeiffer_Big_Sur_State_Park_01.jpg/1280px-Big_Sur_River_in_Pfeiffer_Big_Sur_State_Park_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    coverCredit: 'Photo: Joe Mabel, CC BY-SA 4.0, via Wikimedia Commons',
   },
   {
     id: 'partington-cove-trail',
@@ -1006,7 +1009,8 @@ export const activities: Activity[] = [
     location: { city: 'Avalon, CA', coords: { lat: 33.3408, lng: -118.3278 } },
     duration: 'Multi-Day',
     coverImage:
-      'https://upload.wikimedia.org/wikipedia/commons/d/d1/Avalon_Catalina_photo_D_Ramey_Logan.jpg',
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Santa_Catalina_Island_-_panoramio.jpg/1280px-Santa_Catalina_Island_-_panoramio.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    coverCredit: 'Photo: Jim Helvey, CC BY 3.0, via Wikimedia Commons',
   },
   {
     id: 'channel-islands',
