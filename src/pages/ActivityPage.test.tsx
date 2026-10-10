@@ -118,6 +118,41 @@ describe('ActivityPage (#86)', () => {
     expect(path()).toBe('/');
   });
 
+  describe('open animation (#63)', () => {
+    const animated = (el: HTMLElement) => el.className.includes('motion-safe:animate-');
+    const scrim = () => screen.getByRole('button', { name: 'Close activity details' });
+
+    it('animates the activity it opens with', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      const dialog = screen.getByRole('dialog', { name: muirWoods.name });
+      expect(dialog.className).toContain('motion-safe:animate-sheet-in');
+      expect(dialog.className).toContain('md:motion-safe:animate-dialog-in');
+      expect(scrim().className).toContain('motion-safe:animate-scrim-in');
+    });
+
+    it("doesn't replay when it moves to another activity, or back", async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      await userEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', { name: /Test Completed Hike/ }),
+      );
+      expect(animated(screen.getByRole('dialog', { name: completedHike.name }))).toBe(false);
+      expect(animated(scrim())).toBe(false);
+      await userEvent.click(screen.getByRole('button', { name: 'back' }));
+      // Back to the one it opened with: the panel was on screen all along.
+      expect(animated(screen.getByRole('dialog', { name: muirWoods.name }))).toBe(false);
+      expect(animated(scrim())).toBe(false);
+    });
+
+    it('animates the not-found dialog in too', () => {
+      renderAt(['/activity/no-such-thing'], CATALOG);
+      expect(screen.getByRole('dialog', { name: 'Activity not found' }).className).toContain(
+        'motion-safe:animate-dialog-in',
+      );
+    });
+  });
+
   it('says an unknown id is not found, rather than bouncing home', async () => {
     renderAt(['/activity/no-such-thing'], CATALOG);
     const dialog = screen.getByRole('dialog', { name: 'Activity not found' });

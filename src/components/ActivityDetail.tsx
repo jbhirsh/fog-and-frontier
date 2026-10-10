@@ -25,13 +25,23 @@ interface Props {
   showUploads?: boolean;
   /** Opens a nearby activity; without it, the detail swaps in place. */
   onSelectNearby?: (activity: Activity) => void;
+  /**
+   * Animates the open (#63). Off when the detail replaces another one already
+   * on screen, so moving between activities doesn't replay it.
+   */
+  animateIn?: boolean;
 }
+
+// Each needs motion-safe: on its own, so reduced motion opens with a cut.
+const SCRIM_IN = 'motion-safe:animate-scrim-in';
+const PANEL_IN = 'motion-safe:animate-sheet-in md:motion-safe:animate-dialog-in';
 
 export function ActivityDetail({
   activity: initial,
   onClose,
   showUploads,
   onSelectNearby,
+  animateIn = true,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [override, setOverride] = useState<Activity | null>(null);
@@ -112,14 +122,14 @@ export function ActivityDetail({
         type="button"
         aria-label="Close activity details"
         onClick={onClose}
-        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default"
+        className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default ${animateIn ? SCRIM_IN : ''}`}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={activity.name}
         ref={scrollRef}
-        className="relative bg-surface-container-lowest w-full max-w-3xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
+        className={`relative bg-surface-container-lowest w-full max-w-3xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl ${animateIn ? PANEL_IN : ''}`}
       >
         <div className="relative aspect-video bg-surface-variant">
           <CoverImage

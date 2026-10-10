@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ActivityDetail } from '../components/ActivityDetail';
 import { useCloseActivity, useOpenActivity } from '../lib/activityRoute';
@@ -17,6 +17,11 @@ export function ActivityPage() {
   const { activities, loading, error } = useUserActivities();
   const open = useOpenActivity();
   const close = useCloseActivity();
+  // The page stays mounted while Back, Forward or a nearby pick moves between
+  // activities, so only the one it opened with animates in (#63), and only
+  // until it moves on: coming back to it doesn't replay the open.
+  const [openedWith, setOpenedWith] = useState(id);
+  if (openedWith !== undefined && id !== openedWith) setOpenedWith(undefined);
 
   const activity = activities.find((a) => a.id === id);
   if (activity) {
@@ -29,6 +34,7 @@ export function ActivityPage() {
         onClose={close}
         onSelectNearby={(a) => open(a.id)}
         showUploads={!!activity.completed}
+        animateIn={activity.id === openedWith}
       />
     );
   }
@@ -76,13 +82,13 @@ function Missing({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default"
+        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default motion-safe:animate-scrim-in"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="activity-missing-title"
-        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg text-center"
+        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg text-center motion-safe:animate-dialog-in"
       >
         <span className="material-symbols-outlined text-on-surface-variant text-5xl">
           wrong_location
