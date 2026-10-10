@@ -8,7 +8,7 @@ import {
   useNavigate,
   type InitialEntry,
 } from 'react-router-dom';
-import { render, screen, within } from '../test/render';
+import { act, render, screen, within } from '../test/render';
 import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 import type { Activity } from '../data/types';
 import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
@@ -24,6 +24,9 @@ function Probe() {
       <button type="button" onClick={() => void navigate(-1)}>
         back
       </button>
+      <button type="button" onClick={() => void navigate(1)}>
+        forward
+      </button>
     </>
   );
 }
@@ -36,6 +39,22 @@ function Catalog() {
       <button type="button" onClick={() => open(muirWoods.id)}>
         open Muir Woods
       </button>
+      <button type="button" onClick={() => open(completedHike.id, LIST)}>
+        open the hike from the list
+      </button>
+      <label>
+        Search <input />
+      </label>
+      <label>
+        Notes <textarea />
+      </label>
+      <label>
+        Sort <select><option>Name</option></select>
+      </label>
+      <div role="textbox" aria-label="Rich" contentEditable suppressContentEditableWarning />
+      <div role="group" aria-label="Rating">
+        <button type="button">3 stars</button>
+      </div>
       <Link to="/trips">trips</Link>
     </>
   );
@@ -55,6 +74,8 @@ function renderAt(entries: InitialEntry[], activities?: Activity[]) {
 }
 
 const CATALOG = [muirWoods, completedHike, dogFriendlyTidepools];
+// The browse list as shown: filtered and sorted, so not the catalog's order.
+const LIST = [dogFriendlyTidepools.id, completedHike.id, muirWoods.id];
 
 function path() {
   return screen.getByTestId('path').textContent;
@@ -118,6 +139,162 @@ describe('ActivityPage (#86)', () => {
     expect(path()).toBe('/');
   });
 
+  describe('stepping through the list (#64)', () => {
+    const prev = () => screen.getByRole('button', { name: 'Previous adventure' });
+    const next = () => screen.getByRole('button', { name: 'Next adventure' });
+    const openFromList = () =>
+      userEvent.click(screen.getByRole('button', { name: 'open the hike from the list' }));
+
+    it('steps to the neighbours in the order of the list it was opened from', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      const nav = screen.getByRole('navigation', { name: 'Adventure 2 of 3 in this list' });
+      expect(within(nav).getByText('2 of 3')).toBeInTheDocument();
+      await userEvent.click(next());
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      expect(screen.getByRole('dialog', { name: muirWoods.name })).toBeInTheDocument();
+      expect(screen.getByText('3 of 3')).toBeInTheDocument();
+      await userEvent.click(prev());
+      await userEvent.click(prev());
+      expect(screen.getByRole('dialog', { name: dogFriendlyTidepools.name })).toBeInTheDocument();
+      expect(screen.getByText('1 of 3')).toBeInTheDocument();
+    });
+
+    it("stops at the ends rather than wrapping", async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.click(next());
+      expect(next()).toBeDisabled();
+      expect(prev()).toBeEnabled();
+      await userEvent.click(prev());
+      await userEvent.click(prev());
+      expect(prev()).toBeDisabled();
+      expect(next()).toBeEnabled();
+    });
+
+    it('retraces the steps with Back, and closes past all of them', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.click(next());
+      await userEvent.click(screen.getByRole('button', { name: 'back' }));
+      expect(path()).toBe(`/activity/${completedHike.id}`);
+      await userEvent.click(next());
+      await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(path()).toBe('/');
+    });
+
+    it('steps with the Left and Right keys', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.keyboard('{ArrowRight}');
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      // Nothing past the end.
+      await userEvent.keyboard('{ArrowRight}');
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      await userEvent.keyboard('{ArrowLeft}{ArrowLeft}');
+      expect(path()).toBe(`/activity/${dogFriendlyTidepools.id}`);
+    });
+
+    it('leaves arrow keys alone with a modifier, or while typing', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}');
+      await userEvent.keyboard('{Alt>}{ArrowRight}{/Alt}');
+      await userEvent.keyboard('{Control>}{ArrowRight}{/Control}');
+      await userEvent.keyboard('{Meta>}{ArrowRight}{/Meta}');
+      expect(path()).toBe(`/activity/${completedHike.id}`);
+      for (const owner of [
+        screen.getByRole('textbox', { name: 'Search', hidden: true }),
+        screen.getByRole('textbox', { name: 'Notes', hidden: true }),
+        screen.getByRole('combobox', { name: 'Sort', hidden: true }),
+        screen.getByRole('textbox', { name: 'Rich', hidden: true }),
+        screen.getByRole('button', { name: '3 stars', hidden: true }),
+      ]) {
+        owner.focus();
+        await userEvent.keyboard('{ArrowRight}');
+        expect(path()).toBe(`/activity/${completedHike.id}`);
+      }
+    });
+
+    it('takes one step per press: a held key, or one already handled, does nothing', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', repeat: true }));
+      const handled = new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true });
+      handled.preventDefault();
+      window.dispatchEvent(handled);
+      expect(path()).toBe(`/activity/${completedHike.id}`);
+      // A plain press steps, and marks the key handled.
+      const press = new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true });
+      await act(async () => {
+        window.dispatchEvent(press);
+        await Promise.resolve();
+      });
+      expect(press.defaultPrevented).toBe(true);
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+    });
+
+    it('pushes one entry for two quick steps, so close still leaves them all', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      // Two presses before the router has applied the first.
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        await Promise.resolve();
+      });
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(path()).toBe('/');
+    });
+
+    it('steps over an activity removed from the catalog since', async () => {
+      renderAt(['/'], [muirWoods, completedHike]);
+      await openFromList();
+      // The tide pools were first in the list, but aren't in the catalog now.
+      expect(screen.getByText('1 of 2')).toBeInTheDocument();
+      expect(prev()).toBeDisabled();
+      await userEvent.click(next());
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+    });
+
+    it("moves focus only on a step, not on a later Back", async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.click(next());
+      expect(prev()).toHaveFocus();
+      await userEvent.click(screen.getByRole('button', { name: 'back' }));
+      expect(path()).toBe(`/activity/${completedHike.id}`);
+      expect(prev()).not.toHaveFocus();
+      expect(next()).not.toHaveFocus();
+    });
+
+    it('keeps focus on the step it took, or its partner at the end', async () => {
+      renderAt(['/'], CATALOG);
+      await openFromList();
+      await userEvent.click(prev());
+      // The first activity: Previous is disabled now, so Next has focus.
+      expect(next()).toHaveFocus();
+      await userEvent.click(next());
+      expect(next()).toHaveFocus();
+      // The last: Next is disabled, so Previous has focus.
+      await userEvent.click(next());
+      expect(prev()).toHaveFocus();
+      await userEvent.click(prev());
+      expect(prev()).toHaveFocus();
+    });
+
+    it('shows no steps without a list, or for an activity not in it', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      expect(screen.queryByRole('navigation', { name: /in this list/ })).toBeNull();
+      await userEvent.keyboard('{ArrowRight}');
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+    });
+  });
+
   describe('open animation (#63)', () => {
     const animated = (el: HTMLElement) => el.className.includes('motion-safe:animate-');
     const scrim = () => screen.getByRole('button', { name: 'Close activity details' });
@@ -145,11 +322,22 @@ describe('ActivityPage (#86)', () => {
       expect(animated(scrim())).toBe(false);
     });
 
-    it('animates the not-found dialog in too', () => {
-      renderAt(['/activity/no-such-thing'], CATALOG);
+    it('animates the not-found dialog in too, unless it replaces a detail', async () => {
+      const { unmount } = renderAt(['/activity/no-such-thing'], CATALOG);
       expect(screen.getByRole('dialog', { name: 'Activity not found' }).className).toContain(
         'motion-safe:animate-dialog-in',
       );
+      expect(
+        screen.getByRole('button', { name: 'Close' }).className,
+      ).toContain('motion-safe:animate-scrim-in');
+      unmount();
+      // Back from a dead link onto an open detail... and forward again.
+      renderAt(['/', `/activity/${muirWoods.id}`, '/activity/no-such-thing'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'back' }));
+      await userEvent.click(screen.getByRole('button', { name: 'forward' }));
+      expect(path()).toBe('/activity/no-such-thing');
+      expect(animated(screen.getByRole('dialog', { name: 'Activity not found' }))).toBe(false);
+      expect(animated(screen.getByRole('button', { name: 'Close' }))).toBe(false);
     });
   });
 
@@ -218,6 +406,16 @@ describe('ActivityPage (#86)', () => {
     });
     afterEach(() => {
       delete (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__;
+    });
+
+    it('leaves arrow keys to the edit form while it is up (#64)', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(
+        screen.getByRole('button', { name: 'open the hike from the list' }),
+      );
+      await userEvent.click(screen.getByRole('button', { name: /EDIT ACTIVITY/ }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      expect(path()).toBe(`/activity/${completedHike.id}`);
     });
 
     // Your Photos is owner-only (#19).
