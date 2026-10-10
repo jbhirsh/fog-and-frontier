@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { ActivityDetail } from '../components/ActivityDetail';
-import { useCloseActivity, useOpenActivity } from '../lib/activityRoute';
+import {
+  listPosition,
+  type ListPosition,
+  readActivityState,
+  useCloseActivity,
+  useOpenActivity,
+} from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
 
 /**
@@ -23,6 +29,23 @@ export function ActivityPage() {
   const [openedWith, setOpenedWith] = useState(id);
   if (openedWith !== undefined && id !== openedWith) setOpenedWith(undefined);
 
+  // Stepping through the list it was opened from (#64): each step opens the
+  // neighbour one deeper, so Back retraces them and close leaves them all.
+  // An id no longer in the catalog (deleted since the list was shown) is
+  // stepped over rather than onto a dead end.
+  const location = useLocation();
+  const [stepped, setStepped] = useState<{ to: string; by: 'prev' | 'next' }>();
+  const list = readActivityState(location.state)?.list?.filter((listed) =>
+    activities.some((a) => a.id === listed),
+  );
+  const position = listPosition(list, id ?? '');
+  const step = (to: string, by: 'prev' | 'next') => {
+    setStepped({ to, by });
+    open(to);
+  };
+  // Focus follows a step only onto the activity it led to, not a later Back.
+  const cameBy = stepped?.to === id ? stepped?.by : undefined;
+
   const activity = activities.find((a) => a.id === id);
   if (activity) {
     return (
@@ -35,29 +58,54 @@ export function ActivityPage() {
         onSelectNearby={(a) => open(a.id)}
         showUploads={!!activity.completed}
         animateIn={activity.id === openedWith}
+        sequence={position ? sequenceOf(position, step, cameBy) : undefined}
       />
     );
   }
   if (loading) return null;
+  const animate = id === openedWith;
   return error ? (
-    <Missing title="Couldn't load this activity" message={error} onClose={close} />
+    <Missing
+      title="Couldn't load this activity"
+      message={error}
+      onClose={close}
+      animate={animate}
+    />
   ) : (
     <Missing
       title="Activity not found"
       message="This link may be out of date, or the activity was removed from the catalog."
       onClose={close}
+      animate={animate}
     />
   );
+}
+
+function sequenceOf(
+  { index, total, prev, next }: ListPosition,
+  step: (to: string, by: 'prev' | 'next') => void,
+  cameBy: 'prev' | 'next' | undefined,
+) {
+  return {
+    index,
+    total,
+    onPrev: prev ? () => step(prev, 'prev') : undefined,
+    onNext: next ? () => step(next, 'next') : undefined,
+    cameBy,
+  };
 }
 
 function Missing({
   title,
   message,
   onClose,
+  animate,
 }: {
   title: string;
   message: string;
   onClose: () => void;
+  /** Off when it replaces a detail already on screen, like the detail's own. */
+  animate: boolean;
 }) {
   const action = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -82,13 +130,13 @@ function Missing({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default motion-safe:animate-scrim-in"
+        className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default ${animate ? 'motion-safe:animate-scrim-in' : ''}`}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="activity-missing-title"
-        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg text-center motion-safe:animate-dialog-in"
+        className={`relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg text-center ${animate ? 'motion-safe:animate-dialog-in' : ''}`}
       >
         <span className="material-symbols-outlined text-on-surface-variant text-5xl">
           wrong_location

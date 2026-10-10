@@ -324,12 +324,18 @@ export function CuratedAdventures() {
     () => (bounds ? filterByBounds(results, bounds) : results),
     [bounds, results],
   );
+  // The list as shown, which an activity opened from here steps through (#64).
+  const visibleIds = useMemo(() => visibleResults.map((a) => a.id), [visibleResults]);
+  const openFromList = useCallback(
+    (id: string) => openActivity(id, visibleIds),
+    [openActivity, visibleIds],
+  );
 
   // Pin click (#94): open detail and scroll the matching card into view. The
   // card exists in Split and in the mobile map's sheet; in desktop Map mode the
   // querySelector simply returns null.
   function handlePinActivate(activity: Activity) {
-    openActivity(activity.id);
+    openFromList(activity.id);
     if (typeof document === 'undefined') return;
     const safeId =
       typeof CSS !== 'undefined' && CSS.escape
@@ -371,7 +377,7 @@ export function CuratedAdventures() {
               if (selectionMode) {
                 toggleSelected(a.id);
               } else {
-                openActivity(a.id);
+                openFromList(a.id);
               }
             }}
             actionSlot={
@@ -694,7 +700,7 @@ export function CuratedAdventures() {
             <ActivityMap
               fullBleed
               activities={results}
-              onSelect={(a) => openActivity(a.id)}
+              onSelect={(a) => openFromList(a.id)}
               onActivate={handlePinActivate}
               highlightedId={hoveredId}
               onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
@@ -734,7 +740,7 @@ export function CuratedAdventures() {
             <div className="h-full w-full">
               <ActivityMap
                 activities={results}
-                onSelect={(a) => openActivity(a.id)}
+                onSelect={(a) => openFromList(a.id)}
                 onActivate={handlePinActivate}
                 highlightedId={hoveredId}
                 onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
@@ -766,7 +772,7 @@ export function CuratedAdventures() {
               <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
                 <ActivityMap
                   activities={results}
-                  onSelect={(a) => openActivity(a.id)}
+                  onSelect={(a) => openFromList(a.id)}
                   onActivate={handlePinActivate}
                   highlightedId={hoveredId}
                   onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
