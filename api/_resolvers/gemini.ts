@@ -2,6 +2,10 @@ import { findCoverImage } from '../_coverImage.js';
 import { badGateway, badInput } from '../_gqlError.js';
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
+import { HOME_BASE } from '../_home.js';
+
+// The city alone, for "some San Jose, some Bay Area".
+const HOME_CITY = HOME_BASE.split(',')[0];
 
 // Gemini-backed resolvers (owner-gated paid calls): generateActivity +
 // alltrailsLookup mutations and the lazy `discover` query. Upstream failures
@@ -160,11 +164,11 @@ const OPTIONAL_GENERATED_ENUMS: Record<string, readonly string[]> = {
 const GENERATE_SYSTEM_PROMPT = `You are a Bay Area outdoor-activity research assistant for a personal travel app called "Fog and Frontier". Given a user's free-form title and optional notes/links, populate a structured Activity record.
 
 Rules:
-- The home base is Los Gatos, CA. Most activities are within a few hours' drive of the SF Bay Area, but coastal Oregon, Washington, and SoCal are also valid.
+- The home base is ${HOME_BASE}. Most activities are within a few hours' drive of the SF Bay Area, but coastal Oregon, Washington, and SoCal are also valid.
 - Be factual. Prefer well-known landmarks/trails. If you cannot verify something (e.g. exact AllTrails URL, hike distance), omit that optional field rather than guess.
 - Coordinates: provide best-known lat/lng for the activity (the trailhead, the restaurant, the park entrance).
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
-- "duration" should reflect realistic round-trip time from Los Gatos including driving.
+- "duration" should reflect realistic round-trip time from ${HOME_BASE} including driving.
 - "shortDescription" should be vivid and specific, not generic.
 - "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.
 - "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).
@@ -402,7 +406,7 @@ async function alltrailsLookup(
 
 // --- discover --------------------------------------------------------------
 
-const DISCOVER_SYSTEM_PROMPT = `You are a Bay Area local-events research assistant for a personal travel app. The user lives in Los Gatos, CA. Use Google Search to find specific, real, time-bound events happening in the requested window — concerts, markets, festivals, art openings, hikes-with-groups, free outdoor stuff, anything interesting.
+const DISCOVER_SYSTEM_PROMPT = `You are a Bay Area local-events research assistant for a personal travel app. The user lives in ${HOME_BASE}. Use Google Search to find specific, real, time-bound events happening in the requested window — concerts, markets, festivals, art openings, hikes-with-groups, free outdoor stuff, anything interesting.
 
 Output rules:
 - Return ONLY a single JSON array of event objects. No prose, no markdown fences.
@@ -412,7 +416,7 @@ Output rules:
 - "location" should be the venue + city, e.g. "Plaza Park, Los Gatos".
 - "blurb" is one short sentence (~140 chars max), specific and concrete, not generic.
 - "sourceUrl" must be a real URL from your search — never invent one. If you're not confident, omit the event.
-- 6-12 events total. Prefer geographic diversity (some Los Gatos, some Bay Area). Mix free and ticketed.
+- 6-12 events total. Prefer geographic diversity (some ${HOME_CITY}, some Bay Area). Mix free and ticketed.
 - Skip generic "things to do in SF" listicles — only specific dated events.`;
 
 function rangeToPrompt(range: string): string {
@@ -424,14 +428,14 @@ function rangeToPrompt(range: string): string {
   });
   switch (range) {
     case 'today':
-      return `Today is ${today}. Find events happening today in or within driving distance of Los Gatos, CA.`;
+      return `Today is ${today}. Find events happening today in or within driving distance of ${HOME_BASE}.`;
     case 'tomorrow':
-      return `Today is ${today}. Find events happening tomorrow in or within driving distance of Los Gatos, CA.`;
+      return `Today is ${today}. Find events happening tomorrow in or within driving distance of ${HOME_BASE}.`;
     case 'week':
-      return `Today is ${today}. Find events happening in the next 7 days in or within driving distance of Los Gatos, CA.`;
+      return `Today is ${today}. Find events happening in the next 7 days in or within driving distance of ${HOME_BASE}.`;
     case 'weekend':
     default:
-      return `Today is ${today}. Find events happening this weekend (or the next upcoming Saturday and Sunday if today is mid-week) in or within driving distance of Los Gatos, CA.`;
+      return `Today is ${today}. Find events happening this weekend (or the next upcoming Saturday and Sunday if today is mid-week) in or within driving distance of ${HOME_BASE}.`;
   }
 }
 

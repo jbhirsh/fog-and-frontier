@@ -264,7 +264,7 @@ export const activities: Activity[] = [
       coords: { lat: 37.7217, lng: -119.6464 },
     },
     duration: 'Multi-Day',
-    durationDetail: '~3.5h drive each way from Campbell — plan 2–3 nights',
+    durationDetail: '~3.5h drive each way from San Jose — plan 2–3 nights',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -287,7 +287,7 @@ export const activities: Activity[] = [
       coords: { lat: 37.7568, lng: -119.5968 },
     },
     duration: 'Multi-Day',
-    durationDetail: 'Hike ~30 min; trip is overnight from Campbell',
+    durationDetail: 'Hike ~30 min; trip is overnight from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -313,7 +313,7 @@ export const activities: Activity[] = [
       coords: { lat: 37.7168, lng: -119.6465 },
     },
     duration: 'Multi-Day',
-    durationDetail: 'Hike ~20–30 min; trip is overnight from Campbell',
+    durationDetail: 'Hike ~20–30 min; trip is overnight from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -340,7 +340,7 @@ export const activities: Activity[] = [
       coords: { lat: 37.7485, lng: -119.5491 },
     },
     duration: 'Multi-Day',
-    durationDetail: 'Hike ~1–2 hours; trip is overnight from Campbell',
+    durationDetail: 'Hike ~1–2 hours; trip is overnight from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -368,7 +368,7 @@ export const activities: Activity[] = [
       coords: { lat: 37.7448, lng: -119.5974 },
     },
     duration: 'Multi-Day',
-    durationDetail: 'Hike ~45 min; trip is overnight from Campbell',
+    durationDetail: 'Hike ~45 min; trip is overnight from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -396,7 +396,7 @@ export const activities: Activity[] = [
       coords: { lat: 37.7155, lng: -119.6772 },
     },
     duration: 'Multi-Day',
-    durationDetail: 'Quick stop; trip is overnight from Campbell',
+    durationDetail: 'Quick stop; trip is overnight from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -419,7 +419,7 @@ export const activities: Activity[] = [
     },
     duration: 'Multi-Day',
     durationDetail:
-      '~1h drive each way from the valley; trip is overnight from Campbell',
+      '~1h drive each way from the valley; trip is overnight from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -442,7 +442,7 @@ export const activities: Activity[] = [
       coords: { lat: 37.7434, lng: -119.5713 },
     },
     duration: 'Multi-Day',
-    durationDetail: 'Meal stop; trip is overnight from Campbell',
+    durationDetail: 'Meal stop; trip is overnight from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -469,7 +469,7 @@ export const activities: Activity[] = [
     parkType: 'national',
     location: { city: 'San Francisco', coords: { lat: 37.7973, lng: -122.4793 } },
     duration: '1-2 Hours',
-    durationDetail: '~45 min on trail; short drive from Campbell (~1 hr each way)',
+    durationDetail: '~45 min on trail; short drive from San Jose (~1 hr each way)',
     difficulty: 'moderate',
     dogFriendly: false,
     coverImage:
@@ -492,7 +492,7 @@ export const activities: Activity[] = [
     parkType: 'state',
     location: { city: 'Mill Valley', coords: { lat: 37.9046, lng: -122.604 } },
     duration: 'Half Day',
-    durationDetail: '~2-2.5 hr loop; ~1.5 hr drive each way from Campbell',
+    durationDetail: '~2-2.5 hr loop; ~1.5 hr drive each way from San Jose',
     difficulty: 'moderate',
     dogFriendly: false,
     coverImage:
@@ -516,7 +516,7 @@ export const activities: Activity[] = [
     parkType: 'state',
     location: { city: 'Mill Valley', coords: { lat: 37.9296, lng: -122.5793 } },
     duration: 'Half Day',
-    durationDetail: '~30-60 min on trail; ~1.5 hr drive each way from Campbell',
+    durationDetail: '~30-60 min on trail; ~1.75 hr drive each way from San Jose',
     difficulty: 'easy',
     dogFriendly: false,
     coverImage:
@@ -539,7 +539,7 @@ export const activities: Activity[] = [
     parkType: 'state',
     location: { city: 'Fairfax', coords: { lat: 37.9367, lng: -122.6379 } },
     duration: 'Half Day',
-    durationDetail: '~2-2.5 hr hike; ~1.75 hr drive each way from Campbell',
+    durationDetail: '~2-2.5 hr hike; ~1.75 hr drive each way from San Jose',
     difficulty: 'advanced',
     dogFriendly: false,
     coverImage:
@@ -561,7 +561,7 @@ export const activities: Activity[] = [
     parkType: 'regional',
     location: { city: 'Redwood City', coords: { lat: 37.4291, lng: -122.3148 } },
     duration: 'Half Day',
-    durationDetail: '~2-2.5 hr loop; ~45 min drive each way from Campbell',
+    durationDetail: '~2-2.5 hr loop; ~45 min drive each way from San Jose',
     difficulty: 'moderate',
     dogFriendly: false,
     coverImage:
@@ -583,7 +583,7 @@ export const activities: Activity[] = [
     parkType: 'city',
     location: { city: 'San Francisco', coords: { lat: 37.7706, lng: -122.4772 } },
     duration: 'Half Day',
-    durationDetail: '~30-60 min loop; ~1 hr drive each way from Campbell',
+    durationDetail: '~30-60 min loop; ~1 hr drive each way from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -606,7 +606,7 @@ export const activities: Activity[] = [
     parkType: 'state',
     location: { city: 'Los Gatos', coords: { lat: 37.2306, lng: -122.0974 } },
     duration: 'Half Day',
-    durationDetail: '~2.5-3 hr loop; ~25 min drive each way from Campbell',
+    durationDetail: '~2.5-3 hr loop; ~40 min drive each way from San Jose',
     difficulty: 'moderate',
     dogFriendly: false,
     coverImage:
@@ -629,7 +629,7 @@ export const activities: Activity[] = [
     parkType: 'national',
     location: { city: 'Pacifica', coords: { lat: 37.6192, lng: -122.4865 } },
     duration: '1-2 Hours',
-    durationDetail: '~1-1.5 hr loop; ~50 min drive each way from Campbell',
+    durationDetail: '~1-1.5 hr loop; ~50 min drive each way from San Jose',
     difficulty: 'moderate',
     dogFriendly: true,
     coverImage:
@@ -651,7 +651,7 @@ export const activities: Activity[] = [
     parkType: 'none',
     location: { city: 'Davenport', coords: { lat: 37.0037, lng: -122.1864 } },
     duration: 'Half Day',
-    durationDetail: '~30-60 min on trail; ~1 hr drive each way from Campbell',
+    durationDetail: '~30-60 min on trail; ~1 hr drive each way from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -675,7 +675,7 @@ export const activities: Activity[] = [
     location: { city: 'Los Altos Hills', coords: { lat: 37.3514, lng: -122.161 } },
     duration: 'Half Day',
     durationDetail:
-      '~2-3 hr depending on loop; ~15-20 min drive each way from Campbell',
+      '~2-3 hr depending on loop; ~30 min drive each way from San Jose',
     difficulty: 'moderate',
     dogFriendly: false,
     coverImage:
@@ -799,7 +799,7 @@ export const activities: Activity[] = [
     parkType: 'state',
     location: { city: 'Brookings', coords: { lat: 42.1201, lng: -124.3553 } },
     duration: 'Multi-Day',
-    durationDetail: '~9 hour drive from Campbell',
+    durationDetail: '~9 hour drive from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -840,7 +840,7 @@ export const activities: Activity[] = [
     parkType: 'none',
     location: { city: 'Mammoth Lakes', coords: { lat: 37.6606, lng: -118.8281 } },
     duration: 'Multi-Day',
-    durationDetail: '~6-7 hour drive from Campbell',
+    durationDetail: '~6-7 hour drive from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -859,7 +859,7 @@ export const activities: Activity[] = [
     parkType: 'none',
     location: { city: 'Mammoth Lakes', coords: { lat: 37.6273, lng: -118.9899 } },
     duration: 'Multi-Day',
-    durationDetail: '~6-7 hour drive from Campbell',
+    durationDetail: '~6-7 hour drive from San Jose',
     difficulty: 'moderate',
     dogFriendly: true,
     coverImage:
@@ -877,7 +877,7 @@ export const activities: Activity[] = [
     parkType: 'none',
     location: { city: 'Lone Pine', coords: { lat: 36.6147, lng: -118.0959 } },
     duration: 'Multi-Day',
-    durationDetail: '~7-8 hour drive from Campbell',
+    durationDetail: '~7-8 hour drive from San Jose',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:
@@ -895,7 +895,7 @@ export const activities: Activity[] = [
     parkType: 'none',
     location: { city: 'June Lake', coords: { lat: 37.7511, lng: -119.1139 } },
     duration: 'Multi-Day',
-    durationDetail: '~6-7 hour drive from Campbell; best in fall',
+    durationDetail: '~6-7 hour drive from San Jose; best in fall',
     difficulty: 'easy',
     dogFriendly: true,
     coverImage:

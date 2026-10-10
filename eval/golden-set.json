@@ -421,7 +421,7 @@
           "minPlausibleFraction": 0.8
         }
       },
-      "notes": "Live Google-Search-grounded events for 'this weekend' near Los Gatos. Results are date-dependent and non-deterministic, so this is graded structurally (event count 3–14 — the prompt asks for 6–12, the bounds allow slack — ≥80% of events carry name+startDate+sourceUrl), by date-window overlap (±1 day slack), by name-dedupe, and by an LLM judge requiring ≥80% plausible events. No coordinates. As of 2026-07-09."
+      "notes": "Live Google-Search-grounded events for 'this weekend' near San Jose. Results are date-dependent and non-deterministic, so this is graded structurally (event count 3–14 — the prompt asks for 6–12, the bounds allow slack — ≥80% of events carry name+startDate+sourceUrl), by date-window overlap (±1 day slack), by name-dedupe, and by an LLM judge requiring ≥80% plausible events. No coordinates. As of 2026-07-09."
     },
     {
       "id": "disc-week",
@@ -442,7 +442,7 @@
           "minPlausibleFraction": 0.8
         }
       },
-      "notes": "Live events for 'the next 7 days' near Los Gatos. Same structural + date-window + dedupe + judge grading as the other discover cases; results are live-web and date-dependent. No coordinates. As of 2026-07-09."
+      "notes": "Live events for 'the next 7 days' near San Jose. Same structural + date-window + dedupe + judge grading as the other discover cases; results are live-web and date-dependent. No coordinates. As of 2026-07-09."
     },
     {
       "id": "disc-today",
@@ -463,7 +463,7 @@
           "minPlausibleFraction": 0.8
         }
       },
-      "notes": "Live events for 'today' near Los Gatos — the tightest window, so the most likely of the three to legitimately return few results; minEvents=3 is a lenient floor. Graded structurally + date-window + dedupe + judge. No coordinates. As of 2026-07-09."
+      "notes": "Live events for 'today' near San Jose — the tightest window, so the most likely of the three to legitimately return few results; minEvents=3 is a lenient floor. Graded structurally + date-window + dedupe + judge. No coordinates. As of 2026-07-09."
     },
     {
       "id": "at-mission-peak",
