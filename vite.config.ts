@@ -77,7 +77,6 @@ export default defineConfig({
         'src/vite-env.d.ts',
         'src/test/**',
         'src/**/*.test.{ts,tsx}',
-        'src/data/activities.ts',
         'src/data/types.ts',
         'api/**/*.test.ts',
         'api/_schema.ts', // SDL string — no executable branches.
