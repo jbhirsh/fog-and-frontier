@@ -956,8 +956,8 @@ export const activities: Activity[] = [
     location: { city: 'Big Sur, CA', coords: { lat: 36.177, lng: -121.6937 } },
     duration: '1-2 Hours',
     difficulty: 'moderate',
-    coverImage:
-      'https://upload.wikimedia.org/wikipedia/commons/3/3f/Julia_Pfeiffer_Burns_State_Park.jpg',
+    coverImage: 'https://live.staticflickr.com/65535/49569443717_6cf862db8f_b.jpg',
+    coverCredit: 'Photo: minka6, CC BY 2.0, via Flickr',
     allTrailsUrl: 'https://www.alltrails.com/trail/us/california/partington-cove-trail',
     allTrailsRating: 4.8,
     hikeDistanceMiles: 1.2,
