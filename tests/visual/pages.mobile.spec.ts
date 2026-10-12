@@ -274,6 +274,11 @@ test.describe('visual regression — trips (mobile)', () => {
 
   for (const view of TRIP_VIEWS) {
     test(view.name, async ({ page }) => {
+      // WebKit fills an empty date field with today's date in grey, so pin
+      // the date the new-trip form sees, or its snapshot changes every day.
+      if (view.name === 'trips-new') {
+        await page.clock.setFixedTime(new Date('2026-01-15T12:00:00'));
+      }
       await page.goto(view.path);
       await settleTripView(page, view);
       await expect(page).toHaveScreenshot(`${view.name}.png`, { fullPage: true });
