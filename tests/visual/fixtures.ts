@@ -65,8 +65,8 @@ const FIXTURES: Activity[] = [
 export const fixtureActivities: Record<string, Activity> =
   Object.fromEntries(FIXTURES.map((a) => [a.id, a]));
 
-// Overrides keyed by fixture ids only — never reference real static activity
-// ids so the test stays independent of src/data/activities.ts.
+// Overrides keyed by fixture ids only — never reference real catalog ids,
+// so the test stays independent of what the live catalog holds.
 export const fixtureCompleted: Record<string, boolean> = {
   'fixture-completed-scenic': true,
 };

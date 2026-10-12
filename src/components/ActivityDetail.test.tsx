@@ -4,13 +4,22 @@ import userEvent from '@testing-library/user-event';
 import type { Activity } from '../data/types';
 import { ActivityDetail } from './ActivityDetail';
 import { completedHike, muirWoods } from '../test/fixtures';
-import { activities as STATIC_ACTIVITIES } from '../data/activities';
-
-const BUILT_IN_ID = 'mt-diablo-summit';
-function builtInActivity() {
-  const a = STATIC_ACTIVITIES.find((x) => x.id === BUILT_IN_ID);
-  if (!a) throw new Error(`built-in fixture ${BUILT_IN_ID} missing from seed`);
-  return a;
+// One of the activities the catalog started with, before owners could add
+// their own: delete and edit must work on it the same as on one they added.
+function builtInActivity(): Activity {
+  return {
+    id: 'mt-diablo-summit',
+    name: 'Mt. Diablo Summit',
+    shortDescription: 'Drive (or hike) to a 3,849-ft peak.',
+    category: 'scenic',
+    region: 'east-bay',
+    parkType: 'state',
+    location: { city: 'Clayton', coords: { lat: 37.8817, lng: -121.9142 } },
+    duration: 'Half Day',
+    difficulty: 'easy',
+    dogFriendly: true,
+    coverImage: 'https://upload.wikimedia.org/wikipedia/commons/8/87/Mount_Diablo_Summit.JPG',
+  };
 }
 
 const ownerState = vi.hoisted(() => ({ isOwner: true }));
