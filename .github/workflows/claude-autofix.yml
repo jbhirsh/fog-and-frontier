@@ -25,7 +25,8 @@ jobs:
     name: Auto-Fix Unresolved Review Comments
     if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 20 of them can go to waiting for the head's checks (below).
+    timeout-minutes: 80
     permissions:
       contents: write
       pull-requests: write
@@ -150,6 +151,35 @@ jobs:
             fi
             exit 0
           fi
+          # Wait for the head's other checks to finish first. This is the
+          # head's only attempt, and a slow check can fail after a fast one
+          # started it: Smoke gate waits up to 10 minutes on Vercel, and on
+          # #235 it failed after the fix had already started without it. The
+          # agent's prompt asks it to wait too, but nothing made it. Runs of
+          # this workflow sit on main's commit, so this job isn't among them.
+          DEADLINE=$(( $(date +%s) + 1200 ))
+          while : ; do
+            # A failed lookup isn't "nothing pending": try again.
+            if OUT=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RUN_SHA/check-runs" --paginate \
+                --jq '.check_runs[] | select(.status != "completed") | .name'); then
+              PENDING=$(printf '%s\n' "$OUT" | sort -u | paste -sd, -)
+              if [ -z "$PENDING" ]; then break; fi
+            else
+              PENDING="(lookup failed)"
+            fi
+            if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+              echo "Still running after 20 minutes: $PENDING — going ahead with what has failed so far"
+              break
+            fi
+            echo "Waiting for: $PENDING"
+            sleep 30
+          done
+          # A push while waiting gets its own runs.
+          HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.head.sha')
+          if [ "$HEAD_SHA" != "$RUN_SHA" ]; then
+            echo "The PR head moved to $HEAD_SHA while waiting — skipping"
+            exit 0
+          fi
           # Every failed check on this head so far, not just this run's, so a
           # workflow whose run got dropped from the queue still counts. Claude
           # Review failing is never a code problem to fix, and neither is PR
@@ -190,10 +220,12 @@ jobs:
 
             ## 1. Understand the failure
 
-            - First wait for the head's remaining checks:
-              `gh pr checks <PR> --watch` (it returns once all finish;
-              a non-zero exit only means some failed). Work from every
-              failure, not just the ones listed above.
+            - Before this started, autofix waited (up to 20 minutes) for
+              every check on the head to finish, so the list above normally
+              holds every failure apart from Claude Review and PR visuals.
+              If `gh pr checks <PR>` shows one still running, wait for it
+              with `gh pr checks <PR> --watch` (a non-zero exit only means
+              some failed) and work from its failure too.
             - `gh run list --commit <HEAD> --status failure` then
               `gh run view <run id> --log-failed` for the errors.
             - `gh pr view <PR> --json body` for which packages moved, and
