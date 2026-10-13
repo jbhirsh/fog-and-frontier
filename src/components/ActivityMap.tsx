@@ -3,7 +3,7 @@ import { MapContainer, Marker, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapZoomControls } from './MapZoomControls';
-import { BoundsWatcher, FitToActivities } from './MapViewport';
+import { BoundsWatcher, FitToActivities, ViewportWatcher } from './MapViewport';
 import { HOME_LOCATION } from '../data/home';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
@@ -14,7 +14,12 @@ import {
   CARTO_ATTRIBUTION,
   CARTO_TILE_URL,
   CATEGORY_ICON,
+  MINOR_PIN_MILES,
   glyphPin,
+  hasNearPinInView,
+  isMinorPin,
+  minorPin,
+  pinZIndex,
 } from '../lib/mapPins';
 
 const COLORS = {
@@ -36,15 +41,22 @@ function pendingIcon(category: Category): L.DivIcon {
   }));
 }
 
-// Pick the icon for an activity pin. The common (un-highlighted) case reuses the
-// memoized status icons above; the highlighted variant is rare (one at a time)
-// so a fresh `glyphPin` per render is fine and avoids polluting the shared cache
+// Far-away activities are minor dots in their status color (#109): one shared
+// icon per status.
+const minorCompletedIcon = minorPin(COLORS.completed);
+const minorPendingIcon = minorPin(COLORS.pending);
+
+// Pick the icon for an activity pin. The common (un-highlighted) cases reuse the
+// memoized icons above; the highlighted variant is rare (one at a time) so a
+// fresh `glyphPin` per render is fine and avoids polluting the shared cache
 // (#94).
 function activityIcon(
   a: Activity,
   completed: boolean,
   highlighted: boolean,
+  minor: boolean,
 ): L.DivIcon {
+  if (minor) return completed ? minorCompletedIcon : minorPendingIcon;
   if (!highlighted) {
     return completed ? completedIcon : pendingIcon(a.category);
   }
@@ -121,6 +133,11 @@ export function ActivityMap({
   // Shared by the fit and the bounds watcher, so the fit's own flight isn't
   // reported back as a pan that re-applies the bounds filter (#106).
   const [moveGate] = useState(createMoveGate);
+  // The pin under the pointer: a far-away dot grows into a full pin while
+  // hovered (#109), as it does while its card is.
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // The current viewport: far pins only shrink beside a near one in view.
+  const [view, setView] = useState<MapBounds | null>(null);
 
   const plotted = useMemo(
     () =>
@@ -130,6 +147,18 @@ export function ActivityMap({
         distance: distanceTo(a),
       })),
     [activities, overrides, distanceTo],
+  );
+  const nearInView = useMemo(
+    () =>
+      hasNearPinInView(
+        plotted.map(({ a, distance }) => ({
+          lat: a.location.coords.lat,
+          lng: a.location.coords.lng,
+          miles: distance.miles,
+        })),
+        view,
+      ),
+    [plotted, view],
   );
 
   // `isolate` traps Leaflet's pane z-indices (markers at 600, controls at
@@ -155,6 +184,7 @@ export function ActivityMap({
         {/* In full bleed the map runs under the app header: clear its slim
             mobile form (about 60px) and its 80px md+ row. */}
         <MapZoomControls topInset={fullBleed ? 88 : 12} />
+        <ViewportWatcher onChange={setView} />
         {onBoundsChange && (
           <BoundsWatcher onBoundsChange={onBoundsChange} gate={moveGate} />
         )}
@@ -184,19 +214,25 @@ export function ActivityMap({
         </Marker>
         {plotted.map(({ a, completed, distance }) => {
           const highlighted = a.id === highlightedId;
+          const raised = highlighted || a.id === hoveredId;
+          const minor = isMinorPin(distance.miles, raised, nearInView);
           return (
             <Marker
               key={a.id}
               position={[a.location.coords.lat, a.location.coords.lng]}
-              icon={activityIcon(a, completed, highlighted)}
-              // Raise the highlighted pin above its neighbours so the enlarged
-              // disc isn't clipped by adjacent markers (#94).
-              zIndexOffset={highlighted ? 1000 : 0}
+              icon={activityIcon(a, completed, highlighted, minor)}
+              zIndexOffset={pinZIndex(raised, minor)}
               eventHandlers={{
                 ...(onActivate ? { click: () => onActivate(a) } : {}),
                 // Pin hover → outline the matching card in the list (#94).
-                mouseover: () => onPinHoverChange?.(a),
-                mouseout: () => onPinHoverChange?.(null),
+                mouseover: () => {
+                  setHoveredId(a.id);
+                  onPinHoverChange?.(a);
+                },
+                mouseout: () => {
+                  setHoveredId((id) => (id === a.id ? null : id));
+                  onPinHoverChange?.(null);
+                },
               }}
             >
               {/* Brief hover tooltip — the activity title (#94). */}
@@ -253,17 +289,27 @@ function MapLegend({ bottomInset }: { bottomInset: number }) {
       <LegendDot color={COLORS.home} label="Home" />
       <LegendDot color={COLORS.completed} label="Completed" />
       <LegendDot color={COLORS.pending} label="To do" />
+      {/* Far-away pins are small dots (#109). */}
+      <LegendDot color={COLORS.pending} label={`${MINOR_PIN_MILES}+ mi`} small />
     </div>
   );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({
+  color,
+  label,
+  small = false,
+}: {
+  color: string;
+  label: string;
+  small?: boolean;
+}) {
   return (
     <span className="flex items-center gap-xs">
       <span
         aria-hidden="true"
         style={{ background: color }}
-        className="inline-block h-3 w-3 rounded-full"
+        className={`inline-block rounded-full ${small ? 'h-1.5 w-1.5' : 'h-3 w-3'}`}
       />
       {label}
     </span>
