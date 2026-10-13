@@ -31,7 +31,12 @@ vi.mock('react-leaflet', () => ({
   },
 }));
 
-import { BoundsWatcher, FitToActivities, type FitPadding } from './MapViewport';
+import {
+  BoundsWatcher,
+  FitToActivities,
+  ViewportWatcher,
+  type FitPadding,
+} from './MapViewport';
 
 // A viewport one world copy west of the Bay Area: the reported bounds come
 // back normalized.
@@ -339,5 +344,32 @@ describe('a re-fit with the bounds watcher', () => {
       vi.advanceTimersByTime(400);
     });
     expect(onBoundsChange).toHaveBeenCalledExactlyOnceWith(REPORTED);
+  });
+});
+
+describe('ViewportWatcher', () => {
+  it('reports the normalized viewport as soon as it mounts', () => {
+    const onChange = vi.fn();
+    render(<ViewportWatcher onChange={onChange} />);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(REPORTED);
+  });
+
+  it('tells a new listener the current viewport', () => {
+    const first = vi.fn();
+    const next = vi.fn();
+    const { rerender } = render(<ViewportWatcher onChange={first} />);
+    rerender(<ViewportWatcher onChange={next} />);
+    expect(next).toHaveBeenCalledExactlyOnceWith(REPORTED);
+    expect(first).toHaveBeenCalledOnce();
+  });
+
+  it('reports each settled pan and zoom straight away, flights included', () => {
+    const onChange = vi.fn();
+    render(<ViewportWatcher onChange={onChange} />);
+    onChange.mockClear();
+    act(() => fake.emit('moveend'));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(REPORTED);
+    act(() => fake.emit('zoomend'));
+    expect(onChange).toHaveBeenCalledTimes(2);
   });
 });

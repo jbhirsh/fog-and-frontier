@@ -1,5 +1,6 @@
 import L from 'leaflet';
 import type { Category } from '../data/types';
+import { isWithinBounds, type MapBounds } from './mapBounds';
 
 // Shared map surface styling for every Leaflet map in the app (the standalone
 // `/map`, each trip's `TripMap`, and the #4 split view later). Keep the basemap
@@ -56,6 +57,56 @@ export interface PinOptions {
   highlighted?: boolean;
 }
 
+// Past this many miles from the distance origin (home, or the visitor), an
+// activity's pin is a minor dot. It's the "Within 100 mi" step of the catalog's
+// distance filter, about the edge of a day trip. It moves with the origin, so
+// "far" always means far from where the visitor measures from.
+export const MINOR_PIN_MILES = 100;
+
+/**
+ * Whether the map shows a near pin (within {@link MINOR_PIN_MILES}) in the
+ * viewport, or anywhere before the viewport is known. Far pins only shrink
+ * beside a near one: a map of only far places (zoomed into Oregon, say, or a
+ * visitor far from the West Coast) keeps every pin whole, since there's
+ * nothing nearer for them to step back from.
+ */
+export function hasNearPinInView(
+  pins: readonly { lat: number; lng: number; miles: number }[],
+  bounds: MapBounds | null,
+): boolean {
+  return pins.some(
+    (p) =>
+      p.miles <= MINOR_PIN_MILES &&
+      (bounds === null || isWithinBounds(p.lat, p.lng, bounds)),
+  );
+}
+
+/**
+ * Whether an activity's pin draws as a minor dot: it's more than
+ * {@link MINOR_PIN_MILES} from the origin, a near pin is in view (see
+ * {@link hasNearPinInView}), and it isn't active. An active one (its card
+ * hovered or focused, or the pin hovered) is a full pin, so it can be found
+ * and read.
+ */
+export function isMinorPin(miles: number, active: boolean, nearInView: boolean): boolean {
+  return nearInView && !active && miles > MINOR_PIN_MILES;
+}
+
+/**
+ * A pin's `zIndexOffset`: a raised one (highlighted or hovered) sits above its
+ * neighbours so its larger disc isn't clipped (#94), and minor dots sit under
+ * the full pins (#109).
+ */
+export function pinZIndex(raised: boolean, minor: boolean): number {
+  if (raised) return 1000;
+  return minor ? -1000 : 0;
+}
+
+// The visible dot, and the box around it that takes the hover and tap: a
+// bare 10px dot would be too small a target. 24px is WCAG 2.2's minimum.
+const MINOR_DOT_SIZE = 10;
+const MINOR_HIT_SIZE = 24;
+
 const PIN_SIZE = 30;
 // Highlighted pins grow so a hovered card's match reads instantly against its
 // neighbours; the caller also lifts them with `zIndexOffset` so they sit above.
@@ -103,5 +154,30 @@ export function glyphPin(
     // Center anchor — a circle has no point, unlike the old teardrop.
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -(size / 2) - 2],
+  });
+}
+
+/**
+ * A far-away activity's pin (#109): its status color as a small dot with a
+ * thin white ring and no glyph, centred in a larger transparent hit box, so
+ * the map doesn't read as a wall of equal pins. See {@link isMinorPin}.
+ */
+export function minorPin(color: string): L.DivIcon {
+  const html = `<div style="
+    width:${MINOR_HIT_SIZE}px;height:${MINOR_HIT_SIZE}px;
+    display:flex;align-items:center;justify-content:center;
+  "><div style="
+    width:${MINOR_DOT_SIZE}px;height:${MINOR_DOT_SIZE}px;
+    border-radius:9999px;
+    background:${color};
+    border:1.5px solid #fff;
+    box-shadow:0 1px 2px rgba(0,0,0,0.30);
+  "></div></div>`;
+  return L.divIcon({
+    html,
+    className: 'glyph-pin',
+    iconSize: [MINOR_HIT_SIZE, MINOR_HIT_SIZE],
+    iconAnchor: [MINOR_HIT_SIZE / 2, MINOR_HIT_SIZE / 2],
+    popupAnchor: [0, -(MINOR_DOT_SIZE / 2) - 2],
   });
 }

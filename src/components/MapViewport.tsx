@@ -20,6 +20,25 @@ import { useMediaQuery } from '../lib/useMediaQuery';
 // user pan.
 
 /**
+ * Reports the viewport straight away and each time the map settles from a
+ * pan or zoom, flights included. Unlike {@link BoundsWatcher} this drives how
+ * pins draw (#109), not the list filter, so it neither waits nor skips.
+ */
+export function ViewportWatcher({
+  onChange,
+}: {
+  onChange: (bounds: MapBounds) => void;
+}) {
+  const map = useMap();
+  const report = () => onChange(toMapBounds(map.getBounds()));
+  useMapEvents({ moveend: report, zoomend: report });
+  useEffect(() => {
+    onChange(toMapBounds(map.getBounds()));
+  }, [map, onChange]);
+  return null;
+}
+
+/**
  * Reports the viewport to the parent ~400 ms after the map settles from a
  * pan/zoom (#95), skipping the moves the gate marks as programmatic (#106).
  */
