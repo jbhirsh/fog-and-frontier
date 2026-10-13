@@ -12,6 +12,17 @@
 #     catching test erosion PR-scoped runs can't see (e.g. a test refactor
 #     weakening assertions for untouched code).
 #
+# PR runs are incremental (Stryker's --incremental): each run caches its
+# results per PR, and the next push restores them, so only mutants whose code
+# or covering tests changed run again; the rest keep their earlier result. A
+# PR's first run has no cache and tests its whole scope. Stryker diffs each
+# mutant's own code and the test files that cover it, nothing they import, so
+# the cache key also hashes the inputs every result depends on (dependencies,
+# patches/, the Stryker and Vitest config, the shared test helpers in
+# src/test): a change there misses the cache and starts the PR over. A change
+# that reaches a mutant only through another module isn't detected; the
+# weekly sweep, which never reuses results, is the backstop for that.
+#
 # Both gate on the `break` threshold in stryker.config.json. The files in
 # scope are its `mutate` globs (the files the 80% per-file coverage gate measures,
 # minus its documented coverage backlog); .github/scripts/mutation-scope.mjs
@@ -78,11 +89,53 @@ jobs:
           echo "Mutating: $MUTATE"
           echo "mutate=$MUTATE" >> "$GITHUB_OUTPUT"
 
+      # Most recent results from an earlier run of this PR, if any; restoring
+      # by prefix picks the newest. Caches are scoped to the PR, so another
+      # PR's results never leak in. (A PR's own commits can write this cache,
+      # so a dropped commit could leave forged results behind; the weekly
+      # sweep would catch that.)
+      - name: Restore incremental results
+        id: incremental
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ hashFiles('package-lock.json', 'patches/**', 'stryker.config.json', 'vite.config.ts', 'src/test/**') }}-pr${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            stryker-incremental-${{ hashFiles('package-lock.json', 'patches/**', 'stryker.config.json', 'vite.config.ts', 'src/test/**') }}-pr${{ github.event.pull_request.number }}-
+
+      # Stryker carries every file in the incremental file into its report and
+      # score, in scope or not, so drop the files this run doesn't mutate: a
+      # file the PR no longer changes must not keep failing it, and an earlier
+      # push's well-tested files must not lift a new file over the threshold.
+      - name: Limit incremental results to this run's scope
+        if: steps.incremental.outputs.cache-matched-key != ''
+        env:
+          MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
+        run: |
+          jq --arg scope "$MUTATE_SCOPE" \
+            '($scope | split(",")) as $keep | .files |= with_entries(select(.key as $f | $keep | index($f)))' \
+            reports/stryker-incremental.json > reports/stryker-incremental.tmp
+          mv reports/stryker-incremental.tmp reports/stryker-incremental.json
+
       - name: Run Stryker (changed files)
+        id: stryker
         if: github.event_name == 'pull_request'
         env:
           MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
-        run: npx stryker run --mutate "$MUTATE_SCOPE"
+        run: npx stryker run --incremental --mutate "$MUTATE_SCOPE"
+
+      # Saved even when the run trips the break threshold: its results are
+      # still right, and the next push only re-runs what it changes. (When
+      # Stryker fails before writing results, this re-saves the restored file,
+      # which is harmless.) A cache key can't be overwritten, so each run saves
+      # under its own.
+      - name: Save incremental results
+        if: ${{ !cancelled() && steps.stryker.outcome != 'skipped' && hashFiles('reports/stryker-incremental.json') != '' }}
+        uses: actions/cache/save@v6
+        with:
+          path: reports/stryker-incremental.json
+          key: ${{ steps.incremental.outputs.cache-primary-key }}
 
       - name: Run Stryker (full sweep)
         if: github.event_name != 'pull_request'
