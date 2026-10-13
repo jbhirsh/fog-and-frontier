@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useDrivingMiles } from '../lib/drivingMiles';
@@ -21,6 +21,7 @@ import {
 } from '../lib/useCatalogFilters';
 import { filterByBounds, type MapBounds } from '../lib/mapBounds';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { useRevealedCount, useWhenVisible } from '../lib/useRevealedCount';
 import { useOpenActivity } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
 import { useOverrides } from '../lib/userCompleted';
@@ -82,6 +83,12 @@ const PARK_TYPE_LABELS: Record<'Any' | ParkType, string> = {
   private: 'Private land',
   none: 'Not in a park',
 };
+
+// A list card's root element by activity id (cards carry data-activity-id).
+function cardElement(id: string): Element | null {
+  const safeId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id;
+  return document.querySelector(`[data-activity-id="${safeId}"]`);
+}
 
 export function CuratedAdventures() {
   const location = useLocation();
@@ -330,20 +337,63 @@ export function CuratedAdventures() {
     (id: string) => openActivity(id, visibleIds),
     [openActivity, visibleIds],
   );
+  // Render the list a page at a time (#102): a screenful to start, more as
+  // its end comes into view. Desktop List's three-column grid gets a bigger
+  // page; everything else is one or two columns. Prev/next and filtering still
+  // see every card.
+  const { count: revealedCount, remaining, showMore, revealTo } = useRevealedCount(
+    visibleResults.length,
+    view === 'list' && isLg ? 12 : 6,
+  );
+  const endOfListRef = useWhenVisible<HTMLDivElement>(
+    showMore,
+    `${revealedCount}/${visibleResults.length}`,
+  );
+  // Desktop Map mode shows no list, so there's no card to reveal or scroll to.
+  const listShown = !(view === 'map' && isLg);
+  const visibleKey = useMemo(() => visibleIds.join('|'), [visibleIds]);
 
-  // Pin click (#94): open detail and scroll the matching card into view. The
-  // card exists in Split and in the mobile map's sheet; in desktop Map mode the
-  // querySelector simply returns null.
+  // A pin's card to scroll to once it's rendered (#94, #102). Each click is a
+  // new request for the list as it stood; the ref marks the one served, so a
+  // later page load doesn't scroll back to it, and a request for a list
+  // that has since changed is dropped.
+  const [scrollRequest, setScrollRequest] = useState<{ id: string; list: string } | null>(
+    null,
+  );
+  const servedScroll = useRef<{ id: string; list: string } | null>(null);
+  useEffect(() => {
+    if (!scrollRequest || servedScroll.current === scrollRequest) return;
+    if (scrollRequest.list !== visibleKey) return;
+    const card = cardElement(scrollRequest.id);
+    if (!card) return; // Not rendered yet: the reveal re-runs this.
+    card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    servedScroll.current = scrollRequest;
+  }, [scrollRequest, revealedCount, visibleKey]);
+
+  // "Show more" moves focus to the first card it added, so keyboard users
+  // land on the new cards instead of tabbing past them, and focus isn't lost
+  // when the last page removes the button.
+  const focusAfterShowMore = useRef<string | null>(null);
+  function handleShowMore() {
+    focusAfterShowMore.current = visibleIds[revealedCount] ?? null;
+    showMore();
+  }
+  useEffect(() => {
+    const id = focusAfterShowMore.current;
+    if (id === null) return;
+    focusAfterShowMore.current = null;
+    cardElement(id)?.querySelector<HTMLElement>('button, a[href]')?.focus();
+  }, [revealedCount]);
+
+  // Pin click (#94): open detail and scroll the matching card into view,
+  // first rendering the list down to it (#102). The card exists in Split and
+  // in the mobile map's sheet; desktop Map mode has no list.
   function handlePinActivate(activity: Activity) {
     openFromList(activity.id);
-    if (typeof document === 'undefined') return;
-    const safeId =
-      typeof CSS !== 'undefined' && CSS.escape
-        ? CSS.escape(activity.id)
-        : activity.id;
-    document
-      .querySelector(`[data-activity-id="${safeId}"]`)
-      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const index = visibleIds.indexOf(activity.id);
+    if (!listShown || index === -1) return;
+    revealTo(index);
+    setScrollRequest({ id: activity.id, list: visibleKey });
   }
 
   // Narrower grid in Split (the list shares the row with the map) and in the
@@ -364,8 +414,9 @@ export function CuratedAdventures() {
           : 'No activities match those filters.'}
       </div>
     ) : (
+      <>
       <div className={`grid gap-gutter ${gridColsClass}`}>
-        {visibleResults.map((a) => (
+        {visibleResults.slice(0, revealedCount).map((a) => (
           <ActivityCard
             key={a.id}
             activity={a}
@@ -398,6 +449,21 @@ export function CuratedAdventures() {
           />
         ))}
       </div>
+      {remaining > 0 && (
+        // The end of the list: coming into view adds the next page. The
+        // button does the same for keyboards and browsers without
+        // IntersectionObserver.
+        <div ref={endOfListRef} className="flex justify-center pt-lg">
+          <button
+            type="button"
+            onClick={handleShowMore}
+            className="inline-flex items-center min-h-11 px-md rounded-full border border-outline-variant/40 text-primary font-body-md hover:bg-surface-variant"
+          >
+            Show more ({remaining} left)
+          </button>
+        </div>
+      )}
+      </>
     );
 
   // Compact list-head (replaces the old hero's H1) — shown above the grid in
