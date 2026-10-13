@@ -12,6 +12,7 @@ import { PromoteToPlanningModal } from '../components/PromoteToPlanningModal';
 import { InlineError } from '../components/InlineError';
 import { MembersStrip } from '../components/MembersStrip';
 import { InviteModal } from '../components/InviteModal';
+import { TripSuggestions } from '../components/TripSuggestions';
 import { ActivityDetail } from '../components/ActivityDetail';
 import type { Activity } from '../data/types';
 import { SignInButton } from '@clerk/clerk-react';
@@ -20,7 +21,9 @@ import { useOwner } from '../lib/useOwner';
 import { useOpenActivity } from '../lib/activityRoute';
 import { useAllActivities } from '../lib/userActivities';
 import { useVisibilityInterval } from '../lib/useVisibilityInterval';
+import { suggestForTrip, type TripSuggestion } from '../lib/tripSuggestions';
 import {
+  addActivityToTrip,
   assignSlot,
   castVote,
   claimInvite,
@@ -82,6 +85,10 @@ export function TripDetail() {
   const isCreator = !!trip && !!email && trip.creator_email === email;
 
   const buckets = useMemo(() => bucketByDay(trip), [trip]);
+  const suggestions = useMemo(
+    () => (isVoting && trip ? suggestForTrip(trip.activities, catalog) : []),
+    [isVoting, trip, catalog],
+  );
 
   // Invite claim (#51 c2): a SIGNED-IN visitor opening /trips/:id?invite=<token>
   // claims it (token IS the credential — no email match), becoming a member.
@@ -461,6 +468,11 @@ export function TripDetail() {
           onOpen={handleOpenActivity}
           onReorder={handleReorderCandidate}
           onFinalize={() => setPromoteOpen(true)}
+          suggestions={suggestions}
+          onAddSuggestion={(a) =>
+            void runAction(() => addActivityToTrip(trip.id, a.id))
+          }
+          onOpenSuggestion={(a) => openActivity(a.id)}
           onAddFromCurated={() =>
             void navigate('/', {
               state: { target_trip_id: trip.id, target_trip_title: trip.title },
@@ -621,6 +633,9 @@ function VotingView({
   onOpen,
   onReorder,
   onFinalize,
+  suggestions,
+  onAddSuggestion,
+  onOpenSuggestion,
   onAddFromCurated,
 }: {
   trip: Trip;
@@ -632,6 +647,9 @@ function VotingView({
   onOpen: (a: TripActivity) => void;
   onReorder: (draggedId: string, targetId: string) => void;
   onFinalize: () => void;
+  suggestions: readonly TripSuggestion[];
+  onAddSuggestion: (a: Activity) => void;
+  onOpenSuggestion: (a: Activity) => void;
   onAddFromCurated: () => void;
 }) {
   const candidates = trip.activities;
@@ -717,6 +735,17 @@ function VotingView({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Suggestions need something to measure from, so a trip with no
+          candidates keeps just the prompt above (#72). */}
+      {candidates.length > 0 && (
+        <TripSuggestions
+          suggestions={suggestions}
+          busy={busy}
+          onAdd={onAddSuggestion}
+          onOpen={onOpenSuggestion}
+        />
       )}
     </section>
   );
