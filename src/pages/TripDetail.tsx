@@ -12,15 +12,18 @@ import { PromoteToPlanningModal } from '../components/PromoteToPlanningModal';
 import { InlineError } from '../components/InlineError';
 import { MembersStrip } from '../components/MembersStrip';
 import { InviteModal } from '../components/InviteModal';
+import { TripSuggestions } from '../components/TripSuggestions';
 import { ActivityDetail } from '../components/ActivityDetail';
 import type { Activity } from '../data/types';
 import { SignInButton } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 import { useOpenActivity } from '../lib/activityRoute';
-import { useAllActivities } from '../lib/userActivities';
+import { useUserActivities } from '../lib/userActivities';
 import { useVisibilityInterval } from '../lib/useVisibilityInterval';
+import { suggestForTrip, type TripSuggestion } from '../lib/tripSuggestions';
 import {
+  addActivityToTrip,
   assignSlot,
   castVote,
   claimInvite,
@@ -74,7 +77,11 @@ export function TripDetail() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [detail, setDetail] = useState<Activity | null>(null);
-  const catalog = useAllActivities();
+  const {
+    activities: catalog,
+    loading: catalogLoading,
+    error: catalogError,
+  } = useUserActivities();
   const openActivity = useOpenActivity();
 
   const isPast = trip?.status === 'past';
@@ -82,6 +89,14 @@ export function TripDetail() {
   const isCreator = !!trip && !!email && trip.creator_email === email;
 
   const buckets = useMemo(() => bucketByDay(trip), [trip]);
+  // Null until the catalog is in: an empty or failed load isn't "nothing near".
+  const suggestions = useMemo(
+    () =>
+      isVoting && trip && !catalogLoading && !catalogError
+        ? suggestForTrip(trip.activities, catalog)
+        : null,
+    [isVoting, trip, catalog, catalogLoading, catalogError],
+  );
 
   // Invite claim (#51 c2): a SIGNED-IN visitor opening /trips/:id?invite=<token>
   // claims it (token IS the credential — no email match), becoming a member.
@@ -116,13 +131,14 @@ export function TripDetail() {
   }, [inviteToken, ownerLoaded, email, reload, searchParams, setSearchParams]);
 
   const runAction = useCallback(
-    async (fn: () => Promise<unknown>) => {
-      if (busy) return;
+    async (fn: () => Promise<unknown>): Promise<boolean> => {
+      if (busy) return false;
       setBusy(true);
       setActionError(null);
       try {
         await fn();
         await reload();
+        return true;
       } catch (err) {
         console.error(err);
         // Resync on failure so a stale view corrects itself — e.g. an action
@@ -131,6 +147,7 @@ export function TripDetail() {
           "That didn't go through — the trip may have changed. We've refreshed it.",
         );
         await reload();
+        return false;
       } finally {
         setBusy(false);
       }
@@ -461,6 +478,11 @@ export function TripDetail() {
           onOpen={handleOpenActivity}
           onReorder={handleReorderCandidate}
           onFinalize={() => setPromoteOpen(true)}
+          suggestions={suggestions}
+          onAddSuggestion={(a) =>
+            runAction(() => addActivityToTrip(trip.id, a.id))
+          }
+          onOpenSuggestion={(a) => openActivity(a.id)}
           onAddFromCurated={() =>
             void navigate('/', {
               state: { target_trip_id: trip.id, target_trip_title: trip.title },
@@ -621,6 +643,9 @@ function VotingView({
   onOpen,
   onReorder,
   onFinalize,
+  suggestions,
+  onAddSuggestion,
+  onOpenSuggestion,
   onAddFromCurated,
 }: {
   trip: Trip;
@@ -632,6 +657,9 @@ function VotingView({
   onOpen: (a: TripActivity) => void;
   onReorder: (draggedId: string, targetId: string) => void;
   onFinalize: () => void;
+  suggestions: readonly TripSuggestion[] | null;
+  onAddSuggestion: (a: Activity) => Promise<boolean>;
+  onOpenSuggestion: (a: Activity) => void;
   onAddFromCurated: () => void;
 }) {
   const candidates = trip.activities;
@@ -717,6 +745,17 @@ function VotingView({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Suggestions need something to measure from, so a trip with no
+          candidates keeps just the prompt above (#72). */}
+      {candidates.length > 0 && suggestions && (
+        <TripSuggestions
+          suggestions={suggestions}
+          busy={busy}
+          onAdd={onAddSuggestion}
+          onOpen={onOpenSuggestion}
+        />
       )}
     </section>
   );
