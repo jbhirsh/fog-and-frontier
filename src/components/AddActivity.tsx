@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import type {
   Activity,
   Category,
+  CostTier,
   Difficulty,
   Duration,
   ParkType,
@@ -12,6 +13,13 @@ import type {
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
+import { checkDuplicates, unacknowledgedHigh, type DuplicateMatch } from '../lib/duplicates';
+import { appCodeOf } from '../lib/gqlError';
+import { COST_TIERS, costLabel } from '../lib/cost';
+import { useOwner } from '../lib/useOwner';
+import { fetchUsers } from '../lib/userTrips';
+import { ContributorsField } from './ContributorsField';
+import { DuplicateNotice } from './DuplicateNotice';
 import { lookupAllTrails } from '../lib/alltrails';
 import {
   generateActivity,
@@ -27,6 +35,9 @@ interface Props {
   // Called with the saved activity right before onClose so the parent can
   // refresh any cached copy (e.g. ActivityDetail's displayed activity).
   onSaved?: (activity: Activity) => void;
+  // Opens a saved activity's detail; offered when a new one looks like it
+  // (#17). Without it the warning just names the look-alike.
+  onOpenActivity?: (id: string) => void;
 }
 
 const CATEGORIES: Category[] = [
@@ -115,7 +126,7 @@ function slugify(name: string): string {
   );
 }
 
-export function AddActivity({ onClose, editActivity, onSaved }: Props) {
+export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const mode: 'create' | 'edit' = editActivity ? 'edit' : 'create';
   const [step, setStep] = useState<'form' | 'generating' | 'review'>(
@@ -126,6 +137,22 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Activity | null>(editActivity ?? null);
   const [saving, setSaving] = useState(false);
+  const { email } = useOwner();
+  // The accounts the review step can credit (#9). If they can't be loaded,
+  // the picker just has no one to offer; the credited chips still show.
+  const [users, setUsers] = useState<string[]>([]);
+  useEffect(() => {
+    if (step !== 'review') return;
+    let live = true;
+    fetchUsers()
+      .then((list) => {
+        if (live) setUsers(list.map((u) => u.email));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [step]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -175,6 +202,7 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
         allTrailsUrl: g.allTrailsUrl,
         cuisine: g.cuisine,
         priceRange: g.priceRange,
+        costTier: g.costTier,
         hours: g.hours,
         reservationUrl: g.reservationUrl,
         menuUrl: g.menuUrl,
@@ -184,30 +212,95 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
         // landscape stand-in reads as a wrong photo of the place (#36).
         coverImage: g.coverImage ?? '',
         coverCredit: g.coverCredit,
+        // Whoever adds it is credited (#9), and can add the others who
+        // suggested it in the review step.
+        contributors: email ? [email] : undefined,
       };
       setDraft(activity);
       setStep('review');
+      void lookAlikes(activity);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to generate');
       setStep('form');
     }
   }
 
-  async function save() {
+  // A new activity that looks like a saved one (#17): matched as the review
+  // opens, again whenever its name or pin changes (the newest answer wins),
+  // and again on save. A high match holds the save until the owner picks
+  // "Save anyway" for the matches on screen; one they haven't seen holds it
+  // again.
+  const [matches, setMatches] = useState<DuplicateMatch[]>([]);
+  const checks = useRef(0);
+  const recheck = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(recheck.current), []);
+  async function lookAlikes(activity: Activity): Promise<DuplicateMatch[]> {
+    const mine = ++checks.current;
+    let found: DuplicateMatch[] = [];
+    try {
+      found = await checkDuplicates(activity);
+    } catch {
+      // Unanswered: the server still refuses a high match on save.
+    }
+    if (mine === checks.current) setMatches(found);
+    return found;
+  }
+  function changeDraft(next: Activity) {
+    const was = draft;
+    setDraft(next);
+    if (
+      mode === 'create' &&
+      was &&
+      (next.name !== was.name ||
+        next.location.coords.lat !== was.location.coords.lat ||
+        next.location.coords.lng !== was.location.coords.lng)
+    ) {
+      clearTimeout(recheck.current);
+      recheck.current = setTimeout(() => void lookAlikes(next), 400);
+    }
+  }
+  function backToForm() {
+    clearTimeout(recheck.current);
+    checks.current += 1; // drop any answer still on its way
+    setMatches([]);
+    setStep('form');
+  }
+
+  async function save(acknowledged: readonly string[] = []) {
     if (!draft) return;
     setSaving(true);
     setError(null);
+    let finalDraft = draft;
     try {
-      const finalDraft = await refreshTrailDetails(
-        draft,
-        editActivity?.allTrailsUrl,
-      );
-      await saveUserActivity(finalDraft);
+      finalDraft = await refreshTrailDetails(draft, editActivity?.allTrailsUrl);
+      if (mode === 'create') {
+        const found = await lookAlikes(finalDraft);
+        if (unacknowledgedHigh(found, acknowledged).length > 0) {
+          setError(
+            acknowledged.length > 0
+              ? 'Another saved activity looks like this one too. Check it before saving.'
+              : "This looks like one already saved. Open it, or choose Save anyway if it's a different place.",
+          );
+          setSaving(false);
+          return;
+        }
+        // The id follows the name as it is now; the server takes the next
+        // free one if that's taken, and says which it used.
+        const id = await saveUserActivity(
+          { ...finalDraft, id: slugify(finalDraft.name) },
+          { create: true, allowDuplicate: found.some((m) => m.confidence === 'high') },
+        );
+        finalDraft = { ...finalDraft, id };
+      } else {
+        await saveUserActivity(finalDraft);
+      }
       onSaved?.(finalDraft);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
       setSaving(false);
+      // The server found a look-alike the check missed: show it.
+      if (appCodeOf(e) === 'duplicate') void lookAlikes(finalDraft);
     }
   }
 
@@ -264,9 +357,15 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
             error={error}
             saving={saving}
             mode={mode}
-            onChange={setDraft}
-            onBack={mode === 'edit' ? onClose : () => setStep('form')}
+            users={users}
+            onChange={changeDraft}
+            onBack={mode === 'edit' ? onClose : backToForm}
             onSave={() => void save()}
+            matches={matches}
+            onOpenActivity={onOpenActivity}
+            onSaveAnyway={() =>
+              void save(unacknowledgedHigh(matches, []).map((m) => m.id))
+            }
           />
         )}
       </div>
@@ -371,17 +470,25 @@ function ReviewStep({
   error,
   saving,
   mode,
+  users,
   onChange,
   onBack,
   onSave,
+  matches,
+  onOpenActivity,
+  onSaveAnyway,
 }: {
   draft: Activity;
   error: string | null;
   saving: boolean;
   mode: 'create' | 'edit';
+  users: readonly string[];
   onChange: (a: Activity) => void;
   onBack: () => void;
   onSave: () => void;
+  matches: readonly DuplicateMatch[];
+  onOpenActivity?: (id: string) => void;
+  onSaveAnyway: () => void;
 }) {
   function patch<K extends keyof Activity>(key: K, value: Activity[K]) {
     onChange({ ...draft, [key]: value });
@@ -567,6 +674,23 @@ function ReviewStep({
             <option value="yes">Yes</option>
           </select>
         </Field>
+        {/* What it costs one person (#85); "—" leaves it unknown. */}
+        <Field label="Cost per person">
+          <select
+            value={draft.costTier ?? ''}
+            onChange={(e) =>
+              patch('costTier', (e.target.value || undefined) as CostTier | undefined)
+            }
+            className={inputCls}
+          >
+            <option value="">—</option>
+            {COST_TIERS.map((tier) => (
+              <option key={tier} value={tier}>
+                {costLabel(tier)}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
 
       <div className="space-y-xs">
@@ -700,6 +824,19 @@ function ReviewStep({
           />
         </Field>
       )}
+
+      <ContributorsField
+        value={draft.contributors ?? []}
+        users={users}
+        onChange={(next) => patch('contributors', next)}
+      />
+
+      <DuplicateNotice
+        matches={matches}
+        onOpenActivity={onOpenActivity}
+        onSaveAnyway={onSaveAnyway}
+        saving={saving}
+      />
 
       {error && <div className="text-error font-body-md">{error}</div>}
 

@@ -84,9 +84,13 @@
           "lat": 37.5044,
           "lng": -121.9083,
           "toleranceKm": 12
-        }
+        },
+        "costTier": [
+          "free",
+          "$"
+        ]
       },
-      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09."
+      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14)."
     },
     {
       "id": "gen-lands-end",
@@ -114,9 +118,12 @@
           "lat": 37.786,
           "lng": -122.5033,
           "toleranceKm": 10
-        }
+        },
+        "costTier": [
+          "free"
+        ]
       },
-      "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09."
+      "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09. costTier free: no entry or parking fee at Lands End (nps.gov/goga fees; as of 2026-10-14)."
     },
     {
       "id": "gen-big-basin",
@@ -169,9 +176,13 @@
           "lat": 37.897,
           "lng": -122.5817,
           "toleranceKm": 10
-        }
+        },
+        "costTier": [
+          "$",
+          "$$"
+        ]
       },
-      "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.897/-122.5817 (Wikipedia infobox / NPS). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09."
+      "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.897/-122.5817 (Wikipedia infobox / NPS). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09. costTier: $15 entry + $9 parking reservation per car, ~$19.50 each for two → $; $$ accepted for a model that counts the car alone (nps.gov/muwo/planyourvisit/fees.htm; as of 2026-10-14)."
     },
     {
       "id": "gen-duartes-tavern",
@@ -225,9 +236,12 @@
           "lat": 36.5848,
           "lng": -121.9651,
           "toleranceKm": 20
-        }
+        },
+        "costTier": [
+          "$"
+        ]
       },
-      "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the three towns the loop touches. As of 2026-07-09."
+      "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the three towns the loop touches. As of 2026-07-09. costTier $: ~$11-12 per vehicle at the gate, $ split or not (travel guides; the official rate varies year to year; as of 2026-10-14)."
     },
     {
       "id": "gen-cannon-beach",
@@ -549,6 +563,319 @@
         }
       },
       "notes": "Non-AllTrails URL. The resolver's `/^https?:\\/\\/(www\\.)?alltrails\\.com\\//` guard rejects it with badInput BEFORE any paid Gemini call, so this is fully deterministic — BAD_USER_INPUT is the only acceptable outcome. No coordinates. As of 2026-07-09."
+    },
+    {
+      "id": "trip-dog-coast",
+      "feature": "tripSuggestions",
+      "kind": "happy",
+      "input": {
+        "prompt": "A dog-friendly weekend on the coast: easy walks and a beach where the dog can come too.",
+        "catalog": [
+          {
+            "id": "fort-funston",
+            "name": "Fort Funston",
+            "category": "scenic",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Bluff-top trails and a wide beach where dogs run off-leash.",
+            "duration": "1-2 Hours",
+            "difficulty": "easy",
+            "dogFriendly": true
+          },
+          {
+            "id": "carmel-beach",
+            "name": "Carmel Beach",
+            "category": "scenic",
+            "region": "central-coast",
+            "city": "Carmel-by-the-Sea",
+            "shortDescription": "White-sand beach below the village; dogs may run off-leash.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": true
+          },
+          {
+            "id": "lands-end",
+            "name": "Lands End",
+            "category": "hiking",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Coastal trail past shipwreck views to the Sutro Baths ruins.",
+            "duration": "1-2 Hours",
+            "difficulty": "easy",
+            "dogFriendly": true
+          },
+          {
+            "id": "mission-peak",
+            "name": "Mission Peak",
+            "category": "hiking",
+            "region": "east-bay",
+            "city": "Fremont",
+            "shortDescription": "Steep, exposed climb to the summit pole and wide views.",
+            "duration": "Half Day",
+            "difficulty": "advanced",
+            "dogFriendly": true
+          },
+          {
+            "id": "muir-woods",
+            "name": "Muir Woods",
+            "category": "hiking",
+            "region": "north-bay",
+            "city": "Mill Valley",
+            "shortDescription": "Old-growth redwoods on flat boardwalk loops.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "alamere-falls",
+            "name": "Alamere Falls",
+            "category": "hiking",
+            "region": "north-bay",
+            "city": "Bolinas",
+            "shortDescription": "Long coastal hike to a waterfall that pours onto the beach.",
+            "duration": "Full Day",
+            "difficulty": "advanced",
+            "dogFriendly": false
+          },
+          {
+            "id": "big-basin",
+            "name": "Big Basin Redwoods",
+            "category": "hiking",
+            "region": "south-bay",
+            "city": "Boulder Creek",
+            "shortDescription": "California's oldest state park, regrowing after the 2020 fire.",
+            "duration": "Full Day",
+            "difficulty": "moderate",
+            "dogFriendly": false
+          },
+          {
+            "id": "exploratorium",
+            "name": "Exploratorium",
+            "category": "culture",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Hands-on science museum on Pier 15.",
+            "duration": "2-3 Hours",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "cal-academy",
+            "name": "California Academy of Sciences",
+            "category": "culture",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Aquarium, planetarium and a rainforest dome under one roof.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "de-young",
+            "name": "de Young Museum",
+            "category": "culture",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Art museum in Golden Gate Park with a free observation tower.",
+            "duration": "2-3 Hours",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "duartes",
+            "name": "Duarte's Tavern",
+            "category": "food",
+            "region": "peninsula",
+            "city": "Pescadero",
+            "shortDescription": "Historic tavern known for artichoke soup and olallieberry pie.",
+            "duration": "1-2 Hours",
+            "difficulty": null,
+            "dogFriendly": false
+          },
+          {
+            "id": "elkhorn-kayak",
+            "name": "Kayaking Elkhorn Slough",
+            "category": "water",
+            "region": "central-coast",
+            "city": "Moss Landing",
+            "shortDescription": "Paddle among sea otters and harbor seals.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": false
+          }
+        ]
+      },
+      "expect": {
+        "includeAny": [
+          "fort-funston",
+          "carmel-beach"
+        ],
+        "excludeAll": [
+          "muir-woods",
+          "alamere-falls",
+          "big-basin"
+        ],
+        "minPicks": 1,
+        "maxPicks": 12
+      },
+      "notes": "Dogs are a hard constraint: the coastal dog beaches must appear, and trails that ban dogs must not. Fixture catalog of real places; dogFriendly reflects each site's rules (Fort Funston off-leash area and Lands End on leash, nps.gov/goga; Carmel Beach off-leash, ci.carmel.ca.us; Mission Peak on leash, ebparks.org; no dogs on Muir Woods, Alamere Falls/Point Reyes or Big Basin trails, nps.gov/muwo, nps.gov/pore, parks.ca.gov). As of 2026-10-14."
+    },
+    {
+      "id": "trip-rainy-sf",
+      "feature": "tripSuggestions",
+      "kind": "happy",
+      "input": {
+        "prompt": "A rainy day in San Francisco: indoor things only.",
+        "catalog": [
+          {
+            "id": "fort-funston",
+            "name": "Fort Funston",
+            "category": "scenic",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Bluff-top trails and a wide beach where dogs run off-leash.",
+            "duration": "1-2 Hours",
+            "difficulty": "easy",
+            "dogFriendly": true
+          },
+          {
+            "id": "carmel-beach",
+            "name": "Carmel Beach",
+            "category": "scenic",
+            "region": "central-coast",
+            "city": "Carmel-by-the-Sea",
+            "shortDescription": "White-sand beach below the village; dogs may run off-leash.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": true
+          },
+          {
+            "id": "lands-end",
+            "name": "Lands End",
+            "category": "hiking",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Coastal trail past shipwreck views to the Sutro Baths ruins.",
+            "duration": "1-2 Hours",
+            "difficulty": "easy",
+            "dogFriendly": true
+          },
+          {
+            "id": "mission-peak",
+            "name": "Mission Peak",
+            "category": "hiking",
+            "region": "east-bay",
+            "city": "Fremont",
+            "shortDescription": "Steep, exposed climb to the summit pole and wide views.",
+            "duration": "Half Day",
+            "difficulty": "advanced",
+            "dogFriendly": true
+          },
+          {
+            "id": "muir-woods",
+            "name": "Muir Woods",
+            "category": "hiking",
+            "region": "north-bay",
+            "city": "Mill Valley",
+            "shortDescription": "Old-growth redwoods on flat boardwalk loops.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "alamere-falls",
+            "name": "Alamere Falls",
+            "category": "hiking",
+            "region": "north-bay",
+            "city": "Bolinas",
+            "shortDescription": "Long coastal hike to a waterfall that pours onto the beach.",
+            "duration": "Full Day",
+            "difficulty": "advanced",
+            "dogFriendly": false
+          },
+          {
+            "id": "big-basin",
+            "name": "Big Basin Redwoods",
+            "category": "hiking",
+            "region": "south-bay",
+            "city": "Boulder Creek",
+            "shortDescription": "California's oldest state park, regrowing after the 2020 fire.",
+            "duration": "Full Day",
+            "difficulty": "moderate",
+            "dogFriendly": false
+          },
+          {
+            "id": "exploratorium",
+            "name": "Exploratorium",
+            "category": "culture",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Hands-on science museum on Pier 15.",
+            "duration": "2-3 Hours",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "cal-academy",
+            "name": "California Academy of Sciences",
+            "category": "culture",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Aquarium, planetarium and a rainforest dome under one roof.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "de-young",
+            "name": "de Young Museum",
+            "category": "culture",
+            "region": "sf",
+            "city": "San Francisco",
+            "shortDescription": "Art museum in Golden Gate Park with a free observation tower.",
+            "duration": "2-3 Hours",
+            "difficulty": "easy",
+            "dogFriendly": false
+          },
+          {
+            "id": "duartes",
+            "name": "Duarte's Tavern",
+            "category": "food",
+            "region": "peninsula",
+            "city": "Pescadero",
+            "shortDescription": "Historic tavern known for artichoke soup and olallieberry pie.",
+            "duration": "1-2 Hours",
+            "difficulty": null,
+            "dogFriendly": false
+          },
+          {
+            "id": "elkhorn-kayak",
+            "name": "Kayaking Elkhorn Slough",
+            "category": "water",
+            "region": "central-coast",
+            "city": "Moss Landing",
+            "shortDescription": "Paddle among sea otters and harbor seals.",
+            "duration": "Half Day",
+            "difficulty": "easy",
+            "dogFriendly": false
+          }
+        ]
+      },
+      "expect": {
+        "includeAny": [
+          "exploratorium",
+          "cal-academy",
+          "de-young"
+        ],
+        "excludeAll": [
+          "alamere-falls",
+          "mission-peak",
+          "big-basin"
+        ],
+        "minPicks": 1,
+        "maxPicks": 12
+      },
+      "notes": "Indoors is a hard constraint: an SF museum must appear, and the long outdoor hikes must not. Fixture catalog of real places: the Exploratorium (Pier 15), the California Academy of Sciences and the de Young (Golden Gate Park) are indoor museums; Alamere Falls, Mission Peak and Big Basin are long outdoor hikes outside the city. As of 2026-10-14."
     }
   ]
 }

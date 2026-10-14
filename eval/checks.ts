@@ -19,6 +19,7 @@ import {
   DURATION_VALUES,
   DIFFICULTY_VALUES,
   PRICE_RANGE_VALUES,
+  COST_TIER_VALUES,
 } from '../api/_resolvers/gemini.js';
 import type {
   AlltrailsExpect,
@@ -33,6 +34,7 @@ import type {
   GracefulErrorCode,
   NumericRange,
   ResolverOutcome,
+  TripSuggestionsExpect,
 } from './types.js';
 
 // --- result constructors ---------------------------------------------------
@@ -145,6 +147,7 @@ const ENUM_ACTIVITY_FIELDS: { field: string; values: readonly string[] }[] = [
   { field: 'duration', values: DURATION_VALUES },
   { field: 'difficulty', values: DIFFICULTY_VALUES },
   { field: 'priceRange', values: PRICE_RANGE_VALUES },
+  { field: 'costTier', values: COST_TIER_VALUES },
 ];
 
 function asActivity(value: unknown): Record<string, unknown> | null {
@@ -172,7 +175,7 @@ function checkRequired(activity: Record<string, unknown>): CheckResult {
 }
 
 // Enum-typed fields that are PRESENT must carry a legal value. Absent optional
-// enum fields (parkType/priceRange omitted) are not graded here.
+// enum fields (parkType/priceRange/costTier omitted) are not graded here.
 function checkEnums(activity: Record<string, unknown>): CheckResult {
   const problems: string[] = [];
   for (const { field, values } of ENUM_ACTIVITY_FIELDS) {
@@ -293,6 +296,11 @@ export function checkGenerateHappy(
   if (expect.parkType) {
     results.push(
       checkValueExpectation('expect:parkType', activity, 'parkType', expect.parkType),
+    );
+  }
+  if (expect.costTier) {
+    results.push(
+      checkValueExpectation('expect:costTier', activity, 'costTier', expect.costTier),
     );
   }
   if (expect.duration) {
@@ -767,5 +775,39 @@ export function checkDiscoverStructural(
       : skipped('structural:dedupe', 'dedupe is false; not graded'),
   );
 
+  return results;
+}
+
+// --- tripSuggestions (#78) ---------------------------------------------------
+
+/**
+ * A trip-suggestion answer: the picks are within bounds, include at least
+ * one activity that clearly fits, and none that breaks a hard constraint.
+ */
+export function checkTripSuggestions(
+  value: unknown,
+  expect: TripSuggestionsExpect,
+): CheckResult[] {
+  const picks = Array.isArray(value)
+    ? (value as { activityId?: unknown }[]).map((p) => String(p.activityId))
+    : null;
+  if (!picks) return [fail('trip:shape', 'expected an array of picks')];
+  const listed = `[${picks.join(', ')}]`;
+  const results: CheckResult[] = [
+    picks.length >= expect.minPicks && picks.length <= expect.maxPicks
+      ? pass('trip:count', `${picks.length} picks`)
+      : fail('trip:count', `${picks.length} picks, expected ${expect.minPicks}-${expect.maxPicks}`),
+    expect.includeAny.some((id) => picks.includes(id))
+      ? pass('trip:includes', `picked one of [${expect.includeAny.join(', ')}]`)
+      : fail('trip:includes', `none of [${expect.includeAny.join(', ')}] in ${listed}`),
+  ];
+  if (expect.excludeAll) {
+    const wrong = expect.excludeAll.filter((id) => picks.includes(id));
+    results.push(
+      wrong.length === 0
+        ? pass('trip:excludes', 'no pick breaks a constraint')
+        : fail('trip:excludes', `picked [${wrong.join(', ')}], which break the request`),
+    );
+  }
   return results;
 }
