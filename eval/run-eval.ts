@@ -3,12 +3,12 @@
 // trick api/graphql.test.ts uses), grades each golden case mechanically —
 // judge calls only where prose plausibility can't be checked in code — and
 // exits non-zero when the score drops below the threshold or the run is
-// inconclusive. Paid gemini-2.5-flash calls: not part of `npm test`.
+// inconclusive. Paid Gemini calls: not part of `npm test`.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { GqlContext } from '../api/_gqlContext.js';
-import { geminiMutation, geminiQuery } from '../api/_resolvers/gemini.js';
+import { MODEL, geminiMutation, geminiQuery } from '../api/_resolvers/gemini.js';
 import {
   checkAlltrails,
   checkDiscoverStructural,
@@ -31,8 +31,6 @@ import {
 } from './types.js';
 
 const EVAL_DIR = path.dirname(fileURLToPath(import.meta.url));
-const MODEL = 'gemini-2.5-flash';
-
 // The server gate is requireOwnerCtx, which only inspects this object — no
 // Clerk or DB involved, so a fabricated owner is enough to call resolvers.
 const CTX: GqlContext = { caller: { email: 'eval@local', role: 'owner' } };

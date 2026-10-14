@@ -965,6 +965,124 @@ describe('Gemini ops', () => {
     });
   });
 
+  it('generateActivity: drops redirect, non-web and off-host links, keeps real ones', async () => {
+    setup();
+    stubFetch(
+      geminiText(
+        JSON.stringify({
+          ...castleRock,
+          allTrailsUrl: 'https://www.alltrails.com/explore?q=castle+rock',
+          menuUrl: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc',
+          reservationUrl: 'javascript:alert(1)',
+        }),
+      ),
+    );
+    const LINKS =
+      'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { allTrailsUrl menuUrl reservationUrl } } }';
+    const dropped = await run(LINKS, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(dropped.errors).toBeUndefined();
+    expect((dropped.data?.generateActivity as { activity: Row }).activity).toEqual({
+      allTrailsUrl: null,
+      menuUrl: null,
+      reservationUrl: null,
+    });
+
+    stubFetch(
+      geminiText(
+        JSON.stringify({
+          ...castleRock,
+          allTrailsUrl: 'https://www.alltrails.com/trail/us/california/castle-rock',
+          menuUrl: 'http://cafe.example.com/menu',
+          reservationUrl: 'not a url',
+        }),
+      ),
+    );
+    const kept = await run(LINKS, { i: { title: 'Castle Rock' } }, OWNER);
+    expect((kept.data?.generateActivity as { activity: Row }).activity).toEqual({
+      allTrailsUrl: 'https://www.alltrails.com/trail/us/california/castle-rock',
+      menuUrl: 'http://cafe.example.com/menu',
+      reservationUrl: null,
+    });
+
+    // A trail path on another host isn't an AllTrails link.
+    stubFetch(
+      geminiText(
+        JSON.stringify({ ...castleRock, allTrailsUrl: 'https://example.com/trail/castle-rock' }),
+      ),
+    );
+    const offHost = await run(LINKS, { i: { title: 'Castle Rock' } }, OWNER);
+    expect((offHost.data?.generateActivity as { activity: Row }).activity).toMatchObject({
+      allTrailsUrl: null,
+    });
+  });
+
+  it('generateActivity: reads a reply split across parts, skipping thoughts', async () => {
+    setup();
+    const json = JSON.stringify(castleRock);
+    stubFetch({
+      candidates: [
+        {
+          content: {
+            parts: [
+              { text: '{"thinking": true}', thought: true },
+              { text: json.slice(0, 20) },
+              {},
+              { text: json.slice(20) },
+            ],
+          },
+        },
+      ],
+    });
+    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.generateActivity as { activity: Row }).activity).toMatchObject({
+      name: 'Castle Rock',
+    });
+  });
+
+  it('generateActivity: a reply with only thoughts → BAD_GATEWAY', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup();
+    stubFetch({ candidates: [{ content: { parts: [{ text: '{}', thought: true }] } }] });
+    const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(code(r)).toBe('BAD_GATEWAY');
+    expect(r.errors?.[0].message).toBe('no content in gemini response');
+    errSpy.mockRestore();
+  });
+
+  // Each Gemini call is grounded (Google Search + URL context), asks for JSON
+  // against a schema, and leaves Gemini 3's temperature at its default.
+  it.each([
+    ['generateActivity', GENERATE, { i: { title: 'Castle Rock' } }, 'medium', 'name'],
+    [
+      'alltrailsLookup',
+      'mutation($i: AlltrailsLookupInput!){ alltrailsLookup(input:$i){ lookup { allTrailsRating } } }',
+      { i: { url: 'https://www.alltrails.com/trail/x' } },
+      'low',
+      'allTrailsRating',
+    ],
+    ['discover', '{ discover(range: weekend){ range } }', {}, 'medium', 'items'],
+  ])('%s: sends a grounded, schema-shaped Gemini 3 request', async (_name, query, vars, level, key) => {
+    setup();
+    stubFetch(geminiText(JSON.stringify(castleRock)));
+    await run(query, vars, OWNER);
+    // stubFetch's mock takes (url: string, init); the resolvers pass a JSON body.
+    const calls = vi.mocked(fetch).mock.calls as unknown as [string, { body: string }][];
+    const call = calls.find(([url]) => url.includes('generativelanguage'));
+    expect(call?.[0]).toContain('/models/gemini-3.8-flash:generateContent');
+    const body = JSON.parse(call?.[1].body ?? '{}') as Row;
+    expect(body.tools).toEqual([{ googleSearch: {} }, { urlContext: {} }]);
+    const config = body.generationConfig as Row;
+    expect(config).toMatchObject({
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingLevel: level },
+    });
+    // Its own schema: the activity's fields, the lookup's numbers, or an event list.
+    const schema = config.responseJsonSchema as Row;
+    expect(key === 'items' ? schema : schema.properties).toHaveProperty(key);
+    expect(config).not.toHaveProperty('temperature');
+  });
+
   it('generateActivity: gemini JSON that is not an object → BAD_GATEWAY', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     setup();

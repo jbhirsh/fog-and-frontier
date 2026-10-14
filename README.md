@@ -139,15 +139,17 @@ codes on adversarial input. On top of that sits a **narrow, temperature-0 LLM
 judge** used *only* for the things a check can't assert — the plausibility of a
 generated description or a discovered event. Nothing else is judged by a model.
 
-**Generation temperature.** Issue #122 asked for temperature-0 eval calls; the
-harness deliberately deviates and exercises the production resolvers at their
-production generation settings (temperature 0.4 / 0.1 / 0.5 by surface) — it
-measures what actually ships, not a determinized variant of it. The trade-off
-is that individual case results rotate run-to-run (typically ~1 case flips
-between otherwise-identical runs) while the overall score stays in band, so
-compare runs by score, not by which case failed. The judge itself still runs
-at temperature 0. A temperature-0 override for the resolver calls is a
-possible future refinement.
+**Model and generation settings.** The resolvers call `gemini-3.8-flash` with
+Google Search and URL context turned on, so they look facts up and read the
+links they're given rather than answer from memory, and a JSON schema still
+shapes every reply. Issue #122 asked for temperature-0 eval calls; the harness
+deliberately deviates and exercises the production resolvers at their
+production settings — Gemini 3.8 Flash ignores temperature, and the search
+results are live — so it measures what actually ships, not a determinized variant of it. The trade-off is that individual case
+results rotate run-to-run (typically ~1 case flips between
+otherwise-identical runs) while the overall score stays in band, so compare
+runs by score, not by which case failed. The judge stays on `gemini-2.5-flash`
+at temperature 0, so the yardstick didn't move when the resolvers did.
 
 **How to run:**
 
@@ -156,10 +158,12 @@ vercel env pull .env.local   # provides GEMINI_API_KEY
 npm run eval
 ```
 
-It makes 22 paid resolver calls plus up to 16 LLM-judge calls per run — worst
-case ~38 `gemini-2.5-flash` calls (judges are skipped once a mechanical check
-has already failed a case, so most runs use fewer). Fractions of a cent either
-way, and **not** part of `npm test` — it's opt-in because it costs money and
+It makes 22 paid resolver calls (`gemini-3.8-flash`, each with a few Google
+searches) plus up to 16 `gemini-2.5-flash` judge calls per run — judges are
+skipped once a mechanical check has already failed a case, so most runs use
+fewer. Grounding makes a run dearer than it was on 2.5 (search results and
+fetched pages bill as input tokens, and the first 5,000 searches a month are
+free) — tens of cents, about a dollar at worst, and **not** part of `npm test` — it's opt-in because it costs money and
 hits the network.
 
 **Threshold semantics.** A run passes at **90%** by default, overridable with
@@ -179,7 +183,7 @@ calls.
 **Golden set status.** The golden set is **DRAFT — pending owner review**; each
 case cites the provenance of its expected coordinates/data and an as-of date.
 
-**Known limitations.** The plausibility judge is Gemini grading Gemini. Its
+**Known limitations.** The plausibility judge is Gemini (2.5 Flash) grading Gemini (3.8 Flash). Its
 rubric was calibrated during owner review (2026-07-10) after three consecutive
 runs each failed a *different* true-but-unlisted fact (Big Basin's reservation
 system, Duarte's cioppino/1930s restaurant era, Castle Rock's world-class
@@ -193,7 +197,7 @@ pure-nonsense input rather than decline.
 
 **Current score: 95.5%** (21/22 graded, threshold 90%) — recorded by the
 gating CI run of 2026-07-10 (eval workflow run 29061551986). Because the
-resolvers are evaluated at their production temperatures (see above), *which*
+resolvers are evaluated at their production settings (see above), *which*
 case fails rotates run-to-run — the ≥90% threshold is the contract, not any
 single case's verdict. Findings, reported as-is per issue #122 ("failures are
 real signal"):
