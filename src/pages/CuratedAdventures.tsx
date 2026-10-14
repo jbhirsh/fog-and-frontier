@@ -115,8 +115,8 @@ export function CuratedAdventures() {
   // editors can shortlist activities too. The trip affordances are hidden, not
   // greyed out, from signed-out visitors (#112); the server enforces per-trip
   // membership on the actual add. (Catalog "Add activity" stays owner-only
-  // below.) A signed-out visitor arriving via location.state falls back to
-  // vanilla Curated.
+  // below; other accounts get "Suggest activity", #73.) A signed-out visitor
+  // arriving via location.state falls back to vanilla Curated.
   const isSignedIn = !!email;
   const acceptTarget = isSignedIn && initialTarget !== null;
 
@@ -804,7 +804,9 @@ export function CuratedAdventures() {
               {selectionMode ? 'Cancel select' : 'Select for trip'}
             </button>
           )}
-          {isOwner && (
+          {/* Owners add; any other signed-in account suggests one for the
+              owners to review (#73). Signed-out visitors see neither. */}
+          {(isOwner || isSignedIn) && (
             <button
               type="button"
               onClick={() => setAdding(true)}
@@ -812,12 +814,12 @@ export function CuratedAdventures() {
             >
               <span
                 className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('add') }}
+                style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed(isOwner ? 'add' : 'lightbulb') }}
                 aria-hidden="true"
               >
-                add
+                {isOwner ? 'add' : 'lightbulb'}
               </span>
-              Add activity
+              {isOwner ? 'Add activity' : 'Suggest activity'}
             </button>
           )}
         </div>
@@ -1050,6 +1052,7 @@ export function CuratedAdventures() {
 
       {adding && (
         <AddActivity
+          suggest={!isOwner}
           onClose={() => setAdding(false)}
           onOpenActivity={(id) => {
             setAdding(false);

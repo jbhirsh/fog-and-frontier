@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -13,6 +13,7 @@ import type {
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
+import { suggestUserActivity } from '../lib/suggestions';
 import { checkDuplicates, unacknowledgedHigh, type DuplicateMatch } from '../lib/duplicates';
 import { appCodeOf } from '../lib/gqlError';
 import { COST_TIERS, costLabel } from '../lib/cost';
@@ -39,6 +40,11 @@ interface Props {
   // Opens a saved activity's detail; offered when a new one looks like it
   // (#17). Without it the warning just names the look-alike.
   onOpenActivity?: (id: string) => void;
+  // A signed-in non-owner's suggestion (#73): drafted the same way (a capped
+  // number a day), then sent for the owners to review instead of saved. No
+  // AllTrails refresh (an owner-only call) and no crediting: whoever suggests
+  // it is credited when it's accepted.
+  suggest?: boolean;
 }
 
 const CATEGORIES: Category[] = [
@@ -127,10 +133,16 @@ function slugify(name: string): string {
   );
 }
 
-export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: Props) {
+export function AddActivity({
+  onClose,
+  editActivity,
+  onSaved,
+  onOpenActivity,
+  suggest = false,
+}: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const mode: 'create' | 'edit' = editActivity ? 'edit' : 'create';
-  const [step, setStep] = useState<'form' | 'generating' | 'review'>(
+  const [step, setStep] = useState<'form' | 'generating' | 'review' | 'sent'>(
     editActivity ? 'review' : 'form',
   );
   const [title, setTitle] = useState('');
@@ -143,7 +155,7 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
   // the picker just has no one to offer; the credited chips still show.
   const [users, setUsers] = useState<string[]>([]);
   useEffect(() => {
-    if (step !== 'review') return;
+    if (step !== 'review' || suggest) return;
     let live = true;
     fetchUsers()
       .then((list) => {
@@ -153,7 +165,7 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
     return () => {
       live = false;
     };
-  }, [step]);
+  }, [step, suggest]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -215,7 +227,7 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
         coverCredit: g.coverCredit,
         // Whoever adds it is credited (#9), and can add the others who
         // suggested it in the review step.
-        contributors: email ? [email] : undefined,
+        contributors: email && !suggest ? [email] : undefined,
       };
       setDraft(activity);
       setStep('review');
@@ -273,23 +285,30 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
     setError(null);
     let finalDraft = draft;
     try {
-      finalDraft = await refreshTrailDetails(draft, editActivity?.allTrailsUrl);
+      if (!suggest) finalDraft = await refreshTrailDetails(draft, editActivity?.allTrailsUrl);
       if (mode === 'create') {
         const found = await lookAlikes(finalDraft);
         if (unacknowledgedHigh(found, acknowledged).length > 0) {
           setError(
             acknowledged.length > 0
-              ? 'Another saved activity looks like this one too. Check it before saving.'
-              : "This looks like one already saved. Open it, or choose Save anyway if it's a different place.",
+              ? `Another saved activity looks like this one too. Check it before ${suggest ? 'sending' : 'saving'}.`
+              : `This looks like one already saved. Open it, or choose ${suggest ? 'Send' : 'Save'} anyway if it's a different place.`,
           );
           setSaving(false);
+          return;
+        }
+        const allowDuplicate = found.some((m) => m.confidence === 'high');
+        if (suggest) {
+          await suggestUserActivity(finalDraft, { allowDuplicate });
+          setSaving(false);
+          setStep('sent');
           return;
         }
         // The id follows the name as it is now; the server takes the next
         // free one if that's taken, and says which it used.
         const id = await saveUserActivity(
           { ...finalDraft, id: slugify(finalDraft.name) },
-          { create: true, allowDuplicate: found.some((m) => m.confidence === 'high') },
+          { create: true, allowDuplicate },
         );
         finalDraft = { ...finalDraft, id };
       } else {
@@ -298,7 +317,7 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
       onSaved?.(finalDraft);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save');
+      setError(e instanceof Error ? e.message : suggest ? 'Failed to send' : 'Failed to save');
       setSaving(false);
       // The server found a look-alike the check missed: show it.
       if (appCodeOf(e) === 'duplicate') void lookAlikes(finalDraft);
@@ -316,16 +335,22 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={mode === 'edit' ? 'Edit activity' : 'Add activity'}
+        aria-label={mode === 'edit' ? 'Edit activity' : suggest ? 'Suggest activity' : 'Add activity'}
         className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
       >
         <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
           <h2 className="font-display text-headline-md text-primary">
             {mode === 'edit'
               ? 'Edit activity'
-              : step === 'review'
-                ? 'Review & save'
-                : 'Add activity'}
+              : step === 'sent'
+                ? 'Suggestion sent'
+                : step === 'review'
+                  ? suggest
+                    ? 'Review & send'
+                    : 'Review & save'
+                  : suggest
+                    ? 'Suggest activity'
+                    : 'Add activity'}
           </h2>
           <button
             type="button"
@@ -350,6 +375,7 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
             onChangeNotes={setNotes}
             onSubmit={() => void generate()}
             onCancel={onClose}
+            suggest={suggest}
           />
         )}
 
@@ -361,6 +387,7 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
             error={error}
             saving={saving}
             mode={mode}
+            suggest={suggest}
             users={users}
             onChange={changeDraft}
             onBack={mode === 'edit' ? onClose : backToForm}
@@ -372,7 +399,47 @@ export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: 
             }
           />
         )}
+
+        {step === 'sent' && <SentStep onDone={onClose} />}
       </div>
+    </div>
+  );
+}
+
+function SentStep({ onDone }: { onDone: () => void }) {
+  // The review step's Send button is gone: keep focus in the dialog, on a
+  // button that reads out what happened (a status rendered with its text
+  // isn't reliably announced).
+  const done = useRef<HTMLButtonElement>(null);
+  const sentId = useId();
+  useEffect(() => done.current?.focus(), []);
+  return (
+    <div className="px-md py-xl text-center space-y-md">
+      {/* The glyph leaves 4px empty on its left and 1.3px on its right, so a
+          centred box draws it 1.3px right of centre; shifted back by half
+          the difference, its ink is centred instead. */}
+      <span
+        className="material-symbols-outlined text-primary"
+        style={{ fontSize: 48, transform: 'translateX(-0.028em)' }}
+        aria-hidden="true"
+      >
+        mark_email_read
+      </span>
+      <p id={sentId} className="font-body-lg text-on-surface">
+        Sent to the owners for review.
+      </p>
+      <p id={`${sentId}-next`} className="font-body-md text-on-surface-variant max-w-[28rem] mx-auto">
+        If they add it, it joins the catalog with you credited for it.
+      </p>
+      <button
+        ref={done}
+        type="button"
+        onClick={onDone}
+        aria-describedby={`${sentId} ${sentId}-next`}
+        className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+      >
+        Done
+      </button>
     </div>
   );
 }
@@ -386,6 +453,7 @@ function FormStep({
   onChangeNotes,
   onSubmit,
   onCancel,
+  suggest,
 }: {
   title: string;
   notes: string;
@@ -395,6 +463,7 @@ function FormStep({
   onChangeNotes: (v: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
+  suggest: boolean;
 }) {
   return (
     <form
@@ -405,13 +474,16 @@ function FormStep({
       className="px-md py-md space-y-md"
     >
       <p className="font-body-md text-on-surface-variant">
-        Give it a title and any notes or links you have. Gemini will research
-        the rest — you'll get to review before saving.
+        {suggest
+          ? "Give it a title and any notes or up to five links. Gemini will research the rest (up to five a day), and you'll review it before it goes to the owners."
+          : "Give it a title and any notes or links you have. Gemini will research the rest — you'll get to review before saving."}
       </p>
 
       <Field label="Title">
         <input
           type="text"
+          // A suggestion's draft is bounded on the server (#73).
+          maxLength={suggest ? 200 : undefined}
           value={title}
           onChange={(e) => onChangeTitle(e.target.value)}
           ref={titleInputRef}
@@ -424,6 +496,7 @@ function FormStep({
         <textarea
           value={notes}
           onChange={(e) => onChangeNotes(e.target.value)}
+          maxLength={suggest ? 2000 : undefined}
           rows={5}
           placeholder="Anything specific you know about it — links, who recommended it, what you want to do there."
           className={inputCls}
@@ -461,7 +534,7 @@ function GeneratingStep({ title }: { title: string }) {
       <div className="font-body-lg text-on-surface">
         Researching <span className="font-bold">{title}</span>…
       </div>
-      <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
+      <p className="font-body-md text-on-surface-variant max-w-[28rem] mx-auto">
         Gemini is pulling together a description, location, duration, photo,
         and trail details. This usually takes a few seconds.
       </p>
@@ -474,6 +547,7 @@ function ReviewStep({
   error,
   saving,
   mode,
+  suggest,
   users,
   onChange,
   onBack,
@@ -486,6 +560,7 @@ function ReviewStep({
   error: string | null;
   saving: boolean;
   mode: 'create' | 'edit';
+  suggest: boolean;
   users: readonly string[];
   onChange: (a: Activity) => void;
   onBack: () => void;
@@ -708,11 +783,14 @@ function ReviewStep({
           />
         </Field>
         {/* Rating, distance, and elevation are fetched from AllTrails on save
-            when the URL changes — there are no manual inputs for them. */}
-        <p className="font-body-sm text-on-surface-variant">
-          On save, rating, distance, and elevation will be refreshed from
-          AllTrails when the URL changes.
-        </p>
+            when the URL changes — there are no manual inputs for them. A
+            suggestion isn't saved, so there's no refresh to promise. */}
+        {!suggest && (
+          <p className="font-body-sm text-on-surface-variant">
+            On save, rating, distance, and elevation will be refreshed from
+            AllTrails when the URL changes.
+          </p>
+        )}
       </div>
 
       {/* Restaurant fields — only relevant for food spots (#76). Kept out of
@@ -829,17 +907,20 @@ function ReviewStep({
         </Field>
       )}
 
-      <ContributorsField
-        value={draft.contributors ?? []}
-        users={users}
-        onChange={(next) => patch('contributors', next)}
-      />
+      {!suggest && (
+        <ContributorsField
+          value={draft.contributors ?? []}
+          users={users}
+          onChange={(next) => patch('contributors', next)}
+        />
+      )}
 
       <DuplicateNotice
         matches={matches}
         onOpenActivity={onOpenActivity}
         onSaveAnyway={onSaveAnyway}
         saving={saving}
+        anywayLabel={suggest ? 'Send anyway' : 'Save anyway'}
       />
 
       {error && <div className="text-error font-body-md">{error}</div>}
@@ -872,7 +953,7 @@ function ReviewStep({
               saving ? 'invisible' : ''
             }`}
           >
-            Save activity
+            {suggest ? 'Send suggestion' : 'Save activity'}
           </span>
           <span
             aria-hidden={!saving}
@@ -884,7 +965,7 @@ function ReviewStep({
               className="w-4 h-4 rounded-full border-2 border-on-primary border-t-transparent animate-spin"
               aria-hidden="true"
             />
-            Saving
+            {suggest ? 'Sending' : 'Saving'}
           </span>
         </button>
       </div>

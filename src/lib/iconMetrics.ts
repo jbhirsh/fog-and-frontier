@@ -11,6 +11,7 @@ export const ICON_SIDE_BEARING: Readonly<Record<string, number>> = {
   check_circle: 0.083,
   close: 0.194,
   expand_more: 0.25,
+  lightbulb: 0.167,
   location_on: 0.167,
   map: 0.111,
   // Its slash leaves the right side emptier (0.111). This is the left side,

@@ -92,10 +92,12 @@ artifact excluded from the strict app typecheck roots).
 ### Auth model
 
 - **Server is the real gate.** `requireOwnerCtx` in `api/_gqlContext.ts`
-  (Clerk-backed) enforces owner-only writes and paid calls (e.g. Gemini);
+  (Clerk-backed) enforces owner-only writes and paid calls (e.g. Gemini,
+  apart from the capped drafts non-owners get for suggestions, #73);
   `requireMemberCtx` / `requireCreatorCtx` gate trip-scoped actions, and
   `requireUserCtx` admits any signed-in account where something else
-  authorizes the write (`claimInvite`: the invite token).
+  authorizes the write (`claimInvite`: the invite token), and for
+  suggestions and their capped Gemini drafts (#73).
 - Client-side, `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner
   emails come from `VITE_OWNER_EMAILS`; keep it in sync with the server's
   `OWNER_EMAILS`.

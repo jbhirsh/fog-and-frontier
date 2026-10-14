@@ -1,7 +1,9 @@
 import { findCoverImage } from '../_coverImage.js';
-import { badGateway, badInput } from '../_gqlError.js';
+import { badGateway, badInput, forbidden } from '../_gqlError.js';
+import { claimAssist, releaseAssist } from '../_assistBudget.js';
+import { isSavableUrl, LINK_HOSTS } from '../_links.js';
 import { logServerError } from '../_log.js';
-import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
+import { requireOwnerCtx, requireUserCtx, type GqlContext } from '../_gqlContext.js';
 import { HOME_BASE } from '../_home.js';
 import { catalogActivities } from './catalog.js';
 import {
@@ -15,9 +17,11 @@ import {
 // The city alone, for "some San Jose, some Bay Area".
 const HOME_CITY = HOME_BASE.split(',')[0];
 
-// Gemini-backed resolvers (owner-gated paid calls): generateActivity,
-// alltrailsLookup and suggestTripActivities mutations and the lazy `discover`
-// query. Upstream failures throw BAD_GATEWAY (REST 502); we keep the explicit
+// Gemini-backed resolvers (paid calls, owner-gated except generateActivity,
+// which any signed-in account may use a few times a day to draft a
+// suggestion, #73): generateActivity, alltrailsLookup and
+// suggestTripActivities mutations and the lazy `discover` query. Upstream
+// failures throw BAD_GATEWAY (REST 502); we keep the explicit
 // logServerError calls so the #20 observability of those 502s survives
 // (BAD_GATEWAY is "user-facing", so formatError won't double-log it). A
 // missing API key throws a plain Error → INTERNAL, also logged — matching the
@@ -214,32 +218,9 @@ const OPTIONAL_GENERATED_ENUMS: Record<string, readonly string[]> = {
   costTier: COST_TIER_VALUES,
 };
 
-// Link fields of GeneratedActivity, with the host each must be on (if any).
-// Grounded replies can cite Google's short-lived search redirect
-// (vertexaisearch.cloud.google.com) in place of the page itself; a saved link
-// has to be the real page, so the guard below drops a redirect, anything that
-// isn't an http(s) URL, and an AllTrails link that isn't a trail page on
-// alltrails.com.
-const GENERATED_URL_HOSTS: Record<string, RegExp | null> = {
-  allTrailsUrl: /^(www\.)?alltrails\.com$/,
-  reservationUrl: null,
-  menuUrl: null,
-};
-
-function isSavableUrl(value: unknown, host: RegExp | null): boolean {
-  if (typeof value !== 'string') return false;
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return false;
-  }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
-  if (url.hostname === 'vertexaisearch.cloud.google.com') return false;
-  if (host === null) return true;
-  return host.test(url.hostname) && url.pathname.startsWith('/trail/');
-}
-
+// Grounded replies can cite Google's short-lived search redirect in place of
+// the page itself, so a drafted link is held to the same rule as a saved one
+// (LINK_HOSTS, api/_links.ts) and dropped if it fails.
 const GENERATE_SYSTEM_PROMPT = `You are a Bay Area outdoor-activity research assistant for a personal travel app called "Fog and Frontier". Given a user's free-form title and optional notes/links, populate a structured Activity record.
 
 Rules:
@@ -256,35 +237,71 @@ Rules:
 - When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.
 - "costTier" is what one person pays to do it, from the fees you found: "free" when you find no entry, parking or ticket fee (most trails, beaches and city parks), "$" under $25 (e.g. a state park day-use fee, or a national park's per-vehicle fee split between two people), "$$" $25-75, "$$$" over $75. Omit it for restaurants, which use "priceRange" instead, and otherwise only when there's clearly a charge you can't price.`;
 
+// What a non-owner's draft may ask about (#73).
+export const MAX_ASSIST_TITLE = 200;
+export const MAX_ASSIST_NOTES = 2000;
+export const MAX_ASSIST_LINKS = 5;
+
 async function generateActivity(
   _parent: unknown,
   { input }: { input: { title?: unknown; notes?: unknown } },
   ctx: GqlContext,
 ) {
-  requireOwnerCtx(ctx);
+  // Any signed-in account can draft an activity to suggest (#73); past the
+  // owners, it's a capped number of paid calls a day.
+  const caller = requireUserCtx(ctx);
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
   const title = typeof input.title === 'string' ? input.title.trim() : '';
   const notes = typeof input.notes === 'string' ? input.notes.trim() : '';
   if (!title) throw badInput('title is required');
+  // One day for the claim and any give-back, even across midnight UTC.
+  const now = new Date();
+  if (caller.role !== 'owner') {
+    // The daily cap counts calls; these bound what one costs, since every
+    // link in the notes is read and billed as input.
+    if (title.length > MAX_ASSIST_TITLE) throw badInput('title is too long');
+    if (notes.length > MAX_ASSIST_NOTES) throw badInput('notes are too long');
+    // Links in the title are read and billed too.
+    if ((`${title}\n${notes}`.match(/https?:\/\//gi) ?? []).length > MAX_ASSIST_LINKS) {
+      throw badInput(`a draft can include at most ${MAX_ASSIST_LINKS} links`);
+    }
+    if (!(await claimAssist(caller.email, now))) {
+      throw forbidden("You've used today's AI drafts. Try again tomorrow.", 'assist_limit');
+    }
+  }
+  // A draft whose request never got an answer is given back (releaseAssist).
+  const giveBack = async () => {
+    if (caller.role === 'owner') return;
+    await releaseAssist(caller.email, now).catch((err: unknown) => {
+      logServerError(err, { route: ROUTE, method: 'POST', status: 502 });
+    });
+  };
 
   const userPrompt = notes
     ? `Title: ${title}\n\nUser notes/links:\n${notes}`
     : `Title: ${title}`;
 
-  const r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: GENERATE_SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      tools: GROUNDING_TOOLS,
-      generationConfig: jsonConfig(ACTIVITY_SCHEMA, 'medium'),
-    }),
-  });
+  let r: Response;
+  try {
+    r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: GENERATE_SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        tools: GROUNDING_TOOLS,
+        generationConfig: jsonConfig(ACTIVITY_SCHEMA, 'medium'),
+      }),
+    });
+  } catch (err) {
+    await giveBack();
+    throw err;
+  }
 
   if (!r.ok) {
+    await giveBack();
     const text = await r.text();
     logServerError(new Error(`gemini request failed: ${r.status}`), {
       route: ROUTE,
@@ -366,7 +383,7 @@ async function generateActivity(
       parsed[field] = null;
     }
   }
-  for (const [field, host] of Object.entries(GENERATED_URL_HOSTS)) {
+  for (const [field, host] of Object.entries(LINK_HOSTS)) {
     const v = parsed[field];
     if (v !== undefined && v !== null && !isSavableUrl(v, host)) parsed[field] = null;
   }
