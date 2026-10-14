@@ -60,6 +60,18 @@ export const CHECK_DUPLICATE_QUERY = graphql(`
   }
 `);
 
+export const SUGGEST_TRIP_ACTIVITIES = graphql(`
+  mutation SuggestTripActivities($input: SuggestTripActivitiesInput!) {
+    suggestTripActivities(input: $input) {
+      suggestions {
+        activityId
+        reason
+        activity { id name category location { city } }
+      }
+    }
+  }
+`);
+
 export const COMPLETED_QUERY = graphql(`
   query Completed {
     completed { __typename id completed }

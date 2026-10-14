@@ -8,12 +8,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { GqlContext } from '../api/_gqlContext.js';
-import { MODEL, geminiMutation, geminiQuery } from '../api/_resolvers/gemini.js';
+import { MODEL, geminiMutation, geminiQuery, rankTripCandidates } from '../api/_resolvers/gemini.js';
 import {
   checkAlltrails,
   checkDiscoverStructural,
   checkGenerateGraceful,
   checkGenerateHappy,
+  checkTripSuggestions,
   classifyGeminiError,
 } from './checks.js';
 import { judgeDescriptions, judgeDiscoverEvents, judgeRealPlace } from './judge.js';
@@ -72,7 +73,7 @@ function parseArgs(argv: string[]): CliOptions {
   if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) {
     exitConfig(`threshold must be a fraction in (0, 1], got: ${threshold}`);
   }
-  if (feature && !['generateActivity', 'alltrailsLookup', 'discover'].includes(feature)) {
+  if (feature && !['generateActivity', 'alltrailsLookup', 'discover', 'tripSuggestions'].includes(feature)) {
     exitConfig(`unknown feature: ${feature}`);
   }
   return { only, feature, threshold };
@@ -158,6 +159,17 @@ function validateCaseShape(c: GoldenCase): void {
       if (typeof c.expect.judgeEvents?.minPlausibleFraction !== 'number') bad('expect.judgeEvents.minPlausibleFraction missing');
       break;
     }
+    case 'tripSuggestions': {
+      if (typeof c.input.prompt !== 'string' || !c.input.prompt) bad('input.prompt must be a non-empty string');
+      if (!Array.isArray(c.input.catalog) || c.input.catalog.length === 0) bad('input.catalog must be a non-empty array');
+      if (!Array.isArray(c.expect.includeAny) || c.expect.includeAny.length === 0) bad('expect.includeAny must be a non-empty array');
+      if (!(c.expect.minPicks >= 0 && c.expect.maxPicks >= c.expect.minPicks)) bad('expect needs 0 <= minPicks <= maxPicks');
+      const ids = new Set(c.input.catalog.map((a) => a.id));
+      for (const id of [...c.expect.includeAny, ...(c.expect.excludeAll ?? [])]) {
+        if (!ids.has(id)) bad(`expectation names ${id}, which isn't in the catalog`);
+      }
+      break;
+    }
     default:
       bad(`unknown feature: ${String((c as { feature: unknown }).feature)}`);
   }
@@ -174,6 +186,13 @@ async function callResolver(goldenCase: GoldenCase): Promise<ResolverOutcome> {
         return geminiMutation.alltrailsLookup(undefined, { input: goldenCase.input }, CTX);
       case 'discover':
         return geminiQuery.discover(undefined, { range: goldenCase.input.range }, CTX);
+      case 'tripSuggestions':
+        // The ranking itself, over the case's fixed catalog: no DB.
+        return rankTripCandidates(
+          goldenCase.input.prompt,
+          goldenCase.input.catalog,
+          process.env.GEMINI_API_KEY ?? '',
+        );
     }
   };
   const timeout = new Promise<never>((_, reject) => {
@@ -247,6 +266,13 @@ async function gradeCase(
       if (noFailures(checks)) {
         checks.push(await judgeDiscoverEvents(outcome.value, goldenCase.expect.judgeEvents.minPlausibleFraction));
       }
+      break;
+    }
+    case 'tripSuggestions': {
+      const gate = resolvedCheck(outcome);
+      checks.push(gate);
+      if (gate.status !== 'pass' || !outcome.ok) break;
+      checks.push(...checkTripSuggestions(outcome.value, goldenCase.expect));
       break;
     }
   }
