@@ -205,6 +205,43 @@ export const SUGGEST_ACTIVITY = graphql(`
   }
 `);
 
+export const PENDING_SUGGESTIONS = graphql(`
+  query PendingSuggestions {
+    pendingSuggestions {
+      id
+      suggestedBy
+      suggestedAt
+      activity {
+        id
+        name
+        shortDescription
+        longDescription
+        category
+        location { city }
+        duration
+        costTier
+        coverImage
+        allTrailsUrl
+        reservationUrl
+        menuUrl
+        notes
+      }
+    }
+  }
+`);
+
+export const ACCEPT_SUGGESTION = graphql(`
+  mutation AcceptSuggestion($id: ID!, $allowDuplicate: Boolean) {
+    acceptSuggestion(id: $id, allowDuplicate: $allowDuplicate) { activity { id name } }
+  }
+`);
+
+export const REJECT_SUGGESTION = graphql(`
+  mutation RejectSuggestion($id: ID!) {
+    rejectSuggestion(id: $id) { id }
+  }
+`);
+
 export const DELETE_ACTIVITY = graphql(`
   mutation DeleteActivity($input: DeleteActivityInput!) {
     deleteActivity(input: $input) { deletedId }
@@ -408,6 +445,7 @@ export type TripActivityRow = TripRow['activities'][number];
 // __typename) is structurally assignable to this, so one mapper covers both.
 export type SnapshotRow = NonNullable<TripActivityRow['snapshot']>;
 export type ActivityLike = Omit<SnapshotRow, '__typename'>;
+export type PendingSuggestionRow = DocumentType<typeof PENDING_SUGGESTIONS>['pendingSuggestions'][number];
 
 export type ActivityReviewsData = DocumentType<typeof ACTIVITY_REVIEWS_QUERY>;
 export type ActivityReviewRow = ActivityReviewsData['activityReviews'][number];

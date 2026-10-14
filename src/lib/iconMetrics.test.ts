@@ -20,6 +20,7 @@ describe('glyphBleed', () => {
       check_box: 0.111,
       check_circle: 0.083,
       close: 0.194,
+      expand_less: 0.25,
       expand_more: 0.25,
       lightbulb: 0.167,
       location_on: 0.167,
