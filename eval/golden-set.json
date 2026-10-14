@@ -84,9 +84,13 @@
           "lat": 37.5044,
           "lng": -121.9083,
           "toleranceKm": 12
-        }
+        },
+        "costTier": [
+          "free",
+          "$"
+        ]
       },
-      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09."
+      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14)."
     },
     {
       "id": "gen-lands-end",
@@ -114,9 +118,12 @@
           "lat": 37.786,
           "lng": -122.5033,
           "toleranceKm": 10
-        }
+        },
+        "costTier": [
+          "free"
+        ]
       },
-      "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09."
+      "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09. costTier free: no entry or parking fee at Lands End (nps.gov/goga fees; as of 2026-10-14)."
     },
     {
       "id": "gen-big-basin",
@@ -169,9 +176,13 @@
           "lat": 37.897,
           "lng": -122.5817,
           "toleranceKm": 10
-        }
+        },
+        "costTier": [
+          "$",
+          "$$"
+        ]
       },
-      "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.897/-122.5817 (Wikipedia infobox / NPS). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09."
+      "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.897/-122.5817 (Wikipedia infobox / NPS). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09. costTier: $15 entry + $9 parking reservation per car, ~$19.50 each for two → $; $$ accepted for a model that counts the car alone (nps.gov/muwo/planyourvisit/fees.htm; as of 2026-10-14)."
     },
     {
       "id": "gen-duartes-tavern",
@@ -225,9 +236,12 @@
           "lat": 36.5848,
           "lng": -121.9651,
           "toleranceKm": 20
-        }
+        },
+        "costTier": [
+          "$"
+        ]
       },
-      "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the three towns the loop touches. As of 2026-07-09."
+      "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the three towns the loop touches. As of 2026-07-09. costTier $: ~$11-12 per vehicle at the gate, $ split or not (travel guides; the official rate varies year to year; as of 2026-10-14)."
     },
     {
       "id": "gen-cannon-beach",

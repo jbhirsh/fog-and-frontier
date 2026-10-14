@@ -30,6 +30,8 @@ const DIFFICULTIES = new Set(['easy', 'moderate', 'advanced']);
 const PARK_TYPES = new Set([
   'national', 'state', 'regional', 'county', 'city', 'private', 'none',
 ]);
+// What an activity costs (#85); `costTier` is a String the client narrows.
+export const COST_TIERS: ReadonlySet<string> = new Set(['free', '$', '$$', '$$$']);
 
 function str(v: unknown): string | null {
   return typeof v === 'string' ? v : null;
@@ -93,6 +95,7 @@ export type SnapshotShape = {
   hikeElevationFeet: number | null;
   cuisine: string | null;
   priceRange: string | null;
+  costTier: string | null;
   hours: string | null;
   reservationUrl: string | null;
   menuUrl: string | null;
@@ -128,6 +131,7 @@ export function coerceSnapshot(raw: unknown): SnapshotShape | null {
     hikeElevationFeet: num(r.hikeElevationFeet),
     cuisine: str(r.cuisine),
     priceRange: str(r.priceRange),
+    costTier: enumVal(r.costTier, COST_TIERS),
     hours: str(r.hours),
     reservationUrl: str(r.reservationUrl),
     menuUrl: str(r.menuUrl),

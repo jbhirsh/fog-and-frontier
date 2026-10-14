@@ -330,7 +330,7 @@ describe('Query.activities: malformed rows (data boundary)', () => {
   const FULL_SELECTION = `{ activities { id name shortDescription longDescription
     category region parkType location { city coords { lat lng } } duration
     durationDetail difficulty dogFriendly coverImage galleryImages allTrailsUrl
-    allTrailsRating hikeDistanceMiles hikeElevationFeet cuisine priceRange hours
+    allTrailsRating hikeDistanceMiles hikeElevationFeet cuisine priceRange costTier hours
     reservationUrl menuUrl dietary completed completedDate notes } }`;
 
   const validRow = {
@@ -924,6 +924,50 @@ describe('contributors (#9)', () => {
   });
 });
 
+describe('costTier (#85)', () => {
+  const SAVE =
+    'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id costTier } } }';
+
+  it('matches the tiers Gemini is asked for', async () => {
+    const { COST_TIERS } = await import('./_gqlMap.js');
+    const { COST_TIER_VALUES } = await import('./_resolvers/gemini.js');
+    expect([...COST_TIERS]).toEqual([...COST_TIER_VALUES]);
+  });
+
+  it.each(['free', '$', '$$', '$$$'])('saves and reads back %s', async (tier) => {
+    setup();
+    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: tier } } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', costTier: tier } });
+    const stored = executeWrites()[0]?.args[1] as string;
+    setup({ catalog: [{ id: 'a1', j: stored }] });
+    const read = await run('{ activities { id costTier } }');
+    expect(read.data?.activities).toEqual([{ id: 'a1', costTier: tier }]);
+  });
+
+  it('refuses a tier outside the set, writing nothing', async () => {
+    setup();
+    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: '$$$$' } } }, OWNER);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe('costTier must be free, $, $$ or $$$');
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('clears it with null', async () => {
+    setup();
+    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: null } } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', costTier: null } });
+  });
+
+  it('reads a stored tier outside the set as null rather than failing the catalog', async () => {
+    setup({ catalog: [{ id: 'a1', j: JSON.stringify({ id: 'a1', ...minimalActivity(), costTier: 'cheap' }) }] });
+    const read = await run('{ activities { id costTier } }');
+    expect(read.errors).toBeUndefined();
+    expect(read.data?.activities).toEqual([{ id: 'a1', costTier: null }]);
+  });
+});
+
 function minimalActivity() {
   return {
     name: 'Trail',
@@ -1091,7 +1135,7 @@ describe('Gemini ops', () => {
     dogFriendly: true,
   };
   const GENERATE =
-    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name category difficulty parkType priceRange coverImage } } }';
+    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name category difficulty parkType priceRange costTier coverImage } } }';
 
   it('generateActivity: out-of-range category → BAD_GATEWAY naming it', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -1112,6 +1156,7 @@ describe('Gemini ops', () => {
           difficulty: 'extreme',
           parkType: 'tribal',
           priceRange: 'cheap',
+          costTier: 'pricey',
         }),
       ),
     );
@@ -1123,18 +1168,20 @@ describe('Gemini ops', () => {
       difficulty: null,
       parkType: null,
       priceRange: null,
+      costTier: null,
     });
   });
 
   it('generateActivity: keeps in-range optional enums', async () => {
     setup();
-    stubFetch(geminiText(JSON.stringify({ ...castleRock, priceRange: '$$' })));
+    stubFetch(geminiText(JSON.stringify({ ...castleRock, priceRange: '$$', costTier: 'free' })));
     const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
     expect(r.errors).toBeUndefined();
     expect((r.data?.generateActivity as { activity: Row }).activity).toMatchObject({
       difficulty: 'moderate',
       parkType: 'state',
       priceRange: '$$',
+      costTier: 'free',
     });
   });
 
