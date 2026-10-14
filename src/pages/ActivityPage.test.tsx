@@ -16,11 +16,12 @@ import { useOpenActivity } from '../lib/activityRoute';
 import { CATALOG_LOAD_ERROR } from '../lib/userActivities';
 
 function Probe() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   return (
     <>
       <output data-testid="path">{pathname}</output>
+      <output data-testid="search">{search}</output>
       <button type="button" onClick={() => void navigate(-1)}>
         back
       </button>
@@ -106,6 +107,18 @@ describe('ActivityPage (#86)', () => {
     const cafe: Activity = { ...muirWoods, id: 'test-cafe', name: 'Test Cafe', category: 'food' };
     renderAt(['/activity/test-cafe'], [cafe]);
     expect(screen.getByRole('dialog', { name: 'Test Cafe' })).toBeInTheDocument();
+  });
+
+  it('leaves for the catalog filtered to a contributor clicked in the detail (#9)', async () => {
+    const credited = { ...muirWoods, contributors: ['tarun@example.com'] };
+    renderAt([`/activity/${muirWoods.id}`], [credited]);
+    const dialog = screen.getByRole('dialog', { name: muirWoods.name });
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: "Show Tarun's picks" }),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(path()).toBe('/');
+    expect(screen.getByTestId('search')).toHaveTextContent('?contributors=tarun%40example.com');
   });
 
   it('closes a link opened fresh to the catalog', async () => {

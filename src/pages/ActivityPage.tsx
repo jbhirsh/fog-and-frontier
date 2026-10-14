@@ -7,6 +7,7 @@ import {
   readActivityState,
   useCloseActivity,
   useOpenActivity,
+  useShowContributor,
 } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
 
@@ -23,6 +24,7 @@ export function ActivityPage() {
   const { activities, loading, error } = useUserActivities();
   const open = useOpenActivity();
   const close = useCloseActivity();
+  const showContributor = useShowContributor();
   // The page stays mounted while Back, Forward or a nearby pick moves between
   // activities, so only the one it opened with animates in (#63), and only
   // until it moves on: coming back to it doesn't replay the open.
@@ -59,6 +61,7 @@ export function ActivityPage() {
         showUploads={!!activity.completed}
         animateIn={activity.id === openedWith}
         sequence={position ? sequenceOf(position, step, cameBy) : undefined}
+        onShowContributor={showContributor}
       />
     );
   }
