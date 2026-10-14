@@ -1055,6 +1055,120 @@ describe('duplicates (#17)', () => {
   });
 });
 
+describe('Mutation.suggestTripActivities (#78)', () => {
+  const SUGGEST =
+    'mutation($i: SuggestTripActivitiesInput!){ suggestTripActivities(input:$i){ suggestions { activityId reason activity { id name } } } }';
+  const row = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    j: JSON.stringify({ id, ...minimalActivity(), name, ...extra }),
+  });
+  const catalog = [row('a', 'Fort Funston', { dogFriendly: true }), row('b', 'Muir Woods'), row('c', 'Exploratorium')];
+  const picks = (...items: [string, string][]) =>
+    geminiText(JSON.stringify({ suggestions: items.map(([activityId, reason]) => ({ activityId, reason })) }));
+  const sentBody = () =>
+    JSON.parse(
+      ((vi.mocked(fetch).mock.calls[0] as unknown[])[1] as { body: string }).body,
+    ) as { contents: { parts: { text: string }[] }[]; tools?: unknown };
+
+  it('is owner-only', async () => {
+    setup({ catalog });
+    expect(code(await run(SUGGEST, { i: { prompt: 'dogs' } }, EDITOR))).toBe('FORBIDDEN');
+    expect(code(await run(SUGGEST, { i: { prompt: 'dogs' } }))).toBe('UNAUTHENTICATED');
+  });
+
+  it('keeps only real, unrepeated, unexcluded picks, with their activities', async () => {
+    setup({ catalog });
+    stubFetch(picks(['a', 'dogs on the beach'], ['zzz', 'made up'], ['a', 'again'], ['c', ' rainy day '], ['b', 'excluded']));
+    const r = await run(SUGGEST, { i: { prompt: '  a dog day  ', excludeActivityIds: ['b'] } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.suggestTripActivities).toEqual({
+      suggestions: [
+        { activityId: 'a', reason: 'dogs on the beach', activity: { id: 'a', name: 'Fort Funston' } },
+        { activityId: 'c', reason: 'rainy day', activity: { id: 'c', name: 'Exploratorium' } },
+      ],
+    });
+    // Gemini sees the trimmed request and only the candidates not excluded,
+    // with no search tools.
+    const body = sentBody();
+    const text = body.contents[0].parts[0].text;
+    expect(text.startsWith('Request: a dog day\n\nCatalog:\n')).toBe(true);
+    const sent = JSON.parse(text.split('Catalog:\n')[1]) as { id: string; city: string; dogFriendly: boolean | null }[];
+    expect(sent.map((c) => c.id)).toEqual(['a', 'c']);
+    expect(sent[0]).toMatchObject({ city: 'X', dogFriendly: true });
+    expect(body.tools).toBeUndefined();
+  });
+
+  it('caps the picks at twelve', async () => {
+    const many = Array.from({ length: 14 }, (_, i) => row(`p${i}`, `Place ${i}`));
+    setup({ catalog: many });
+    stubFetch(picks(...many.map((m) => [m.id, 'fits'] as [string, string])));
+    const r = await run(SUGGEST, { i: { prompt: 'anything' } }, OWNER);
+    expect((r.data?.suggestTripActivities as { suggestions: unknown[] }).suggestions).toHaveLength(12);
+  });
+
+  it('asks nothing when every activity is excluded', async () => {
+    setup({ catalog: [row('a', 'Fort Funston')] });
+    stubFetch(picks(['a', 'x']));
+    const r = await run(SUGGEST, { i: { prompt: 'anything', excludeActivityIds: ['a'] } }, OWNER);
+    expect(r.data?.suggestTripActivities).toEqual({ suggestions: [] });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ prompt: '   ' }, 'prompt is required'],
+    [{ prompt: 'x'.repeat(2001) }, 'prompt too long'],
+    [{ prompt: 'x', excludeActivityIds: Array.from({ length: 51 }, (_, i) => `e${i}`) }, 'at most 50 excluded activities'],
+  ])('refuses bad input: %#', async (i, message) => {
+    setup({ catalog });
+    stubFetch(picks());
+    const r = await run(SUGGEST, { i }, OWNER);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe(message);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('takes 2000 characters and 50 exclusions', async () => {
+    setup({ catalog });
+    stubFetch(picks());
+    const r = await run(
+      SUGGEST,
+      { i: { prompt: 'x'.repeat(2000), excludeActivityIds: Array.from({ length: 50 }, (_, i) => `e${i}`) } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+  });
+
+  it('reads an answer without a list as no picks', async () => {
+    setup({ catalog });
+    stubFetch(geminiText(JSON.stringify({ nope: true })));
+    const r = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(r.data?.suggestTripActivities).toEqual({ suggestions: [] });
+  });
+
+  it('gives a pick with no reason an empty one', async () => {
+    setup({ catalog });
+    stubFetch(geminiText(JSON.stringify({ suggestions: [{ activityId: 'a' }] })));
+    const r = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect((r.data?.suggestTripActivities as { suggestions: { reason: string }[] }).suggestions[0].reason).toBe('');
+  });
+
+  it('turns an upstream failure or a non-JSON answer into BAD_GATEWAY', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup({ catalog });
+    stubFetch({}, { ok: false });
+    const failed = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(code(failed)).toBe('BAD_GATEWAY');
+    expect(failed.errors?.[0]?.message).toBe('gemini request failed');
+    stubFetch(geminiText('not json'));
+    const garbled = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(garbled.errors?.[0]?.message).toBe('gemini returned non-JSON');
+    stubFetch({ candidates: [] });
+    const empty = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(empty.errors?.[0]?.message).toBe('gemini returned non-JSON');
+    errSpy.mockRestore();
+  });
+});
+
 function minimalActivity() {
   return {
     name: 'Trail',
