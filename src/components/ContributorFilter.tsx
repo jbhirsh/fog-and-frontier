@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { authorLabel } from '../lib/activityReviews';
 import { useAddPicker } from '../lib/useAddPicker';
 import { FilterPill } from './FilterPill';
+import { glyphBleed } from '../lib/iconMetrics';
 
 interface Props {
   /** Every account credited in the catalog. */
@@ -59,7 +60,7 @@ export function ContributorFilter({ options, selected, onChange }: Props) {
         >
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 18, width: 18, height: 18 }}
+            style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('person') }}
             aria-hidden="true"
           >
             person
@@ -67,7 +68,7 @@ export function ContributorFilter({ options, selected, onChange }: Props) {
           {authorLabel(email)}
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 18, width: 18, height: 18 }}
+            style={{ fontSize: 18, width: 18, height: 18, marginRight: glyphBleed('close') }}
             aria-hidden="true"
           >
             close
@@ -75,7 +76,7 @@ export function ContributorFilter({ options, selected, onChange }: Props) {
         </button>
       ))}
       {rest.length > 0 && (
-        <FilterPill icon="person">
+        <FilterPill icon="person" label={selected.length > 0 ? 'Add contributor' : 'Any contributor'}>
           <select
             ref={pickerRef}
             aria-label="Contributed by"

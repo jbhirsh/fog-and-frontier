@@ -98,6 +98,8 @@ describe('Curated Adventures page', () => {
     );
     const free = screen.getByRole('switch', { name: 'Free' });
     expect(free).toHaveAttribute('aria-checked', 'false');
+    // Its icon is pulled out by its glyph's empty side, like Dog friendly's.
+    expect(free.querySelector<HTMLElement>('.material-symbols-outlined')?.style.marginLeft).toBe('-0.056em');
     await userEvent.click(free);
     expect(free).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
@@ -138,6 +140,43 @@ describe('Curated Adventures page', () => {
   it('offers no Free filter until something is known to be free (#85)', () => {
     renderExplore();
     expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
+  });
+
+  it("shows each filter pill's choice as its label, and names each select", async () => {
+    renderExplore();
+    // The pill's label is the visible text; the select under it is invisible.
+    const pillText = (name: string) =>
+      screen.getByRole('combobox', { name }).closest('label')?.querySelector('span[aria-hidden="true"].whitespace-nowrap')
+        ?.textContent;
+    expect(pillText('Distance')).toBe('Any distance');
+    expect(pillText('Duration')).toBe('Any duration');
+    expect(pillText('Category')).toBe('Any category');
+    expect(pillText('Park type')).toBe('Any park type');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Distance' }), '25');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Duration' }), 'Half Day');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Category' }), 'hiking');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Park type' }), 'state');
+    expect(pillText('Distance')).toMatch(/^Within 25 mi of \S/);
+    expect(pillText('Duration')).toBe('Half Day');
+    expect(pillText('Category')).toBe('Hiking');
+    expect(pillText('Park type')).toBe('State park');
+  });
+
+  it('spells out the category options rather than leaving them to CSS', () => {
+    renderExplore();
+    const options = within(screen.getByRole('combobox', { name: 'Category' })).getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      'Any category',
+      'Hiking',
+      'Cycling',
+      'Water',
+      'Food',
+      'Culture',
+      'Scenic',
+      'Climbing',
+      'Camping',
+      'Other',
+    ]);
   });
 
   it('toggles dog-friendly filter', async () => {

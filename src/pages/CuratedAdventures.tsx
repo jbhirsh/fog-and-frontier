@@ -33,6 +33,8 @@ import { useUserActivities } from '../lib/userActivities';
 import { useOverrides } from '../lib/userCompleted';
 import { useOwner } from '../lib/useOwner';
 import { addActivityToTrip } from '../lib/userTrips';
+import { glyphBleed } from '../lib/iconMetrics';
+import { categoryOptionLabel } from '../lib/activityLabels';
 
 type TargetTrip = { id: string; title: string };
 
@@ -608,12 +610,26 @@ export function CuratedAdventures() {
   // stays short (wrapping there pushed the map far down the page). On desktop
   // they wrap instead: the scrollbar is hidden, so a chip past the edge (e.g.
   // "Completed only" at 1280px) was unreachable in practice.
-  const filterChips = (
-    <div className="flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <FilterPill icon="location_on">
+  // In the toolbar the chips' box dissolves from md up (`contents`), so the
+  // chips and the view/trip actions wrap as one row: kept in two columns, the
+  // chips wrapped in what was left beside the actions, stranding one on a
+  // line of its own. The mobile map's sheet keeps the box.
+  const renderFilterChips = (inToolbar: boolean) => (
+    <div
+      className={`flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        inToolbar ? 'md:contents' : ''
+      }`}
+    >
+      <FilterPill
+        icon="location_on"
+        label={
+          maxDistance === Infinity ? 'Any distance' : `Within ${maxDistance} mi of ${origin.name}`
+        }
+      >
         <select
           value={String(maxDistance)}
           onChange={(e) => setMaxDistance(Number(e.target.value))}
+          aria-label="Distance"
           className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
         >
           <option value={String(Infinity)}>Any distance</option>
@@ -624,10 +640,11 @@ export function CuratedAdventures() {
           ))}
         </select>
       </FilterPill>
-      <FilterPill icon="schedule">
+      <FilterPill icon="schedule" label={duration === 'Any' ? 'Any duration' : duration}>
         <select
           value={duration}
           onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
+          aria-label="Duration"
           className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
         >
           {DURATION_OPTIONS.map((d) => (
@@ -637,23 +654,25 @@ export function CuratedAdventures() {
           ))}
         </select>
       </FilterPill>
-      <FilterPill icon="category">
+      <FilterPill icon="category" label={categoryOptionLabel(category)}>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-          className="appearance-none bg-transparent focus:outline-none cursor-pointer capitalize text-body-sm"
+          aria-label="Category"
+          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
         >
           {CATEGORY_OPTIONS.map((c) => (
-            <option key={c} value={c} className="capitalize">
-              {c === 'Any' ? 'Any category' : c}
+            <option key={c} value={c}>
+              {categoryOptionLabel(c)}
             </option>
           ))}
         </select>
       </FilterPill>
-      <FilterPill icon="forest">
+      <FilterPill icon="forest" label={PARK_TYPE_LABELS[parkType]}>
         <select
           value={parkType}
           onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
+          aria-label="Park type"
           className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
         >
           {PARK_TYPE_OPTIONS.map((p) => (
@@ -677,7 +696,7 @@ export function CuratedAdventures() {
       >
         <span
           className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-          style={{ fontSize: 18, width: 18, height: 18 }}
+          style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('pets') }}
           aria-hidden="true"
         >
           pets
@@ -702,7 +721,7 @@ export function CuratedAdventures() {
         >
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 18, width: 18, height: 18 }}
+            style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('money_off') }}
             aria-hidden="true"
           >
             money_off
@@ -725,7 +744,7 @@ export function CuratedAdventures() {
       >
         <span
           className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-          style={{ fontSize: 18, width: 18, height: 18 }}
+          style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('check_circle') }}
           aria-hidden="true"
         >
           check_circle
@@ -749,8 +768,8 @@ export function CuratedAdventures() {
         view === 'list' ? 'md:sticky md:top-20' : ''
       }`}
     >
-      <div className="max-w-screen-2xl mx-auto flex flex-col gap-sm md:flex-row md:items-center">
-        {filterChips}
+      <div className="max-w-screen-2xl mx-auto flex flex-col gap-sm md:flex-row md:flex-wrap md:items-center">
+        {renderFilterChips(true)}
         {/* View toggle + trip actions: their own row below the filters on
             mobile, right-aligned inline on desktop. */}
         <div className="flex flex-wrap md:flex-nowrap shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
@@ -772,7 +791,12 @@ export function CuratedAdventures() {
             >
               <span
                 className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{ fontSize: 18, width: 18, height: 18 }}
+                style={{
+                  fontSize: 18,
+                  width: 18,
+                  height: 18,
+                  marginLeft: glyphBleed(selectionMode ? 'close' : 'check_box'),
+                }}
                 aria-hidden="true"
               >
                 {selectionMode ? 'close' : 'check_box'}
@@ -788,7 +812,7 @@ export function CuratedAdventures() {
             >
               <span
                 className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{ fontSize: 18, width: 18, height: 18 }}
+                style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('add') }}
                 aria-hidden="true"
               >
                 add
@@ -843,7 +867,7 @@ export function CuratedAdventures() {
             {/* The toolbar isn't shown on the mobile map, so the sheet
                 carries its filter chips: otherwise active filters would
                 narrow the pins with no way to see or change them here. */}
-            <div className="pb-sm">{filterChips}</div>
+            <div className="pb-sm">{renderFilterChips(false)}</div>
             {/* The toolbar that shows a failed catalog read elsewhere isn't
                 here, and a failed read must not pass for an empty catalog. */}
             {loadError && (
@@ -934,7 +958,7 @@ export function CuratedAdventures() {
         >
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 20, width: 20, height: 20 }}
+            style={{ fontSize: 20, width: 20, height: 20, marginLeft: glyphBleed('map') }}
             aria-hidden="true"
           >
             map

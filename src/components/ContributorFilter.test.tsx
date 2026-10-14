@@ -39,6 +39,33 @@ describe('ContributorFilter (#9)', () => {
     expect(onChange).toHaveBeenCalledWith([TARUN, JESS]);
   });
 
+  it('labels its pill "Any contributor", then "Add contributor" once one is chosen', () => {
+    // The pill shows its own label over the invisible select (FilterPill).
+    // Read that label alone: the select's placeholder option holds the same
+    // words, so the whole pill's text would match without it.
+    const shown = () =>
+      screen
+        .getByRole('combobox', { name: 'Contributed by' })
+        .closest('label')
+        ?.querySelector('span[aria-hidden="true"].whitespace-nowrap')?.textContent;
+    const { rerender } = render(
+      <ContributorFilter options={[JESS, TARUN]} selected={[]} onChange={() => {}} />,
+    );
+    expect(shown()).toBe('Any contributor');
+    rerender(<ContributorFilter options={[JESS, TARUN]} selected={[TARUN]} onChange={() => {}} />);
+    expect(shown()).toBe('Add contributor');
+  });
+
+  it("pulls a chip's edge icons out by their glyphs' empty sides", () => {
+    render(<ContributorFilter options={[JESS, TARUN]} selected={[TARUN]} onChange={() => {}} />);
+    const chip = screen.getByRole('button', { name: 'Remove contributor filter: Tarun' });
+    const [person, close] = [...chip.querySelectorAll<HTMLElement>('.material-symbols-outlined')];
+    expect(person).toHaveTextContent('person');
+    expect(person.style.marginLeft).toBe('-0.167em');
+    expect(close).toHaveTextContent('close');
+    expect(close.style.marginRight).toBe('-0.194em');
+  });
+
   it('takes a chosen account off with its chip', async () => {
     const onChange = vi.fn();
     render(
