@@ -4,8 +4,8 @@
 // describeEvent renders the event lines the events judge grades from (its
 // ISO-date-first format is what prevents the judge mis-inferring the year).
 
-import { describe, expect, it } from 'vitest';
-import { describeEvent, extractText, matchesSchema } from './judge.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describeEvent, extractText, judgeDescriptions, matchesSchema } from './judge.js';
 import type { JsonSchema } from './judge.js';
 
 describe('matchesSchema', () => {
@@ -79,6 +79,21 @@ describe('extractText', () => {
     expect(extractText(envelope('{"plausible":true}'))).toBe('{"plausible":true}');
   });
 
+  it('joins a reply split across parts, skipping thoughts and textless parts', () => {
+    const split = {
+      candidates: [
+        {
+          content: {
+            parts: [{ text: 'thinking…', thought: true }, { text: '{"pass":' }, {}, { text: 'true}' }],
+          },
+        },
+      ],
+    };
+    expect(extractText(split)).toBe('{"pass":true}');
+    const onlyThoughts = { candidates: [{ content: { parts: [{ text: '{}', thought: true }] } }] };
+    expect(extractText(onlyThoughts)).toBeNull();
+  });
+
   it('returns null for every malformed envelope shape', () => {
     expect(extractText(null)).toBeNull();
     expect(extractText('string')).toBeNull();
@@ -121,5 +136,38 @@ describe('describeEvent', () => {
     expect(line).toContain('[1] (no name)');
     expect(line).toContain('date: (no startDate)');
     expect(line).toContain('location: (no location)');
+  });
+});
+
+describe('the judge request', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('asks a search-grounded Gemini 3 for a schema-shaped verdict, with no temperature', async () => {
+    vi.stubEnv('GEMINI_API_KEY', 'test-key');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '{"pass":true,"issues":[]}' }] } }],
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await judgeDescriptions({ activity: { name: 'X' } }, 'facts');
+    expect(result.status).toBe('pass');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+    expect(url).toContain('/models/gemini-3.8-flash:generateContent');
+    const body = JSON.parse(init.body) as Record<string, Record<string, unknown>>;
+    expect(body.tools).toEqual([{ googleSearch: {} }]);
+    expect(body.generationConfig).toMatchObject({
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingLevel: 'low' },
+    });
+    expect(body.generationConfig.responseJsonSchema).toMatchObject({ type: 'object' });
+    expect(body.generationConfig).not.toHaveProperty('temperature');
   });
 });
