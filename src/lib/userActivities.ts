@@ -128,11 +128,23 @@ export function useAllActivities(): Activity[] {
 
 // Owner-only upsert; refetches the catalog so a new card appears (a normalized
 // edit updates in place, but a brand-new id won't join the list otherwise).
-export async function saveUserActivity(activity: Activity): Promise<void> {
-  await apolloClient.mutate({
+// `create` saves a new activity (#17): the server matches it against the
+// catalog and saves it under a free id, which this returns; without it the
+// save is an edit of `activity.id`. `allowDuplicate` creates it even when it
+// looks like one already saved, once the owner has said it's different.
+export async function saveUserActivity(
+  activity: Activity,
+  { create = false, allowDuplicate = false }: { create?: boolean; allowDuplicate?: boolean } = {},
+): Promise<string> {
+  const { data } = await apolloClient.mutate({
     mutation: SAVE_ACTIVITY,
     variables: {
-      input: { id: activity.id, activity: activityToInput(activity) },
+      input: {
+        id: activity.id,
+        activity: activityToInput(activity),
+        ...(create ? { create: true } : {}),
+        ...(allowDuplicate ? { allowDuplicate: true } : {}),
+      },
     },
     // Road miles too (#66). The server forgets its cached catalog on save, so
     // the new or moved activity usually gets road miles straight away; if the
@@ -140,6 +152,7 @@ export async function saveUserActivity(activity: Activity): Promise<void> {
     refetchQueries: [{ query: ACTIVITIES_QUERY }, 'DrivingMiles'],
     awaitRefetchQueries: true,
   });
+  return data?.saveActivity.activity.id ?? activity.id;
 }
 
 export async function deleteUserActivity(id: string): Promise<void> {

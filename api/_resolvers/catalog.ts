@@ -1,5 +1,6 @@
 import { db } from '../_db.js';
-import { badInput } from '../_gqlError.js';
+import { badInput, conflict } from '../_gqlError.js';
+import { findDuplicates, freeId, type CatalogPlace } from '../_duplicates.js';
 import {
   COST_TIERS,
   dateToIso,
@@ -120,12 +121,10 @@ function storedContributors(j: unknown): string[] {
 // identities rather than free text. Names already credited aren't checked
 // again, so an edit never fails on a list it didn't change.
 async function resolveContributors(
-  id: string,
+  row: Record<string, unknown> | undefined,
   given: string[] | null | undefined,
   callerEmail: string,
 ): Promise<string[] | undefined> {
-  const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
-  const row = rs.rows[0];
   const stored = storedContributors(row?.j);
   if (given == null) {
     if (!row) return [callerEmail];
@@ -151,20 +150,73 @@ async function resolveContributors(
   return emails;
 }
 
+// The catalog as places to match a new activity against (#17).
+async function catalogPlaces(): Promise<CatalogPlace[]> {
+  return (await activities()).map((a) => {
+    const location = a.location as { city: string; coords: { lat: number; lng: number } };
+    return {
+      id: a.id as string,
+      name: a.name as string,
+      city: location.city,
+      ...location.coords,
+    };
+  });
+}
+
+// Public, like the catalog it reads: it says only which saved activities
+// look like the given name and pin.
+async function checkDuplicate(
+  _parent: unknown,
+  args: { name: string; lat: number; lng: number },
+) {
+  if (args.name.length > 200) throw badInput('name too long');
+  return findDuplicates(args, await catalogPlaces());
+}
+
+async function rowById(id: string) {
+  const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
+  return rs.rows[0];
+}
+
 async function saveActivity(
   _parent: unknown,
-  { input }: { input: { id: string; activity: ActivityInput } },
+  {
+    input,
+  }: {
+    input: {
+      id: string;
+      activity: ActivityInput;
+      create?: boolean | null;
+      allowDuplicate?: boolean | null;
+    };
+  },
   ctx: GqlContext,
 ) {
   const caller = requireOwnerCtx(ctx);
-  const id = input.id;
-  if (!id) throw badInput('missing id');
+  if (!input.id) throw badInput('missing id');
   const costTier = input.activity.costTier;
   if (costTier != null && !COST_TIERS.has(costTier as string)) {
     throw badInput('costTier must be free, $, $$ or $$$');
   }
+  let id = input.id;
+  if (input.create) {
+    // A new activity that looks like a saved one (#17) waits for the owner
+    // to say it's different; the client checks first, so this is the
+    // backstop. Then it takes a free id: a slug can be taken by a place
+    // whose name no longer matches, and saving there would replace it.
+    if (!input.allowDuplicate) {
+      const location = input.activity.location as { coords: { lat: number; lng: number } };
+      const same = findDuplicates(
+        { name: input.activity.name as string, ...location.coords },
+        await catalogPlaces(),
+      ).find((m) => m.confidence === 'high');
+      if (same) throw conflict(`looks like a duplicate of ${same.name}`, 'duplicate');
+    }
+    id = await freeId(id, async (candidate) => (await rowById(candidate)) !== undefined);
+  }
+  const row = input.create ? undefined : await rowById(id);
   const contributors = await resolveContributors(
-    id,
+    row,
     input.activity.contributors,
     caller.email,
   );
@@ -245,5 +297,5 @@ function contributorsField(
 
 export const activityFields = { contributors: contributorsField };
 
-export const catalogQuery = { activities, completed };
+export const catalogQuery = { activities, completed, checkDuplicate };
 export const catalogMutation = { saveActivity, deleteActivity, setCompleted };
