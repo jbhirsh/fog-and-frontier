@@ -31,6 +31,8 @@ export interface GenerateHappyExpect {
   category?: string[];
   region?: string[];
   parkType?: string[];
+  /** what one person pays (#85) */
+  costTier?: string[];
   duration?: string[];
   /** accept-any-of, matched case-insensitively */
   city?: string[];

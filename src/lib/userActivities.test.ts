@@ -69,6 +69,7 @@ const richActivity: Activity = {
   completedDate: '2025-11-02',
   notes: 'Book well ahead.',
   contributors: ['tarun@example.com', 'owner@example.com'],
+  costTier: '$$',
 };
 
 afterEach(async () => {
@@ -126,6 +127,7 @@ describe('rowToActivity ↔ activityToInput round-trip', () => {
       completedDate: '2025-11-02',
       coverCredit: 'Photo: Jo, CC BY 4.0, via Wikimedia Commons',
       contributors: ['tarun@example.com', 'owner@example.com'],
+      costTier: '$$',
     });
   });
 

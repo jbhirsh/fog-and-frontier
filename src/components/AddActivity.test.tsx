@@ -425,3 +425,52 @@ describe('AddActivity — contributors (#9)', () => {
     expect((await saved()).contributors).toEqual(['tarun@example.com']);
   });
 });
+
+describe('AddActivity — cost (#85)', () => {
+  const generated: GeneratedFields = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    category: 'hiking',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.23,
+    lng: -122.1,
+    duration: 'Half Day',
+  };
+
+  async function saved() {
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    return (saveSpy.mock.calls[0] as [Activity])[0];
+  }
+
+  it("carries Gemini's estimate into the draft", async () => {
+    generateSpy.mockResolvedValue({ ...generated, costTier: 'free' });
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(await screen.findByLabelText('Cost per person')).toHaveValue('free');
+    expect((await saved()).costTier).toBe('free');
+  });
+
+  it('offers each tier with its range, and can set or clear it', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={{ ...baseActivity, costTier: '$' }} />);
+    const cost = screen.getByLabelText('Cost per person');
+    expect([...cost.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      '—',
+      'Free',
+      '$ · under $25',
+      '$$ · $25–75',
+      '$$$ · over $75',
+    ]);
+    await userEvent.selectOptions(cost, '$$$');
+    await userEvent.selectOptions(cost, '');
+    expect((await saved()).costTier).toBeUndefined();
+  });
+
+  it('saves a tier picked by hand', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    await userEvent.selectOptions(screen.getByLabelText('Cost per person'), '$$');
+    expect((await saved()).costTier).toBe('$$');
+  });
+});
