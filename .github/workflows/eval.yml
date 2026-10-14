@@ -2,35 +2,51 @@ name: Gemini eval
 
 # Output-quality eval for the Gemini resolver (issue #122). Makes 22 paid
 # resolver calls (search-grounded gemini-3.8-flash) plus up to 16
-# gemini-2.5-flash judge calls per run, so it only runs on PRs that touch
-# the resolver, its schema, or the eval harness itself — plus manual
-# dispatch. No schedule (paid calls). Skips green on forks / when the secret is unset.
+# gemini-2.5-flash judge calls per run, so it only grades when the AI code
+# (the resolver, the two api/ files the prompts and grading read, the eval
+# harness) changes, and never a draft:
+#   - when a PR opens ready for review, is reopened, or a draft is marked
+#     ready, if the PR touches the AI code;
+#   - on a later push to a ready PR, unless the AI code is as it was at the
+#     head of this workflow's last finished run on the PR and that run
+#     passed (a failed, errored or cancelled grade is graded again);
+#   - on manual dispatch, always.
+# .github/scripts/eval-should-grade.mjs makes the call. A change to this
+# workflow alone doesn't grade (it changes when the eval runs, not what it
+# grades); dispatch it by hand after one to check the run still works.
+# Grading every push of any PR touching the schema or auth context, as it
+# used to, hit the project's monthly spend cap. No schedule (paid calls).
+# Skips green on forks / when the secret is unset.
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'api/_resolvers/gemini.ts'
-      - 'api/_schema.ts'
-      # The harness also depends on the context shape and the exact error
-      # codes/messages these two define (classifyGeminiError matches them).
-      - 'api/_gqlContext.ts'
+      # HOME_BASE goes into the prompts; the eval matches _gqlError's codes.
+      - 'api/_home.ts'
       - 'api/_gqlError.ts'
       - 'eval/**'
-      - '.github/workflows/eval.yml'
   workflow_dispatch:
 
 concurrency:
+  # A new push cancels a run still grading the old head; a cancelled run
+  # doesn't count as passed, so the new run grades instead of skipping.
   group: eval-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   eval:
+    # Drafts never call Gemini; marking one ready does.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     # Grounded calls are slower than the old memory-only ones: the 22 cases
     # run one at a time with a 90 s cap each, plus the judges.
     timeout-minutes: 40
     permissions:
       contents: read
+      # To read this workflow's earlier runs on the PR.
+      actions: read
     # Secrets can't be referenced in `if:` conditions, so surface the key as a
     # job-level env var and gate the paid steps on a step output derived from it.
     env:
@@ -50,9 +66,32 @@ jobs:
       - name: Checkout
         if: steps.key.outputs.present == 'true'
         uses: actions/checkout@v7
+        with:
+          # Full history, to diff a push against the commit before it.
+          fetch-depth: 0
+
+      # The paths filter above admits every push to a PR whose diff touches
+      # the AI code; the script narrows that down (see the header above).
+      # Node comes with the runner; the script needs no dependencies.
+      - name: Decide whether to grade
+        id: grade
+        if: steps.key.outputs.present == 'true'
+        env:
+          ACTION: ${{ github.event.action }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AFTER: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_FILE: eval.yml
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node .github/scripts/eval-should-grade.mjs
+          api/_resolvers/gemini.ts api/_home.ts api/_gqlError.ts eval
+          >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
-        if: steps.key.outputs.present == 'true'
+        if: steps.grade.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -60,15 +99,15 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install deps
-        if: steps.key.outputs.present == 'true'
+        if: steps.grade.outputs.run == 'true'
         run: npm ci
 
       - name: Run output-quality eval
-        if: steps.key.outputs.present == 'true'
+        if: steps.grade.outputs.run == 'true'
         run: npm run eval
 
       - name: Upload eval results
-        if: always() && steps.key.outputs.present == 'true'
+        if: always() && steps.grade.outputs.run == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: eval-results-${{ github.run_id }}
