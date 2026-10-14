@@ -304,3 +304,66 @@ export async function assertNoHorizontalOverflow(page: Page) {
     innerWidth,
   );
 }
+
+// Deterministic stub for the Gemini-backed `generateActivity` GraphQL mutation
+// so the AddActivity review step has stable copy + a fixed pin location. Shaped
+// as the `GeneratedActivity` row the client reads — every selected field is
+// present (nulls for the ones this fixture doesn't exercise) plus the
+// __typenames Apollo adds to the mutation selection.
+const STUB_GENERATED = {
+  __typename: 'GeneratedActivity' as const,
+  name: 'Test Generated Adventure',
+  shortDescription: 'A deterministic stub for the review step screenshot.',
+  longDescription:
+    'A longer description used to populate the review form. This is fixture text — nothing about it depends on the network.',
+  category: 'hiking' as const,
+  region: 'peninsula' as const,
+  parkType: null,
+  city: 'Half Moon Bay',
+  lat: 37.4636,
+  lng: -122.4286,
+  duration: 'Half Day' as const,
+  durationDetail: '3-4 hours',
+  difficulty: 'moderate' as const,
+  dogFriendly: true,
+  hikeDistanceMiles: 4.2,
+  hikeElevationFeet: 850,
+  cuisine: null,
+  priceRange: null,
+  hours: null,
+  reservationUrl: null,
+  menuUrl: null,
+  dietary: null,
+  allTrailsUrl: null,
+  notes: 'Stubbed notes for visual fixture.',
+  coverImage:
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=',
+  coverCredit: null,
+};
+
+// The client reaches Gemini through the single GraphQL endpoint, so answer
+// `GenerateActivity` with the stub and let mockApis' route handle every
+// other operation via fallback. Call after mockApis.
+export async function stubGenerateActivity(page: Page) {
+  await page.route('**/api/graphql', async (route) => {
+    const op = (
+      route.request().postDataJSON() as { operationName?: string } | null
+    )?.operationName;
+    if (op !== 'GenerateActivity') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          generateActivity: {
+            __typename: 'GenerateActivityPayload',
+            activity: STUB_GENERATED,
+          },
+        },
+      }),
+    });
+  });
+}
