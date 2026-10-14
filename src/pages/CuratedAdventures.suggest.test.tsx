@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthCtx, type AuthState } from '../lib/authShim';
 import { muirWoods } from '../test/fixtures';
+import { PENDING_SUGGESTIONS } from '../lib/gqlDocs';
 
 import { CuratedAdventures } from './CuratedAdventures';
 
@@ -24,6 +25,40 @@ afterEach(() => {
   delete (window as ForceOwner).__TEST_FORCE_OWNER__;
 });
 
+const pendingAnswer = vi.fn(() => ({
+  data: {
+      pendingSuggestions: [
+        {
+          __typename: 'ActivitySuggestion',
+          id: 's1',
+          suggestedBy: 'friend@example.com',
+          suggestedAt: '2026-03-01T00:00:00.000Z',
+          activity: {
+            __typename: 'Activity',
+            id: 's1',
+            name: 'Fort Funston',
+            shortDescription: 'Bluffs',
+            longDescription: null,
+            category: 'scenic',
+            location: { __typename: 'Location', city: 'San Francisco' },
+            duration: 'Half Day',
+            costTier: null,
+            coverImage: '',
+            allTrailsUrl: null,
+            reservationUrl: null,
+            menuUrl: null,
+            notes: null,
+          },
+        },
+      ],
+  },
+}));
+const PENDING = {
+  request: { query: PENDING_SUGGESTIONS },
+  result: pendingAnswer,
+  maxUsageCount: Number.POSITIVE_INFINITY,
+};
+
 function renderAs(auth: AuthState) {
   return render(
     <AuthCtx.Provider value={auth}>
@@ -31,7 +66,7 @@ function renderAs(auth: AuthState) {
         <CuratedAdventures />
       </MemoryRouter>
     </AuthCtx.Provider>,
-    { activities: [muirWoods] },
+    { activities: [muirWoods], mocks: [PENDING] },
   );
 }
 
@@ -68,5 +103,24 @@ describe('Curated Adventures — add or suggest (#73)', () => {
     expect(screen.queryByRole('button', { name: /Suggest activity/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Add activity/ }));
     expect(screen.getByRole('dialog', { name: 'Add activity' })).toBeInTheDocument();
+  });
+});
+
+describe('Curated Adventures — the review queue (#73)', () => {
+  it('shows owners what is waiting for review', async () => {
+    (window as ForceOwner).__TEST_FORCE_OWNER__ = true;
+    renderAs(SIGNED_IN);
+    expect(await screen.findByRole('region', { name: /Waiting for review/ })).toHaveTextContent(
+      'Fort Funston',
+    );
+  });
+
+  it('shows no one else a queue, or asks for one', async () => {
+    pendingAnswer.mockClear();
+    renderAs(SIGNED_IN);
+    await screen.findByRole('button', { name: /Suggest activity/ });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('region', { name: /Waiting for review/ })).not.toBeInTheDocument();
+    expect(pendingAnswer).not.toHaveBeenCalled();
   });
 });
