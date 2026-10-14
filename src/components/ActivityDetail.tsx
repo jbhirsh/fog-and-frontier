@@ -315,7 +315,7 @@ export function ActivityDetail({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-xs min-h-11 text-primary-container hover:underline font-medium"
               >
-                <span className="material-symbols-outlined text-body-md">
+                <span className="material-symbols-outlined text-icon-md">
                   directions
                 </span>
                 Get directions
@@ -697,7 +697,7 @@ function Contributors({
 }) {
   return (
     <div className="flex items-center gap-xs">
-      <span className="material-symbols-outlined text-body-md">person</span>
+      <span className="material-symbols-outlined text-icon-md">person</span>
       <span className="font-body-md">
         Contributed by{' '}
         {emails.map((email, i) => (
@@ -733,7 +733,7 @@ function Stat({
 }) {
   return (
     <div className="flex items-center gap-xs">
-      <span className="material-symbols-outlined text-body-md">{icon}</span>
+      <span className="material-symbols-outlined text-icon-md">{icon}</span>
       <span className={`font-body-md ${capitalize ? 'capitalize' : ''}`}>
         {label}
       </span>

@@ -23,7 +23,7 @@ export function InlineError({
           aria-label="Dismiss error"
           className="shrink-0 text-on-error-container/80 hover:text-on-error-container"
         >
-          <span className="material-symbols-outlined text-body-md">close</span>
+          <span className="material-symbols-outlined text-icon-md">close</span>
         </button>
       )}
     </div>

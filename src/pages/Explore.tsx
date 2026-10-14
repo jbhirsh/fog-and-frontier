@@ -317,7 +317,7 @@ function EventCard({ event }: { event: DiscoverEvent }) {
         {event.name}
       </h3>
       <div className="font-body-md text-on-surface-variant mt-xs flex items-center gap-xs">
-        <span className="material-symbols-outlined text-body-md">
+        <span className="material-symbols-outlined text-icon-md">
           location_on
         </span>
         {event.location}
@@ -325,7 +325,7 @@ function EventCard({ event }: { event: DiscoverEvent }) {
       <p className="font-body-md text-on-surface mt-sm">{event.blurb}</p>
       <div className="mt-md font-body-sm text-primary flex items-center gap-xs">
         View source
-        <span className="material-symbols-outlined text-body-md">
+        <span className="material-symbols-outlined text-icon-sm">
           open_in_new
         </span>
       </div>

@@ -67,7 +67,7 @@ export function MembersStrip({
                 aria-label={`Remove ${member.email}`}
                 className="shrink-0 text-on-surface-variant/60 hover:text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-body-md">
+                <span className="material-symbols-outlined text-icon-sm">
                   close
                 </span>
               </button>
@@ -89,7 +89,7 @@ export function MembersStrip({
             aria-label={`Revoke invite for ${invite.invited_email ?? 'pending invite'}`}
             className="shrink-0 text-on-surface-variant/60 hover:text-on-surface-variant"
           >
-            <span className="material-symbols-outlined text-body-md">
+            <span className="material-symbols-outlined text-icon-sm">
               close
             </span>
           </button>
@@ -113,7 +113,7 @@ export function MembersStrip({
         onClick={onInvite}
         className="inline-flex items-center gap-xs font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-primary hover:bg-surface-variant"
       >
-        <span className="material-symbols-outlined text-body-md">
+        <span className="material-symbols-outlined text-icon-sm">
           person_add
         </span>
         + Invite
