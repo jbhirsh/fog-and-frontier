@@ -135,8 +135,8 @@ three AI surfaces:
 Most of the grading is **mechanical and deterministic**: schema and enum
 legality, expected-enum membership (category / region / park type / duration),
 coordinate tolerance against a cited source, and the right graceful-failure
-codes on adversarial input. On top of that sits a **narrow, temperature-0 LLM
-judge** used *only* for the things a check can't assert — the plausibility of a
+codes on adversarial input. On top of that sits a **narrow, search-grounded
+LLM judge** used *only* for the things a check can't assert — the plausibility of a
 generated description or a discovered event. Nothing else is judged by a model.
 
 **Model and generation settings.** The resolvers call `gemini-3.8-flash` with
@@ -145,11 +145,12 @@ links they're given rather than answer from memory, and a JSON schema still
 shapes every reply. Issue #122 asked for temperature-0 eval calls; the harness
 deliberately deviates and exercises the production resolvers at their
 production settings — Gemini 3.8 Flash ignores temperature, and the search
-results are live — so it measures what actually ships, not a determinized variant of it. The trade-off is that individual case
-results rotate run-to-run (typically ~1 case flips between
-otherwise-identical runs) while the overall score stays in band, so compare
-runs by score, not by which case failed. The judge stays on `gemini-2.5-flash`
-at temperature 0, so the yardstick didn't move when the resolvers did.
+results are live — so it measures what actually ships, not a determinized
+variant of it. The trade-off is that individual case results rotate
+run-to-run (typically ~1 case flips between otherwise-identical runs) while
+the overall score stays in band, so compare runs by score, not by which case
+failed. The judge runs on `gemini-3.8-flash` with Google Search too, so it
+checks a specific the way the resolver found it rather than from memory.
 
 **How to run:**
 
@@ -159,9 +160,9 @@ npm run eval
 ```
 
 It makes 22 paid resolver calls (`gemini-3.8-flash`, each with a few Google
-searches) plus up to 16 `gemini-2.5-flash` judge calls per run — judges are
-skipped once a mechanical check has already failed a case, so most runs use
-fewer. On 2.5 a run cost about $0.25 (26 CI runs made up most of a $6.59
+searches) plus up to 16 judge calls (also grounded `gemini-3.8-flash`) per
+run — judges are skipped once a mechanical check has already failed a case,
+so most runs use fewer. On 2.5 a run cost about $0.25 (26 CI runs made up most of a $6.59
 month). Grounding makes it dearer — search results and fetched pages bill as
 input tokens, though the first 5,000 searches a month are free — so expect
 up to a dollar. It is **not** part of `npm test`: it's opt-in because it costs
@@ -195,25 +196,31 @@ calls.
 **Golden set status.** The golden set is **DRAFT — pending owner review**; each
 case cites the provenance of its expected coordinates/data and an as-of date.
 
-**Known limitations.** The plausibility judge is Gemini (2.5 Flash) grading Gemini (3.8 Flash). Its
-rubric was calibrated during owner review (2026-07-10) after three consecutive
-runs each failed a *different* true-but-unlisted fact (Big Basin's reservation
-system, Duarte's cioppino/1930s restaurant era, Castle Rock's world-class
-climbing reputation): the judge now passes widely-documented famous attributes
-even when a case's notes omit them, fails anything false/contradictory, and
-still fails obscure specifics it can't verify. That leans on the judge's own
-knowledge of famous places — a deliberate trade, documented in
-`eval/judge.ts`. One case is marked `xfail` (expected failure) to document
-that the response schema forces the model to fabricate a record on
-pure-nonsense input rather than decline.
+**Known limitations.** The plausibility judge is Gemini grading Gemini (both
+3.8 Flash). Its rubric was calibrated during owner review (2026-07-10) after
+three consecutive runs each failed a *different* true-but-unlisted fact (Big
+Basin's reservation system, Duarte's cioppino/1930s restaurant era, Castle
+Rock's world-class climbing reputation): the judge passes widely-documented
+famous attributes even when a case's notes omit them and fails anything
+false/contradictory. Since 2026-10-14 it searches before it fails a specific
+and fails only what search contradicts or can't support, so a true obscure
+detail the grounded resolver found no longer fails as "unverifiable" (see
+`eval/judge.ts`). Scores graded before then, by a 2.5 Flash judge without
+search, aren't directly comparable. One case is marked `xfail` (expected
+failure) to document that the response schema forces the model to fabricate a
+record on pure-nonsense input rather than decline.
 
-**Current score: 95.5%** (21/22 graded, threshold 90%) on search-grounded
-`gemini-3.8-flash`, 2026-10-14 (eval workflow run 38501577212):
-`alltrailsLookup` and `discover` 100%, `generateActivity` 93.3%. The one
-failure, `gen-duartes-tavern`, is mostly the **judge's limit**: it failed true,
-documented details of the place (the half-and-half artichoke-and-green-chile
-soup, the knotty-pine room, weekend cioppino) because it grades from memory
-while the resolver now searches.
+**Current score: 100%** (22/22 graded, threshold 90%) on search-grounded
+`gemini-3.8-flash`, graded by the search-grounded judge, 2026-10-14 (eval
+workflow run 38511460561). Before the judge could search, the same resolvers
+scored 95.5% (run 38501577212). The one difference is `gen-duartes-tavern`:
+the memory-only judge failed true, documented details of the place (the
+half-and-half artichoke-and-green-chile soup, the knotty-pine room, weekend
+cioppino) as unverifiable, and the searching judge confirms them. A perfect
+score from a more capable grader is worth watching rather than celebrating:
+`gen-nonsense` still fabricates a record (counted via its `xfail`), and if the
+judge ever passes a description a person would call wrong, the search-backed
+rubric has become too lenient.
 
 The first grounded run (90.9%, run 38489973906) also failed `gen-muir-woods`
 on a **real model error**: its description put Bohemian Grove, a private club

@@ -1,8 +1,8 @@
 name: Gemini eval
 
 # Output-quality eval for the Gemini resolver (issue #122). Makes 22 paid
-# resolver calls (search-grounded gemini-3.8-flash) plus up to 16
-# gemini-2.5-flash judge calls per run, so it only grades when the AI code
+# resolver calls plus up to 16 judge calls (all search-grounded
+# gemini-3.8-flash) per run, so it only grades when the AI code
 # (the resolver, the two api/ files the prompts and grading read, the eval
 # harness) changes, and never a draft:
 #   - when a PR opens ready for review, is reopened, or a draft is marked
@@ -41,8 +41,9 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     # Grounded calls are slower than the old memory-only ones: the 22 cases
-    # run one at a time with a 90 s cap each, plus the judges.
-    timeout-minutes: 40
+    # run one at a time with a 90 s cap each, plus up to 16 judge calls with
+    # a 120 s cap each.
+    timeout-minutes: 60
     permissions:
       contents: read
       # To read this workflow's earlier runs on the PR.

@@ -1,9 +1,12 @@
 // LLM-as-judge helpers for the Gemini output-quality eval harness (issue #122).
 //
 // Each exported judge grades a resolver's output for factual plausibility using
-// gemini-2.5-flash at temperature 0 with a responseSchema, so the verdict parses
-// mechanically. It stays on 2.5 while the resolvers moved to Gemini 3, so
-// scores before and after that switch were graded by the same judge. The API
+// gemini-3.8-flash with Google Search and a JSON response schema, so the
+// verdict parses mechanically. It searches because the resolvers do: a judge
+// grading from memory failed true, documented specifics the grounded resolver
+// had found (Duarte's half-and-half soup, its knotty-pine room) as
+// "unverifiable". Scores from before the switch (2026-10-14), graded by a
+// gemini-2.5-flash judge without search, aren't directly comparable. The API
 // key is read from process.env.GEMINI_API_KEY at call time and passed via the
 // x-goog-api-key header (never the URL).
 //
@@ -15,9 +18,10 @@
 import { HOME_BASE } from '../api/_home.js';
 import type { CheckResult } from './types.js';
 
-const JUDGE_MODEL = 'gemini-2.5-flash';
+const JUDGE_MODEL = 'gemini-3.8-flash';
 const JUDGE_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${JUDGE_MODEL}:generateContent`;
-const JUDGE_TIMEOUT_MS = 60_000;
+// A grounded call searches before it answers: 20–60 s is normal.
+const JUDGE_TIMEOUT_MS = 120_000;
 
 const DESCRIPTIONS_CHECK = 'judge:descriptions';
 const REAL_PLACE_CHECK = 'judge:real-place';
@@ -155,10 +159,14 @@ export function extractText(envelope: unknown): string | null {
   const content = first.content;
   if (!isRecord(content)) return null;
   const parts = content.parts;
-  if (!isUnknownArray(parts) || parts.length === 0) return null;
-  const part = parts[0];
-  if (!isRecord(part)) return null;
-  return typeof part.text === 'string' ? part.text : null;
+  if (!isUnknownArray(parts)) return null;
+  // A grounded, thinking reply can come in several parts, thoughts among
+  // them: the answer is the text of the rest, joined.
+  const text = parts
+    .filter((p): p is Record<string, unknown> => isRecord(p) && p.thought !== true)
+    .map((p) => (typeof p.text === 'string' ? p.text : ''))
+    .join('');
+  return text === '' ? null : text;
 }
 
 async function attemptJudge<T>(
@@ -180,10 +188,13 @@ async function attemptJudge<T>(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        // Gemini 3.6+ ignores temperature, so none is sent; a low thinking
+        // level keeps each verdict quick.
+        tools: [{ googleSearch: {} }],
         generationConfig: {
-          temperature: 0,
           responseMimeType: 'application/json',
-          responseSchema,
+          responseJsonSchema: responseSchema,
+          thinkingConfig: { thinkingLevel: 'low' },
         },
       }),
       signal: controller.signal,
@@ -261,7 +272,8 @@ function readString(rec: Record<string, unknown>, key: string): string {
 
 // --- judges ------------------------------------------------------------------
 
-// Rubric calibration (owner-approved, 2026-07-10): the original rubric failed
+// Rubric calibration (owner-approved, 2026-07-10; search added 2026-10-14):
+// the original rubric failed
 // any specific claim absent from the known facts, which produced false alarms
 // on TRUE statements about famous places across consecutive runs (Big Basin's
 // reservation system, Duarte's cioppino/1930s restaurant era, Castle Rock's
@@ -276,9 +288,9 @@ FAIL (pass=false) if any of these hold:
 - The geography is inconsistent with the known location (wrong region, city, body of water, mountain range, or direction).
 - The described activity type contradicts the record's category (e.g. it describes a hike when the record is a restaurant).
 - The prose plainly describes a different place than the one named.
-- The prose states obscure specifics you cannot verify from the known facts or from well-documented public knowledge of this place: exact fees or prices, exact opening hours, exact trail mileage or elevation, or precise dates that are not widely documented. If you are UNSURE whether such a specific is true, FAIL it.
+- The prose states a specific (a named feature, dish, room, fee, price, hours, trail mileage or elevation, or date) that Google Search contradicts, or that you searched for and found no support for. Use Google Search to check any specific you are not sure of before you decide; do not fail a specific you haven't searched.
 
-PASS (pass=true) otherwise — including widely-documented, famous attributes of well-known places even when the known facts do not mention them: signature dishes, founding eras, renowned reputations (e.g. a celebrated climbing area described as world-class), landmark features. Generic-but-true evocative prose passes. Do NOT grade writing style, tone, or vividness — only factual plausibility.
+PASS (pass=true) otherwise — including specifics you confirmed with search, however obscure, and widely-documented attributes of well-known places even when the known facts do not mention them: signature dishes, founding eras, renowned reputations (e.g. a celebrated climbing area described as world-class), landmark features. Generic-but-true evocative prose passes. Do NOT grade writing style, tone, or vividness — only factual plausibility.
 
 Return JSON {pass, issues}. "issues" is a short list of concrete problems, empty when pass=true.`;
 
@@ -323,6 +335,8 @@ const REAL_PLACE_SYSTEM_PROMPT = `You verify whether a generated Activity record
 Given the record (name, city, region, lat, lng, and descriptions), decide:
 - isRealPlace: the named place genuinely exists and is verifiable — a real park, trail, restaurant, beach, or landmark — not a fabricated, hallucinated, or generic-invented name.
 - coordsConsistent: the given lat/lng plausibly fall at that real place (right city/region, within a reasonable distance of the actual location). If the place is not real, coordsConsistent must be false.
+
+Use Google Search to check that the place exists and where it is; don't call a place fabricated without searching for it.
 
 Return JSON {isRealPlace, coordsConsistent, issues}. "issues" is a short list of concrete problems, empty when both are true.`;
 
@@ -372,7 +386,7 @@ For each event decide "plausible":
 - plausible=true: a specific, dated, real-sounding event at a real, nameable venue — a concert, farmers market, festival, gallery opening, group hike, race, etc. — with a concrete blurb that fits the name and location.
 - plausible=false: generic listicle or evergreen entries ("Explore Golden Gate Park", "Visit the waterfront"), obviously fabricated or non-existent venues, or a blurb that contradicts the event's name or location.
 
-You are judging specificity and plausibility, NOT verifying that the exact date is correct. The user message states today's date — interpret each event's dates relative to it; never assume the current year from your training data.
+Use Google Search to check a venue or event you are unsure of. You are judging specificity and plausibility, NOT verifying that the exact date is correct. The user message states today's date — interpret each event's dates relative to it; never assume the current year from your training data.
 
 Return JSON {verdicts:[{index, plausible, issues}]} with exactly one entry per event index provided. "issues" lists concrete problems, empty when plausible.`;
 
