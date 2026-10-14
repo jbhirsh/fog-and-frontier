@@ -161,10 +161,11 @@ npm run eval
 It makes 22 paid resolver calls (`gemini-3.8-flash`, each with a few Google
 searches) plus up to 16 `gemini-2.5-flash` judge calls per run — judges are
 skipped once a mechanical check has already failed a case, so most runs use
-fewer. Grounding makes a run dearer than it was on 2.5 (search results and
-fetched pages bill as input tokens, and the first 5,000 searches a month are
-free) — tens of cents, about a dollar at worst, and **not** part of `npm test` — it's opt-in because it costs money and
-hits the network.
+fewer. On 2.5 a run cost about $0.25 (26 CI runs made up most of a $6.59
+month). Grounding makes it dearer — search results and fetched pages bill as
+input tokens, though the first 5,000 searches a month are free — so expect
+up to a dollar. It is **not** part of `npm test`: it's opt-in because it costs
+money and hits the network.
 
 **Threshold semantics.** A run passes at **90%** by default, overridable with
 `EVAL_THRESHOLD` or `--threshold` — both take a fraction (e.g. `0.85`), not a
@@ -174,9 +175,20 @@ denominator** so flaky infra can't fail the quality gate — but if they collaps
 too much of the set, the run is reported **inconclusive** and exits non-zero
 below an **80% graded floor**.
 
-**CI.** `.github/workflows/eval.yml` runs the eval on PRs that touch the Gemini
-resolver, its schema, or `eval/**`, and on manual dispatch. There's no schedule
-(the calls are paid), and it **skips green** when `GEMINI_API_KEY` is absent
+**CI.** `.github/workflows/eval.yml` grades only when the AI code — the
+Gemini resolver (`api/_resolvers/gemini.ts`), the `api/_home.ts` and
+`api/_gqlError.ts` it and the harness read, or `eval/**` — changes, and never a draft: when a PR opens ready for review, is reopened, or
+a draft is marked ready, if the PR touches the AI code; and on a later push
+to a ready PR, unless the AI code is as it was when the workflow last
+finished a run on the PR and that run passed. So rebasing on, or merging in,
+a `main` that moved doesn't re-grade, but a push after a failed, errored or
+cancelled grade does.
+`.github/scripts/eval-should-grade.mjs` makes the call. A manual dispatch
+always grades; use one after changing the workflow itself, which doesn't
+grade on its own. It used to run on every push to any PR that
+touched the schema or the auth context too, which most feature PRs do, and
+that ran into the project's monthly spend cap. There's no schedule (the calls
+are paid), and it **skips green** when `GEMINI_API_KEY` is absent
 (forks, or the secret unset), so it never blocks contributors who can't make the
 calls.
 
@@ -195,14 +207,26 @@ knowledge of famous places — a deliberate trade, documented in
 that the response schema forces the model to fabricate a record on
 pure-nonsense input rather than decline.
 
-**Current score: 95.5%** (21/22 graded, threshold 90%) — recorded by the
-gating CI run of 2026-07-10 (eval workflow run 29061551986). Because the
-resolvers are evaluated at their production settings (see above), *which*
-case fails rotates run-to-run — the ≥90% threshold is the contract, not any
-single case's verdict. Findings, reported as-is per issue #122 ("failures are
-real signal"):
+**Current score: 90.9%** (20/22 graded, threshold 90%) — the first run on
+search-grounded `gemini-3.8-flash`, 2026-10-14 (eval workflow run
+38489973906): `alltrailsLookup` and `discover` 100%, `generateActivity`
+86.7%. Its two failures:
 
-- On the gating CI run, `disc-week` failed `judge:events` (7/11 plausible) —
+- `gen-muir-woods`: the description placed Bohemian Grove (a private club in
+  Sonoma County) inside Muir Woods — a **real model error**, which grounding
+  didn't prevent.
+- `gen-duartes-tavern`: the judge failed specifics it couldn't verify (the
+  "50/50" artichoke-and-chile soup, the knotty-pine dining room, weekend
+  cioppino). Those are documented details of the place, so this is mostly the
+  **judge's limit**: it grades from memory while the resolver now searches.
+
+Because the resolvers are evaluated at their production settings (see above),
+*which* case fails rotates run-to-run — the ≥90% threshold is the contract,
+not any single case's verdict. The last 2.5 Flash score was 95.5% (21/22, run
+29061551986, 2026-07-10). Findings from the 2.5 runs, reported as-is per issue
+#122 ("failures are real signal"):
+
+- On that run, `disc-week` failed `judge:events` (7/11 plausible) —
   a **judge bug, not a model finding**: lacking today's date, the judge graded
   events named "2026" as contradicting their own dates. Fixed since: the
   events judge now gets a "Today is <date>" preamble and each event's ISO
