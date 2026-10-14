@@ -250,6 +250,27 @@ export async function ensurePhotosSchema(): Promise<void> {
   photosInitialized = true;
 }
 
+// Suggested activities (#73): a pending one waits here, apart from the
+// catalog, until an owner accepts it (copied into `a`) or rejects it (kept,
+// marked). `j` has the same shape as `a.j`.
+let suggestionsInitialized = false;
+export async function ensureSuggestionsSchema(): Promise<void> {
+  if (suggestionsInitialized) return;
+  await db().execute(
+    `CREATE TABLE IF NOT EXISTS suggestions (
+      id TEXT PRIMARY KEY,
+      j TEXT NOT NULL,
+      t INTEGER NOT NULL,
+      suggested_by TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending'
+    )`,
+  );
+  await db().execute(
+    'CREATE INDEX IF NOT EXISTS suggestions_by_status ON suggestions (status, t)',
+  );
+  suggestionsInitialized = true;
+}
+
 // Single entry point for graphql.ts startup: create every table group the API
 // touches (trips/members/invites/votes + activities + completed + reviews +
 // photos).
@@ -259,6 +280,7 @@ export async function ensureAllSchemas(): Promise<void> {
   await ensureCompletedSchema();
   await ensureReviewsSchema();
   await ensurePhotosSchema();
+  await ensureSuggestionsSchema();
 }
 
 const BACKFILL_KEY = 'members_backfill_v1';
@@ -516,17 +538,22 @@ export async function removeTripMember(
 }
 
 // Upsert any account's users row (used at invite-claim time, where a non-owner
-// editor account is created for the first time). Role is owner if the email is
-// in the allow-list, else editor — and never downgrades an existing owner.
-export async function upsertUser(email: string): Promise<void> {
+// editor account is created for the first time, and when a suggestion is
+// accepted, #73). Role is owner if the email is in the allow-list, else
+// editor — and never downgrades an existing owner.
+export function upsertUserStatement(email: string): InStatement {
   const role: UserRole = getOwnerEmails().has(email) ? 'owner' : 'editor';
-  await db().execute({
+  return {
     sql: `INSERT INTO users (email, display_name, created_at, role)
           VALUES (?, NULL, ?, ?)
           ON CONFLICT(email) DO UPDATE SET role =
             CASE WHEN users.role = 'owner' THEN 'owner' ELSE excluded.role END`,
     args: [email, Date.now(), role],
-  });
+  };
+}
+
+export async function upsertUser(email: string): Promise<void> {
+  await db().execute(upsertUserStatement(email));
 }
 
 export type UserSummary = { email: string; display_name: string | null };

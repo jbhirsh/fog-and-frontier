@@ -132,3 +132,14 @@ export async function freeId(
   for (let n = 2; await isTaken(candidate); n += 1) candidate = `${id}-${n}`;
   return candidate;
 }
+
+/** The id a new activity is saved under: its name as a lower-case slug. */
+export function slugify(name: string, random: () => number = Math.random): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || `activity-${random().toString(36).slice(2, 8)}`
+  );
+}

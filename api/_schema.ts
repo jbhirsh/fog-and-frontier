@@ -278,6 +278,8 @@ export const typeDefs = /* GraphQL */ `
     "Account emails to credit (#9), each a known user, at least one. Omitted keeps the stored list (the caller for a new activity)."
     contributors: [String!]
   }
+  "allowDuplicate: suggest it even when it looks like one already saved (#17)."
+  input SuggestActivityInput { activity: ActivityInput!  allowDuplicate: Boolean }
   "prompt: what the trip is for, 1–2000 characters. excludeActivityIds: up to 50 already chosen."
   input SuggestTripActivitiesInput { prompt: String!  excludeActivityIds: [ID!] }
   """
@@ -350,6 +352,18 @@ export const typeDefs = /* GraphQL */ `
   type AddActivityPhotoPayload { photo: ActivityPhoto! }
   type RemoveActivityPhotoPayload { removedId: ID! }
   type GenerateActivityPayload { activity: GeneratedActivity! }
+  "An activity a signed-in account suggested (#73), waiting for an owner."
+  type ActivitySuggestion {
+    id: ID!
+    "The suggester's account email."
+    suggestedBy: String!
+    suggestedAt: DateTimeISO!
+    activity: Activity!
+  }
+  type SuggestActivityPayload { suggestion: SuggestionRef! }
+  type SuggestionRef { id: ID! }
+  type AcceptSuggestionPayload { activity: Activity! }
+  type RejectSuggestionPayload { id: ID! }
   "An activity Gemini picked from the catalog for a new trip (#78), with why."
   type TripSuggestion { activityId: ID!  reason: String!  activity: Activity! }
   type SuggestTripActivitiesPayload { suggestions: [TripSuggestion!]! }
@@ -379,6 +393,8 @@ export const typeDefs = /* GraphQL */ `
     activities: [Activity!]!
     "Saved activities that look like a new one (#17), high-confidence first."
     checkDuplicate(name: String!, lat: Float!, lng: Float!): [DuplicateMatch!]!
+    "Owner-only (#73): suggestions waiting for review, newest first."
+    pendingSuggestions: [ActivitySuggestion!]!
     completed: [CompletedEntry!]!
     "Every owner review across the catalog — public read, normalized client-side by (activityId, authorEmail)."
     activityReviews: [ActivityReview!]!
@@ -402,6 +418,12 @@ export const typeDefs = /* GraphQL */ `
     addActivityPhoto(input: AddActivityPhotoInput!): AddActivityPhotoPayload!
     removeActivityPhoto(input: RemoveActivityPhotoInput!): RemoveActivityPhotoPayload!
     generateActivity(input: GenerateActivityInput!): GenerateActivityPayload!
+    "Any signed-in account (#73): suggest an activity for the owners to review."
+    suggestActivity(input: SuggestActivityInput!): SuggestActivityPayload!
+    "Owner-only (#73): the suggestion joins the catalog, crediting its suggester. allowDuplicate accepts it even when it looks like one already saved (#17)."
+    acceptSuggestion(id: ID!, allowDuplicate: Boolean): AcceptSuggestionPayload!
+    "Owner-only (#73): the suggestion is marked rejected and leaves the queue."
+    rejectSuggestion(id: ID!): RejectSuggestionPayload!
     "Owner-only paid Gemini call (#78): catalog activities that fit a free-form request, best first."
     suggestTripActivities(input: SuggestTripActivitiesInput!): SuggestTripActivitiesPayload!
     alltrailsLookup(input: AlltrailsLookupInput!): AlltrailsLookupPayload!
