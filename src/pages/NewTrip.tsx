@@ -2,6 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useOwner } from '../lib/useOwner';
 import { createTrip, type CreateTripInput } from '../lib/userTrips';
+import { TripIdeas } from '../components/TripIdeas';
+import { startingActivityIds } from '../lib/tripIdeas';
+
+// The most activities a trip can start with (api/_trips.ts enforces it).
+const MAX_INITIAL_ACTIVITIES = 50;
 
 type LocationState = {
   initial_activity_ids?: string[];
@@ -22,6 +27,9 @@ export function NewTrip() {
   const [openVotingFirst, setOpenVotingFirst] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Trip ideas ticked on this form (#78), on top of any brought in.
+  const [picked, setPicked] = useState<string[]>([]);
+  const startCount = startingActivityIds(initialActivityIds, picked).length;
 
   if (!isLoaded) {
     return (
@@ -73,8 +81,9 @@ export function NewTrip() {
       if (trimmedDescription) body.description = trimmedDescription;
       const trimmedCover = coverImageUrl.trim();
       if (trimmedCover) body.cover_image_url = trimmedCover;
-      if (initialActivityIds.length > 0) {
-        body.initial_activity_ids = initialActivityIds;
+      const startWith = startingActivityIds(initialActivityIds, picked);
+      if (startWith.length > 0) {
+        body.initial_activity_ids = startWith;
       }
       if (openVotingFirst) body.status = 'voting';
       const trip = await createTrip(body);
@@ -94,10 +103,10 @@ export function NewTrip() {
         <h1 className="font-display text-headline-lg md:text-display text-primary">
           New trip
         </h1>
-        {initialActivityIds.length > 0 && (
+        {startCount > 0 && (
           <p className="font-body-md text-on-surface-variant">
-            {initialActivityIds.length} activit
-            {initialActivityIds.length === 1 ? 'y' : 'ies'} will be added to the
+            {startCount} activit
+            {startCount === 1 ? 'y' : 'ies'} will be added to the
             Unscheduled list once the trip is created.
           </p>
         )}
@@ -155,6 +164,13 @@ export function NewTrip() {
             placeholder="Optional"
           />
         </Field>
+
+        <TripIdeas
+          seeded={initialActivityIds}
+          picked={picked}
+          onChange={setPicked}
+          max={MAX_INITIAL_ACTIVITIES}
+        />
 
         <Field label="Cover image URL" htmlFor="trip-cover">
           <input

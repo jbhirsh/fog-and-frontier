@@ -34,6 +34,7 @@ import type {
   GracefulErrorCode,
   NumericRange,
   ResolverOutcome,
+  TripSuggestionsExpect,
 } from './types.js';
 
 // --- result constructors ---------------------------------------------------
@@ -774,5 +775,39 @@ export function checkDiscoverStructural(
       : skipped('structural:dedupe', 'dedupe is false; not graded'),
   );
 
+  return results;
+}
+
+// --- tripSuggestions (#78) ---------------------------------------------------
+
+/**
+ * A trip-suggestion answer: the picks are within bounds, include at least
+ * one activity that clearly fits, and none that breaks a hard constraint.
+ */
+export function checkTripSuggestions(
+  value: unknown,
+  expect: TripSuggestionsExpect,
+): CheckResult[] {
+  const picks = Array.isArray(value)
+    ? (value as { activityId?: unknown }[]).map((p) => String(p.activityId))
+    : null;
+  if (!picks) return [fail('trip:shape', 'expected an array of picks')];
+  const listed = `[${picks.join(', ')}]`;
+  const results: CheckResult[] = [
+    picks.length >= expect.minPicks && picks.length <= expect.maxPicks
+      ? pass('trip:count', `${picks.length} picks`)
+      : fail('trip:count', `${picks.length} picks, expected ${expect.minPicks}-${expect.maxPicks}`),
+    expect.includeAny.some((id) => picks.includes(id))
+      ? pass('trip:includes', `picked one of [${expect.includeAny.join(', ')}]`)
+      : fail('trip:includes', `none of [${expect.includeAny.join(', ')}] in ${listed}`),
+  ];
+  if (expect.excludeAll) {
+    const wrong = expect.excludeAll.filter((id) => picks.includes(id));
+    results.push(
+      wrong.length === 0
+        ? pass('trip:excludes', 'no pick breaks a constraint')
+        : fail('trip:excludes', `picked [${wrong.join(', ')}], which break the request`),
+    );
+  }
   return results;
 }

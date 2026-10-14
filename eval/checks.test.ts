@@ -9,6 +9,7 @@ import { badGateway, badInput, notFound } from '../api/_gqlError.js';
 import {
   checkDiscoverStructural,
   checkGenerateHappy,
+  checkTripSuggestions,
   classifyGeminiError,
   haversineKm,
 } from './checks.js';
@@ -274,5 +275,46 @@ describe('costTier (via checkGenerateHappy)', () => {
   it('is not graded without an expectation', () => {
     const results = checkGenerateHappy({ activity: activityRecord() }, {});
     expect(results.some((c) => c.name === 'expect:costTier')).toBe(false);
+  });
+});
+
+// --- trip suggestions (#78) ------------------------------------------------------
+
+describe('checkTripSuggestions', () => {
+  const expect_ = { includeAny: ['a', 'b'], excludeAll: ['x'], minPicks: 1, maxPicks: 3 };
+  const picks = (...ids: string[]) => ids.map((activityId) => ({ activityId, reason: 'r' }));
+  const byName = (results: CheckResult[]) =>
+    Object.fromEntries(results.map((c) => [c.name, c.status]));
+
+  it('passes picks within bounds that include a fit and break nothing', () => {
+    expect(byName(checkTripSuggestions(picks('b', 'c'), expect_))).toEqual({
+      'trip:count': 'pass',
+      'trip:includes': 'pass',
+      'trip:excludes': 'pass',
+    });
+  });
+
+  it('fails too few or too many picks, at the edges', () => {
+    expect(byName(checkTripSuggestions(picks(), expect_))['trip:count']).toBe('fail');
+    expect(byName(checkTripSuggestions(picks('a', 'c', 'd'), expect_))['trip:count']).toBe('pass');
+    const many = checkTripSuggestions(picks('a', 'c', 'd', 'e'), expect_);
+    expect(findCheck(many, 'trip:count').detail).toBe('4 picks, expected 1-3');
+  });
+
+  it('fails without a fitting pick, or with one that breaks the request', () => {
+    expect(findCheck(checkTripSuggestions(picks('c'), expect_), 'trip:includes').detail).toBe(
+      'none of [a, b] in [c]',
+    );
+    expect(findCheck(checkTripSuggestions(picks('a', 'x'), expect_), 'trip:excludes').detail).toBe(
+      'picked [x], which break the request',
+    );
+  });
+
+  it('skips the exclusion check when there is none, and fails a non-list', () => {
+    const results = checkTripSuggestions(picks('a'), { includeAny: ['a'], minPicks: 1, maxPicks: 3 });
+    expect(results.map((c) => c.name)).toEqual(['trip:count', 'trip:includes']);
+    expect(checkTripSuggestions({ nope: 1 }, expect_)).toEqual([
+      { name: 'trip:shape', status: 'fail', detail: 'expected an array of picks' },
+    ]);
   });
 });
