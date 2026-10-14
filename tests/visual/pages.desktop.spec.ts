@@ -4,6 +4,7 @@ import {
   mockApis,
   settleTripView,
   signIn,
+  stubGenerateActivity,
   waitForVisualReady,
 } from './helpers';
 
@@ -53,6 +54,54 @@ test.describe('visual regression — desktop', () => {
     await expect(page).toHaveScreenshot('explore-empty.png', {
       fullPage: true,
     });
+  });
+
+  // The Add dialog's title is sticky. Scrolled so the pin map passes under
+  // it, the title must stay on top: Leaflet's layers (tiles 200, controls
+  // 1000) once painted over it. Not a snapshot: a hit test at the title's
+  // bottom edge. Tiles ignore pointer events, which elementFromPoint honours,
+  // so the map's layers are made hit-testable; and a tile stays
+  // visibility: hidden until it loads, so the test waits for one and checks
+  // that a map layer really is under the title before trusting the hit.
+  test('add activity — the map scrolls under the dialog title', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 560 });
+    await page.addInitScript(() => {
+      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ =
+        true;
+    });
+    await stubGenerateActivity(page);
+    await page.goto('/');
+    await waitForVisualReady(page);
+    await page.getByRole('button', { name: /Add activity/ }).click();
+    await page.getByLabel('Title').fill('Test Adventure');
+    await page.getByRole('button', { name: /Generate/ }).click();
+    await page.getByRole('heading', { name: 'Review & save' }).waitFor();
+    const dialog = page.getByRole('dialog', { name: 'Add activity' });
+    await dialog.locator('.leaflet-tile-loaded').first().waitFor();
+    const result = await dialog.evaluate((d) => {
+      const title = d.querySelector('h2')!.parentElement!;
+      const map = d.querySelector('.leaflet-container')!;
+      const bar = title.getBoundingClientRect();
+      d.scrollTop += map.getBoundingClientRect().top - (bar.top + bar.height / 2);
+      const style = document.createElement('style');
+      style.textContent =
+        '.leaflet-container, .leaflet-container * { pointer-events: auto !important; }';
+      document.head.append(style);
+      const r = title.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.bottom - 6;
+      const hit = document.elementFromPoint(x, y);
+      title.style.visibility = 'hidden';
+      const under = document.elementFromPoint(x, y);
+      title.style.visibility = '';
+      return {
+        mapLayerUnder: !!under?.closest(
+          '.leaflet-tile, .leaflet-marker-icon, .leaflet-control',
+        ),
+        titleOnTop: title.contains(hit),
+      };
+    });
+    expect(result).toEqual({ mapLayerUnder: true, titleOnTop: true });
   });
 });
 
