@@ -41,6 +41,20 @@ describe('ActivityCard', () => {
     expect(screen.getByText('COMPLETED')).toBeInTheDocument();
   });
 
+  it('credits contributors only when the activity carries them (#9)', () => {
+    const { rerender } = render(<ActivityCard activity={muirWoods} />);
+    expect(screen.queryByText(/Contributed by/)).not.toBeInTheDocument();
+    rerender(
+      <ActivityCard
+        activity={{
+          ...muirWoods,
+          contributors: ['tarun@example.com', 'jess.hirsh@example.com', 'c@example.com'],
+        }}
+      />,
+    );
+    expect(screen.getByText('Contributed by Tarun, Jess Hirsh +1')).toBeInTheDocument();
+  });
+
   it('fires onClick when clicked', async () => {
     const onClick = vi.fn();
     render(<ActivityCard activity={muirWoods} onClick={onClick} />);

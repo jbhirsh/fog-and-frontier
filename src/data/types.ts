@@ -73,4 +73,7 @@ export interface Activity {
   completed?: boolean;
   completedDate?: string;
   notes?: string;
+  // Account emails credited with adding it (#9). The server sends them only
+  // to signed-in callers, so a signed-out visitor never has any.
+  contributors?: string[];
 }

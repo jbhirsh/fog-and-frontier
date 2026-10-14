@@ -132,6 +132,9 @@ function routeExecute(q: unknown) {
   if (/SELECT id, v FROM c/.test(sql)) {
     return { rows: state.completedRows };
   }
+  if (/SELECT email FROM users WHERE email IN \(/.test(sql)) {
+    return { rows: state.usersRows.filter((u) => args.includes(u.email)) };
+  }
   if (/SELECT email, display_name FROM users/.test(sql)) {
     return { rows: state.usersRows };
   }
@@ -748,6 +751,176 @@ describe('catalog mutations: input validation and persistence', () => {
     const r = await run(SET, { i: { id: 'a1', value: null } }, OWNER);
     expect(r.data?.setCompleted).toEqual({ id: 'a1', completed: null });
     expect(executeWrites()).toEqual([{ sql: 'DELETE FROM c WHERE id = ?', args: ['a1'] }]);
+  });
+});
+
+describe('contributors (#9)', () => {
+  const SAVE =
+    'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id contributors } } }';
+  const TARUN = 'tarun@example.com';
+  const users = (...emails: string[]) =>
+    emails.map((email) => ({ email, display_name: null }));
+
+  function storedJson(): Row {
+    return JSON.parse(executeWrites()[0]?.args[1] as string) as Row;
+  }
+  function reads(): { sql: string; args: unknown[] }[] {
+    return execute.mock.calls
+      .map((c) => c[0] as { sql: string; args: unknown[] })
+      .filter((q) => /^SELECT/.test(q.sql));
+  }
+
+  it('a new activity with no list credits the caller', async () => {
+    setup({ snapshotJson: null });
+    const r = await run(SAVE, { i: { id: 'n1', activity: minimalActivity() } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({
+      activity: { id: 'n1', contributors: [OWNER.email] },
+    });
+    expect(storedJson().contributors).toEqual([OWNER.email]);
+    expect(reads()).toEqual([{ sql: 'SELECT j FROM a WHERE id = ?', args: ['n1'] }]);
+  });
+
+  it('an edit with no list keeps the stored contributors', async () => {
+    setup({ snapshotJson: JSON.stringify({ id: 'a1', contributors: [TARUN, 7] }) });
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), contributors: null } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(storedJson().contributors).toEqual([TARUN]);
+  });
+
+  it.each([
+    ['saved before #9', JSON.stringify({ id: 'a1' })],
+    ['a stored non-list', JSON.stringify({ id: 'a1', contributors: TARUN })],
+    ['an empty stored list', JSON.stringify({ id: 'a1', contributors: [] })],
+    ['malformed JSON', 'not json'],
+    ['a JSON null', 'null'],
+  ])('an edit of a row %s leaves it uncredited, for the backfill', async (_label, j) => {
+    setup({ snapshotJson: j });
+    const r = await run(SAVE, { i: { id: 'a1', activity: minimalActivity() } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', contributors: null } });
+    expect(storedJson()).not.toHaveProperty('contributors');
+  });
+
+  it('a given list is trimmed, lower-cased, de-duplicated and checked against users', async () => {
+    setup({ usersRows: users(OWNER.email, TARUN) });
+    const r = await run(
+      SAVE,
+      {
+        i: {
+          id: 'a1',
+          activity: { ...minimalActivity(), contributors: [' Tarun@Example.com', TARUN, OWNER.email] },
+        },
+      },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(storedJson().contributors).toEqual([TARUN, OWNER.email]);
+    expect(reads()).toEqual([
+      { sql: 'SELECT j FROM a WHERE id = ?', args: ['a1'] },
+      {
+        sql: 'SELECT email FROM users WHERE email IN (?, ?)',
+        args: [TARUN, OWNER.email],
+      },
+    ]);
+  });
+
+  it('checks only the names an edit adds, so a stored one without a users row stays', async () => {
+    const gone = 'gone@example.com'; // credited, but no users row (e.g. a preview DB)
+    setup({
+      snapshotJson: JSON.stringify({ id: 'a1', contributors: [gone] }),
+      usersRows: users(TARUN),
+    });
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), contributors: [gone, TARUN] } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(storedJson().contributors).toEqual([gone, TARUN]);
+    expect(reads()[1]).toEqual({
+      sql: 'SELECT email FROM users WHERE email IN (?)',
+      args: [TARUN],
+    });
+  });
+
+  it('an unchanged list is saved without looking anyone up', async () => {
+    setup({ snapshotJson: JSON.stringify({ id: 'a1', contributors: [TARUN] }) });
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), contributors: [TARUN] } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(storedJson().contributors).toEqual([TARUN]);
+    expect(reads()).toEqual([{ sql: 'SELECT j FROM a WHERE id = ?', args: ['a1'] }]);
+  });
+
+  it.each([
+    ['an empty list', [], 'contributors must name at least one person'],
+    ['only blanks', ['  ', ''], 'contributors must name at least one person'],
+    ['an unknown account', [TARUN, 'stranger@example.com'], 'not a known account: stranger@example.com'],
+  ])('%s → BAD_USER_INPUT, nothing written', async (_label, contributors, message) => {
+    setup({ usersRows: users(TARUN) });
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), contributors } } },
+      OWNER,
+    );
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe(message);
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('takes up to ten contributors and refuses an eleventh', async () => {
+    const ten = Array.from({ length: 10 }, (_, i) => `p${i}@example.com`);
+    const eleven = [...ten, 'p10@example.com'];
+    setup({ usersRows: users(...eleven) });
+    const ok = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), contributors: ten } } },
+      OWNER,
+    );
+    expect(ok.errors).toBeUndefined();
+    expect(storedJson().contributors).toEqual(ten);
+
+    execute.mockClear();
+    const tooMany = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), contributors: eleven } } },
+      OWNER,
+    );
+    expect(code(tooMany)).toBe('BAD_USER_INPUT');
+    expect(tooMany.errors?.[0]?.message).toBe('at most 10 contributors');
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('activities shows contributors to a signed-in caller and hides them otherwise', async () => {
+    const row = { id: 'a1', ...minimalActivity(), contributors: [TARUN] };
+    setup({ catalog: [{ id: 'a1', j: JSON.stringify(row) }] });
+    const signedIn = await run('{ activities { id contributors } }', {}, EDITOR);
+    const signedOut = await run('{ activities { id contributors } }');
+    expect(signedIn.data?.activities).toEqual([{ id: 'a1', contributors: [TARUN] }]);
+    expect(signedOut.data?.activities).toEqual([{ id: 'a1', contributors: null }]);
+  });
+
+  it('a trip snapshot carries the contributors it was copied with', async () => {
+    setup({
+      activities: [
+        taRow({ snapshot_json: JSON.stringify({ id: 'act1', name: 'Snap', contributors: [TARUN] }) }),
+      ],
+    });
+    const r = await run(
+      'query($id: ID!){ trip(id:$id){ activities { snapshot { contributors } } } }',
+      { id: 'trip1' },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.trip).toEqual({ activities: [{ snapshot: { contributors: [TARUN] } }] });
   });
 });
 

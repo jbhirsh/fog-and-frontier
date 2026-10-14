@@ -70,18 +70,84 @@ async function completed() {
   return out;
 }
 
-type ActivityInput = Record<string, unknown> & { completedDate?: unknown };
+type ActivityInput = Record<string, unknown> & {
+  completedDate?: unknown;
+  contributors?: string[] | null;
+};
 
 // Build the persisted catalog JSON from a SaveActivityInput. The input lacks
 // `id` (it's a sibling field), so we splice it in; `completedDate` arrives as a
 // Date object from the Date scalar and is normalized back to 'YYYY-MM-DD'. An
 // absent completedDate stays absent: dateToIso(undefined) is undefined, which
-// JSON.stringify drops.
+// JSON.stringify drops. `contributors` is the list resolveContributors settled
+// (undefined, likewise dropped, for an activity left uncredited).
 function buildStoredActivity(
   id: string,
   activity: ActivityInput,
+  contributors: string[] | undefined,
 ): Record<string, unknown> {
-  return { id, ...activity, completedDate: dateToIso(activity.completedDate) };
+  return {
+    id,
+    ...activity,
+    contributors,
+    completedDate: dateToIso(activity.completedDate),
+  };
+}
+
+// Enough for a few people who suggested the same place together.
+const MAX_CONTRIBUTORS = 10;
+
+// The list stored on a row. Anything unreadable (no row, malformed JSON, a
+// non-object) counts as no list.
+function storedContributors(j: unknown): string[] {
+  try {
+    const list = (JSON.parse(String(j)) as { contributors?: unknown }).contributors;
+    return Array.isArray(list)
+      ? list.filter((e): e is string => typeof e === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+// Who to credit for an activity (#9). An omitted list credits the caller on
+// a new activity and keeps an existing one's list. An existing activity with
+// no list (saved before #9) stays uncredited (undefined) for the backfill to
+// credit, rather than crediting whoever happens to edit it first. A given
+// list must name at least one person; any it adds to the stored list must
+// be an account in `users`, so the contributor filter works on real
+// identities rather than free text. Names already credited aren't checked
+// again, so an edit never fails on a list it didn't change.
+async function resolveContributors(
+  id: string,
+  given: string[] | null | undefined,
+  callerEmail: string,
+): Promise<string[] | undefined> {
+  const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
+  const row = rs.rows[0];
+  const stored = storedContributors(row?.j);
+  if (given == null) {
+    if (!row) return [callerEmail];
+    return stored.length > 0 ? stored : undefined;
+  }
+  const emails = [...new Set(given.map((e) => e.trim().toLowerCase()))].filter(
+    (e) => e !== '',
+  );
+  if (emails.length === 0) throw badInput('contributors must name at least one person');
+  if (emails.length > MAX_CONTRIBUTORS) {
+    throw badInput(`at most ${MAX_CONTRIBUTORS} contributors`);
+  }
+  const added = emails.filter((e) => !stored.includes(e));
+  if (added.length > 0) {
+    const known = await db().execute({
+      sql: `SELECT email FROM users WHERE email IN (${added.map(() => '?').join(', ')})`,
+      args: added,
+    });
+    const found = new Set(known.rows.map((r) => r.email));
+    const unknown = added.filter((e) => !found.has(e));
+    if (unknown.length > 0) throw badInput(`not a known account: ${unknown.join(', ')}`);
+  }
+  return emails;
 }
 
 async function saveActivity(
@@ -89,10 +155,15 @@ async function saveActivity(
   { input }: { input: { id: string; activity: ActivityInput } },
   ctx: GqlContext,
 ) {
-  requireOwnerCtx(ctx);
+  const caller = requireOwnerCtx(ctx);
   const id = input.id;
   if (!id) throw badInput('missing id');
-  const stored = buildStoredActivity(id, input.activity);
+  const contributors = await resolveContributors(
+    id,
+    input.activity.contributors,
+    caller.email,
+  );
+  const stored = buildStoredActivity(id, input.activity, contributors);
   const json = JSON.stringify(stored);
   if (json.length > 8000) throw badInput('activity too large');
   await db().execute({
@@ -156,6 +227,18 @@ async function setCompleted(
   });
   return { id, completed: input.value };
 }
+
+// Contributors are for signed-in eyes only (#9): the server drops them for a
+// signed-out caller rather than trusting the client to hide them.
+function contributorsField(
+  parent: { contributors?: string[] | null },
+  _args: unknown,
+  ctx: GqlContext,
+) {
+  return ctx.caller ? (parent.contributors ?? null) : null;
+}
+
+export const activityFields = { contributors: contributorsField };
 
 export const catalogQuery = { activities, completed };
 export const catalogMutation = { saveActivity, deleteActivity, setCompleted };

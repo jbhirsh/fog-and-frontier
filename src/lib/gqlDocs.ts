@@ -42,6 +42,7 @@ export const ACTIVITIES_QUERY = graphql(`
       completed
       completedDate
       notes
+      contributors
     }
   }
 `);
@@ -138,6 +139,7 @@ export const TRIP_QUERY = graphql(`
           completed
           completedDate
           notes
+          contributors
         }
       }
       members { email displayName addedByEmail addedAt isCreator }

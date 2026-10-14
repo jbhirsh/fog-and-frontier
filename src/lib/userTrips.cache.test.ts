@@ -112,6 +112,7 @@ function snapshotJson(over: Record<string, unknown> = {}) {
     completed: null,
     completedDate: null,
     notes: null,
+    contributors: null,
     ...over,
   };
 }

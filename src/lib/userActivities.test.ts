@@ -68,6 +68,7 @@ const richActivity: Activity = {
   completed: true,
   completedDate: '2025-11-02',
   notes: 'Book well ahead.',
+  contributors: ['tarun@example.com', 'owner@example.com'],
 };
 
 afterEach(async () => {
@@ -124,6 +125,7 @@ describe('rowToActivity ↔ activityToInput round-trip', () => {
       completed: true,
       completedDate: '2025-11-02',
       coverCredit: 'Photo: Jo, CC BY 4.0, via Wikimedia Commons',
+      contributors: ['tarun@example.com', 'owner@example.com'],
     });
   });
 
@@ -147,5 +149,29 @@ describe('rowToActivity ↔ activityToInput round-trip', () => {
     });
     await saveUserActivity(plain);
     expect(captured).toHaveProperty('coverCredit', null);
+  });
+
+  // Null asks the server to keep the stored list (#9): a signed-out read or a
+  // new activity has none, and saving must not wipe who added it.
+  it('maps missing contributors to undefined and sends them as null', async () => {
+    const plain: Activity = { ...richActivity, contributors: undefined };
+    expect(rowToActivity(toActivityRow(plain)).contributors).toBeUndefined();
+    let captured: Record<string, unknown> | undefined;
+    installFetch({
+      SaveActivity: (vars) => {
+        captured = (vars as { input: { activity: Record<string, unknown> } }).input.activity;
+        return jsonResponse({
+          data: {
+            saveActivity: {
+              __typename: 'SaveActivityPayload',
+              activity: { __typename: 'Activity', id: plain.id },
+            },
+          },
+        });
+      },
+      Activities: () => jsonResponse({ data: { activities: [] } }),
+    });
+    await saveUserActivity(plain);
+    expect(captured).toHaveProperty('contributors', null);
   });
 });

@@ -48,6 +48,7 @@ export function rowToActivity(row: ActivityLike): Activity {
     completed: row.completed ?? undefined,
     completedDate: row.completedDate ?? undefined,
     notes: row.notes ?? undefined,
+    contributors: row.contributors ?? undefined,
   };
 }
 
@@ -85,6 +86,9 @@ function activityToInput(a: Activity) {
     completed: a.completed ?? null,
     completedDate: a.completedDate ?? null,
     notes: a.notes ?? null,
+    // Null asks the server to keep the stored list (or credit the caller on
+    // a new activity), so a save never drops who added it (#9).
+    contributors: a.contributors ?? null,
   };
 }
 

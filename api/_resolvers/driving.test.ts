@@ -65,6 +65,8 @@ function catalog(rows: Row[]) {
 function fakeDb(q: string | { sql: string; args: unknown[] }) {
   const sql = typeof q === 'string' ? q : q.sql;
   if (sql === 'SELECT id, j FROM a') return { rows: catalogRows };
+  // saveActivity reads the row's stored contributors (#9) before writing it.
+  if (sql === 'SELECT j FROM a WHERE id = ?') return { rows: [] };
   if (sql.startsWith('INSERT INTO a ')) return { rows: [] };
   if (sql.startsWith('CREATE TABLE IF NOT EXISTS ors_usage')) return { rows: [] };
   if (sql.startsWith('INSERT INTO ors_usage') && typeof q !== 'string') {

@@ -15,19 +15,21 @@ export function ClerkAuthProvider({ children }: { children: ReactNode }) {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
 
-  // Reset the Apollo cache when the signed-in account changes — sign-out or an
-  // in-tab multi-session switch — so account A's member-scoped trips/members/
-  // votes/invites can't bleed into account B's session. Only fires on a real
-  // change away from a logged-in user (skips the initial sign-in, where there's
-  // no prior user and the cache is already empty).
+  // Reset the Apollo cache when the account changes after Clerk has loaded:
+  // sign-out or an in-tab multi-session switch, so account A's member-scoped
+  // trips/members/votes/invites can't bleed into account B's session, and
+  // sign-in, so reads cached signed-out (the catalog, without contributors,
+  // #9) refetch as the caller. The account Clerk loads with isn't a change:
+  // the reads before it waited for its token.
   const prevUserId = useRef<string | null | undefined>(undefined);
+  const userId = user?.id ?? null;
   useEffect(() => {
-    const id = user?.id ?? null;
-    if (prevUserId.current && prevUserId.current !== id) {
+    if (!isLoaded) return;
+    if (prevUserId.current !== undefined && prevUserId.current !== userId) {
       void apolloClient.resetStore().catch(() => {});
     }
-    prevUserId.current = id;
-  }, [user?.id]);
+    prevUserId.current = userId;
+  }, [isLoaded, userId]);
 
   const value: AuthState = {
     isLoaded,
