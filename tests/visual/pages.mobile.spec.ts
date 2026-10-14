@@ -41,6 +41,7 @@ const STUB_GENERATED = {
   hikeElevationFeet: 850,
   cuisine: null,
   priceRange: null,
+  costTier: null,
   hours: null,
   reservationUrl: null,
   menuUrl: null,

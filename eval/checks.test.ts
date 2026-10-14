@@ -249,3 +249,30 @@ describe('coordinate tolerance', () => {
     expect(geoCheck({ lng: 'far away' }, 5).status).toBe('fail');
   });
 });
+
+// --- cost tier (#85) -------------------------------------------------------------
+
+describe('costTier (via checkGenerateHappy)', () => {
+  it('fails an out-of-range tier in the enum check, and passes a legal one', () => {
+    const bad = checkGenerateHappy({ activity: activityRecord({ costTier: 'cheap' }) }, {});
+    expect(findCheck(bad, 'schema:enums').status).toBe('fail');
+    expect(findCheck(bad, 'schema:enums').detail).toContain('costTier');
+    const good = checkGenerateHappy({ activity: activityRecord({ costTier: '$' }) }, {});
+    expect(findCheck(good, 'schema:enums').status).toBe('pass');
+  });
+
+  it('grades an expected tier: in the set, outside it, or missing', () => {
+    const expect_ = { costTier: ['free'] };
+    const hit = checkGenerateHappy({ activity: activityRecord({ costTier: 'free' }) }, expect_);
+    expect(findCheck(hit, 'expect:costTier').status).toBe('pass');
+    const miss = checkGenerateHappy({ activity: activityRecord({ costTier: '$$' }) }, expect_);
+    expect(findCheck(miss, 'expect:costTier').detail).toBe('costTier=$$, expected one of [free]');
+    const none = checkGenerateHappy({ activity: activityRecord() }, expect_);
+    expect(findCheck(none, 'expect:costTier').status).toBe('fail');
+  });
+
+  it('is not graded without an expectation', () => {
+    const results = checkGenerateHappy({ activity: activityRecord() }, {});
+    expect(results.some((c) => c.name === 'expect:costTier')).toBe(false);
+  });
+});

@@ -24,6 +24,8 @@ export interface CatalogFilterState {
   dogOnly: boolean;
   /** "Completed only" (#5): keep just the activities marked completed. */
   completedOnly: boolean;
+  /** "Free" (#85): keep just the activities known to cost nothing. */
+  freeOnly: boolean;
   /**
    * Contributors (#9): keep the activities any of these accounts added (OR).
    * Empty means anyone's.
@@ -39,6 +41,7 @@ export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
   parkType: 'Any',
   dogOnly: false,
   completedOnly: false,
+  freeOnly: false,
   contributors: [],
 };
 
@@ -124,6 +127,7 @@ export function applyCatalogFilters(
     parkType,
     dogOnly,
     completedOnly,
+    freeOnly,
     contributors,
   } = filters;
   const q = search.trim().toLowerCase();
@@ -140,6 +144,7 @@ export function applyCatalogFilters(
         return false;
       if (dogOnly && !a.dogFriendly) return false;
       if (completedOnly && !isEffectivelyCompleted(a, overrides)) return false;
+      if (freeOnly && a.costTier !== 'free') return false;
       if (
         contributors.length > 0 &&
         !a.contributors?.some((c) => contributors.includes(c))
@@ -163,6 +168,7 @@ export interface CatalogFilters extends CatalogFilterState {
   setParkType: Dispatch<SetStateAction<ParkTypeFilter>>;
   setDogOnly: Dispatch<SetStateAction<boolean>>;
   setCompletedOnly: Dispatch<SetStateAction<boolean>>;
+  setFreeOnly: Dispatch<SetStateAction<boolean>>;
   setContributors: Dispatch<SetStateAction<readonly string[]>>;
   /**
    * Apply the current filters to `activities` (memoized on the filters), with
@@ -199,6 +205,7 @@ export function useCatalogFilters(): CatalogFilters {
   const [completedOnly, setCompletedOnly] = useState(
     INITIAL_CATALOG_FILTERS.completedOnly,
   );
+  const [freeOnly, setFreeOnly] = useState(INITIAL_CATALOG_FILTERS.freeOnly);
   const [contributors, setContributors] = useState<readonly string[]>(
     INITIAL_CATALOG_FILTERS.contributors,
   );
@@ -212,6 +219,7 @@ export function useCatalogFilters(): CatalogFilters {
       parkType,
       dogOnly,
       completedOnly,
+      freeOnly,
       contributors,
     };
     return (
@@ -228,6 +236,7 @@ export function useCatalogFilters(): CatalogFilters {
     parkType,
     dogOnly,
     completedOnly,
+    freeOnly,
     contributors,
   ]);
 
@@ -239,6 +248,7 @@ export function useCatalogFilters(): CatalogFilters {
     parkType,
     dogOnly,
     completedOnly,
+    freeOnly,
     contributors,
     setSearch,
     setMaxDistance,
@@ -247,6 +257,7 @@ export function useCatalogFilters(): CatalogFilters {
     setParkType,
     setDogOnly,
     setCompletedOnly,
+    setFreeOnly,
     setContributors,
     applyFilters,
   };

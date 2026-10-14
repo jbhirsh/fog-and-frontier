@@ -73,6 +73,8 @@ export const DURATION_VALUES = [
 ] as const;
 export const DIFFICULTY_VALUES = ['easy', 'moderate', 'advanced'] as const;
 export const PRICE_RANGE_VALUES = ['$', '$$', '$$$', '$$$$'] as const;
+// What an activity costs to do (#85); mirrors COST_TIERS in api/_gqlMap.ts.
+export const COST_TIER_VALUES = ['free', '$', '$$', '$$$'] as const;
 
 // ACTIVITY_SCHEMA's required-field list, hoisted for the same reason as the
 // enum arrays above: the eval harness grades required-field presence and must
@@ -138,6 +140,12 @@ const ACTIVITY_SCHEMA = {
       enum: PRICE_RANGE_VALUES,
       description: 'Restaurants only: rough cost tier. Omit for non-restaurants.',
     },
+    costTier: {
+      type: 'string',
+      enum: COST_TIER_VALUES,
+      description:
+        'What it costs one person to do: entry, parking or tickets. "free" when there is no such fee, "$" under $25, "$$" $25-75, "$$$" over $75. A per-vehicle fee is split between two people. Omit for restaurants (they use priceRange), and only omit otherwise when there is clearly a charge you cannot price.',
+    },
     hours: {
       type: 'string',
       description:
@@ -185,13 +193,15 @@ const REQUIRED_GENERATED_FIELDS = [
 
 // Optional fields of GeneratedActivity whose value must come from a fixed set:
 // difficulty/parkType are GraphQL enums (an unknown value fails serialization
-// with an opaque error), and priceRange is a String the client narrows to its
-// PriceRange union. A value outside the set is dropped, like an omitted field.
+// with an opaque error), and priceRange / costTier are Strings the client
+// narrows to its PriceRange / CostTier unions. A value outside the set is
+// dropped, like an omitted field.
 // (category, the one required enum, is checked separately.)
 const OPTIONAL_GENERATED_ENUMS: Record<string, readonly string[]> = {
   difficulty: DIFFICULTY_VALUES,
   parkType: PARK_TYPE_VALUES,
   priceRange: PRICE_RANGE_VALUES,
+  costTier: COST_TIER_VALUES,
 };
 
 // Link fields of GeneratedActivity, with the host each must be on (if any).
@@ -233,7 +243,8 @@ Rules:
 - In "shortDescription" and "longDescription", name a place or thing inside the activity (a grove, trail, viewpoint, landmark, dish, room) only if a source you found names it there. Describe anything you can't confirm in general terms instead; a vivid general line beats a specific name that turns out to belong somewhere else.
 - "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.
 - "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).
-- When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.`;
+- When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.
+- "costTier" is what one person pays to do it, from the fees you found: "free" when you find no entry, parking or ticket fee (most trails, beaches and city parks), "$" under $25 (e.g. a state park day-use fee, or a national park's per-vehicle fee split between two people), "$$" $25-75, "$$$" over $75. Omit it for restaurants, which use "priceRange" instead, and otherwise only when there's clearly a charge you can't price.`;
 
 async function generateActivity(
   _parent: unknown,
