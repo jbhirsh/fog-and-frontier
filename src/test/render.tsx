@@ -47,6 +47,7 @@ export function toActivityRow(a: Activity) {
     hikeElevationFeet: a.hikeElevationFeet ?? null,
     cuisine: a.cuisine ?? null,
     priceRange: a.priceRange ?? null,
+    costTier: a.costTier ?? null,
     hours: a.hours ?? null,
     reservationUrl: a.reservationUrl ?? null,
     menuUrl: a.menuUrl ?? null,
@@ -79,6 +80,12 @@ export type ApolloRenderOptions = Omit<RenderOptions, 'wrapper'> & {
   activities?: Activity[];
   /** Make the catalog read fail (nothing cached, the query answers an error). */
   activitiesError?: boolean;
+  /**
+   * How long the catalog's background fetch takes, in ms (default: Apollo's
+   * random 20–50). `Infinity` holds it, so a test that edits the cache under a
+   * mounted tree isn't undone by the fetch landing afterwards.
+   */
+  activitiesDelay?: number;
   /** Completed overrides seeded into the cache. */
   completed?: CompletedSeed[];
   /** Owner reviews (#184) seeded into the cache. */
@@ -96,6 +103,7 @@ export function render(
   {
     activities,
     activitiesError = false,
+    activitiesDelay,
     completed = [],
     reviews = [],
     mocks = [],
@@ -127,6 +135,7 @@ export function render(
           request: { query: ACTIVITIES_QUERY },
           result: { data: { activities: activityData } },
           maxUsageCount: Number.POSITIVE_INFINITY,
+          delay: activitiesDelay,
         },
     {
       request: { query: COMPLETED_QUERY },
@@ -148,7 +157,8 @@ export function render(
     );
   }
 
-  return rtlRender(ui, { wrapper: Wrapper, ...rtl });
+  // The seeded cache too, so a test can change the catalog under a mounted tree.
+  return Object.assign(rtlRender(ui, { wrapper: Wrapper, ...rtl }), { cache });
 }
 
 export {

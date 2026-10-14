@@ -174,6 +174,15 @@ describe('ActivityDetail', () => {
     expect(screen.queryByRole('button', { name: /picks/ })).not.toBeInTheDocument();
   });
 
+  it('shows what it costs only when that is known (#85)', () => {
+    const { rerender } = render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    expect(screen.queryByText(/^Free$|per person|\$/)).not.toBeInTheDocument();
+    rerender(<ActivityDetail activity={{ ...muirWoods, costTier: '$$' }} onClose={() => {}} />);
+    expect(screen.getByText('$$ · $25–75 per person')).toBeInTheDocument();
+    rerender(<ActivityDetail activity={{ ...muirWoods, costTier: 'free' }} onClose={() => {}} />);
+    expect(screen.getByText('Free')).toBeInTheDocument();
+  });
+
   it('falls back to the short description when no long one is provided', () => {
     const a = { ...muirWoods, longDescription: undefined };
     render(<ActivityDetail activity={a} onClose={() => {}} />);

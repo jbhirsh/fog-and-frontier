@@ -19,6 +19,7 @@ import {
   DURATION_VALUES,
   DIFFICULTY_VALUES,
   PRICE_RANGE_VALUES,
+  COST_TIER_VALUES,
 } from '../api/_resolvers/gemini.js';
 import type {
   AlltrailsExpect,
@@ -145,6 +146,7 @@ const ENUM_ACTIVITY_FIELDS: { field: string; values: readonly string[] }[] = [
   { field: 'duration', values: DURATION_VALUES },
   { field: 'difficulty', values: DIFFICULTY_VALUES },
   { field: 'priceRange', values: PRICE_RANGE_VALUES },
+  { field: 'costTier', values: COST_TIER_VALUES },
 ];
 
 function asActivity(value: unknown): Record<string, unknown> | null {
@@ -172,7 +174,7 @@ function checkRequired(activity: Record<string, unknown>): CheckResult {
 }
 
 // Enum-typed fields that are PRESENT must carry a legal value. Absent optional
-// enum fields (parkType/priceRange omitted) are not graded here.
+// enum fields (parkType/priceRange/costTier omitted) are not graded here.
 function checkEnums(activity: Record<string, unknown>): CheckResult {
   const problems: string[] = [];
   for (const { field, values } of ENUM_ACTIVITY_FIELDS) {
@@ -293,6 +295,11 @@ export function checkGenerateHappy(
   if (expect.parkType) {
     results.push(
       checkValueExpectation('expect:parkType', activity, 'parkType', expect.parkType),
+    );
+  }
+  if (expect.costTier) {
+    results.push(
+      checkValueExpectation('expect:costTier', activity, 'costTier', expect.costTier),
     );
   }
   if (expect.duration) {

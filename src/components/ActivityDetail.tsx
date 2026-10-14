@@ -9,6 +9,7 @@ import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { authorLabel } from '../lib/activityReviews';
+import { costStat } from '../lib/cost';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import {
   NEARBY_GROUP_HEADING,
@@ -336,6 +337,9 @@ export function ActivityDetail({
             )}
             <Stat icon="place" label={activity.location.city} />
             {activity.dogFriendly && <Stat icon="pets" label="Dog friendly" />}
+            {activity.costTier && (
+              <Stat icon="confirmation_number" label={costStat(activity.costTier)} />
+            )}
             {/* Signed-in only: the server sends no contributors otherwise (#9). */}
             {activity.contributors && activity.contributors.length > 0 && (
               <Contributors

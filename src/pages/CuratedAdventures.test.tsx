@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '../test/render';
+import { act, render, screen, waitFor, within } from '../test/render';
+import { ACTIVITIES_QUERY } from '../lib/gqlDocs';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, useLocation } from 'react-router-dom';
 import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
@@ -86,6 +87,57 @@ describe('Curated Adventures page', () => {
     expect(
       screen.getByText('No activities match those filters.'),
     ).toBeInTheDocument();
+  });
+
+  it('toggles the Free filter (#85)', async () => {
+    render(
+      <MemoryRouter>
+        <CuratedAdventures />
+      </MemoryRouter>,
+      { activities: [{ ...muirWoods, costTier: 'free' }, completedHike, dogFriendlyTidepools] },
+    );
+    const free = screen.getByRole('switch', { name: 'Free' });
+    expect(free).toHaveAttribute('aria-checked', 'false');
+    await userEvent.click(free);
+    expect(free).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    expect(screen.queryByText('Test Completed Hike')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
+  });
+
+  it('keeps the Free filter on screen while it is on, after the last free activity changes (#85)', async () => {
+    const { cache } = render(
+      <MemoryRouter>
+        <CuratedAdventures />
+      </MemoryRouter>,
+      // The mount's background fetch is held, or it could land after the
+      // edit below and put the free tier back.
+      {
+        activities: [{ ...muirWoods, costTier: 'free' }, completedHike],
+        activitiesDelay: Infinity,
+      },
+    );
+    await userEvent.click(screen.getByRole('switch', { name: 'Free' }));
+    // The only free activity is edited to another tier.
+    act(() => {
+      const data = cache.readQuery({ query: ACTIVITIES_QUERY })!;
+      cache.writeQuery({
+        query: ACTIVITIES_QUERY,
+        data: { activities: data.activities.map((a) => ({ ...a, costTier: '$' })) },
+      });
+    });
+    await waitFor(() => expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument());
+    const free = screen.getByRole('switch', { name: 'Free' });
+    expect(free).toHaveAttribute('aria-checked', 'true');
+    // Turning it off brings the catalog back, and the chip goes with it.
+    await userEvent.click(free);
+    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
+  });
+
+  it('offers no Free filter until something is known to be free (#85)', () => {
+    renderExplore();
+    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
   });
 
   it('toggles dog-friendly filter', async () => {

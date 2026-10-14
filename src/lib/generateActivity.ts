@@ -1,5 +1,6 @@
 import type {
   Category,
+  CostTier,
   Difficulty,
   Duration,
   ParkType,
@@ -30,6 +31,7 @@ export type GeneratedFields = {
   allTrailsUrl?: string;
   cuisine?: string;
   priceRange?: PriceRange;
+  costTier?: CostTier;
   hours?: string;
   reservationUrl?: string;
   menuUrl?: string;
@@ -59,6 +61,7 @@ function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
     allTrailsUrl: row.allTrailsUrl ?? undefined,
     cuisine: row.cuisine ?? undefined,
     priceRange: (row.priceRange ?? undefined) as PriceRange | undefined,
+    costTier: (row.costTier ?? undefined) as CostTier | undefined,
     hours: row.hours ?? undefined,
     reservationUrl: row.reservationUrl ?? undefined,
     menuUrl: row.menuUrl ?? undefined,

@@ -1,6 +1,7 @@
 import { db } from '../_db.js';
 import { badInput } from '../_gqlError.js';
 import {
+  COST_TIERS,
   dateToIso,
   mapCatalogActivity,
   parseCatalogActivity,
@@ -158,6 +159,10 @@ async function saveActivity(
   const caller = requireOwnerCtx(ctx);
   const id = input.id;
   if (!id) throw badInput('missing id');
+  const costTier = input.activity.costTier;
+  if (costTier != null && !COST_TIERS.has(costTier as string)) {
+    throw badInput('costTier must be free, $, $$ or $$$');
+  }
   const contributors = await resolveContributors(
     id,
     input.activity.contributors,

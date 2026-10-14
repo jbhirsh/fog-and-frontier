@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import type {
   Activity,
   Category,
+  CostTier,
   Difficulty,
   Duration,
   ParkType,
@@ -12,6 +13,7 @@ import type {
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
+import { COST_TIERS, costLabel } from '../lib/cost';
 import { useOwner } from '../lib/useOwner';
 import { fetchUsers } from '../lib/userTrips';
 import { ContributorsField } from './ContributorsField';
@@ -194,6 +196,7 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
         allTrailsUrl: g.allTrailsUrl,
         cuisine: g.cuisine,
         priceRange: g.priceRange,
+        costTier: g.costTier,
         hours: g.hours,
         reservationUrl: g.reservationUrl,
         menuUrl: g.menuUrl,
@@ -590,6 +593,23 @@ function ReviewStep({
           >
             <option value="no">No</option>
             <option value="yes">Yes</option>
+          </select>
+        </Field>
+        {/* What it costs one person (#85); "—" leaves it unknown. */}
+        <Field label="Cost per person">
+          <select
+            value={draft.costTier ?? ''}
+            onChange={(e) =>
+              patch('costTier', (e.target.value || undefined) as CostTier | undefined)
+            }
+            className={inputCls}
+          >
+            <option value="">—</option>
+            {COST_TIERS.map((tier) => (
+              <option key={tier} value={tier}>
+                {costLabel(tier)}
+              </option>
+            ))}
           </select>
         </Field>
       </div>
