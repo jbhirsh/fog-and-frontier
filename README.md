@@ -207,18 +207,19 @@ knowledge of famous places — a deliberate trade, documented in
 that the response schema forces the model to fabricate a record on
 pure-nonsense input rather than decline.
 
-**Current score: 90.9%** (20/22 graded, threshold 90%) — the first run on
-search-grounded `gemini-3.8-flash`, 2026-10-14 (eval workflow run
-38489973906): `alltrailsLookup` and `discover` 100%, `generateActivity`
-86.7%. Its two failures:
+**Current score: 95.5%** (21/22 graded, threshold 90%) on search-grounded
+`gemini-3.8-flash`, 2026-10-14 (eval workflow run 38501577212):
+`alltrailsLookup` and `discover` 100%, `generateActivity` 93.3%. The one
+failure, `gen-duartes-tavern`, is mostly the **judge's limit**: it failed true,
+documented details of the place (the half-and-half artichoke-and-green-chile
+soup, the knotty-pine room, weekend cioppino) because it grades from memory
+while the resolver now searches.
 
-- `gen-muir-woods`: the description placed Bohemian Grove (a private club in
-  Sonoma County) inside Muir Woods — a **real model error**, which grounding
-  didn't prevent.
-- `gen-duartes-tavern`: the judge failed specifics it couldn't verify (the
-  "50/50" artichoke-and-chile soup, the knotty-pine dining room, weekend
-  cioppino). Those are documented details of the place, so this is mostly the
-  **judge's limit**: it grades from memory while the resolver now searches.
+The first grounded run (90.9%, run 38489973906) also failed `gen-muir-woods`
+on a **real model error**: its description put Bohemian Grove, a private club
+in Sonoma County, inside Muir Woods. The prompt now lets a description name a
+place or thing inside the activity only when a source the model found names
+it there, and that case passed on the next run.
 
 Because the resolvers are evaluated at their production settings (see above),
 *which* case fails rotates run-to-run — the ≥90% threshold is the contract,
