@@ -3,6 +3,7 @@ import type { Activity } from '../data/types';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
+import { contributorsLabel } from '../lib/contributors';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import { CoverImage } from './CoverImage';
 
@@ -62,6 +63,7 @@ export function ActivityCard({
   const distance = useDistanceTo()(activity);
   const overrides = useOverrides();
   const completed = isEffectivelyCompleted(activity, overrides);
+  const contributors = contributorsLabel(activity.contributors);
 
   // Road miles "from you" or "from San Jose" (#66), never bare miles; "≈"
   // marks the straight-line estimate shown until road miles load.
@@ -219,6 +221,12 @@ export function ActivityCard({
               </span>
             )}
           </div>
+          {/* Signed-in only: the server sends no contributors otherwise (#9). */}
+          {contributors && (
+            <p className="mt-xs truncate text-body-sm text-on-surface-variant">
+              Contributed by {contributors}
+            </p>
+          )}
         </div>
       </button>
       {/*

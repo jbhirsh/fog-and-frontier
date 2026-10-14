@@ -54,6 +54,7 @@ export function toActivityRow(a: Activity) {
     completed: a.completed ?? null,
     completedDate: a.completedDate ?? null,
     notes: a.notes ?? null,
+    contributors: a.contributors ?? null,
   };
 }
 

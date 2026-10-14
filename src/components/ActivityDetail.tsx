@@ -8,6 +8,7 @@ import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { directionsUrl, isApplePlatform } from '../lib/directions';
+import { contributorsLabel } from '../lib/contributors';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import {
   NEARBY_GROUP_HEADING,
@@ -102,6 +103,7 @@ export function ActivityDetail({
   } = useActivityPhotos(activity.id, isOwner && (completed || !!showUploads));
   const origin = useDistanceOrigin();
   const distance = useDistanceTo()(activity);
+  const contributors = contributorsLabel(activity.contributors);
   const directionsHref = directionsUrl(
     activity.location.coords,
     isApplePlatform(),
@@ -329,6 +331,10 @@ export function ActivityDetail({
             )}
             <Stat icon="place" label={activity.location.city} />
             {activity.dogFriendly && <Stat icon="pets" label="Dog friendly" />}
+            {/* Signed-in only: the server sends no contributors otherwise (#9). */}
+            {contributors && (
+              <Stat icon="person" label={`Contributed by ${contributors}`} />
+            )}
           </div>
 
           <p className="font-body-lg text-body-lg text-on-surface-variant">

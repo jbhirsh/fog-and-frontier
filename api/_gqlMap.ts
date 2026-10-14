@@ -100,6 +100,7 @@ export type SnapshotShape = {
   completed: boolean | null;
   completedDate: string | null;
   notes: string | null;
+  contributors: string[] | null;
 };
 
 export function coerceSnapshot(raw: unknown): SnapshotShape | null {
@@ -134,6 +135,7 @@ export function coerceSnapshot(raw: unknown): SnapshotShape | null {
     completed: bool(r.completed),
     completedDate: isoDate(r.completedDate),
     notes: str(r.notes),
+    contributors: strArray(r.contributors),
   };
 }
 

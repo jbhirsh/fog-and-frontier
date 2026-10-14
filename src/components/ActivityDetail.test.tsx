@@ -133,6 +133,18 @@ describe('ActivityDetail', () => {
     expect(screen.getAllByText('Half Day').length).toBeGreaterThan(0);
   });
 
+  it('credits contributors in the stats only when the activity carries them (#9)', () => {
+    const { rerender } = render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    expect(screen.queryByText(/Contributed by/)).not.toBeInTheDocument();
+    rerender(
+      <ActivityDetail
+        activity={{ ...muirWoods, contributors: ['tarun@example.com'] }}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText('Contributed by Tarun')).toBeInTheDocument();
+  });
+
   it('falls back to the short description when no long one is provided', () => {
     const a = { ...muirWoods, longDescription: undefined };
     render(<ActivityDetail activity={a} onClose={() => {}} />);

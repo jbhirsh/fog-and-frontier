@@ -87,16 +87,20 @@ describe('auth-readiness gating (MAJOR-1)', () => {
 // Switching accounts in-tab (or signing out) must reset the Apollo cache so
 // account A's member-scoped data can't bleed into account B's session.
 
-const clerk = vi.hoisted(() => ({ user: null as null | { id: string } }));
+const clerk = vi.hoisted(() => ({
+  isLoaded: true,
+  user: null as null | { id: string },
+}));
 
 vi.mock('@clerk/clerk-react', () => ({
-  useUser: () => ({ isLoaded: true, user: clerk.user }),
+  useUser: () => ({ isLoaded: clerk.isLoaded, user: clerk.user }),
   useAuth: () => ({ getToken: () => Promise.resolve('tok') }),
 }));
 
 describe('cache reset on account change (MAJOR-2)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    clerk.isLoaded = true;
     clerk.user = null;
   });
 
@@ -115,5 +119,47 @@ describe('cache reset on account change (MAJOR-2)', () => {
     clerk.user = null; // sign-out
     rerender(createElement(ClerkAuthProvider, { children: 'x' }));
     expect(reset).toHaveBeenCalledTimes(2);
+  });
+
+  // Reads made signed-out (the catalog, without contributors, #9) must
+  // refetch as the caller once they sign in from the page.
+  it('resets the cache when a signed-out visitor signs in', async () => {
+    const { ClerkAuthProvider } = await import('./authShimClerk');
+    const reset = vi.spyOn(apolloClient, 'resetStore').mockResolvedValue([]);
+
+    clerk.user = null;
+    const { rerender } = rtlRender(createElement(ClerkAuthProvider, { children: 'x' }));
+    expect(reset).not.toHaveBeenCalled();
+
+    clerk.user = { id: 'A' };
+    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reset when Clerk finishes loading an account', async () => {
+    const { ClerkAuthProvider } = await import('./authShimClerk');
+    const reset = vi.spyOn(apolloClient, 'resetStore').mockResolvedValue([]);
+
+    clerk.isLoaded = false;
+    clerk.user = null;
+    const { rerender } = rtlRender(createElement(ClerkAuthProvider, { children: 'x' }));
+
+    clerk.isLoaded = true;
+    clerk.user = { id: 'A' };
+    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it('does not reset when Clerk reloads the same account', async () => {
+    const { ClerkAuthProvider } = await import('./authShimClerk');
+    const reset = vi.spyOn(apolloClient, 'resetStore').mockResolvedValue([]);
+
+    clerk.user = { id: 'A' };
+    const { rerender } = rtlRender(createElement(ClerkAuthProvider, { children: 'x' }));
+    clerk.isLoaded = false;
+    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    clerk.isLoaded = true;
+    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    expect(reset).not.toHaveBeenCalled();
   });
 });

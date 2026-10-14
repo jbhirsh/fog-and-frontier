@@ -54,6 +54,8 @@ export const typeDefs = /* GraphQL */ `
     completed: Boolean
     completedDate: Date
     notes: String
+    "Who added it (#9): account emails, at least one. Null for signed-out callers."
+    contributors: [String!]
   }
 
   "Frozen copy stored on a trip — embedded (keyFields:false), all-nullable to tolerate pre-validation rows."
@@ -87,6 +89,8 @@ export const typeDefs = /* GraphQL */ `
     completed: Boolean
     completedDate: Date
     notes: String
+    "Who added it (#9), as copied onto the trip. Null for signed-out callers."
+    contributors: [String!]
   }
 
   type CompletedEntry { id: ID!  completed: Boolean! }
@@ -263,6 +267,8 @@ export const typeDefs = /* GraphQL */ `
     completed: Boolean
     completedDate: Date
     notes: String
+    "Account emails to credit (#9), each a known user, at least one. Omitted keeps the stored list (the caller for a new activity)."
+    contributors: [String!]
   }
   input SaveActivityInput { id: ID!  activity: ActivityInput! }
   "Author is always the authenticated caller — never taken from input (#184)."
