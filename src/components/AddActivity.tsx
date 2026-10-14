@@ -12,6 +12,9 @@ import type {
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
+import { useOwner } from '../lib/useOwner';
+import { fetchUsers } from '../lib/userTrips';
+import { ContributorsField } from './ContributorsField';
 import { lookupAllTrails } from '../lib/alltrails';
 import {
   generateActivity,
@@ -126,6 +129,22 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Activity | null>(editActivity ?? null);
   const [saving, setSaving] = useState(false);
+  const { email } = useOwner();
+  // The accounts the review step can credit (#9). If they can't be loaded,
+  // the picker just has no one to offer; the credited chips still show.
+  const [users, setUsers] = useState<string[]>([]);
+  useEffect(() => {
+    if (step !== 'review') return;
+    let live = true;
+    fetchUsers()
+      .then((list) => {
+        if (live) setUsers(list.map((u) => u.email));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [step]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -184,6 +203,9 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
         // landscape stand-in reads as a wrong photo of the place (#36).
         coverImage: g.coverImage ?? '',
         coverCredit: g.coverCredit,
+        // Whoever adds it is credited (#9), and can add the others who
+        // suggested it in the review step.
+        contributors: email ? [email] : undefined,
       };
       setDraft(activity);
       setStep('review');
@@ -264,6 +286,7 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
             error={error}
             saving={saving}
             mode={mode}
+            users={users}
             onChange={setDraft}
             onBack={mode === 'edit' ? onClose : () => setStep('form')}
             onSave={() => void save()}
@@ -371,6 +394,7 @@ function ReviewStep({
   error,
   saving,
   mode,
+  users,
   onChange,
   onBack,
   onSave,
@@ -379,6 +403,7 @@ function ReviewStep({
   error: string | null;
   saving: boolean;
   mode: 'create' | 'edit';
+  users: readonly string[];
   onChange: (a: Activity) => void;
   onBack: () => void;
   onSave: () => void;
@@ -700,6 +725,12 @@ function ReviewStep({
           />
         </Field>
       )}
+
+      <ContributorsField
+        value={draft.contributors ?? []}
+        users={users}
+        onChange={(next) => patch('contributors', next)}
+      />
 
       {error && <div className="text-error font-body-md">{error}</div>}
 
