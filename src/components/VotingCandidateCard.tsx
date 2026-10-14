@@ -104,7 +104,7 @@ export function VotingCandidateCard({
               type="button"
               aria-label="Remove candidate"
               onClick={onRemove}
-              className="font-body-md text-sm px-sm py-xs min-h-11 md:min-h-auto rounded-full border border-error/40 text-error hover:bg-error-container transition-colors"
+              className="font-body-md text-sm pl-[10px] pr-sm py-xs min-h-11 md:min-h-auto rounded-full border border-error/40 text-error hover:bg-error-container transition-colors"
             >
               ✕ Remove
             </button>

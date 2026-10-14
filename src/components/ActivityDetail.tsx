@@ -11,6 +11,7 @@ import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { authorLabel } from '../lib/activityReviews';
 import { costStat } from '../lib/cost';
 import { CATEGORY_ICON } from '../lib/mapPins';
+import { glyphBleed } from '../lib/iconMetrics';
 import {
   NEARBY_GROUP_HEADING,
   NEARBY_RADIUS_MILES,
@@ -531,7 +532,7 @@ export function ActivityDetail({
                       <span
                         aria-hidden="true"
                         className="material-symbols-outlined"
-                        style={{ fontSize: 16 }}
+                        style={{ fontSize: 16, marginLeft: glyphBleed(CATEGORY_ICON[category]) }}
                       >
                         {CATEGORY_ICON[category]}
                       </span>

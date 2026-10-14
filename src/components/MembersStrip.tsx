@@ -1,4 +1,5 @@
 import type { TripMember, TripInvite } from '../lib/userTrips';
+import { glyphBleed } from '../lib/iconMetrics';
 
 type Props = {
   members: TripMember[];
@@ -65,9 +66,13 @@ export function MembersStrip({
                     : undefined
                 }
                 aria-label={`Remove ${member.email}`}
-                className="shrink-0 text-on-surface-variant/60 hover:text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 hover:text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-icon-sm">
+                {/* Pulled out by the glyph's empty side, so the chip's insets match. */}
+                <span
+                  className="material-symbols-outlined text-icon-sm"
+                  style={{ marginRight: glyphBleed('close') }}
+                >
                   close
                 </span>
               </button>
@@ -87,9 +92,12 @@ export function MembersStrip({
             type="button"
             onClick={() => onRevokeInvite(invite.invite_token)}
             aria-label={`Revoke invite for ${invite.invited_email ?? 'pending invite'}`}
-            className="shrink-0 text-on-surface-variant/60 hover:text-on-surface-variant"
+            className="inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 hover:text-on-surface-variant"
           >
-            <span className="material-symbols-outlined text-icon-sm">
+            <span
+              className="material-symbols-outlined text-icon-sm"
+              style={{ marginRight: glyphBleed('close') }}
+            >
               close
             </span>
           </button>

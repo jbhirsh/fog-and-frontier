@@ -53,6 +53,7 @@ import {
   type TripActivity,
   type UserSummary,
 } from '../lib/userTrips';
+import { glyphBleed } from '../lib/iconMetrics';
 
 const TALLY_REFRESH_MS = 30_000;
 
@@ -512,7 +513,9 @@ export function TripDetail() {
               title={isPast ? PAST_TOOLTIP : undefined}
               className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span className="material-symbols-outlined text-icon-md">add</span>
+              <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+                add
+              </span>
               Add activity
             </button>
           </div>
@@ -680,7 +683,9 @@ function VotingView({
             onClick={onAddFromCurated}
             className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 text-on-surface-variant px-md py-sm font-body-md hover:bg-surface-variant"
           >
-            <span className="material-symbols-outlined text-icon-md">add</span>
+            <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+              add
+            </span>
             Add candidate
           </button>
           <button
@@ -779,8 +784,9 @@ function VoteBreakdown({
           key={r.email}
           className="inline-flex items-center gap-xs text-sm font-body-md text-on-surface-variant bg-surface-container-low rounded-full px-sm py-xs"
         >
+          {/* Lifted 1px, as in VoteControls: the thumbs sit low in their box. */}
           <span
-            className={`material-symbols-outlined text-icon-sm ${
+            className={`material-symbols-outlined text-icon-sm relative -top-px ${
               r.value === 1 ? 'text-primary' : 'text-error'
             }`}
           >

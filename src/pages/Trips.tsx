@@ -5,6 +5,7 @@ import {
   type TripListItem,
   type TripStatus,
 } from '../lib/userTrips';
+import { glyphBleed } from '../lib/iconMetrics';
 
 export function Trips() {
   const { isOwner, isLoaded, email } = useOwner();
@@ -48,7 +49,9 @@ export function Trips() {
               to="/trips/new"
               className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
             >
-              <span className="material-symbols-outlined text-icon-md">add</span>
+              <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+                add
+              </span>
               New trip
             </Link>
           )}
@@ -74,7 +77,9 @@ export function Trips() {
                 to="/trips/new"
                 className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
               >
-                <span className="material-symbols-outlined text-icon-md">add</span>
+                <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+                  add
+                </span>
                 New trip
               </Link>
             )}
