@@ -367,7 +367,7 @@ function FormStep({
           type="submit"
           className="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
         >
-          <span className="material-symbols-outlined text-body-md">
+          <span className="material-symbols-outlined text-icon-md">
             auto_awesome
           </span>
           Generate

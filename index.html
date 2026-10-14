@@ -21,10 +21,17 @@
       href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Google's Material Symbols stylesheet sets its own unlayered
+         .material-symbols-outlined { font-size: 24px; … }, which would
+         outrank every Tailwind utility (all layered), so a sized icon
+         (text-icon-sm…) rendered at 24px anyway. Imported here into its own
+         layer, named before the app's stylesheet (which Vite adds after
+         this) names Tailwind's, it ranks below all of them. It isn't in
+         src/index.css: an @import there goes ahead of Tailwind's license
+         banner, and the minifier drops a banner that isn't first. -->
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap") layer(icon-font);
+    </style>
   </head>
   <body>
     <div id="root"></div>

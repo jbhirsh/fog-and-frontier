@@ -92,7 +92,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                     <span className="flex items-center gap-xs font-body-sm text-on-surface-variant">
                       <span
                         aria-hidden="true"
-                        className="material-symbols-outlined text-body-md"
+                        className="material-symbols-outlined text-icon-sm"
                       >
                         {CATEGORY_ICON[a.category]}
                       </span>
@@ -110,7 +110,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                   aria-label={`Add ${a.name} as a candidate`}
                   className="shrink-0 self-center mx-sm inline-flex items-center justify-center gap-xs rounded-full border border-outline-variant/40 text-primary min-w-11 min-h-11 sm:px-sm font-body-md hover:bg-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-body-md">
+                  <span aria-hidden="true" className="material-symbols-outlined text-icon-md">
                     add
                   </span>
                   {/* Icon only on phones, leaving the name room; the label above names it. */}

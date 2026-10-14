@@ -512,7 +512,7 @@ export function TripDetail() {
               title={isPast ? PAST_TOOLTIP : undefined}
               className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span className="material-symbols-outlined text-body-md">add</span>
+              <span className="material-symbols-outlined text-icon-md">add</span>
               Add activity
             </button>
           </div>
@@ -680,7 +680,7 @@ function VotingView({
             onClick={onAddFromCurated}
             className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 text-on-surface-variant px-md py-sm font-body-md hover:bg-surface-variant"
           >
-            <span className="material-symbols-outlined text-body-md">add</span>
+            <span className="material-symbols-outlined text-icon-md">add</span>
             Add candidate
           </button>
           <button
@@ -696,7 +696,7 @@ function VotingView({
             }
             className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined text-body-md">
+            <span className="material-symbols-outlined text-icon-md">
               how_to_vote
             </span>
             Finalize voting
@@ -780,7 +780,7 @@ function VoteBreakdown({
           className="inline-flex items-center gap-xs text-sm font-body-md text-on-surface-variant bg-surface-container-low rounded-full px-sm py-xs"
         >
           <span
-            className={`material-symbols-outlined text-body-md ${
+            className={`material-symbols-outlined text-icon-sm ${
               r.value === 1 ? 'text-primary' : 'text-error'
             }`}
           >

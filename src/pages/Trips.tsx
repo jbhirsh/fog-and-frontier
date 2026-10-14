@@ -48,7 +48,7 @@ export function Trips() {
               to="/trips/new"
               className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
             >
-              <span className="material-symbols-outlined text-body-md">add</span>
+              <span className="material-symbols-outlined text-icon-md">add</span>
               New trip
             </Link>
           )}
@@ -74,7 +74,7 @@ export function Trips() {
                 to="/trips/new"
                 className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
               >
-                <span className="material-symbols-outlined text-body-md">add</span>
+                <span className="material-symbols-outlined text-icon-md">add</span>
                 New trip
               </Link>
             )}
@@ -123,11 +123,11 @@ function TripCard({ trip }: { trip: TripListItem }) {
         </p>
         <div className="flex items-center gap-md text-outline pt-sm border-t border-outline-variant/20 mt-sm flex-wrap text-sm">
           <div className="flex items-center gap-xs">
-            <span className="material-symbols-outlined text-body-md">event</span>
+            <span className="material-symbols-outlined text-icon-sm">event</span>
             {trip.scheduled_count} scheduled
           </div>
           <div className="flex items-center gap-xs">
-            <span className="material-symbols-outlined text-body-md">inbox</span>
+            <span className="material-symbols-outlined text-icon-sm">inbox</span>
             {trip.unscheduled_count} unscheduled
           </div>
         </div>
