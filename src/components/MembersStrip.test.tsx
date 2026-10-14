@@ -48,6 +48,15 @@ describe('MembersStrip', () => {
     expect(screen.getByText(/Bob/)).toBeInTheDocument();
   });
 
+  it("pulls the remove and revoke ✕ out by the glyph's empty side, so the chips' insets match", () => {
+    render(<MembersStrip {...defaultProps()} />);
+    for (const name of ['Remove bob@example.com', 'Revoke invite for carol@example.com']) {
+      const icon = screen.getByRole('button', { name }).querySelector<HTMLElement>('.material-symbols-outlined');
+      expect(icon).toHaveTextContent('close');
+      expect(icon?.style.marginRight).toBe('-0.194em');
+    }
+  });
+
   it('renders the Creator badge on the creator chip', () => {
     render(<MembersStrip {...defaultProps()} />);
     expect(screen.getByText('Creator')).toBeInTheDocument();

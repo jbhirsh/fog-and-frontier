@@ -5,6 +5,7 @@ import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
 import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 import { contributorsLabel } from '../lib/contributors';
 import { CATEGORY_ICON } from '../lib/mapPins';
+import { glyphBleed } from '../lib/iconMetrics';
 import { CoverImage } from './CoverImage';
 
 // Pill label per category. The glyph comes from the shared CATEGORY_ICON, so
@@ -137,7 +138,7 @@ export function ActivityCard({
             <span
               className="material-symbols-outlined text-secondary"
               aria-hidden="true"
-              style={{ fontSize: 15 }}
+              style={{ fontSize: 15, marginLeft: glyphBleed(CATEGORY_ICON[activity.category]) }}
             >
               {CATEGORY_ICON[activity.category]}
             </span>

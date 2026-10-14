@@ -88,8 +88,10 @@ function ThumbButton({
         active ? `${activeClass} font-medium` : 'text-on-surface-variant'
       } ${disabled ? '' : 'hover:bg-surface-variant'}`}
     >
+      {/* The thumb glyphs sit low in their box; a 1px lift centres them on
+          the count's digits. */}
       <span
-        className="material-symbols-outlined"
+        className="material-symbols-outlined relative -top-px"
         style={{
           fontSize: 18,
           fontVariationSettings: active ? "'FILL' 1" : undefined,
