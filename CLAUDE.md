@@ -77,6 +77,9 @@ Gates that are **not** the owner gate:
   them, since adding to a trip is a member power (#51). The per-card "Add to
   trip" renders only while building a trip (selection mode, which an incoming
   trip target also opens), keeping the default browse view uncluttered.
+- The **Contributors filter** (#9) is a read, but signed-out visitors get no
+  contributor data to filter on, so it isn't rendered for them, and a shared
+  `?contributors=` link is ignored rather than emptying their list.
 - **Trip-creator-gated** controls in `TripDetail` (reopen voting, mark past,
   delete trip, finalize voting, remove member) — gated on being *this trip's*
   creator, a per-trip role shown to trip members, not the global owner gate.

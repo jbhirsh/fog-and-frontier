@@ -69,6 +69,22 @@ describe('scrubBreadcrumb', () => {
     expect(scrubBreadcrumb(crumb)).toBe(crumb);
   });
 
+  it("strips the query from a navigation's from and to (#9)", () => {
+    const crumb: Breadcrumb = {
+      category: 'navigation',
+      data: { from: '/activity/muir?x=1', to: '/?contributors=tarun%40example.com' },
+    };
+    expect(scrubBreadcrumb(crumb).data).toEqual({ from: '/activity/muir', to: '/' });
+  });
+
+  it('leaves a navigation without a query untouched', () => {
+    const crumb: Breadcrumb = {
+      category: 'navigation',
+      data: { from: '/activity/muir', to: '/' },
+    };
+    expect(scrubBreadcrumb(crumb)).toBe(crumb);
+  });
+
   it('returns the breadcrumb untouched when there is no url field', () => {
     const crumb: Breadcrumb = { category: 'console', message: 'hello' };
     expect(scrubBreadcrumb(crumb)).toBe(crumb);

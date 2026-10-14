@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import { matchPath, useLocation, useNavigate, type Location } from 'react-router-dom';
+import { withContributors } from './useCatalogFilters';
 
 // Permalinks for catalog items (#86). Every activity, restaurants included,
 // lives at /activity/:id. Opening one from a page keeps that page rendered
@@ -166,4 +167,30 @@ export function useCloseActivity(): () => void {
       void navigate('/', { replace: true });
     }
   }, [navigate, location]);
+}
+
+/**
+ * Leaves the detail for the catalog filtered to one contributor (#9). Over the
+ * catalog, it keeps the view and filters that were underneath; from anywhere
+ * else, it starts from the plain catalog. A new history entry, so Back
+ * returns to the detail. Like open and close, only the first call from an
+ * entry counts, so a double click doesn't push the catalog twice.
+ */
+export function useShowContributor(): (email: string) => void {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const shown = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    shown.current = null;
+  }, [location.key]);
+  return useCallback(
+    (email: string) => {
+      if (shown.current === location.key) return;
+      shown.current = location.key;
+      const below = backgroundFor(location);
+      const base = new URLSearchParams(below?.pathname === '/' ? below.search : '');
+      void navigate({ pathname: '/', search: `?${withContributors(base, [email]).toString()}` });
+    },
+    [navigate, location],
+  );
 }

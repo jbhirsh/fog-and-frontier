@@ -37,18 +37,21 @@ export function scrubEmbeddedQueries(text: string): string {
   return text.replace(EMBEDDED_QUERY_RE, '');
 }
 
+// URL fields of a breadcrumb's data: a fetch's `url`, and a navigation's
+// `from` / `to`, whose query can carry account emails (`?contributors=`, #9).
+const BREADCRUMB_URL_KEYS = ['url', 'from', 'to'] as const;
+
 export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
   const data = breadcrumb.data;
-  if (data) {
-    const url = (data as { url?: unknown }).url;
-    if (typeof url === 'string' && url.includes('?')) {
-      return {
-        ...breadcrumb,
-        data: { ...(data as Record<string, unknown>), url: stripQueryString(url) },
-      };
+  if (!data) return breadcrumb;
+  let next: Record<string, unknown> | null = null;
+  for (const key of BREADCRUMB_URL_KEYS) {
+    const v: unknown = data[key];
+    if (typeof v === 'string' && v.includes('?')) {
+      next = { ...(next ?? data), [key]: stripQueryString(v) };
     }
   }
-  return breadcrumb;
+  return next ? { ...breadcrumb, data: next } : breadcrumb;
 }
 
 // Scrub URL-shaped attributes in a span/context data bag. Keys matching

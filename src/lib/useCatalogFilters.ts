@@ -24,6 +24,11 @@ export interface CatalogFilterState {
   dogOnly: boolean;
   /** "Completed only" (#5): keep just the activities marked completed. */
   completedOnly: boolean;
+  /**
+   * Contributors (#9): keep the activities any of these accounts added (OR).
+   * Empty means anyone's.
+   */
+  contributors: readonly string[];
 }
 
 export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
@@ -34,6 +39,7 @@ export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
   parkType: 'Any',
   dogOnly: false,
   completedOnly: false,
+  contributors: [],
 };
 
 // "Completed only" is URL-synced as `?completed=1` (#5) so a filtered list is
@@ -57,6 +63,36 @@ export function withCompletedOnly(
   if (completedOnly) next.set(COMPLETED_PARAM, '1');
   else next.delete(COMPLETED_PARAM);
   return next;
+}
+
+// The contributors filter is URL-synced as `?contributors=a@x.com,b@x.com`
+// (#9), so a list filtered to someone's picks is shareable.
+export const CONTRIBUTORS_PARAM = 'contributors';
+
+/** The accounts a `?contributors=` value names: trimmed, lower-cased, once each. */
+export function parseContributors(raw: string | null): string[] {
+  const emails = (raw ?? '').split(',').map((e) => e.trim().toLowerCase());
+  return [...new Set(emails)].filter((e) => e !== '');
+}
+
+/**
+ * A copy of `params` filtered to `contributors`, or with the filter cleared
+ * (param removed) when there are none. Other params are kept.
+ */
+export function withContributors(
+  params: URLSearchParams,
+  contributors: readonly string[],
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  if (contributors.length > 0) next.set(CONTRIBUTORS_PARAM, contributors.join(','));
+  else next.delete(CONTRIBUTORS_PARAM);
+  return next;
+}
+
+/** Every account credited in `activities`, once each, sorted by email. */
+export function contributorOptions(activities: readonly Activity[]): string[] {
+  const all = new Set(activities.flatMap((a) => a.contributors ?? []));
+  return [...all].sort((x, y) => x.localeCompare(y));
 }
 
 /**
@@ -88,6 +124,7 @@ export function applyCatalogFilters(
     parkType,
     dogOnly,
     completedOnly,
+    contributors,
   } = filters;
   const q = search.trim().toLowerCase();
   return activities
@@ -103,6 +140,11 @@ export function applyCatalogFilters(
         return false;
       if (dogOnly && !a.dogFriendly) return false;
       if (completedOnly && !isEffectivelyCompleted(a, overrides)) return false;
+      if (
+        contributors.length > 0 &&
+        !a.contributors?.some((c) => contributors.includes(c))
+      )
+        return false;
       if (q) {
         const hay = `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -121,6 +163,7 @@ export interface CatalogFilters extends CatalogFilterState {
   setParkType: Dispatch<SetStateAction<ParkTypeFilter>>;
   setDogOnly: Dispatch<SetStateAction<boolean>>;
   setCompletedOnly: Dispatch<SetStateAction<boolean>>;
+  setContributors: Dispatch<SetStateAction<readonly string[]>>;
   /**
    * Apply the current filters to `activities` (memoized on the filters), with
    * the completion `overrides` the "Completed only" filter reads, measuring
@@ -156,6 +199,9 @@ export function useCatalogFilters(): CatalogFilters {
   const [completedOnly, setCompletedOnly] = useState(
     INITIAL_CATALOG_FILTERS.completedOnly,
   );
+  const [contributors, setContributors] = useState<readonly string[]>(
+    INITIAL_CATALOG_FILTERS.contributors,
+  );
 
   const applyFilters = useMemo(() => {
     const filters: CatalogFilterState = {
@@ -166,6 +212,7 @@ export function useCatalogFilters(): CatalogFilters {
       parkType,
       dogOnly,
       completedOnly,
+      contributors,
     };
     return (
       activities: Activity[],
@@ -173,7 +220,16 @@ export function useCatalogFilters(): CatalogFilters {
       from?: { lat: number; lng: number },
       driving?: DrivingMiles,
     ) => applyCatalogFilters(activities, filters, overrides, from, driving);
-  }, [search, maxDistance, duration, category, parkType, dogOnly, completedOnly]);
+  }, [
+    search,
+    maxDistance,
+    duration,
+    category,
+    parkType,
+    dogOnly,
+    completedOnly,
+    contributors,
+  ]);
 
   return {
     search,
@@ -183,6 +239,7 @@ export function useCatalogFilters(): CatalogFilters {
     parkType,
     dogOnly,
     completedOnly,
+    contributors,
     setSearch,
     setMaxDistance,
     setDuration,
@@ -190,6 +247,7 @@ export function useCatalogFilters(): CatalogFilters {
     setParkType,
     setDogOnly,
     setCompletedOnly,
+    setContributors,
     applyFilters,
   };
 }
