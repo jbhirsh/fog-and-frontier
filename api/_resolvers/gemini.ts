@@ -14,9 +14,42 @@ const HOME_CITY = HOME_BASE.split(',')[0];
 // so formatError won't double-log it). A missing API key throws a plain Error
 // → INTERNAL, also logged — matching the REST 500.
 
-const MODEL = 'gemini-2.5-flash';
+// Gemini 3 can combine a JSON response schema with the built-in Google Search
+// and URL context tools, so each call below looks facts up (and reads the
+// links it's given) instead of answering from memory, and still returns
+// schema-shaped JSON. Exported so the eval harness reports the model it graded.
+export const MODEL = 'gemini-3.8-flash';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 const ROUTE = '/api/graphql';
+
+// Google Search for facts, URL context to read the pages a prompt names.
+const GROUNDING_TOOLS = [{ googleSearch: {} }, { urlContext: {} }];
+
+// No temperature: from Gemini 3.6 on, Google ignores temperature/topP/topK
+// (later models will reject them), so effort is set with a thinking level.
+// Structured output alongside tools is a Gemini 3 preview feature.
+function jsonConfig(schema: unknown, thinkingLevel: 'low' | 'medium') {
+  return {
+    responseMimeType: 'application/json',
+    responseJsonSchema: schema,
+    thinkingConfig: { thinkingLevel },
+  };
+}
+
+type GeminiPart = { text?: string; thought?: boolean };
+
+// The answer's text. A grounded reply can arrive in more than one part, and a
+// thinking model may add thought parts, so join the text of every part that
+// isn't a thought.
+function responseText(data: {
+  candidates?: { content?: { parts?: GeminiPart[] } }[];
+}): string | undefined {
+  const text = (data.candidates?.[0]?.content?.parts ?? [])
+    .filter((p) => !p.thought && typeof p.text === 'string')
+    .map((p) => p.text)
+    .join('');
+  return text || undefined;
+}
 
 // --- generateActivity ------------------------------------------------------
 
@@ -161,11 +194,38 @@ const OPTIONAL_GENERATED_ENUMS: Record<string, readonly string[]> = {
   priceRange: PRICE_RANGE_VALUES,
 };
 
+// Link fields of GeneratedActivity, with the host each must be on (if any).
+// Grounded replies can cite Google's short-lived search redirect
+// (vertexaisearch.cloud.google.com) in place of the page itself; a saved link
+// has to be the real page, so the guard below drops a redirect, anything that
+// isn't an http(s) URL, and an AllTrails link that isn't a trail page on
+// alltrails.com.
+const GENERATED_URL_HOSTS: Record<string, RegExp | null> = {
+  allTrailsUrl: /^(www\.)?alltrails\.com$/,
+  reservationUrl: null,
+  menuUrl: null,
+};
+
+function isSavableUrl(value: unknown, host: RegExp | null): boolean {
+  if (typeof value !== 'string') return false;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+  if (url.hostname === 'vertexaisearch.cloud.google.com') return false;
+  if (host === null) return true;
+  return host.test(url.hostname) && url.pathname.startsWith('/trail/');
+}
+
 const GENERATE_SYSTEM_PROMPT = `You are a Bay Area outdoor-activity research assistant for a personal travel app called "Fog and Frontier". Given a user's free-form title and optional notes/links, populate a structured Activity record.
 
 Rules:
 - The home base is ${HOME_BASE}. Most activities are within a few hours' drive of the SF Bay Area, but coastal Oregon, Washington, and SoCal are also valid.
-- Be factual. Prefer well-known landmarks/trails. If you cannot verify something (e.g. exact AllTrails URL, hike distance), omit that optional field rather than guess.
+- Use Google Search to check the facts (location, park, hours, prices, trail stats, links) rather than answering from memory, and read any links in the user's notes. If you cannot verify something (e.g. exact AllTrails URL, hike distance), omit that optional field rather than guess.
+- Only give a URL (allTrailsUrl, reservationUrl, menuUrl) that you found in your search results or the user's links; never construct one. Give the page's own address, never a vertexaisearch.cloud.google.com redirect.
 - Coordinates: provide best-known lat/lng for the activity (the trailhead, the restaurant, the park entrance).
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
 - "duration" should reflect realistic round-trip time from ${HOME_BASE} including driving.
@@ -197,11 +257,8 @@ async function generateActivity(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: GENERATE_SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      generationConfig: {
-        temperature: 0.4,
-        responseMimeType: 'application/json',
-        responseSchema: ACTIVITY_SCHEMA,
-      },
+      tools: GROUNDING_TOOLS,
+      generationConfig: jsonConfig(ACTIVITY_SCHEMA, 'medium'),
     }),
   });
 
@@ -216,10 +273,7 @@ async function generateActivity(
     throw badGateway('gemini request failed');
   }
 
-  const data = (await r.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = responseText((await r.json()) as Parameters<typeof responseText>[0]);
   if (!text) {
     logServerError(new Error('no content in gemini response'), {
       route: ROUTE,
@@ -290,6 +344,10 @@ async function generateActivity(
       parsed[field] = null;
     }
   }
+  for (const [field, host] of Object.entries(GENERATED_URL_HOSTS)) {
+    const v = parsed[field];
+    if (v !== undefined && v !== null && !isSavableUrl(v, host)) parsed[field] = null;
+  }
 
   // Location-aware Wikimedia Commons lookup (#36). The required-field guard
   // above means name/category/lat/lng are present and typed. No match leaves
@@ -319,7 +377,7 @@ const ALLTRAILS_SCHEMA = {
   },
 };
 
-const ALLTRAILS_SYSTEM_PROMPT = `You look up hiking-trail data from AllTrails URLs. Given a URL, return the trail's current AllTrails rating (0-5, one decimal), distance in miles, and elevation gain in feet. Be factual — omit any field you cannot verify rather than guess. Return numbers only (e.g. 4.6, not "4.6 stars").`;
+const ALLTRAILS_SYSTEM_PROMPT = `You look up hiking-trail data from AllTrails URLs. Given a URL, return the trail's current AllTrails rating (0-5, one decimal), distance in miles, and elevation gain in feet. Read the page at the URL; if it can't be read, use Google Search to find that same AllTrails trail's listing. Be factual — omit any field you cannot verify for this exact trail rather than guess, and return nothing for a trail you can't find. Return numbers only (e.g. 4.6, not "4.6 stars").`;
 
 async function alltrailsLookup(
   _parent: unknown,
@@ -342,11 +400,8 @@ async function alltrailsLookup(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: ALLTRAILS_SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: `URL: ${url}` }] }],
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: 'application/json',
-        responseSchema: ALLTRAILS_SCHEMA,
-      },
+      tools: GROUNDING_TOOLS,
+      generationConfig: jsonConfig(ALLTRAILS_SCHEMA, 'low'),
     }),
   });
 
@@ -361,10 +416,7 @@ async function alltrailsLookup(
     throw badGateway('lookup failed');
   }
 
-  const data = (await r.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = responseText((await r.json()) as Parameters<typeof responseText>[0]);
   if (!text) {
     logServerError(new Error('no content in gemini response'), {
       route: ROUTE,
@@ -409,15 +461,31 @@ async function alltrailsLookup(
 const DISCOVER_SYSTEM_PROMPT = `You are a Bay Area local-events research assistant for a personal travel app. The user lives in ${HOME_BASE}. Use Google Search to find specific, real, time-bound events happening in the requested window — concerts, markets, festivals, art openings, hikes-with-groups, free outdoor stuff, anything interesting.
 
 Output rules:
-- Return ONLY a single JSON array of event objects. No prose, no markdown fences.
-- Each event must have: { "name": string, "dateText": string, "startDate": string, "endDate"?: string, "location": string, "blurb": string, "sourceUrl": string }
+- Return a JSON array of events.
 - "startDate" and "endDate" are ISO calendar dates (YYYY-MM-DD) in Pacific Time. For single-day events, omit "endDate". For multi-day events (festivals, runs that span a weekend), set both.
 - "dateText" is a human-readable date/time like "Sat May 10, 2-6 PM" — match what the source says.
 - "location" should be the venue + city, e.g. "Plaza Park, Los Gatos".
 - "blurb" is one short sentence (~140 chars max), specific and concrete, not generic.
-- "sourceUrl" must be a real URL from your search — never invent one. If you're not confident, omit the event.
+- "sourceUrl" must be a real URL from your search — the page's own address, not a vertexaisearch.cloud.google.com redirect — never invent one. If you're not confident, omit the event.
 - 6-12 events total. Prefer geographic diversity (some ${HOME_CITY}, some Bay Area). Mix free and ticketed.
 - Skip generic "things to do in SF" listicles — only specific dated events.`;
+
+const DISCOVER_SCHEMA = {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      dateText: { type: 'string' },
+      startDate: { type: 'string', format: 'date', description: 'Pacific Time' },
+      endDate: { type: 'string', format: 'date', description: 'Multi-day events only' },
+      location: { type: 'string' },
+      blurb: { type: 'string' },
+      sourceUrl: { type: 'string' },
+    },
+    required: ['name', 'dateText', 'startDate', 'location', 'blurb', 'sourceUrl'],
+  },
+};
 
 function rangeToPrompt(range: string): string {
   const today = new Date().toLocaleDateString('en-US', {
@@ -486,8 +554,8 @@ async function discover(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: DISCOVER_SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      tools: [{ googleSearch: {} }],
-      generationConfig: { temperature: 0.5 },
+      tools: GROUNDING_TOOLS,
+      generationConfig: jsonConfig(DISCOVER_SCHEMA, 'medium'),
     }),
   });
 
@@ -504,13 +572,13 @@ async function discover(
 
   const data = (await r.json()) as {
     candidates?: {
-      content?: { parts?: { text?: string }[] };
+      content?: { parts?: GeminiPart[] };
       groundingMetadata?: {
         groundingChunks?: { web?: { uri?: string; title?: string } }[];
       };
     }[];
   };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = responseText(data);
   if (!text) {
     logServerError(new Error('no content in gemini response'), {
       route: ROUTE,

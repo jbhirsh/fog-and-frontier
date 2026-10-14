@@ -1,10 +1,10 @@
 name: Gemini eval
 
 # Output-quality eval for the Gemini resolver (issue #122). Makes 22 paid
-# resolver calls plus up to 16 LLM-judge calls (~38 gemini-2.5-flash calls
-# worst case) per run, so it only runs on PRs that touch the resolver,
-# its schema, or the eval harness itself — plus manual dispatch. No schedule
-# (paid calls). Skips green on forks / when the secret is unset.
+# resolver calls (search-grounded gemini-3.8-flash) plus up to 16
+# gemini-2.5-flash judge calls per run, so it only runs on PRs that touch
+# the resolver, its schema, or the eval harness itself — plus manual
+# dispatch. No schedule (paid calls). Skips green on forks / when the secret is unset.
 on:
   pull_request:
     branches: [main]
@@ -26,7 +26,9 @@ concurrency:
 jobs:
   eval:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Grounded calls are slower than the old memory-only ones: the 22 cases
+    # run one at a time with a 90 s cap each, plus the judges.
+    timeout-minutes: 40
     permissions:
       contents: read
     # Secrets can't be referenced in `if:` conditions, so surface the key as a

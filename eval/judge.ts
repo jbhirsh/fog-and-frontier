@@ -2,8 +2,10 @@
 //
 // Each exported judge grades a resolver's output for factual plausibility using
 // gemini-2.5-flash at temperature 0 with a responseSchema, so the verdict parses
-// mechanically. The API key is read from process.env.GEMINI_API_KEY at call time
-// and passed via the x-goog-api-key header (never the URL).
+// mechanically. It stays on 2.5 while the resolvers moved to Gemini 3, so
+// scores before and after that switch were graded by the same judge. The API
+// key is read from process.env.GEMINI_API_KEY at call time and passed via the
+// x-goog-api-key header (never the URL).
 //
 // SECURITY: the request carries the API key. It — and any object holding
 // it — must NEVER appear in a thrown error, a CheckResult.detail, or a log line.
