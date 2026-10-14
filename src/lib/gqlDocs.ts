@@ -48,6 +48,18 @@ export const ACTIVITIES_QUERY = graphql(`
   }
 `);
 
+export const CHECK_DUPLICATE_QUERY = graphql(`
+  query CheckDuplicate($name: String!, $lat: Float!, $lng: Float!) {
+    checkDuplicate(name: $name, lat: $lat, lng: $lng) {
+      id
+      name
+      city
+      distanceMeters
+      confidence
+    }
+  }
+`);
+
 export const COMPLETED_QUERY = graphql(`
   query Completed {
     completed { __typename id completed }

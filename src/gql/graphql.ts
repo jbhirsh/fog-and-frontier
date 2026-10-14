@@ -119,6 +119,10 @@ export type DiscoverRange =
   | 'week'
   | 'weekend';
 
+export type DuplicateConfidence =
+  | 'high'
+  | 'possible';
+
 export type GenerateActivityInput = {
   notes?: string | null | undefined;
   title: string;
@@ -178,8 +182,15 @@ export type RevokeInviteInput = {
   tripId: string | number;
 };
 
+/**
+ * create: a new activity (#17). It's matched against the catalog for duplicates, and saved under
+ * the first free id from `id` (`id-2`, `id-3`, …), never over another; the payload has the id used.
+ * Without it the save is an edit that upserts `id`. allowDuplicate: create even when it looks saved.
+ */
 export type SaveActivityInput = {
   activity: ActivityInput;
+  allowDuplicate?: boolean | null | undefined;
+  create?: boolean | null | undefined;
   id: string | number;
 };
 
@@ -216,6 +227,15 @@ export type ActivitiesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type ActivitiesQuery = { activities: Array<{ id: string, name: string, shortDescription: string, longDescription: string | null, category: Category, region: string, parkType: ParkType | null, duration: string, durationDetail: string | null, difficulty: Difficulty | null, dogFriendly: boolean | null, coverImage: string, coverCredit: string | null, galleryImages: Array<string> | null, allTrailsUrl: string | null, allTrailsRating: number | null, hikeDistanceMiles: number | null, hikeElevationFeet: number | null, cuisine: string | null, priceRange: string | null, costTier: string | null, hours: string | null, reservationUrl: string | null, menuUrl: string | null, dietary: Array<string> | null, completed: boolean | null, completedDate: string | null, notes: string | null, contributors: Array<string> | null, location: { city: string, coords: { lat: number, lng: number } } }> };
+
+export type CheckDuplicateQueryVariables = Exact<{
+  name: string;
+  lat: number;
+  lng: number;
+}>;
+
+
+export type CheckDuplicateQuery = { checkDuplicate: Array<{ id: string, name: string, city: string, distanceMeters: number, confidence: DuplicateConfidence }> };
 
 export type CompletedQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -429,6 +449,7 @@ export type DrivingMilesQuery = { drivingMiles: Array<{ id: string, miles: numbe
 
 
 export const ActivitiesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Activities"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"activities"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"shortDescription"}},{"kind":"Field","name":{"kind":"Name","value":"longDescription"}},{"kind":"Field","name":{"kind":"Name","value":"category"}},{"kind":"Field","name":{"kind":"Name","value":"region"}},{"kind":"Field","name":{"kind":"Name","value":"parkType"}},{"kind":"Field","name":{"kind":"Name","value":"location"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"city"}},{"kind":"Field","name":{"kind":"Name","value":"coords"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"lat"}},{"kind":"Field","name":{"kind":"Name","value":"lng"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"duration"}},{"kind":"Field","name":{"kind":"Name","value":"durationDetail"}},{"kind":"Field","name":{"kind":"Name","value":"difficulty"}},{"kind":"Field","name":{"kind":"Name","value":"dogFriendly"}},{"kind":"Field","name":{"kind":"Name","value":"coverImage"}},{"kind":"Field","name":{"kind":"Name","value":"coverCredit"}},{"kind":"Field","name":{"kind":"Name","value":"galleryImages"}},{"kind":"Field","name":{"kind":"Name","value":"allTrailsUrl"}},{"kind":"Field","name":{"kind":"Name","value":"allTrailsRating"}},{"kind":"Field","name":{"kind":"Name","value":"hikeDistanceMiles"}},{"kind":"Field","name":{"kind":"Name","value":"hikeElevationFeet"}},{"kind":"Field","name":{"kind":"Name","value":"cuisine"}},{"kind":"Field","name":{"kind":"Name","value":"priceRange"}},{"kind":"Field","name":{"kind":"Name","value":"costTier"}},{"kind":"Field","name":{"kind":"Name","value":"hours"}},{"kind":"Field","name":{"kind":"Name","value":"reservationUrl"}},{"kind":"Field","name":{"kind":"Name","value":"menuUrl"}},{"kind":"Field","name":{"kind":"Name","value":"dietary"}},{"kind":"Field","name":{"kind":"Name","value":"completed"}},{"kind":"Field","name":{"kind":"Name","value":"completedDate"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}},{"kind":"Field","name":{"kind":"Name","value":"contributors"}}]}}]}}]} as unknown as DocumentNode<ActivitiesQuery, ActivitiesQueryVariables>;
+export const CheckDuplicateDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"CheckDuplicate"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"lat"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Float"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"lng"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Float"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"checkDuplicate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}},{"kind":"Argument","name":{"kind":"Name","value":"lat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"lat"}}},{"kind":"Argument","name":{"kind":"Name","value":"lng"},"value":{"kind":"Variable","name":{"kind":"Name","value":"lng"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"city"}},{"kind":"Field","name":{"kind":"Name","value":"distanceMeters"}},{"kind":"Field","name":{"kind":"Name","value":"confidence"}}]}}]}}]} as unknown as DocumentNode<CheckDuplicateQuery, CheckDuplicateQueryVariables>;
 export const CompletedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Completed"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"completed"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"completed"}}]}}]}}]} as unknown as DocumentNode<CompletedQuery, CompletedQueryVariables>;
 export const ActivityReviewsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ActivityReviews"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"activityReviews"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"Field","name":{"kind":"Name","value":"activityId"}},{"kind":"Field","name":{"kind":"Name","value":"authorEmail"}},{"kind":"Field","name":{"kind":"Name","value":"rating"}},{"kind":"Field","name":{"kind":"Name","value":"note"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<ActivityReviewsQuery, ActivityReviewsQueryVariables>;
 export const TripsListDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TripsList"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"trips"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"creatorEmail"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"startDate"}},{"kind":"Field","name":{"kind":"Name","value":"endDate"}},{"kind":"Field","name":{"kind":"Name","value":"coverImageUrl"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"markedPastAt"}},{"kind":"Field","name":{"kind":"Name","value":"scheduledCount"}},{"kind":"Field","name":{"kind":"Name","value":"unscheduledCount"}}]}}]}}]} as unknown as DocumentNode<TripsListQuery, TripsListQueryVariables>;

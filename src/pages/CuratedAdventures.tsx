@@ -1048,7 +1048,15 @@ export function CuratedAdventures() {
         />
       )}
 
-      {adding && <AddActivity onClose={() => setAdding(false)} />}
+      {adding && (
+        <AddActivity
+          onClose={() => setAdding(false)}
+          onOpenActivity={(id) => {
+            setAdding(false);
+            openActivity(id);
+          }}
+        />
+      )}
     </>
   );
 }

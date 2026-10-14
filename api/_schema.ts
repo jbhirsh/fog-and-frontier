@@ -278,7 +278,22 @@ export const typeDefs = /* GraphQL */ `
     "Account emails to credit (#9), each a known user, at least one. Omitted keeps the stored list (the caller for a new activity)."
     contributors: [String!]
   }
-  input SaveActivityInput { id: ID!  activity: ActivityInput! }
+  """
+  create: a new activity (#17). It's matched against the catalog for duplicates, and saved under
+  the first free id from \`id\` (\`id-2\`, \`id-3\`, …), never over another; the payload has the id used.
+  Without it the save is an edit that upserts \`id\`. allowDuplicate: create even when it looks saved.
+  """
+  input SaveActivityInput { id: ID!  activity: ActivityInput!  create: Boolean  allowDuplicate: Boolean }
+
+  enum DuplicateConfidence { high possible }
+  "A saved activity that looks like the one being added (#17)."
+  type DuplicateMatch {
+    id: ID!
+    name: String!
+    city: String!
+    distanceMeters: Int!
+    confidence: DuplicateConfidence!
+  }
   "Author is always the authenticated caller — never taken from input (#184)."
   input SaveActivityReviewInput { activityId: ID!  rating: Int  note: String }
   input DeleteActivityReviewInput { activityId: ID! }
@@ -357,6 +372,8 @@ export const typeDefs = /* GraphQL */ `
 
   type Query {
     activities: [Activity!]!
+    "Saved activities that look like a new one (#17), high-confidence first."
+    checkDuplicate(name: String!, lat: Float!, lng: Float!): [DuplicateMatch!]!
     completed: [CompletedEntry!]!
     "Every owner review across the catalog — public read, normalized client-side by (activityId, authorEmail)."
     activityReviews: [ActivityReview!]!

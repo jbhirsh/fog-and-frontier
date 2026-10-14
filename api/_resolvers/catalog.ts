@@ -1,5 +1,6 @@
 import { db } from '../_db.js';
-import { badInput } from '../_gqlError.js';
+import { badInput, conflict } from '../_gqlError.js';
+import { findDuplicates, freeId, type CatalogPlace } from '../_duplicates.js';
 import {
   COST_TIERS,
   dateToIso,
@@ -120,12 +121,10 @@ function storedContributors(j: unknown): string[] {
 // identities rather than free text. Names already credited aren't checked
 // again, so an edit never fails on a list it didn't change.
 async function resolveContributors(
-  id: string,
+  row: Record<string, unknown> | undefined,
   given: string[] | null | undefined,
   callerEmail: string,
 ): Promise<string[] | undefined> {
-  const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
-  const row = rs.rows[0];
   const stored = storedContributors(row?.j);
   if (given == null) {
     if (!row) return [callerEmail];
@@ -151,32 +150,105 @@ async function resolveContributors(
   return emails;
 }
 
+// The catalog as places to match a new activity against (#17).
+async function catalogPlaces(): Promise<CatalogPlace[]> {
+  return (await activities()).map((a) => {
+    const location = a.location as { city: string; coords: { lat: number; lng: number } };
+    return {
+      id: a.id as string,
+      name: a.name as string,
+      city: location.city,
+      ...location.coords,
+    };
+  });
+}
+
+// Public, like the catalog it reads: it says only which saved activities
+// look like the given name and pin.
+async function checkDuplicate(
+  _parent: unknown,
+  args: { name: string; lat: number; lng: number },
+) {
+  if (args.name.length > 200) throw badInput('name too long');
+  return findDuplicates(args, await catalogPlaces());
+}
+
+async function rowById(id: string) {
+  const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
+  return rs.rows[0];
+}
+
 async function saveActivity(
   _parent: unknown,
-  { input }: { input: { id: string; activity: ActivityInput } },
+  {
+    input,
+  }: {
+    input: {
+      id: string;
+      activity: ActivityInput;
+      create?: boolean | null;
+      allowDuplicate?: boolean | null;
+    };
+  },
   ctx: GqlContext,
 ) {
   const caller = requireOwnerCtx(ctx);
-  const id = input.id;
-  if (!id) throw badInput('missing id');
+  if (!input.id) throw badInput('missing id');
   const costTier = input.activity.costTier;
   if (costTier != null && !COST_TIERS.has(costTier as string)) {
     throw badInput('costTier must be free, $, $$ or $$$');
   }
-  const contributors = await resolveContributors(
-    id,
-    input.activity.contributors,
-    caller.email,
-  );
-  const stored = buildStoredActivity(id, input.activity, contributors);
-  const json = JSON.stringify(stored);
-  if (json.length > 8000) throw badInput('activity too large');
+  if (input.create) {
+    // A new activity that looks like a saved one (#17) waits for the owner
+    // to say it's different; the client checks first, so this is the
+    // backstop. Then it takes a free id: a slug can be taken by a place
+    // whose name no longer matches, and saving there would replace it.
+    if (!input.allowDuplicate) {
+      const location = input.activity.location as { coords: { lat: number; lng: number } };
+      const same = findDuplicates(
+        { name: input.activity.name as string, ...location.coords },
+        await catalogPlaces(),
+      ).find((m) => m.confidence === 'high');
+      if (same) throw conflict(`looks like a duplicate of ${same.name}`, 'duplicate');
+    }
+    const contributors = await resolveContributors(undefined, input.activity.contributors, caller.email);
+    // The free-id check and the write aren't one step, so two creates of the
+    // same name at once could both find the same id free. The insert never
+    // replaces a row: if another create got there first, take the next id.
+    for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
+      const id = await freeId(input.id, async (candidate) => (await rowById(candidate)) !== undefined);
+      const { stored, json } = storedJson(id, input.activity, contributors);
+      const rs = await db().execute({
+        sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO NOTHING',
+        args: [id, json, Date.now()],
+      });
+      if (rs.rowsAffected === 1) {
+        forgetCatalog(); // road miles (#66) pick up a new pin
+        return { activity: mapCatalogActivity(stored, id) };
+      }
+    }
+    throw conflict('another activity took this id; try saving again');
+  }
+  const id = input.id;
+  const row = await rowById(id);
+  const contributors = await resolveContributors(row, input.activity.contributors, caller.email);
+  const { stored, json } = storedJson(id, input.activity, contributors);
   await db().execute({
     sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET j = excluded.j, t = excluded.t',
     args: [id, json, Date.now()],
   });
-  forgetCatalog(); // road miles (#66) pick up a new or moved pin
+  forgetCatalog(); // road miles (#66) pick up a moved pin
   return { activity: mapCatalogActivity(stored, id) };
+}
+
+// How many next-free ids a create tries before giving up (each is a race lost).
+const MAX_CREATE_ATTEMPTS = 3;
+
+function storedJson(id: string, activity: ActivityInput, contributors: string[] | undefined) {
+  const stored = buildStoredActivity(id, activity, contributors);
+  const json = JSON.stringify(stored);
+  if (json.length > 8000) throw badInput('activity too large');
+  return { stored, json };
 }
 
 async function deleteActivity(
@@ -245,5 +317,5 @@ function contributorsField(
 
 export const activityFields = { contributors: contributorsField };
 
-export const catalogQuery = { activities, completed };
+export const catalogQuery = { activities, completed, checkDuplicate };
 export const catalogMutation = { saveActivity, deleteActivity, setCompleted };
