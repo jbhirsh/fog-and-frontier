@@ -59,6 +59,7 @@ function toActivityRow(a: Activity) {
     hikeElevationFeet: a.hikeElevationFeet ?? null,
     cuisine: a.cuisine ?? null,
     priceRange: a.priceRange ?? null,
+    costTier: a.costTier ?? null,
     hours: a.hours ?? null,
     reservationUrl: a.reservationUrl ?? null,
     menuUrl: a.menuUrl ?? null,

@@ -105,6 +105,7 @@ function snapshotJson(over: Record<string, unknown> = {}) {
     hikeElevationFeet: null,
     cuisine: 'Californian',
     priceRange: '$$$',
+    costTier: null,
     hours: 'Wed–Sun',
     reservationUrl: 'http://resy',
     menuUrl: 'http://menu',

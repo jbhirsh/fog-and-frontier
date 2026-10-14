@@ -35,6 +35,7 @@ export const ACTIVITIES_QUERY = graphql(`
       hikeElevationFeet
       cuisine
       priceRange
+      costTier
       hours
       reservationUrl
       menuUrl
@@ -132,6 +133,7 @@ export const TRIP_QUERY = graphql(`
           hikeElevationFeet
           cuisine
           priceRange
+          costTier
           hours
           reservationUrl
           menuUrl
@@ -206,6 +208,7 @@ export const GENERATE_ACTIVITY = graphql(`
         hikeElevationFeet
         cuisine
         priceRange
+        costTier
         hours
         reservationUrl
         menuUrl

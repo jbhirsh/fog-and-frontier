@@ -47,6 +47,8 @@ export const typeDefs = /* GraphQL */ `
     hikeElevationFeet: Float
     cuisine: String
     priceRange: String
+    "What it costs to do (#85), per person: free, $ (under $25), $$ ($25–75) or $$$ (over $75)."
+    costTier: String
     hours: String
     reservationUrl: String
     menuUrl: String
@@ -82,6 +84,8 @@ export const typeDefs = /* GraphQL */ `
     hikeElevationFeet: Float
     cuisine: String
     priceRange: String
+    "What it costs to do (#85), per person: free, $ (under $25), $$ ($25–75) or $$$ (over $75)."
+    costTier: String
     hours: String
     reservationUrl: String
     menuUrl: String
@@ -226,6 +230,8 @@ export const typeDefs = /* GraphQL */ `
     hikeElevationFeet: Float
     cuisine: String
     priceRange: String
+    "What it costs to do (#85), per person: free, $ (under $25), $$ ($25–75) or $$$ (over $75)."
+    costTier: String
     hours: String
     reservationUrl: String
     menuUrl: String
@@ -260,6 +266,8 @@ export const typeDefs = /* GraphQL */ `
     hikeElevationFeet: Float
     cuisine: String
     priceRange: String
+    "What it costs to do (#85), per person: free, $ (under $25), $$ ($25–75) or $$$ (over $75)."
+    costTier: String
     hours: String
     reservationUrl: String
     menuUrl: String

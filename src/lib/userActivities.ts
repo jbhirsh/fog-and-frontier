@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
-import type { Activity, Duration, PriceRange, Region } from '../data/types';
+import type { Activity, CostTier, Duration, PriceRange, Region } from '../data/types';
 import { apolloClient } from './apolloClient';
 import {
   ACTIVITIES_QUERY,
@@ -12,7 +12,7 @@ import {
 // Boundary mapper: GraphQL Activity/ActivitySnapshot row -> the app's domain
 // Activity model. Catalog rows are non-null; snapshot rows are all-nullable
 // (and may be null-coerced by the server), so we coalesce defensively. The
-// String-typed scalars (region/duration/priceRange) are narrowed to their
+// String-typed scalars (region/duration/priceRange/costTier) are narrowed to their
 // domain unions; the GraphQL enums (category/difficulty/parkType) already match.
 export function rowToActivity(row: ActivityLike): Activity {
   const loc = row.location;
@@ -41,6 +41,7 @@ export function rowToActivity(row: ActivityLike): Activity {
     hikeElevationFeet: row.hikeElevationFeet ?? undefined,
     cuisine: row.cuisine ?? undefined,
     priceRange: (row.priceRange ?? undefined) as PriceRange | undefined,
+    costTier: (row.costTier ?? undefined) as CostTier | undefined,
     hours: row.hours ?? undefined,
     reservationUrl: row.reservationUrl ?? undefined,
     menuUrl: row.menuUrl ?? undefined,
@@ -79,6 +80,7 @@ function activityToInput(a: Activity) {
     hikeElevationFeet: a.hikeElevationFeet ?? null,
     cuisine: a.cuisine ?? null,
     priceRange: a.priceRange ?? null,
+    costTier: a.costTier ?? null,
     hours: a.hours ?? null,
     reservationUrl: a.reservationUrl ?? null,
     menuUrl: a.menuUrl ?? null,
