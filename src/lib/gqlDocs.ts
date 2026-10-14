@@ -35,6 +35,7 @@ export const ACTIVITIES_QUERY = graphql(`
       hikeElevationFeet
       cuisine
       priceRange
+      costTier
       hours
       reservationUrl
       menuUrl
@@ -43,6 +44,18 @@ export const ACTIVITIES_QUERY = graphql(`
       completedDate
       notes
       contributors
+    }
+  }
+`);
+
+export const CHECK_DUPLICATE_QUERY = graphql(`
+  query CheckDuplicate($name: String!, $lat: Float!, $lng: Float!) {
+    checkDuplicate(name: $name, lat: $lat, lng: $lng) {
+      id
+      name
+      city
+      distanceMeters
+      confidence
     }
   }
 `);
@@ -132,6 +145,7 @@ export const TRIP_QUERY = graphql(`
           hikeElevationFeet
           cuisine
           priceRange
+          costTier
           hours
           reservationUrl
           menuUrl
@@ -206,6 +220,7 @@ export const GENERATE_ACTIVITY = graphql(`
         hikeElevationFeet
         cuisine
         priceRange
+        costTier
         hours
         reservationUrl
         menuUrl
