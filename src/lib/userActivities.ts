@@ -55,7 +55,7 @@ export function rowToActivity(row: ActivityLike): Activity {
 
 // Domain Activity -> ActivityInput (camelCase, scalars widen to String/enum).
 // Optional fields go out as null so a cleared value is persisted.
-function activityToInput(a: Activity) {
+export function activityToInput(a: Activity) {
   return {
     name: a.name,
     shortDescription: a.shortDescription,

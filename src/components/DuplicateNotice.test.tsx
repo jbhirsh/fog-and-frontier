@@ -50,6 +50,14 @@ describe('DuplicateNotice (#17)', () => {
     expect(screen.queryByRole('button', { name: 'Open existing' })).not.toBeInTheDocument();
   });
 
+  it('names the go-ahead for what it does: a suggestion is sent (#73)', () => {
+    render(
+      <DuplicateNotice matches={[high]} onSaveAnyway={() => {}} saving={false} anywayLabel="Send anyway" />,
+    );
+    expect(screen.getByRole('button', { name: 'Send anyway' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
+  });
+
   it('only notes a possible match, with a way to view it', async () => {
     const onOpenActivity = vi.fn();
     render(

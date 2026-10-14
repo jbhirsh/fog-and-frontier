@@ -43,6 +43,10 @@ vi.mock('../lib/userActivities', async () => {
   return { ...actual, saveUserActivity: saveSpy };
 });
 
+// Suggestions from signed-in non-owners (#73).
+const suggestSpy = vi.hoisted(() => vi.fn());
+vi.mock('../lib/suggestions', () => ({ suggestUserActivity: suggestSpy }));
+
 const lookupSpy = vi.hoisted(() => vi.fn());
 vi.mock('../lib/alltrails', () => ({
   lookupAllTrails: lookupSpy,
@@ -100,6 +104,8 @@ beforeEach(() => {
   usersSpy.mockReset();
   dupSpy.mockReset();
   dupSpy.mockResolvedValue([]);
+  suggestSpy.mockReset();
+  suggestSpy.mockResolvedValue('s1');
   usersSpy.mockResolvedValue([
     { email: 'owner@example.com', display_name: null },
     { email: 'tarun@example.com', display_name: null },
@@ -685,5 +691,110 @@ describe('AddActivity — duplicates (#17)', () => {
     const [saved, options] = saveSpy.mock.calls[0] as SaveCall;
     expect(saved.id).toBe(baseActivity.id);
     expect(options).toBeUndefined();
+  });
+});
+
+describe('AddActivity — suggest mode (#73)', () => {
+  it("leaves an owner's title and notes unbounded", () => {
+    render(<AddActivity onClose={() => {}} />);
+    expect(screen.getByLabelText('Title')).not.toHaveAttribute('maxlength');
+    expect(screen.getByLabelText('Notes / links (optional)')).not.toHaveAttribute('maxlength');
+  });
+
+  const generated: GeneratedFields = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    category: 'hiking',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.23,
+    lng: -122.1,
+    duration: 'Half Day',
+    allTrailsUrl: 'https://www.alltrails.com/trail/castle-rock',
+  };
+
+  async function review(onClose = vi.fn()) {
+    ownerState.isOwner = false;
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={onClose} suggest />);
+    expect(screen.getByRole('dialog', { name: 'Suggest activity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Suggest activity' })).toBeInTheDocument();
+    expect(screen.getByText(/up to five links.*up to five a day/)).toBeInTheDocument();
+    // The server's bounds on a suggestion's draft.
+    expect(screen.getByLabelText('Title')).toHaveAttribute('maxlength', '200');
+    expect(screen.getByLabelText('Notes / links (optional)')).toHaveAttribute('maxlength', '2000');
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: 'Send suggestion' });
+  }
+
+  it('reviews without crediting or the AllTrails refresh note', async () => {
+    await review();
+    expect(screen.getByRole('heading', { name: 'Review & send' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Contributors' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/refreshed from\s+AllTrails/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Save activity/ })).not.toBeInTheDocument();
+    expect(usersSpy).not.toHaveBeenCalled();
+  });
+
+  it('sends it for review instead of saving, and says so', async () => {
+    const onClose = vi.fn();
+    await review(onClose);
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    const done = await screen.findByRole('button', { name: 'Done' });
+    expect(suggestSpy).toHaveBeenCalledTimes(1);
+    const [sent, options] = suggestSpy.mock.calls[0] as [Activity, { allowDuplicate: boolean }];
+    expect(sent).toMatchObject({ name: 'Castle Rock', contributors: undefined });
+    expect(options).toEqual({ allowDuplicate: false });
+    // No owner-only calls: no save, no AllTrails lookup.
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(lookupSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Suggestion sent' })).toBeInTheDocument();
+    // The envelope's ink is centred, not its box (its glyph sits right of centre).
+    const envelope = screen.getByText('mark_email_read');
+    expect(envelope.style).toMatchObject({ fontSize: '48px', transform: 'translateX(-0.028em)' });
+    expect(done).toHaveFocus();
+    expect(done).toHaveAccessibleDescription(
+      'Sent to the owners for review. If they add it, it joins the catalog with you credited for it.',
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.click(done);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds a high look-alike, then sends anyway', async () => {
+    dupSpy.mockResolvedValue([
+      { id: 'castle-rock', name: 'Castle Rock', city: 'Los Gatos', distanceMeters: 30, confidence: 'high' },
+    ]);
+    await review();
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(
+      await screen.findByText(
+        "This looks like one already saved. Open it, or choose Send anyway if it's a different place.",
+      ),
+    ).toBeInTheDocument();
+    expect(suggestSpy).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Send anyway' }));
+    await waitFor(() => expect(suggestSpy).toHaveBeenCalledTimes(1));
+    expect(suggestSpy.mock.calls[0][1]).toEqual({ allowDuplicate: true });
+  });
+
+  it('shows why sending failed, and lets them try again', async () => {
+    suggestSpy.mockRejectedValueOnce(new Error('Network down'));
+    await review();
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(await screen.findByText('Network down')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send suggestion' })).toBeEnabled();
+  });
+
+  it("says when today's drafts are used up", async () => {
+    ownerState.isOwner = false;
+    generateSpy.mockRejectedValue(new Error("You've used today's AI drafts. Try again tomorrow."));
+    render(<AddActivity onClose={() => {}} suggest />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(
+      await screen.findByText("You've used today's AI drafts. Try again tomorrow."),
+    ).toBeInTheDocument();
   });
 });

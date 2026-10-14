@@ -199,6 +199,12 @@ export const SAVE_ACTIVITY = graphql(`
   }
 `);
 
+export const SUGGEST_ACTIVITY = graphql(`
+  mutation SuggestActivity($input: SuggestActivityInput!) {
+    suggestActivity(input: $input) { suggestion { id } }
+  }
+`);
+
 export const DELETE_ACTIVITY = graphql(`
   mutation DeleteActivity($input: DeleteActivityInput!) {
     deleteActivity(input: $input) { deletedId }

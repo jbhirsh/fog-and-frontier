@@ -78,6 +78,8 @@ type State = {
   invite: Row | null;
   tripList: Row[];
   counts: Row[];
+  // Whether a non-owner has an AI draft left today (#73).
+  assistLeft: boolean;
 };
 
 let state: State;
@@ -195,10 +197,18 @@ function setup(partial: Partial<State> = {}) {
     invite: null,
     tripList: [],
     counts: [],
+    assistLeft: true,
     ...partial,
   };
   execute.mockImplementation((q: unknown) => Promise.resolve(routeExecute(q)));
-  batch.mockResolvedValue([]);
+  // A draft's claim (#73) takes both counts in one batch, or neither.
+  batch.mockImplementation((stmts: { sql: string }[]) =>
+    Promise.resolve(
+      stmts.some((s) => /^INSERT INTO gemini_assists/.test(s.sql))
+        ? stmts.map(() => ({ rows: [], rowsAffected: state.assistLeft ? 1 : 0 }))
+        : [],
+    ),
+  );
 }
 
 afterEach(() => {
@@ -1266,6 +1276,184 @@ describe('Gemini ops', () => {
     expect(d.range).toBe('weekend');
     expect((d.events as Row[])[0]).toMatchObject({ name: 'Market', location: 'LG' });
     expect((d.sources as Row[])[0]).toMatchObject({ uri: 'http://s', title: 'Src' });
+  });
+
+  const DRAFT =
+    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name } } }';
+  // The claim statements sent: the account's count and the shared one.
+  const assistClaims = () =>
+    (batch.mock.calls as [{ sql: string }[]][])
+      .flatMap(([stmts]) => stmts)
+      .filter((s) => /^INSERT INTO gemini_assists/.test(s.sql)).length;
+  function stubCastleRock() {
+    stubFetch(
+      geminiText(
+        JSON.stringify({
+          name: 'Castle Rock',
+          shortDescription: 'Ridgeline hike',
+          category: 'hiking',
+          region: 'south-bay',
+          city: 'Los Gatos',
+          lat: 37.2,
+          lng: -122.1,
+          duration: 'Half Day',
+        }),
+      ),
+    );
+  }
+
+  it('generateActivity: anon → UNAUTHENTICATED', async () => {
+    setup();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } });
+    expect(code(r)).toBe('UNAUTHENTICATED');
+  });
+
+  it('generateActivity: a signed-in non-owner with drafts left gets one (#73)', async () => {
+    setup();
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.generateActivity).toEqual({ activity: { name: 'Castle Rock' } });
+    // The account's claim, then the shared one.
+    expect(assistClaims()).toBe(2);
+  });
+
+  it('generateActivity: a non-owner out of drafts → FORBIDDEN assist_limit, no Gemini call', async () => {
+    setup({ assistLeft: false });
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(code(r)).toBe('FORBIDDEN');
+    expect(appCode(r)).toBe('assist_limit');
+    expect(r.errors?.[0]?.message).toBe("You've used today's AI drafts. Try again tomorrow.");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('generateActivity: a non-owner with no title spends no draft', async () => {
+    setup();
+    const r = await run(DRAFT, { i: { title: ' ' } }, EDITOR);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(assistClaims()).toBe(0);
+  });
+
+  it.each([
+    ['a long title', { title: 'x'.repeat(201) }, 'title is too long'],
+    ['long notes', { title: 'Castle Rock', notes: 'x'.repeat(2001) }, 'notes are too long'],
+    [
+      'more than five links',
+      { title: 'Castle Rock', notes: Array.from({ length: 6 }, (_, i) => `https://e.example/${i}`).join(' ') },
+      'a draft can include at most 5 links',
+    ],
+    [
+      'links split between the title and notes',
+      {
+        title: 'http://a.co http://b.co http://c.co',
+        notes: 'https://d.example https://e.example https://f.example',
+      },
+      'a draft can include at most 5 links',
+    ],
+    [
+      'more than five links in the title',
+      { title: Array.from({ length: 6 }, (_, i) => `http://a${i}.co`).join(' ') },
+      'a draft can include at most 5 links',
+    ],
+  ])('generateActivity: a non-owner with %s → BAD_USER_INPUT, no draft spent', async (_name, input, message) => {
+    setup();
+    stubCastleRock();
+    const r = await run(DRAFT, { i: input }, EDITOR);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe(message);
+    expect(assistClaims()).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('generateActivity: a non-owner at each limit still gets a draft', async () => {
+    setup();
+    stubCastleRock();
+    const notes = `${Array.from({ length: 5 }, (_, i) => `HTTP://e.example/${i}`).join(' ')} `;
+    const r = await run(
+      DRAFT,
+      { i: { title: 'x'.repeat(200), notes: notes.padEnd(2000, 'n') } },
+      EDITOR,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(assistClaims()).toBe(2);
+  });
+
+  it('generateActivity: owners have no such limits', async () => {
+    setup();
+    stubCastleRock();
+    const r = await run(
+      DRAFT,
+      { i: { title: 'x'.repeat(300), notes: 'https://e.example/ '.repeat(10).padEnd(3000, 'n') } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+  });
+
+  const givenBack = () =>
+    batch.mock.calls.filter(([stmts]) =>
+      (stmts as { sql: string }[]).some((s) => /^UPDATE gemini_assists SET n = n - 1/.test(s.sql)),
+    );
+
+  it("generateActivity: a non-owner's draft is given back when Gemini fails the request", async () => {
+    setup();
+    stubFetch({ error: 'unavailable' }, { ok: false });
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors?.[0]?.message).toBe('gemini request failed');
+    expect(assistClaims()).toBe(2);
+    // Both counts, the account's and everyone's, in one write.
+    expect(givenBack()).toHaveLength(1);
+    const [stmts, mode] = givenBack()[0] as [{ args: unknown[] }[], string];
+    expect(mode).toBe('write');
+    expect(stmts.map((s) => s.args[1])).toEqual([EDITOR.email, '*']);
+  });
+
+  it("generateActivity: a non-owner's draft is given back when the request never connects", async () => {
+    setup();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('socket hang up'))));
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors).toBeDefined();
+    expect(givenBack()).toHaveLength(1);
+  });
+
+  it('generateActivity: a draft Gemini answered stays spent, however unusable', async () => {
+    // It was billed: giving it back would let a draft that can't be parsed
+    // be retried past the cap.
+    setup();
+    stubFetch(geminiText('not json'));
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors?.[0]?.message).toBe('gemini returned non-JSON');
+    expect(givenBack()).toHaveLength(0);
+  });
+
+  it("generateActivity: a give-back that fails doesn't hide Gemini's failure", async () => {
+    setup();
+    stubFetch({ error: 'unavailable' }, { ok: false });
+    // The claim goes through; the give-back after Gemini's failure doesn't.
+    const claimOnly = batch.getMockImplementation() as (stmts: { sql: string }[]) => Promise<unknown>;
+    batch.mockImplementation((stmts: { sql: string }[]) =>
+      stmts.some((s) => /^UPDATE gemini_assists/.test(s.sql))
+        ? Promise.reject(new Error('db down'))
+        : claimOnly(stmts),
+    );
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors?.[0]?.message).toBe('gemini request failed');
+  });
+
+  it("generateActivity: an owner's failed request has nothing to give back", async () => {
+    setup();
+    stubFetch({ error: 'unavailable' }, { ok: false });
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors?.[0]?.message).toBe('gemini request failed');
+    expect(givenBack()).toHaveLength(0);
+  });
+
+  it("generateActivity: owners aren't counted", async () => {
+    setup({ assistLeft: false });
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(assistClaims()).toBe(0);
   });
 
   it('generateActivity: owner with no title → BAD_USER_INPUT', async () => {
