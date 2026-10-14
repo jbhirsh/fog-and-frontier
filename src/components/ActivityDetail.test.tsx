@@ -145,6 +145,35 @@ describe('ActivityDetail', () => {
     expect(screen.getByText('Contributed by Tarun')).toBeInTheDocument();
   });
 
+  it('makes each contributor a button that shows their picks, when it can (#9)', async () => {
+    const onShowContributor = vi.fn();
+    render(
+      <ActivityDetail
+        activity={{ ...muirWoods, contributors: ['tarun@example.com', 'jess@example.com'] }}
+        onClose={() => {}}
+        onShowContributor={onShowContributor}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: "Show Jess's picks" }),
+    );
+    expect(onShowContributor).toHaveBeenCalledWith('jess@example.com');
+    expect(
+      screen.getByRole('button', { name: "Show Tarun's picks" }),
+    ).toHaveTextContent('Tarun');
+  });
+
+  it('names every contributor as plain text without a way to show them', () => {
+    render(
+      <ActivityDetail
+        activity={{ ...muirWoods, contributors: ['a@x.com', 'b@x.com', 'c@x.com'] }}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText('Contributed by A, B, C')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /picks/ })).not.toBeInTheDocument();
+  });
+
   it('falls back to the short description when no long one is provided', () => {
     const a = { ...muirWoods, longDescription: undefined };
     render(<ActivityDetail activity={a} onClose={() => {}} />);

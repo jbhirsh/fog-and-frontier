@@ -8,6 +8,8 @@ import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
 import { BottomSheet } from '../components/BottomSheet';
+import { ContributorFilter } from '../components/ContributorFilter';
+import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
@@ -15,9 +17,13 @@ import { isViewMode } from '../lib/viewMode';
 import type { SheetSnap } from '../lib/bottomSheetSnap';
 import type { Activity, Category, Duration, ParkType } from '../data/types';
 import {
+  CONTRIBUTORS_PARAM,
+  contributorOptions,
+  parseContributors,
   readCompletedOnly,
   useCatalogFilters,
   withCompletedOnly,
+  withContributors,
 } from '../lib/useCatalogFilters';
 import { filterByBounds, type MapBounds } from '../lib/mapBounds';
 import { useMediaQuery } from '../lib/useMediaQuery';
@@ -125,6 +131,7 @@ export function CuratedAdventures() {
     dogOnly,
     setDogOnly,
     setCompletedOnly,
+    setContributors,
     applyFilters,
   } = useCatalogFilters();
   // Layout mode (#4 / #93). Source of truth is the `?view=` param so the choice
@@ -197,6 +204,20 @@ export function CuratedAdventures() {
       { replace: true },
     );
   }
+  // Contributors (#9) are URL-sourced too (`?contributors=`). Only signed-in
+  // callers get contributor data, so for anyone else the filter is off rather
+  // than matching nothing, and its chip isn't rendered.
+  const contributorsRaw = searchParams.get(CONTRIBUTORS_PARAM);
+  const selectedContributors = useMemo(
+    () => (isSignedIn ? parseContributors(contributorsRaw) : []),
+    [isSignedIn, contributorsRaw],
+  );
+  useEffect(() => {
+    setContributors(selectedContributors);
+  }, [selectedContributors, setContributors]);
+  function changeContributors(next: string[]) {
+    setSearchParams((prev) => withContributors(prev, next), { replace: true });
+  }
   // Completion overrides, so "Completed only" agrees with the badges.
   const overrides = useOverrides();
 
@@ -226,6 +247,7 @@ export function CuratedAdventures() {
   }
   const [submittingTarget, setSubmittingTarget] = useState(false);
   const { activities: all, error: loadError } = useUserActivities();
+  const contributorChoices = useMemo(() => contributorOptions(all), [all]);
 
   const MAX_BULK_ADD = 50;
   const overBulkCap = selectedForTrip.size > MAX_BULK_ADD;
@@ -681,6 +703,14 @@ export function CuratedAdventures() {
         </span>
         Completed only
       </button>
+      {/* Signed-in only (#9): there's no contributor data to filter otherwise. */}
+      {isSignedIn && (
+        <ContributorFilter
+          options={contributorChoices}
+          selected={selectedContributors}
+          onChange={changeContributors}
+        />
+      )}
     </div>
   );
 
@@ -967,37 +997,5 @@ export function CuratedAdventures() {
 
       {adding && <AddActivity onClose={() => setAdding(false)} />}
     </>
-  );
-}
-
-function FilterPill({
-  icon,
-  children,
-}: {
-  icon: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40">
-      {/* Fixed-size icon box: clips the Material Symbols ligature so a missing
-          icon font (the visual tests stub it) can't blow out the chip width. */}
-      <span
-        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
-        style={{ fontSize: 18, width: 18, height: 18 }}
-        aria-hidden="true"
-      >
-        {icon}
-      </span>
-      {children}
-      {/* Custom caret — the native select arrow is removed via appearance-none
-          so the chip reads cleanly; this keeps the dropdown affordance. */}
-      <span
-        className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
-        style={{ fontSize: 18, width: 18, height: 18 }}
-        aria-hidden="true"
-      >
-        expand_more
-      </span>
-    </label>
   );
 }

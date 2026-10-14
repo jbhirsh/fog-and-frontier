@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyCatalogFilters,
+  contributorOptions,
   INITIAL_CATALOG_FILTERS,
+  parseContributors,
   readCompletedOnly,
   withCompletedOnly,
+  withContributors,
   type CatalogFilterState,
 } from './useCatalogFilters';
 import {
@@ -236,5 +239,76 @@ describe('completed-only URL param', () => {
     const prev = new URLSearchParams('q=tide');
     withCompletedOnly(prev, true);
     expect(prev.toString()).toBe('q=tide');
+  });
+});
+
+describe('applyCatalogFilters — contributors (#9)', () => {
+  const TARUN = 'tarun@example.com';
+  const JESS = 'jess@example.com';
+  const credited = [
+    { ...muirWoods, contributors: [TARUN] },
+    { ...completedHike, contributors: [JESS, TARUN] },
+    { ...dogFriendlyTidepools, contributors: [JESS] },
+  ];
+  const ids = (list: { id: string }[]) => list.map((a) => a.id).sort();
+
+  it('keeps everything, uncredited ones too, with no one chosen', () => {
+    const all = [...credited, { ...muirWoods, id: 'uncredited' }];
+    expect(ids(applyCatalogFilters(all, INITIAL_CATALOG_FILTERS))).toEqual(ids(all));
+  });
+
+  it('keeps an activity any chosen account added', () => {
+    expect(ids(applyCatalogFilters(credited, filters({ contributors: [TARUN] })))).toEqual(
+      ids([muirWoods, completedHike]),
+    );
+    expect(
+      ids(applyCatalogFilters(credited, filters({ contributors: [JESS, TARUN] }))),
+    ).toEqual(ids(credited));
+  });
+
+  it('drops uncredited activities while someone is chosen', () => {
+    expect(
+      applyCatalogFilters([muirWoods], filters({ contributors: [TARUN] })),
+    ).toEqual([]);
+  });
+});
+
+describe('contributors URL param (#9)', () => {
+  it('reads a comma-separated list, trimmed, lower-cased and once each', () => {
+    expect(parseContributors(' Tarun@Example.com,jess@example.com,,tarun@example.com ')).toEqual([
+      'tarun@example.com',
+      'jess@example.com',
+    ]);
+  });
+
+  it('reads a missing or empty param as no one', () => {
+    expect(parseContributors(null)).toEqual([]);
+    expect(parseContributors(' , ')).toEqual([]);
+  });
+
+  it('sets the list and keeps the other params, without touching the input', () => {
+    const prev = new URLSearchParams('view=map');
+    const next = withContributors(prev, ['a@x.com', 'b@x.com']);
+    expect(next.get('contributors')).toBe('a@x.com,b@x.com');
+    expect(next.get('view')).toBe('map');
+    expect(prev.toString()).toBe('view=map');
+  });
+
+  it('removes the param for no one', () => {
+    expect(withContributors(new URLSearchParams('contributors=a%40x.com&q=x'), []).toString()).toBe(
+      'q=x',
+    );
+  });
+});
+
+describe('contributorOptions (#9)', () => {
+  it('lists every credited account once, sorted', () => {
+    expect(
+      contributorOptions([
+        { ...muirWoods, contributors: ['tarun@x.com', 'jess@x.com'] },
+        { ...completedHike, contributors: ['jess@x.com'] },
+        dogFriendlyTidepools,
+      ]),
+    ).toEqual(['jess@x.com', 'tarun@x.com']);
   });
 });

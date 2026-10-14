@@ -19,6 +19,7 @@ import {
   readActivityState,
   useCloseActivity,
   useOpenActivity,
+  useShowContributor,
 } from './activityRoute';
 
 function loc(pathname: string, state: unknown = null): Location {
@@ -136,6 +137,7 @@ function Harness() {
   const location = useLocation();
   const open = useOpenActivity();
   const close = useCloseActivity();
+  const showContributor = useShowContributor();
   // The close from the first render, to call after the entry has moved on.
   const [firstClose] = useState(() => close);
   const navigate = useNavigate();
@@ -166,6 +168,18 @@ function Harness() {
       </button>
       <button type="button" onClick={close}>
         close
+      </button>
+      <button type="button" onClick={() => showContributor('tarun@example.com')}>
+        show tarun
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          showContributor('tarun@example.com');
+          showContributor('jess@example.com');
+        }}
+      >
+        show twice
       </button>
       <button type="button" onClick={() => void navigate(-1)}>
         back
@@ -362,5 +376,49 @@ describe('useCloseActivity', () => {
     await userEvent.click(screen.getByRole('button', { name: 'unmount' }));
     await userEvent.click(screen.getByRole('button', { name: 'kept close' }));
     expect(url()).toBe('/activity/muir');
+  });
+});
+
+describe('useShowContributor (#9)', () => {
+  it('leaves the detail for the catalog underneath, filtered to them', async () => {
+    renderAt('/?view=map&contributors=jess%40example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'open muir' }));
+    await userEvent.click(screen.getByRole('button', { name: 'show tarun' }));
+    expect(url()).toBe('/?view=map&contributors=tarun%40example.com');
+    expect(state()).toBeNull();
+    // A new entry: Back returns to the detail.
+    await userEvent.click(screen.getByRole('button', { name: 'back' }));
+    expect(url()).toBe('/activity/muir');
+  });
+
+  it('shows only once from an entry, so Back still returns to the detail', async () => {
+    renderAt('/');
+    await userEvent.click(screen.getByRole('button', { name: 'open muir' }));
+    await userEvent.click(screen.getByRole('button', { name: 'show twice' }));
+    expect(url()).toBe('/?contributors=tarun%40example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'back' }));
+    expect(url()).toBe('/activity/muir');
+    // Back on the detail: it can show someone again.
+    await userEvent.click(screen.getByRole('button', { name: 'show tarun' }));
+    expect(url()).toBe('/?contributors=tarun%40example.com');
+  });
+
+  it('starts from the plain catalog when the detail is over another page', async () => {
+    renderAt('/trips/t1?tab=plan');
+    await userEvent.click(screen.getByRole('button', { name: 'open muir' }));
+    await userEvent.click(screen.getByRole('button', { name: 'show tarun' }));
+    expect(url()).toBe('/?contributors=tarun%40example.com');
+  });
+
+  it('starts from the plain catalog with no detail open', async () => {
+    renderAt('/?view=map');
+    await userEvent.click(screen.getByRole('button', { name: 'show tarun' }));
+    expect(url()).toBe('/?contributors=tarun%40example.com');
+  });
+
+  it('starts from the plain catalog from an activity reached by a link', async () => {
+    renderAt('/activity/muir');
+    await userEvent.click(screen.getByRole('button', { name: 'show tarun' }));
+    expect(url()).toBe('/?contributors=tarun%40example.com');
   });
 });

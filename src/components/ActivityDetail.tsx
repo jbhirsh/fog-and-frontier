@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import type { Activity } from '../data/types';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
@@ -8,7 +8,7 @@ import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { directionsUrl, isApplePlatform } from '../lib/directions';
-import { contributorsLabel } from '../lib/contributors';
+import { authorLabel } from '../lib/activityReviews';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import {
   NEARBY_GROUP_HEADING,
@@ -43,6 +43,11 @@ interface Props {
     /** The step that brought this activity up, to keep focus on its button. */
     cameBy?: 'prev' | 'next';
   };
+  /**
+   * Shows the catalog filtered to one contributor (#9); with it, each name in
+   * "Contributed by" is a button. Without it (a trip's detail), plain text.
+   */
+  onShowContributor?: (email: string) => void;
 }
 
 /**
@@ -77,6 +82,7 @@ export function ActivityDetail({
   onSelectNearby,
   animateIn = true,
   sequence,
+  onShowContributor,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [override, setOverride] = useState<Activity | null>(null);
@@ -103,7 +109,6 @@ export function ActivityDetail({
   } = useActivityPhotos(activity.id, isOwner && (completed || !!showUploads));
   const origin = useDistanceOrigin();
   const distance = useDistanceTo()(activity);
-  const contributors = contributorsLabel(activity.contributors);
   const directionsHref = directionsUrl(
     activity.location.coords,
     isApplePlatform(),
@@ -332,8 +337,11 @@ export function ActivityDetail({
             <Stat icon="place" label={activity.location.city} />
             {activity.dogFriendly && <Stat icon="pets" label="Dog friendly" />}
             {/* Signed-in only: the server sends no contributors otherwise (#9). */}
-            {contributors && (
-              <Stat icon="person" label={`Contributed by ${contributors}`} />
+            {activity.contributors && activity.contributors.length > 0 && (
+              <Contributors
+                emails={activity.contributors}
+                onShow={onShowContributor}
+              />
             )}
           </div>
 
@@ -670,6 +678,42 @@ export function ActivityDetail({
           onSaved={(updated) => setActivity(updated)}
         />
       )}
+    </div>
+  );
+}
+
+// "Contributed by Tarun, Jess" (#9), every name spelled out. With `onShow`,
+// each name is a button that filters the catalog to that person.
+function Contributors({
+  emails,
+  onShow,
+}: {
+  emails: readonly string[];
+  onShow?: (email: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-xs">
+      <span className="material-symbols-outlined text-body-md">person</span>
+      <span className="font-body-md">
+        Contributed by{' '}
+        {emails.map((email, i) => (
+          <Fragment key={email}>
+            {i > 0 && ', '}
+            {onShow ? (
+              <button
+                type="button"
+                onClick={() => onShow(email)}
+                aria-label={`Show ${authorLabel(email)}'s picks`}
+                className="font-medium text-primary-container hover:underline"
+              >
+                {authorLabel(email)}
+              </button>
+            ) : (
+              authorLabel(email)
+            )}
+          </Fragment>
+        ))}
+      </span>
     </div>
   );
 }
