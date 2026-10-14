@@ -30,11 +30,12 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 
 ## Auth model
 
-- Server-side: `requireOwnerCtx` in `api/_gqlContext.ts` is the real gate for owner-only writes and paid calls (e.g. Gemini); trip-scoped actions are gated by `requireMemberCtx` / `requireCreatorCtx` in the same file, and `requireUserCtx` admits any signed-in account where something else authorizes the action (`claimInvite`, whose invite token is the authorization).
+- Server-side: `requireOwnerCtx` in `api/_gqlContext.ts` is the real gate for owner-only writes and paid calls (e.g. Gemini, apart from the capped drafts below); trip-scoped actions are gated by `requireMemberCtx` / `requireCreatorCtx` in the same file, and `requireUserCtx` admits any signed-in account: where something else authorizes the action (`claimInvite`, whose invite token is the authorization), and for suggestions and their capped drafts (#73, below).
 - Client-side: `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner emails come from `VITE_OWNER_EMAILS`.
 - Public by decision: `drivingMiles` (#66) calls OpenRouteService with no auth gate, because the owner chose road miles for every visitor. It's a free service rather than a paid one, and a Turso-counted hourly budget (`ors_usage`) caps it: 20 uncached lookups an hour, of which signed-out callers may use 12, for West Coast origins only. Over budget it returns nothing and the client shows the "≈" straight-line estimate. Any other public external call needs its own recorded decision here.
 - Owner photos (#19) live in a private Vercel Blob store (`BLOB_READ_WRITE_TOKEN`, from the store connected to the project). The bytes never pass through the function: `photoUpload` hands the browser a client token that can write one JPEG pathname for ten minutes, and `activityPhotos` returns signed links that expire within the hour. Every photo call is owner-only, and an activity holds at most 20, which keeps the store inside the Hobby limits (exceeding them pauses Blob for 30 days).
 - Contributors (#9): who added each activity (`contributors`, account emails) goes to any signed-in account and to no one else. The `Activity` / `ActivitySnapshot` field resolver in `api/_resolvers/catalog.ts` returns null to a signed-out caller, so the public catalog never says who added what; the UI simply has nothing to show them. `saveActivity` credits the caller on a new activity, keeps the stored list when the input omits it, and only credits emails with a `users` row. An activity saved before #9 stays uncredited until the backfill credits it.
+- Suggestions and capped AI drafts (#73), by decision: any signed-in account may suggest an activity (`suggestActivity`, `requireUserCtx`), with at most 10 of its own waiting at once. It waits in the `suggestions` table, which the public catalog read never touches, until an owner accepts it into the catalog (credited to its suggester, who then gets a `users` row) or rejects it; `pendingSuggestions`, `acceptSuggestion` and `rejectSuggestion` are owner-only. A suggestion keeps only http(s) links (`keepSavableLinks` in `api/_links.ts`), since these are the first links written by non-owners. To draft one, a signed-in non-owner may use `generateActivity`, the paid Gemini call, capped by a Turso-counted daily budget (`gemini_assists`, `api/_assistBudget.ts`): 5 drafts per account and 30 in all per UTC day, and each draft's title, notes and links are bounded (200 and 2000 characters, five links), since every link is read and billed. Over the cap, the call is refused with `assist_limit` before Gemini is reached. Owners aren't counted. Every other Gemini call stays owner-only.
 - Role-gated UI: owner-guarded *mutating* controls are **hidden** from non-owners (not disabled/greyed). See the Role-gated UI section below.
 
 ## Role-gated UI — hide owner-guarded controls from non-owners
@@ -77,6 +78,9 @@ Gates that are **not** the owner gate:
   them, since adding to a trip is a member power (#51). The per-card "Add to
   trip" renders only while building a trip (selection mode, which an incoming
   trip target also opens), keeping the default browse view uncluttered.
+- **Suggest activity** (#73) is a sign-in-gated CTA for non-owners: signed-in
+  non-owners see it where owners see "Add activity", and signed-out visitors
+  see neither.
 - The **Contributors filter** (#9) is a read, but signed-out visitors get no
   contributor data to filter on, so it isn't rendered for them, and a shared
   `?contributors=` link is ignored rather than emptying their list.

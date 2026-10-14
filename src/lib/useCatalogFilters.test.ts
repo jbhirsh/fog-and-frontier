@@ -312,3 +312,21 @@ describe('contributorOptions (#9)', () => {
     ).toEqual(['jess@x.com', 'tarun@x.com']);
   });
 });
+
+describe('applyCatalogFilters — free only (#85)', () => {
+  const priced = [
+    { ...muirWoods, costTier: 'free' as const },
+    { ...completedHike, costTier: '$' as const },
+    dogFriendlyTidepools, // unknown cost
+  ];
+
+  it('is off by default and keeps everything, unknown cost too', () => {
+    expect(applyCatalogFilters(priced, INITIAL_CATALOG_FILTERS)).toHaveLength(3);
+  });
+
+  it('keeps only the activities known to be free', () => {
+    expect(
+      applyCatalogFilters(priced, filters({ freeOnly: true })).map((a) => a.id),
+    ).toEqual([muirWoods.id]);
+  });
+});

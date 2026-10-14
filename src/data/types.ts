@@ -21,6 +21,8 @@ export type Difficulty = 'easy' | 'moderate' | 'advanced';
 
 // Rough cost tier for restaurants ($ cheap → $$$$ splurge). See issue #76.
 export type PriceRange = '$' | '$$' | '$$$' | '$$$$';
+// What it costs one person to do (#85): free, $ under $25, $$ $25–75, $$$ over $75.
+export type CostTier = 'free' | '$' | '$$' | '$$$';
 
 export type Region = 'sf' | 'north-bay' | 'east-bay' | 'south-bay' | 'peninsula' | 'central-coast' | 'norcal' | 'socal' | 'oregon' | 'washington';
 
@@ -66,6 +68,7 @@ export interface Activity {
   // switch) so a "food" entry without them still works.
   cuisine?: string;
   priceRange?: PriceRange;
+  costTier?: CostTier;
   hours?: string;
   reservationUrl?: string;
   menuUrl?: string;

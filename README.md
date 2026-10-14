@@ -62,7 +62,7 @@ map, filter, and plan trips around.
 | **API** | Apollo Server 5 on Express 5, one Vercel serverless function |
 | **Database** | Turso / libSQL edge database (`@libsql/client`) |
 | **Auth** | Clerk (`@clerk/clerk-react` + `@clerk/backend`) |
-| **AI** | Google Gemini (event discovery + activity generation) |
+| **AI** | Google Gemini (event discovery, activity generation, trip ideas) |
 | **Observability** | Sentry (`@sentry/react`) with source-map upload; structured serverless logging |
 | **Testing / CI** | Vitest (unit), Playwright (visual regression), GitHub Actions |
 | **Hosting** | Vercel |
@@ -76,9 +76,10 @@ A few things in here worth a closer look:
   Hobby's 12-function cap — schema in `api/_schema.ts`, resolvers in
   `api/_resolvers/*`, typed end-to-end via `graphql-codegen`.
 - **Auth you can't bypass from the client.** `requireOwnerCtx` (Clerk-backed,
-  with `requireMemberCtx` / `requireCreatorCtx` for trips) gates every mutation
-  and paid AI call server-side; the client `useOwner()` hook only decides what
-  to *render*.
+  with `requireMemberCtx` / `requireCreatorCtx` for trips) gates every owner
+  mutation and paid AI call server-side; the one exception is a signed-in
+  account's suggestion and its capped Gemini draft (#73, `requireUserCtx`).
+  The client `useOwner()` hook only decides what to *render*.
 - **A production safety net born from an outage.** Earlier work shipped a bug that
   404'd the API and blanked the CSS in prod. The response — a **smoke gate**
   (canary checks against the real Vercel deployment, including detection of
@@ -126,11 +127,14 @@ Sentry/observability wiring, CI details, and the lint policy — see
 The Gemini calls are the one part of the app whose output a type-checker can't
 vouch for — a well-formed response can still be wrong. `eval/` is a golden-set
 harness (issue #122) that grades what the model actually returns across the
-three AI surfaces:
+four AI surfaces:
 
 - **`generateActivity`** — turning a title into a structured activity record.
 - **`alltrailsLookup`** — pulling rating / distance / elevation for a trail.
 - **`discover`** — the "Explore" event search over a date window.
+- **`tripSuggestions`** — ranking catalog activities for a new trip's request
+  (#78), graded over a fixed catalog: the picks must include a clear fit and
+  nothing that breaks a hard constraint like "dogs" or "indoors".
 
 Most of the grading is **mechanical and deterministic**: schema and enum
 legality, expected-enum membership (category / region / park type / duration),
@@ -142,7 +146,8 @@ generated description or a discovered event. Nothing else is judged by a model.
 **Model and generation settings.** The resolvers call `gemini-3.8-flash` with
 Google Search and URL context turned on, so they look facts up and read the
 links they're given rather than answer from memory, and a JSON schema still
-shapes every reply. Issue #122 asked for temperature-0 eval calls; the harness
+shapes every reply. Trip suggestions are the exception: they only choose from
+the catalog they're given, so they search nothing. Issue #122 asked for temperature-0 eval calls; the harness
 deliberately deviates and exercises the production resolvers at their
 production settings — Gemini 3.8 Flash ignores temperature, and the search
 results are live — so it measures what actually ships, not a determinized
@@ -159,7 +164,7 @@ vercel env pull .env.local   # provides GEMINI_API_KEY
 npm run eval
 ```
 
-It makes 22 paid resolver calls (`gemini-3.8-flash`, each with a few Google
+It makes 24 paid resolver calls (`gemini-3.8-flash`, most with a few Google
 searches) plus up to 16 judge calls (also grounded `gemini-3.8-flash`) per
 run — judges are skipped once a mechanical check has already failed a case,
 so most runs use fewer. On 2.5 a run cost about $0.25 (26 CI runs made up most of a $6.59
@@ -210,7 +215,7 @@ search, aren't directly comparable. One case is marked `xfail` (expected
 failure) to document that the response schema forces the model to fabricate a
 record on pure-nonsense input rather than decline.
 
-**Current score: 100%** (22/22 graded, threshold 90%) on search-grounded
+**Current score: 100%** (22/22 graded, before the two trip-suggestion cases were added; threshold 90%) on search-grounded
 `gemini-3.8-flash`, graded by the search-grounded judge, 2026-10-14 (eval
 workflow run 38511460561). Before the judge could search, the same resolvers
 scored 95.5% (run 38501577212). The one difference is `gen-duartes-tavern`:

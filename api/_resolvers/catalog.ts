@@ -1,6 +1,8 @@
 import { db } from '../_db.js';
-import { badInput } from '../_gqlError.js';
+import { badInput, conflict } from '../_gqlError.js';
+import { findDuplicates, freeId, type CatalogPlace } from '../_duplicates.js';
 import {
+  COST_TIERS,
   dateToIso,
   mapCatalogActivity,
   parseCatalogActivity,
@@ -31,7 +33,8 @@ function skipCatalogRow(id: string, reason: string): void {
   });
 }
 
-async function activities() {
+// The parsed catalog, newest first; also what trip suggestions rank (#78).
+export async function catalogActivities() {
   const rs = await db().execute('SELECT id, j FROM a ORDER BY t DESC');
   const out: Record<string, unknown>[] = [];
   for (const row of rs.rows) {
@@ -70,7 +73,10 @@ async function completed() {
   return out;
 }
 
-type ActivityInput = Record<string, unknown> & {
+/** The most a stored activity's JSON may hold. */
+export const MAX_ACTIVITY_JSON = 8000;
+
+export type ActivityInput = Record<string, unknown> & {
   completedDate?: unknown;
   contributors?: string[] | null;
 };
@@ -81,7 +87,7 @@ type ActivityInput = Record<string, unknown> & {
 // absent completedDate stays absent: dateToIso(undefined) is undefined, which
 // JSON.stringify drops. `contributors` is the list resolveContributors settled
 // (undefined, likewise dropped, for an activity left uncredited).
-function buildStoredActivity(
+export function buildStoredActivity(
   id: string,
   activity: ActivityInput,
   contributors: string[] | undefined,
@@ -119,12 +125,10 @@ function storedContributors(j: unknown): string[] {
 // identities rather than free text. Names already credited aren't checked
 // again, so an edit never fails on a list it didn't change.
 async function resolveContributors(
-  id: string,
+  row: Record<string, unknown> | undefined,
   given: string[] | null | undefined,
   callerEmail: string,
 ): Promise<string[] | undefined> {
-  const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
-  const row = rs.rows[0];
   const stored = storedContributors(row?.j);
   if (given == null) {
     if (!row) return [callerEmail];
@@ -150,22 +154,92 @@ async function resolveContributors(
   return emails;
 }
 
+// The catalog as places to match a new activity against (#17).
+async function catalogPlaces(): Promise<CatalogPlace[]> {
+  return (await catalogActivities()).map((a) => {
+    const location = a.location as { city: string; coords: { lat: number; lng: number } };
+    return {
+      id: a.id as string,
+      name: a.name as string,
+      city: location.city,
+      ...location.coords,
+    };
+  });
+}
+
+// Public, like the catalog it reads: it says only which saved activities
+// look like the given name and pin.
+async function checkDuplicate(
+  _parent: unknown,
+  args: { name: string; lat: number; lng: number },
+) {
+  if (args.name.length > 200) throw badInput('name too long');
+  return findDuplicates(args, await catalogPlaces());
+}
+
+export async function rowById(id: string) {
+  const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
+  return rs.rows[0];
+}
+
+// What schema types can't check about an activity's input.
+export function checkActivityInput(activity: ActivityInput): void {
+  const costTier = activity.costTier;
+  if (costTier != null && !COST_TIERS.has(costTier as string)) {
+    throw badInput('costTier must be free, $, $$ or $$$');
+  }
+}
+
+/** Refuses a new activity with a high-confidence look-alike in the catalog (#17). */
+export async function refuseDuplicate(activity: ActivityInput): Promise<void> {
+  const location = activity.location as { coords: { lat: number; lng: number } };
+  const same = findDuplicates(
+    { name: activity.name as string, ...location.coords },
+    await catalogPlaces(),
+  ).find((m) => m.confidence === 'high');
+  if (same) throw conflict(`looks like a duplicate of ${same.name}`, 'duplicate');
+}
+
+/** `id`, or the first `id-2`, `id-3`, … no catalog row has. */
+export function freeCatalogId(id: string): Promise<string> {
+  return freeId(id, async (candidate) => (await rowById(candidate)) !== undefined);
+}
+
 async function saveActivity(
   _parent: unknown,
-  { input }: { input: { id: string; activity: ActivityInput } },
+  {
+    input,
+  }: {
+    input: {
+      id: string;
+      activity: ActivityInput;
+      create?: boolean | null;
+      allowDuplicate?: boolean | null;
+    };
+  },
   ctx: GqlContext,
 ) {
   const caller = requireOwnerCtx(ctx);
-  const id = input.id;
-  if (!id) throw badInput('missing id');
+  if (!input.id) throw badInput('missing id');
+  checkActivityInput(input.activity);
+  let id = input.id;
+  if (input.create) {
+    // A new activity that looks like a saved one (#17) waits for the owner
+    // to say it's different; the client checks first, so this is the
+    // backstop. Then it takes a free id: a slug can be taken by a place
+    // whose name no longer matches, and saving there would replace it.
+    if (!input.allowDuplicate) await refuseDuplicate(input.activity);
+    id = await freeCatalogId(id);
+  }
+  const row = input.create ? undefined : await rowById(id);
   const contributors = await resolveContributors(
-    id,
+    row,
     input.activity.contributors,
     caller.email,
   );
   const stored = buildStoredActivity(id, input.activity, contributors);
   const json = JSON.stringify(stored);
-  if (json.length > 8000) throw badInput('activity too large');
+  if (json.length > MAX_ACTIVITY_JSON) throw badInput('activity too large');
   await db().execute({
     sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET j = excluded.j, t = excluded.t',
     args: [id, json, Date.now()],
@@ -240,5 +314,5 @@ function contributorsField(
 
 export const activityFields = { contributors: contributorsField };
 
-export const catalogQuery = { activities, completed };
+export const catalogQuery = { activities: catalogActivities, completed, checkDuplicate };
 export const catalogMutation = { saveActivity, deleteActivity, setCompleted };

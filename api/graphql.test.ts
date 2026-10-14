@@ -78,6 +78,8 @@ type State = {
   invite: Row | null;
   tripList: Row[];
   counts: Row[];
+  // Whether a non-owner has an AI draft left today (#73).
+  assistLeft: boolean;
 };
 
 let state: State;
@@ -138,6 +140,9 @@ function routeExecute(q: unknown) {
   if (/SELECT email, display_name FROM users/.test(sql)) {
     return { rows: state.usersRows };
   }
+  if (/^INSERT INTO gemini_assists/.test(sql)) {
+    return { rows: state.assistLeft ? [{ n: 1 }] : [] };
+  }
   return { rows: [] };
 }
 
@@ -190,6 +195,7 @@ function setup(partial: Partial<State> = {}) {
     invite: null,
     tripList: [],
     counts: [],
+    assistLeft: true,
     ...partial,
   };
   execute.mockImplementation((q: unknown) => Promise.resolve(routeExecute(q)));
@@ -330,7 +336,7 @@ describe('Query.activities: malformed rows (data boundary)', () => {
   const FULL_SELECTION = `{ activities { id name shortDescription longDescription
     category region parkType location { city coords { lat lng } } duration
     durationDetail difficulty dogFriendly coverImage galleryImages allTrailsUrl
-    allTrailsRating hikeDistanceMiles hikeElevationFeet cuisine priceRange hours
+    allTrailsRating hikeDistanceMiles hikeElevationFeet cuisine priceRange costTier hours
     reservationUrl menuUrl dietary completed completedDate notes } }`;
 
   const validRow = {
@@ -924,6 +930,251 @@ describe('contributors (#9)', () => {
   });
 });
 
+describe('costTier (#85)', () => {
+  const SAVE =
+    'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id costTier } } }';
+
+  it('matches the tiers Gemini is asked for', async () => {
+    const { COST_TIERS } = await import('./_gqlMap.js');
+    const { COST_TIER_VALUES } = await import('./_resolvers/gemini.js');
+    expect([...COST_TIERS]).toEqual([...COST_TIER_VALUES]);
+  });
+
+  it.each(['free', '$', '$$', '$$$'])('saves and reads back %s', async (tier) => {
+    setup();
+    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: tier } } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', costTier: tier } });
+    const stored = executeWrites()[0]?.args[1] as string;
+    setup({ catalog: [{ id: 'a1', j: stored }] });
+    const read = await run('{ activities { id costTier } }');
+    expect(read.data?.activities).toEqual([{ id: 'a1', costTier: tier }]);
+  });
+
+  it('refuses a tier outside the set, writing nothing', async () => {
+    setup();
+    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: '$$$$' } } }, OWNER);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe('costTier must be free, $, $$ or $$$');
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('clears it with null', async () => {
+    setup();
+    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: null } } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', costTier: null } });
+  });
+
+  it('reads a stored tier outside the set as null rather than failing the catalog', async () => {
+    setup({ catalog: [{ id: 'a1', j: JSON.stringify({ id: 'a1', ...minimalActivity(), costTier: 'cheap' }) }] });
+    const read = await run('{ activities { id costTier } }');
+    expect(read.errors).toBeUndefined();
+    expect(read.data?.activities).toEqual([{ id: 'a1', costTier: null }]);
+  });
+});
+
+describe('duplicates (#17)', () => {
+  const CASTLE = { id: 'castle', ...minimalActivity(), name: 'Castle Rock', location: { city: 'Los Gatos', coords: { lat: 37.2309, lng: -122.0961 } } };
+  const catalog = [{ id: 'castle', j: JSON.stringify(CASTLE) }];
+  const CHECK =
+    'query($n: String!, $lat: Float!, $lng: Float!){ checkDuplicate(name:$n, lat:$lat, lng:$lng){ id name city distanceMeters confidence } }';
+  const SAVE = 'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id } } }';
+  const newCastle = (over: Record<string, unknown> = {}) => ({
+    id: 'castle-rock',
+    create: true,
+    activity: { ...minimalActivity(), name: 'Castle Rock!', location: { city: 'Los Gatos', coords: { lat: 37.2312, lng: -122.0961 } } },
+    ...over,
+  });
+
+  it('checkDuplicate: anyone can ask, and gets the look-alikes', async () => {
+    setup({ catalog });
+    const r = await run(CHECK, { n: 'castle rock', lat: 37.2312, lng: -122.0961 });
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.checkDuplicate).toEqual([
+      { id: 'castle', name: 'Castle Rock', city: 'Los Gatos', distanceMeters: 33, confidence: 'high' },
+    ]);
+  });
+
+  it('checkDuplicate: refuses a name over 200 characters', async () => {
+    setup({ catalog });
+    const ok = await run(CHECK, { n: 'x'.repeat(200), lat: 0, lng: 0 });
+    expect(ok.errors).toBeUndefined();
+    const r = await run(CHECK, { n: 'x'.repeat(201), lat: 0, lng: 0 });
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe('name too long');
+  });
+
+  it('saveActivity: refuses a new activity that looks saved, writing nothing', async () => {
+    setup({ catalog, snapshotJson: null });
+    const r = await run(SAVE, { i: newCastle() }, OWNER);
+    expect(code(r)).toBe('CONFLICT');
+    expect(appCode(r)).toBe('duplicate');
+    expect(r.errors?.[0]?.message).toBe('looks like a duplicate of Castle Rock');
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('saveActivity: creates it anyway when told to', async () => {
+    setup({ catalog, snapshotJson: null });
+    const r = await run(SAVE, { i: newCastle({ allowDuplicate: true }) }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'castle-rock' } });
+    expect(executeWrites()).toHaveLength(1);
+  });
+
+  it('saveActivity: lets a merely possible match through', async () => {
+    setup({ catalog, snapshotJson: null });
+    // Same name 50 km away: possible, not high.
+    const far = newCastle();
+    (far.activity as { location: unknown }).location = { city: 'Elsewhere', coords: { lat: 37.68, lng: -122.0961 } };
+    const r = await run(SAVE, { i: far }, OWNER);
+    expect(r.errors).toBeUndefined();
+  });
+
+  it('saveActivity: never creates over another activity, taking the next free id', async () => {
+    // The slug is taken by a place whose name no longer matches.
+    setup({ catalog: [], snapshotJson: JSON.stringify({ id: 'castle-rock', name: 'Renamed' }) });
+    execute.mockImplementation((q: unknown) => {
+      const { sql, args } = q as { sql?: string; args?: unknown[] };
+      if (sql === 'SELECT j FROM a WHERE id = ?') {
+        const taken = args?.[0] === 'castle-rock' || args?.[0] === 'castle-rock-2';
+        return Promise.resolve({ rows: taken ? [{ j: '{}' }] : [] });
+      }
+      return Promise.resolve(routeExecute(q));
+    });
+    const r = await run(SAVE, { i: newCastle() }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'castle-rock-3' } });
+    const write = executeWrites()[0];
+    expect(write?.args[0]).toBe('castle-rock-3');
+    // A new row credits its creator, not whatever the taken one had.
+    expect(JSON.parse(write?.args[1] as string)).toMatchObject({ id: 'castle-rock-3', contributors: [OWNER.email] });
+  });
+
+  it('saveActivity: an edit (no create) upserts its own id, unchecked', async () => {
+    setup({ catalog, snapshotJson: JSON.stringify({ id: 'castle-rock' }) });
+    const { create: _create, ...edit } = newCastle();
+    void _create;
+    const r = await run(SAVE, { i: edit }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(executeWrites()[0]?.args[0]).toBe('castle-rock');
+  });
+});
+
+describe('Mutation.suggestTripActivities (#78)', () => {
+  const SUGGEST =
+    'mutation($i: SuggestTripActivitiesInput!){ suggestTripActivities(input:$i){ suggestions { activityId reason activity { id name } } } }';
+  const row = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    j: JSON.stringify({ id, ...minimalActivity(), name, ...extra }),
+  });
+  const catalog = [row('a', 'Fort Funston', { dogFriendly: true }), row('b', 'Muir Woods'), row('c', 'Exploratorium')];
+  const picks = (...items: [string, string][]) =>
+    geminiText(JSON.stringify({ suggestions: items.map(([activityId, reason]) => ({ activityId, reason })) }));
+  const sentBody = () =>
+    JSON.parse(
+      ((vi.mocked(fetch).mock.calls[0] as unknown[])[1] as { body: string }).body,
+    ) as { contents: { parts: { text: string }[] }[]; tools?: unknown };
+
+  it('is owner-only', async () => {
+    setup({ catalog });
+    expect(code(await run(SUGGEST, { i: { prompt: 'dogs' } }, EDITOR))).toBe('FORBIDDEN');
+    expect(code(await run(SUGGEST, { i: { prompt: 'dogs' } }))).toBe('UNAUTHENTICATED');
+  });
+
+  it('keeps only real, unrepeated, unexcluded picks, with their activities', async () => {
+    setup({ catalog });
+    stubFetch(picks(['a', 'dogs on the beach'], ['zzz', 'made up'], ['a', 'again'], ['c', ' rainy day '], ['b', 'excluded']));
+    const r = await run(SUGGEST, { i: { prompt: '  a dog day  ', excludeActivityIds: ['b'] } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.suggestTripActivities).toEqual({
+      suggestions: [
+        { activityId: 'a', reason: 'dogs on the beach', activity: { id: 'a', name: 'Fort Funston' } },
+        { activityId: 'c', reason: 'rainy day', activity: { id: 'c', name: 'Exploratorium' } },
+      ],
+    });
+    // Gemini sees the trimmed request and only the candidates not excluded,
+    // with no search tools.
+    const body = sentBody();
+    const text = body.contents[0].parts[0].text;
+    expect(text.startsWith('Request: a dog day\n\nCatalog:\n')).toBe(true);
+    const sent = JSON.parse(text.split('Catalog:\n')[1]) as { id: string; city: string; dogFriendly: boolean | null }[];
+    expect(sent.map((c) => c.id)).toEqual(['a', 'c']);
+    expect(sent[0]).toMatchObject({ city: 'X', dogFriendly: true });
+    expect(body.tools).toBeUndefined();
+  });
+
+  it('caps the picks at twelve', async () => {
+    const many = Array.from({ length: 14 }, (_, i) => row(`p${i}`, `Place ${i}`));
+    setup({ catalog: many });
+    stubFetch(picks(...many.map((m) => [m.id, 'fits'] as [string, string])));
+    const r = await run(SUGGEST, { i: { prompt: 'anything' } }, OWNER);
+    expect((r.data?.suggestTripActivities as { suggestions: unknown[] }).suggestions).toHaveLength(12);
+  });
+
+  it('asks nothing when every activity is excluded', async () => {
+    setup({ catalog: [row('a', 'Fort Funston')] });
+    stubFetch(picks(['a', 'x']));
+    const r = await run(SUGGEST, { i: { prompt: 'anything', excludeActivityIds: ['a'] } }, OWNER);
+    expect(r.data?.suggestTripActivities).toEqual({ suggestions: [] });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ prompt: '   ' }, 'prompt is required'],
+    [{ prompt: 'x'.repeat(2001) }, 'prompt too long'],
+    [{ prompt: 'x', excludeActivityIds: Array.from({ length: 51 }, (_, i) => `e${i}`) }, 'at most 50 excluded activities'],
+  ])('refuses bad input: %#', async (i, message) => {
+    setup({ catalog });
+    stubFetch(picks());
+    const r = await run(SUGGEST, { i }, OWNER);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe(message);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('takes 2000 characters and 50 exclusions', async () => {
+    setup({ catalog });
+    stubFetch(picks());
+    const r = await run(
+      SUGGEST,
+      { i: { prompt: 'x'.repeat(2000), excludeActivityIds: Array.from({ length: 50 }, (_, i) => `e${i}`) } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+  });
+
+  it('reads an answer without a list as no picks', async () => {
+    setup({ catalog });
+    stubFetch(geminiText(JSON.stringify({ nope: true })));
+    const r = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(r.data?.suggestTripActivities).toEqual({ suggestions: [] });
+  });
+
+  it('gives a pick with no reason an empty one', async () => {
+    setup({ catalog });
+    stubFetch(geminiText(JSON.stringify({ suggestions: [{ activityId: 'a' }] })));
+    const r = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect((r.data?.suggestTripActivities as { suggestions: { reason: string }[] }).suggestions[0].reason).toBe('');
+  });
+
+  it('turns an upstream failure or a non-JSON answer into BAD_GATEWAY', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup({ catalog });
+    stubFetch({}, { ok: false });
+    const failed = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(code(failed)).toBe('BAD_GATEWAY');
+    expect(failed.errors?.[0]?.message).toBe('gemini request failed');
+    stubFetch(geminiText('not json'));
+    const garbled = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(garbled.errors?.[0]?.message).toBe('gemini returned non-JSON');
+    stubFetch({ candidates: [] });
+    const empty = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
+    expect(empty.errors?.[0]?.message).toBe('gemini returned non-JSON');
+    errSpy.mockRestore();
+  });
+});
+
 function minimalActivity() {
   return {
     name: 'Trail',
@@ -976,6 +1227,123 @@ describe('Gemini ops', () => {
     expect(d.range).toBe('weekend');
     expect((d.events as Row[])[0]).toMatchObject({ name: 'Market', location: 'LG' });
     expect((d.sources as Row[])[0]).toMatchObject({ uri: 'http://s', title: 'Src' });
+  });
+
+  const DRAFT =
+    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name } } }';
+  const assistClaims = () =>
+    execute.mock.calls.filter(([q]) => /INSERT INTO gemini_assists/.test(JSON.stringify(q))).length;
+  function stubCastleRock() {
+    stubFetch(
+      geminiText(
+        JSON.stringify({
+          name: 'Castle Rock',
+          shortDescription: 'Ridgeline hike',
+          category: 'hiking',
+          region: 'south-bay',
+          city: 'Los Gatos',
+          lat: 37.2,
+          lng: -122.1,
+          duration: 'Half Day',
+        }),
+      ),
+    );
+  }
+
+  it('generateActivity: anon → UNAUTHENTICATED', async () => {
+    setup();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } });
+    expect(code(r)).toBe('UNAUTHENTICATED');
+  });
+
+  it('generateActivity: a signed-in non-owner with drafts left gets one (#73)', async () => {
+    setup();
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.generateActivity).toEqual({ activity: { name: 'Castle Rock' } });
+    // The account's claim, then the shared one.
+    expect(assistClaims()).toBe(2);
+  });
+
+  it('generateActivity: a non-owner out of drafts → FORBIDDEN assist_limit, no Gemini call', async () => {
+    setup({ assistLeft: false });
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(code(r)).toBe('FORBIDDEN');
+    expect(appCode(r)).toBe('assist_limit');
+    expect(r.errors?.[0]?.message).toBe("You've used today's AI drafts. Try again tomorrow.");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('generateActivity: a non-owner with no title spends no draft', async () => {
+    setup();
+    const r = await run(DRAFT, { i: { title: ' ' } }, EDITOR);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(assistClaims()).toBe(0);
+  });
+
+  it.each([
+    ['a long title', { title: 'x'.repeat(201) }, 'title is too long'],
+    ['long notes', { title: 'Castle Rock', notes: 'x'.repeat(2001) }, 'notes are too long'],
+    [
+      'more than five links',
+      { title: 'Castle Rock', notes: Array.from({ length: 6 }, (_, i) => `https://e.example/${i}`).join(' ') },
+      'a draft can include at most 5 links',
+    ],
+    [
+      'links split between the title and notes',
+      {
+        title: 'http://a.co http://b.co http://c.co',
+        notes: 'https://d.example https://e.example https://f.example',
+      },
+      'a draft can include at most 5 links',
+    ],
+    [
+      'more than five links in the title',
+      { title: Array.from({ length: 6 }, (_, i) => `http://a${i}.co`).join(' ') },
+      'a draft can include at most 5 links',
+    ],
+  ])('generateActivity: a non-owner with %s → BAD_USER_INPUT, no draft spent', async (_name, input, message) => {
+    setup();
+    stubCastleRock();
+    const r = await run(DRAFT, { i: input }, EDITOR);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe(message);
+    expect(assistClaims()).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('generateActivity: a non-owner at each limit still gets a draft', async () => {
+    setup();
+    stubCastleRock();
+    const notes = `${Array.from({ length: 5 }, (_, i) => `HTTP://e.example/${i}`).join(' ')} `;
+    const r = await run(
+      DRAFT,
+      { i: { title: 'x'.repeat(200), notes: notes.padEnd(2000, 'n') } },
+      EDITOR,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(assistClaims()).toBe(2);
+  });
+
+  it('generateActivity: owners have no such limits', async () => {
+    setup();
+    stubCastleRock();
+    const r = await run(
+      DRAFT,
+      { i: { title: 'x'.repeat(300), notes: 'https://e.example/ '.repeat(10).padEnd(3000, 'n') } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+  });
+
+  it("generateActivity: owners aren't counted", async () => {
+    setup({ assistLeft: false });
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(assistClaims()).toBe(0);
   });
 
   it('generateActivity: owner with no title → BAD_USER_INPUT', async () => {
@@ -1091,7 +1459,7 @@ describe('Gemini ops', () => {
     dogFriendly: true,
   };
   const GENERATE =
-    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name category difficulty parkType priceRange coverImage } } }';
+    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name category difficulty parkType priceRange costTier coverImage } } }';
 
   it('generateActivity: out-of-range category → BAD_GATEWAY naming it', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -1112,6 +1480,7 @@ describe('Gemini ops', () => {
           difficulty: 'extreme',
           parkType: 'tribal',
           priceRange: 'cheap',
+          costTier: 'pricey',
         }),
       ),
     );
@@ -1123,18 +1492,20 @@ describe('Gemini ops', () => {
       difficulty: null,
       parkType: null,
       priceRange: null,
+      costTier: null,
     });
   });
 
   it('generateActivity: keeps in-range optional enums', async () => {
     setup();
-    stubFetch(geminiText(JSON.stringify({ ...castleRock, priceRange: '$$' })));
+    stubFetch(geminiText(JSON.stringify({ ...castleRock, priceRange: '$$', costTier: 'free' })));
     const r = await run(GENERATE, { i: { title: 'Castle Rock' } }, OWNER);
     expect(r.errors).toBeUndefined();
     expect((r.data?.generateActivity as { activity: Row }).activity).toMatchObject({
       difficulty: 'moderate',
       parkType: 'state',
       priceRange: '$$',
+      costTier: 'free',
     });
   });
 
