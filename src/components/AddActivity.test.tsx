@@ -47,6 +47,10 @@ vi.mock('../lib/alltrails', () => ({
   lookupAllTrails: lookupSpy,
 }));
 
+// The accounts the review step can credit (#9).
+const usersSpy = vi.hoisted(() => vi.fn());
+vi.mock('../lib/userTrips', () => ({ fetchUsers: usersSpy }));
+
 const generateSpy = vi.hoisted(() => vi.fn());
 vi.mock('../lib/generateActivity', () => ({
   generateActivity: generateSpy,
@@ -84,6 +88,11 @@ beforeEach(() => {
   saveSpy.mockClear();
   lookupSpy.mockReset();
   generateSpy.mockReset();
+  usersSpy.mockReset();
+  usersSpy.mockResolvedValue([
+    { email: 'owner@example.com', display_name: null },
+    { email: 'tarun@example.com', display_name: null },
+  ]);
 });
 
 describe('AddActivity — edit mode', () => {
@@ -340,5 +349,79 @@ describe('AddActivity — cover credit (#36)', () => {
     const saved = (saveSpy.mock.calls[0] as [Activity])[0];
     expect(saved.coverImage).toBe('https://example.com/mine.jpg');
     expect(saved.coverCredit).toBeUndefined();
+  });
+});
+
+describe('AddActivity — contributors (#9)', () => {
+  const generated: GeneratedFields = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    category: 'hiking',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.23,
+    lng: -122.1,
+    duration: 'Half Day',
+  };
+
+  async function saved() {
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    return (saveSpy.mock.calls[0] as [Activity])[0];
+  }
+
+  it('loads the accounts only once it reaches the review step', async () => {
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} />);
+    expect(usersSpy).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('combobox', { name: 'Add contributor' });
+    expect(usersSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('credits whoever adds it, and lets them add the others from the accounts', async () => {
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    const picker = await screen.findByRole('combobox', { name: 'Add contributor' });
+    expect(screen.getByRole('group', { name: 'Contributors' })).toHaveTextContent('Owner');
+    expect(
+      [...picker.querySelectorAll('option')].map((o) => o.textContent),
+    ).toEqual(['+ Add contributor', 'Tarun']);
+    await userEvent.selectOptions(picker, 'tarun@example.com');
+    expect((await saved()).contributors).toEqual(['owner@example.com', 'tarun@example.com']);
+  });
+
+  it('keeps an edited activity\'s contributors as they were', async () => {
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{ ...baseActivity, contributors: ['tarun@example.com'] }}
+      />,
+    );
+    // The only contributor can't be removed.
+    expect(screen.queryByRole('button', { name: 'Remove Tarun' })).not.toBeInTheDocument();
+    expect((await saved()).contributors).toEqual(['tarun@example.com']);
+  });
+
+  it('leaves an uncredited activity uncredited unless someone is picked', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    expect(await screen.findByRole('combobox', { name: 'Add contributor' })).toBeInTheDocument();
+    expect((await saved()).contributors).toBeUndefined();
+  });
+
+  it('still saves when the accounts cannot be loaded', async () => {
+    usersSpy.mockRejectedValue(new Error('offline'));
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{ ...baseActivity, contributors: ['tarun@example.com'] }}
+      />,
+    );
+    await waitFor(() => expect(usersSpy).toHaveBeenCalled());
+    expect(screen.queryByRole('combobox', { name: 'Add contributor' })).not.toBeInTheDocument();
+    expect((await saved()).contributors).toEqual(['tarun@example.com']);
   });
 });
