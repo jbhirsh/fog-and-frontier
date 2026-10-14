@@ -11,6 +11,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { ContributorFilter } from '../components/ContributorFilter';
 import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
+import { PendingSuggestions } from '../components/PendingSuggestions';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
@@ -32,6 +33,7 @@ import { useOpenActivity } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
 import { useOverrides } from '../lib/userCompleted';
 import { useOwner } from '../lib/useOwner';
+import { usePendingSuggestions } from '../lib/suggestions';
 import { addActivityToTrip } from '../lib/userTrips';
 
 type TargetTrip = { id: string; title: string };
@@ -225,6 +227,8 @@ export function CuratedAdventures() {
 
   // Opening a card goes to its permalink (#86), drawn over this page.
   const openActivity = useOpenActivity();
+  // The owners' review queue (#73); nothing is asked for anyone else.
+  const pending = usePendingSuggestions(isOwner);
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
   const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
@@ -504,6 +508,7 @@ export function CuratedAdventures() {
           distance from {origin.label}
         </p>
       </div>
+      {isOwner && <PendingSuggestions suggestions={pending} onOpenActivity={openActivity} />}
       {/* Bounds indicator (#95): why the list narrowed, with a way to undo. */}
       {bounds && (
         <div

@@ -219,6 +219,11 @@ export async function mockApis(page: Page) {
       case 'UsersList':
         data = { users: [] };
         break;
+      case 'PendingSuggestions':
+        // No suggestions waiting (#73): the owners' review queue renders
+        // nothing, so the owner baselines stay unchanged.
+        data = { pendingSuggestions: [] };
+        break;
       case 'DrivingMiles': {
         // Road miles (#66): a deterministic stand-in, 1.3x the straight line,
         // so snapshots show the loaded state rather than the "≈" estimate.
