@@ -797,8 +797,11 @@ function LocationPicker({
 
   return (
     <div className="space-y-xs">
+      {/* `isolate` traps Leaflet's pane z-indices (tiles at 200, controls at
+          1000) inside the map, so the dialog's sticky title (z-10) stays on
+          top when the map scrolls under it. */}
       <div
-        className="rounded-md overflow-hidden border border-outline-variant"
+        className="relative isolate rounded-md overflow-hidden border border-outline-variant"
         style={{ height: '280px' }}
       >
         <MapContainer
