@@ -278,6 +278,8 @@ export const typeDefs = /* GraphQL */ `
     "Account emails to credit (#9), each a known user, at least one. Omitted keeps the stored list (the caller for a new activity)."
     contributors: [String!]
   }
+  "prompt: what the trip is for, 1–2000 characters. excludeActivityIds: up to 50 already chosen."
+  input SuggestTripActivitiesInput { prompt: String!  excludeActivityIds: [ID!] }
   """
   create: a new activity (#17). It's matched against the catalog for duplicates, and saved under
   the first free id from \`id\` (\`id-2\`, \`id-3\`, …), never over another; the payload has the id used.
@@ -348,6 +350,9 @@ export const typeDefs = /* GraphQL */ `
   type AddActivityPhotoPayload { photo: ActivityPhoto! }
   type RemoveActivityPhotoPayload { removedId: ID! }
   type GenerateActivityPayload { activity: GeneratedActivity! }
+  "An activity Gemini picked from the catalog for a new trip (#78), with why."
+  type TripSuggestion { activityId: ID!  reason: String!  activity: Activity! }
+  type SuggestTripActivitiesPayload { suggestions: [TripSuggestion!]! }
   type AlltrailsLookupPayload { lookup: AllTrailsLookup! }
   type CreateTripPayload { trip: Trip! }
   type PatchTripPayload { trip: Trip! }
@@ -397,6 +402,8 @@ export const typeDefs = /* GraphQL */ `
     addActivityPhoto(input: AddActivityPhotoInput!): AddActivityPhotoPayload!
     removeActivityPhoto(input: RemoveActivityPhotoInput!): RemoveActivityPhotoPayload!
     generateActivity(input: GenerateActivityInput!): GenerateActivityPayload!
+    "Owner-only paid Gemini call (#78): catalog activities that fit a free-form request, best first."
+    suggestTripActivities(input: SuggestTripActivitiesInput!): SuggestTripActivitiesPayload!
     alltrailsLookup(input: AlltrailsLookupInput!): AlltrailsLookupPayload!
     createTrip(input: CreateTripInput!): CreateTripPayload!
     patchTrip(input: PatchTripInput!): PatchTripPayload!

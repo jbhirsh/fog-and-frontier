@@ -3,7 +3,9 @@
 // shapes, and eval/golden-set.json must deserialize into GoldenSet. Frozen
 // before the modules were built in parallel — extend, don't reshape.
 
-export type Feature = 'generateActivity' | 'alltrailsLookup' | 'discover';
+import type { TripCandidate } from '../api/_tripSuggest.js';
+
+export type Feature = 'generateActivity' | 'alltrailsLookup' | 'discover' | 'tripSuggestions';
 export type DiscoverRange = 'today' | 'tomorrow' | 'week' | 'weekend';
 
 // --- golden-set shapes -------------------------------------------------------
@@ -124,7 +126,26 @@ export interface DiscoverCase extends GoldenCaseBase {
   expect: DiscoverExpect;
 }
 
-export type GoldenCase = GenerateCase | AlltrailsCase | DiscoverCase;
+/** One activity in a trip-suggestion case's fixture catalog (#78). */
+export type TripCandidateFixture = TripCandidate;
+
+export interface TripSuggestionsExpect {
+  /** at least one of these ids must be picked */
+  includeAny: string[];
+  /** none of these ids may be picked (they break a hard constraint) */
+  excludeAll?: string[];
+  minPicks: number;
+  maxPicks: number;
+}
+
+export interface TripSuggestionsCase extends GoldenCaseBase {
+  feature: 'tripSuggestions';
+  /** the request, and the catalog it's ranked from (fixed, so no DB) */
+  input: { prompt: string; catalog: TripCandidateFixture[] };
+  expect: TripSuggestionsExpect;
+}
+
+export type GoldenCase = GenerateCase | AlltrailsCase | DiscoverCase | TripSuggestionsCase;
 
 export interface GoldenSet {
   _meta: {

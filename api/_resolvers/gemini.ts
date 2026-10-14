@@ -3,21 +3,31 @@ import { badGateway, badInput } from '../_gqlError.js';
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
 import { HOME_BASE } from '../_home.js';
+import { catalogActivities } from './catalog.js';
+import {
+  MAX_TRIP_SUGGESTIONS,
+  keepTripPicks,
+  toCandidate,
+  type TripCandidate,
+  type TripPick,
+} from '../_tripSuggest.js';
 
 // The city alone, for "some San Jose, some Bay Area".
 const HOME_CITY = HOME_BASE.split(',')[0];
 
-// Gemini-backed resolvers (owner-gated paid calls): generateActivity +
-// alltrailsLookup mutations and the lazy `discover` query. Upstream failures
-// throw BAD_GATEWAY (REST 502); we keep the explicit logServerError calls so
-// the #20 observability of those 502s survives (BAD_GATEWAY is "user-facing",
-// so formatError won't double-log it). A missing API key throws a plain Error
-// → INTERNAL, also logged — matching the REST 500.
+// Gemini-backed resolvers (owner-gated paid calls): generateActivity,
+// alltrailsLookup and suggestTripActivities mutations and the lazy `discover`
+// query. Upstream failures throw BAD_GATEWAY (REST 502); we keep the explicit
+// logServerError calls so the #20 observability of those 502s survives
+// (BAD_GATEWAY is "user-facing", so formatError won't double-log it). A
+// missing API key throws a plain Error → INTERNAL, also logged — matching the
+// REST 500.
 
 // Gemini 3 can combine a JSON response schema with the built-in Google Search
-// and URL context tools, so each call below looks facts up (and reads the
-// links it's given) instead of answering from memory, and still returns
-// schema-shaped JSON. Exported so the eval harness reports the model it graded.
+// and URL context tools, so the calls below look facts up (and read the links
+// they're given) instead of answering from memory, and still return
+// schema-shaped JSON. Trip suggestions alone search nothing: they only choose
+// from the catalog they're handed. Exported so the eval harness reports the model it graded.
 export const MODEL = 'gemini-3.8-flash';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 const ROUTE = '/api/graphql';
@@ -622,5 +632,111 @@ async function discover(
   return { range: effectiveRange, events: mapEvents(events), sources };
 }
 
+// --- suggestTripActivities (#78) ---------------------------------------------
+// From a free-form "what are you in the mood for?", Gemini picks and ranks
+// activities from the owners' own catalog to seed a new trip. It only
+// chooses: every id it returns is checked against the list it was given, so
+// a made-up activity can't reach the trip. No search tools: the catalog is
+// the whole world here.
+
+const MAX_TRIP_CANDIDATES = 300;
+const MAX_EXCLUDED = 50;
+
+const SUGGEST_SCHEMA = {
+  type: 'object',
+  properties: {
+    suggestions: {
+      type: 'array',
+      maxItems: MAX_TRIP_SUGGESTIONS,
+      items: {
+        type: 'object',
+        properties: {
+          activityId: { type: 'string', description: 'The chosen activity\'s "id", exactly as given' },
+          reason: { type: 'string', description: 'One line on why it fits the request' },
+        },
+        required: ['activityId', 'reason'],
+      },
+    },
+  },
+  required: ['suggestions'],
+};
+
+const SUGGEST_SYSTEM_PROMPT = `You help plan a trip in a personal travel app called "Fog and Frontier"; home base is ${HOME_BASE}. You get the user's request and a JSON list of activities from their own catalog.
+- Choose ONLY activities from that list, and give each pick's "id" exactly as written there as its "activityId". Never invent an activity or an id.
+- Return up to 12 that fit the request, best first, varied across category and region where the request allows. Only include activities that truly fit: never pad the list with one that breaks a hard constraint in the request (dogs, difficulty, duration, indoors, region). A short list is fine, and an empty one when nothing fits.
+- Give each pick a one-line "reason" tied to the request (e.g. "dog-friendly and on the coast").`;
+
+/** Asks Gemini to rank `candidates` for `prompt`. Exported for the eval. */
+export async function rankTripCandidates(
+  prompt: string,
+  candidates: readonly TripCandidate[],
+  apiKey: string,
+): Promise<TripPick[]> {
+  if (candidates.length === 0) return [];
+  const r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SUGGEST_SYSTEM_PROMPT }] },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `Request: ${prompt}\n\nCatalog:\n${JSON.stringify(candidates)}` }],
+        },
+      ],
+      generationConfig: jsonConfig(SUGGEST_SCHEMA, 'low'),
+    }),
+  });
+  if (!r.ok) {
+    logServerError(new Error(`gemini request failed: ${r.status}`), {
+      route: ROUTE,
+      method: 'POST',
+      status: 502,
+      detail: (await r.text()).slice(0, 500),
+    });
+    throw badGateway('gemini request failed');
+  }
+  const text = responseText((await r.json()) as Parameters<typeof responseText>[0]);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripJsonFence(text ?? ''));
+  } catch (err) {
+    logServerError(err, { route: ROUTE, method: 'POST', status: 502, detail: (text ?? '').slice(0, 500) });
+    throw badGateway('gemini returned non-JSON');
+  }
+  return keepTripPicks(parsed, candidates);
+}
+
+async function suggestTripActivities(
+  _parent: unknown,
+  { input }: { input: { prompt?: unknown; excludeActivityIds?: unknown } },
+  ctx: GqlContext,
+) {
+  requireOwnerCtx(ctx);
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+  const prompt = typeof input.prompt === 'string' ? input.prompt.trim() : '';
+  if (!prompt) throw badInput('prompt is required');
+  if (prompt.length > 2000) throw badInput('prompt too long');
+  const excluded = Array.isArray(input.excludeActivityIds)
+    ? input.excludeActivityIds.filter((id): id is string => typeof id === 'string')
+    : [];
+  if (excluded.length > MAX_EXCLUDED) throw badInput(`at most ${MAX_EXCLUDED} excluded activities`);
+  const exclude = new Set(excluded);
+
+  const catalog = await catalogActivities();
+  const byId = new Map(catalog.map((a) => [a.id as string, a]));
+  // Newest first, so past MAX_TRIP_CANDIDATES the oldest go unranked; the
+  // catalog is a fraction of that today.
+  const candidates = catalog
+    .filter((a) => !exclude.has(a.id as string))
+    .slice(0, MAX_TRIP_CANDIDATES)
+    .map(toCandidate);
+  const picks = await rankTripCandidates(prompt, candidates, apiKey);
+  return {
+    suggestions: picks.map((p) => ({ ...p, activity: byId.get(p.activityId) })),
+  };
+}
+
 export const geminiQuery = { discover };
-export const geminiMutation = { generateActivity, alltrailsLookup };
+export const geminiMutation = { generateActivity, alltrailsLookup, suggestTripActivities };

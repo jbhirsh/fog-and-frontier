@@ -33,7 +33,8 @@ function skipCatalogRow(id: string, reason: string): void {
   });
 }
 
-async function activities() {
+// The parsed catalog, newest first; also what trip suggestions rank (#78).
+export async function catalogActivities() {
   const rs = await db().execute('SELECT id, j FROM a ORDER BY t DESC');
   const out: Record<string, unknown>[] = [];
   for (const row of rs.rows) {
@@ -152,7 +153,7 @@ async function resolveContributors(
 
 // The catalog as places to match a new activity against (#17).
 async function catalogPlaces(): Promise<CatalogPlace[]> {
-  return (await activities()).map((a) => {
+  return (await catalogActivities()).map((a) => {
     const location = a.location as { city: string; coords: { lat: number; lng: number } };
     return {
       id: a.id as string,
@@ -297,5 +298,5 @@ function contributorsField(
 
 export const activityFields = { contributors: contributorsField };
 
-export const catalogQuery = { activities, completed, checkDuplicate };
+export const catalogQuery = { activities: catalogActivities, completed, checkDuplicate };
 export const catalogMutation = { saveActivity, deleteActivity, setCompleted };
