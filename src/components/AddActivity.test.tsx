@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import type { Activity } from '../data/types';
 
 // react-leaflet imports browser-only Leaflet code that doesn't render under
@@ -51,6 +52,14 @@ vi.mock('../lib/alltrails', () => ({
 const usersSpy = vi.hoisted(() => vi.fn());
 vi.mock('../lib/userTrips', () => ({ fetchUsers: usersSpy }));
 
+// Look-alikes in the catalog (#17); freshId stays real.
+const dupSpy = vi.hoisted(() => vi.fn());
+vi.mock('../lib/duplicates', async () => {
+  const actual =
+    await vi.importActual<typeof import('../lib/duplicates')>('../lib/duplicates');
+  return { ...actual, checkDuplicates: dupSpy };
+});
+
 const generateSpy = vi.hoisted(() => vi.fn());
 vi.mock('../lib/generateActivity', () => ({
   generateActivity: generateSpy,
@@ -89,6 +98,8 @@ beforeEach(() => {
   lookupSpy.mockReset();
   generateSpy.mockReset();
   usersSpy.mockReset();
+  dupSpy.mockReset();
+  dupSpy.mockResolvedValue([]);
   usersSpy.mockResolvedValue([
     { email: 'owner@example.com', display_name: null },
     { email: 'tarun@example.com', display_name: null },
@@ -472,5 +483,163 @@ describe('AddActivity — cost (#85)', () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     await userEvent.selectOptions(screen.getByLabelText('Cost per person'), '$$');
     expect((await saved()).costTier).toBe('$$');
+  });
+});
+
+describe('AddActivity — duplicates (#17)', () => {
+  const generated: GeneratedFields = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    category: 'hiking',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.23,
+    lng: -122.1,
+    duration: 'Half Day',
+  };
+  const match = (confidence: 'high' | 'possible', id = 'castle-rock') => ({
+    id,
+    name: 'Castle Rock',
+    city: 'Los Gatos',
+    distanceMeters: 30,
+    confidence,
+  });
+  type SaveCall = [Activity, { create?: boolean; allowDuplicate?: boolean } | undefined];
+
+  async function review(props: Partial<Parameters<typeof AddActivity>[0]> = {}) {
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} {...props} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: /Save activity/ });
+  }
+  const saveButton = () => screen.getByRole('button', { name: /Save activity/ });
+
+  it('warns as the review opens, and the plain Save holds and says why', async () => {
+    dupSpy.mockResolvedValue([match('high')]);
+    await review();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This looks like a duplicate of Castle Rock in Los Gatos.',
+    );
+    await userEvent.click(saveButton());
+    expect(
+      await screen.findByText(
+        "This looks like one already saved. Open it, or choose Save anyway if it's a different place.",
+      ),
+    ).toBeInTheDocument();
+    expect(dupSpy).toHaveBeenCalledTimes(2); // re-checked on save
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('saves anyway as a new activity, and hands back the id the server used', async () => {
+    dupSpy.mockResolvedValue([match('high')]);
+    saveSpy.mockResolvedValueOnce('castle-rock-2');
+    const onSaved = vi.fn();
+    await review({ onSaved });
+    await userEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    const [saved, options] = saveSpy.mock.calls[0] as SaveCall;
+    expect(saved.id).toBe('castle-rock');
+    expect(options).toEqual({ create: true, allowDuplicate: true });
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'castle-rock-2' }));
+  });
+
+  it('after a rename, saves under the new name as a create, never over the look-alike', async () => {
+    dupSpy.mockResolvedValueOnce([match('high')]).mockResolvedValue([]);
+    await review();
+    await screen.findByRole('alert');
+    const name = screen.getByLabelText('Name');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Castle Rock Goat Rock Trailhead');
+    await userEvent.click(screen.getByRole('button', { name: 'Save anyway' }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    const [saved, options] = saveSpy.mock.calls[0] as SaveCall;
+    expect(saved.id).toBe('castle-rock-goat-rock-trailhead');
+    expect(options).toEqual({ create: true, allowDuplicate: false });
+  });
+
+  it('re-checks a moment after the name changes, so the warning follows the draft', async () => {
+    dupSpy.mockResolvedValueOnce([match('high')]).mockResolvedValue([]);
+    await review();
+    await screen.findByRole('alert');
+    await userEvent.type(screen.getByLabelText('Name'), ' Trailhead');
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(dupSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'Castle Rock Trailhead' }),
+    );
+  });
+
+  it("holds a Save anyway when a match turns up that wasn't on screen", async () => {
+    dupSpy
+      .mockResolvedValueOnce([match('high')])
+      .mockResolvedValue([match('high'), match('high', 'castle-rock-ii')]);
+    await review();
+    await userEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
+    expect(
+      await screen.findByText('Another saved activity looks like this one too. Check it before saving.'),
+    ).toBeInTheDocument();
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('opens the saved one instead', async () => {
+    dupSpy.mockResolvedValue([match('high')]);
+    const onOpenActivity = vi.fn();
+    await review({ onOpenActivity });
+    await userEvent.click(await screen.findByRole('button', { name: 'Open existing' }));
+    expect(onOpenActivity).toHaveBeenCalledWith('castle-rock');
+  });
+
+  it('lets a possible match through as a plain create', async () => {
+    dupSpy.mockResolvedValue([match('possible')]);
+    await review();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'You may already have Castle Rock in Los Gatos saved.',
+    );
+    await userEvent.click(saveButton());
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as SaveCall)[1]).toEqual({ create: true, allowDuplicate: false });
+  });
+
+  it('saves when the check itself fails (the server still refuses a real duplicate)', async () => {
+    dupSpy.mockRejectedValue(new Error('offline'));
+    await review();
+    await userEvent.click(saveButton());
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows the look-alike when the server refuses one the check didn't see", async () => {
+    dupSpy.mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValue([match('high')]);
+    saveSpy.mockRejectedValueOnce(
+      new CombinedGraphQLErrors({
+        errors: [
+          {
+            message: 'looks like a duplicate of Castle Rock',
+            extensions: { code: 'CONFLICT', appCode: 'duplicate' },
+          },
+        ],
+      }),
+    );
+    await review();
+    await userEvent.click(saveButton());
+    expect(await screen.findByRole('alert')).toHaveTextContent('This looks like a duplicate of Castle Rock');
+    expect(screen.getByText('looks like a duplicate of Castle Rock')).toBeInTheDocument();
+  });
+
+  it('drops the warning on going back to the form', async () => {
+    dupSpy.mockResolvedValue([match('high')]);
+    await review();
+    await screen.findByRole('alert');
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('never checks an edit, which saves its own id', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    await userEvent.click(saveButton());
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect(dupSpy).not.toHaveBeenCalled();
+    const [saved, options] = saveSpy.mock.calls[0] as SaveCall;
+    expect(saved.id).toBe(baseActivity.id);
+    expect(options).toBeUndefined();
   });
 });

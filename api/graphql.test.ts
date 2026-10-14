@@ -968,6 +968,93 @@ describe('costTier (#85)', () => {
   });
 });
 
+describe('duplicates (#17)', () => {
+  const CASTLE = { id: 'castle', ...minimalActivity(), name: 'Castle Rock', location: { city: 'Los Gatos', coords: { lat: 37.2309, lng: -122.0961 } } };
+  const catalog = [{ id: 'castle', j: JSON.stringify(CASTLE) }];
+  const CHECK =
+    'query($n: String!, $lat: Float!, $lng: Float!){ checkDuplicate(name:$n, lat:$lat, lng:$lng){ id name city distanceMeters confidence } }';
+  const SAVE = 'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id } } }';
+  const newCastle = (over: Record<string, unknown> = {}) => ({
+    id: 'castle-rock',
+    create: true,
+    activity: { ...minimalActivity(), name: 'Castle Rock!', location: { city: 'Los Gatos', coords: { lat: 37.2312, lng: -122.0961 } } },
+    ...over,
+  });
+
+  it('checkDuplicate: anyone can ask, and gets the look-alikes', async () => {
+    setup({ catalog });
+    const r = await run(CHECK, { n: 'castle rock', lat: 37.2312, lng: -122.0961 });
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.checkDuplicate).toEqual([
+      { id: 'castle', name: 'Castle Rock', city: 'Los Gatos', distanceMeters: 33, confidence: 'high' },
+    ]);
+  });
+
+  it('checkDuplicate: refuses a name over 200 characters', async () => {
+    setup({ catalog });
+    const ok = await run(CHECK, { n: 'x'.repeat(200), lat: 0, lng: 0 });
+    expect(ok.errors).toBeUndefined();
+    const r = await run(CHECK, { n: 'x'.repeat(201), lat: 0, lng: 0 });
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe('name too long');
+  });
+
+  it('saveActivity: refuses a new activity that looks saved, writing nothing', async () => {
+    setup({ catalog, snapshotJson: null });
+    const r = await run(SAVE, { i: newCastle() }, OWNER);
+    expect(code(r)).toBe('CONFLICT');
+    expect(appCode(r)).toBe('duplicate');
+    expect(r.errors?.[0]?.message).toBe('looks like a duplicate of Castle Rock');
+    expect(executeWrites()).toEqual([]);
+  });
+
+  it('saveActivity: creates it anyway when told to', async () => {
+    setup({ catalog, snapshotJson: null });
+    const r = await run(SAVE, { i: newCastle({ allowDuplicate: true }) }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'castle-rock' } });
+    expect(executeWrites()).toHaveLength(1);
+  });
+
+  it('saveActivity: lets a merely possible match through', async () => {
+    setup({ catalog, snapshotJson: null });
+    // Same name 50 km away: possible, not high.
+    const far = newCastle();
+    (far.activity as { location: unknown }).location = { city: 'Elsewhere', coords: { lat: 37.68, lng: -122.0961 } };
+    const r = await run(SAVE, { i: far }, OWNER);
+    expect(r.errors).toBeUndefined();
+  });
+
+  it('saveActivity: never creates over another activity, taking the next free id', async () => {
+    // The slug is taken by a place whose name no longer matches.
+    setup({ catalog: [], snapshotJson: JSON.stringify({ id: 'castle-rock', name: 'Renamed' }) });
+    execute.mockImplementation((q: unknown) => {
+      const { sql, args } = q as { sql?: string; args?: unknown[] };
+      if (sql === 'SELECT j FROM a WHERE id = ?') {
+        const taken = args?.[0] === 'castle-rock' || args?.[0] === 'castle-rock-2';
+        return Promise.resolve({ rows: taken ? [{ j: '{}' }] : [] });
+      }
+      return Promise.resolve(routeExecute(q));
+    });
+    const r = await run(SAVE, { i: newCastle() }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'castle-rock-3' } });
+    const write = executeWrites()[0];
+    expect(write?.args[0]).toBe('castle-rock-3');
+    // A new row credits its creator, not whatever the taken one had.
+    expect(JSON.parse(write?.args[1] as string)).toMatchObject({ id: 'castle-rock-3', contributors: [OWNER.email] });
+  });
+
+  it('saveActivity: an edit (no create) upserts its own id, unchecked', async () => {
+    setup({ catalog, snapshotJson: JSON.stringify({ id: 'castle-rock' }) });
+    const { create: _create, ...edit } = newCastle();
+    void _create;
+    const r = await run(SAVE, { i: edit }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(executeWrites()[0]?.args[0]).toBe('castle-rock');
+  });
+});
+
 function minimalActivity() {
   return {
     name: 'Trail',
