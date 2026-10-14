@@ -88,6 +88,27 @@ describe('Curated Adventures page', () => {
     ).toBeInTheDocument();
   });
 
+  it('toggles the Free filter (#85)', async () => {
+    render(
+      <MemoryRouter>
+        <CuratedAdventures />
+      </MemoryRouter>,
+      { activities: [{ ...muirWoods, costTier: 'free' }, completedHike, dogFriendlyTidepools] },
+    );
+    const free = screen.getByRole('switch', { name: 'Free' });
+    expect(free).toHaveAttribute('aria-checked', 'false');
+    await userEvent.click(free);
+    expect(free).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    expect(screen.queryByText('Test Completed Hike')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
+  });
+
+  it('offers no Free filter until something is known to be free (#85)', () => {
+    renderExplore();
+    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
+  });
+
   it('toggles dog-friendly filter', async () => {
     renderExplore();
     const toggle = screen.getByRole('switch', { name: 'Dog friendly' });

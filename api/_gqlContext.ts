@@ -16,7 +16,9 @@ import { forbidden, notFound, unauthenticated } from './_gqlError.js';
 // effect via getCurrentUserFromToken). Guards THROW a GraphQLError instead of
 // writing a `res`. They are the server-side auth gate for every resolver:
 // `requireOwnerCtx` for site-wide writes and paid calls, `requireMemberCtx` /
-// `requireCreatorCtx` for trip-scoped actions.
+// `requireCreatorCtx` for trip-scoped actions, and `requireUserCtx` for any
+// signed-in account (claiming an invite, and suggesting an activity with its
+// capped Gemini draft, #73).
 
 export type GqlContext = { caller: CurrentUser | null };
 

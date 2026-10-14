@@ -11,6 +11,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { ContributorFilter } from '../components/ContributorFilter';
 import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
+import { PendingSuggestions } from '../components/PendingSuggestions';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
@@ -32,6 +33,7 @@ import { useOpenActivity } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
 import { useOverrides } from '../lib/userCompleted';
 import { useOwner } from '../lib/useOwner';
+import { usePendingSuggestions } from '../lib/suggestions';
 import { addActivityToTrip } from '../lib/userTrips';
 
 type TargetTrip = { id: string; title: string };
@@ -113,8 +115,8 @@ export function CuratedAdventures() {
   // editors can shortlist activities too. The trip affordances are hidden, not
   // greyed out, from signed-out visitors (#112); the server enforces per-trip
   // membership on the actual add. (Catalog "Add activity" stays owner-only
-  // below.) A signed-out visitor arriving via location.state falls back to
-  // vanilla Curated.
+  // below; other accounts get "Suggest activity", #73.) A signed-out visitor
+  // arriving via location.state falls back to vanilla Curated.
   const isSignedIn = !!email;
   const acceptTarget = isSignedIn && initialTarget !== null;
 
@@ -130,6 +132,8 @@ export function CuratedAdventures() {
     setParkType,
     dogOnly,
     setDogOnly,
+    freeOnly,
+    setFreeOnly,
     setCompletedOnly,
     setContributors,
     applyFilters,
@@ -223,6 +227,8 @@ export function CuratedAdventures() {
 
   // Opening a card goes to its permalink (#86), drawn over this page.
   const openActivity = useOpenActivity();
+  // The owners' review queue (#73); nothing is asked for anyone else.
+  const pending = usePendingSuggestions(isOwner);
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
   const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
@@ -248,6 +254,7 @@ export function CuratedAdventures() {
   const [submittingTarget, setSubmittingTarget] = useState(false);
   const { activities: all, error: loadError } = useUserActivities();
   const contributorChoices = useMemo(() => contributorOptions(all), [all]);
+  const anyFree = useMemo(() => all.some((a) => a.costTier === 'free'), [all]);
 
   const MAX_BULK_ADD = 50;
   const overBulkCap = selectedForTrip.size > MAX_BULK_ADD;
@@ -501,6 +508,7 @@ export function CuratedAdventures() {
           distance from {origin.label}
         </p>
       </div>
+      {isOwner && <PendingSuggestions suggestions={pending} onOpenActivity={openActivity} />}
       {/* Bounds indicator (#95): why the list narrowed, with a way to undo. */}
       {bounds && (
         <div
@@ -681,6 +689,31 @@ export function CuratedAdventures() {
         </span>
         Dog friendly
       </button>
+      {/* A read filter, so it's shown to everyone (#85), once anything is
+          known to be free: before that it could only empty the list. */}
+      {anyFree && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={freeOnly}
+          aria-label="Free"
+          onClick={() => setFreeOnly((v) => !v)}
+          className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
+            freeOnly
+              ? 'border-primary bg-primary text-on-primary'
+              : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+          }`}
+        >
+          <span
+            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            style={{ fontSize: 18, width: 18, height: 18 }}
+            aria-hidden="true"
+          >
+            money_off
+          </span>
+          Free
+        </button>
+      )}
       {/* A read filter, so it's shown to everyone (#5). */}
       <button
         type="button"
@@ -751,7 +784,9 @@ export function CuratedAdventures() {
               {selectionMode ? 'Cancel select' : 'Select for trip'}
             </button>
           )}
-          {isOwner && (
+          {/* Owners add; any other signed-in account suggests one for the
+              owners to review (#73). Signed-out visitors see neither. */}
+          {(isOwner || isSignedIn) && (
             <button
               type="button"
               onClick={() => setAdding(true)}
@@ -762,9 +797,9 @@ export function CuratedAdventures() {
                 style={{ fontSize: 18, width: 18, height: 18 }}
                 aria-hidden="true"
               >
-                add
+                {isOwner ? 'add' : 'lightbulb'}
               </span>
-              Add activity
+              {isOwner ? 'Add activity' : 'Suggest activity'}
             </button>
           )}
         </div>
@@ -995,7 +1030,16 @@ export function CuratedAdventures() {
         />
       )}
 
-      {adding && <AddActivity onClose={() => setAdding(false)} />}
+      {adding && (
+        <AddActivity
+          suggest={!isOwner}
+          onClose={() => setAdding(false)}
+          onOpenActivity={(id) => {
+            setAdding(false);
+            openActivity(id);
+          }}
+        />
+      )}
     </>
   );
 }

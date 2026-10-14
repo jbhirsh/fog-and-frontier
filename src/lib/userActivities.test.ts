@@ -69,6 +69,7 @@ const richActivity: Activity = {
   completedDate: '2025-11-02',
   notes: 'Book well ahead.',
   contributors: ['tarun@example.com', 'owner@example.com'],
+  costTier: '$$',
 };
 
 afterEach(async () => {
@@ -126,6 +127,7 @@ describe('rowToActivity ↔ activityToInput round-trip', () => {
       completedDate: '2025-11-02',
       coverCredit: 'Photo: Jo, CC BY 4.0, via Wikimedia Commons',
       contributors: ['tarun@example.com', 'owner@example.com'],
+      costTier: '$$',
     });
   });
 
@@ -173,5 +175,31 @@ describe('rowToActivity ↔ activityToInput round-trip', () => {
     });
     await saveUserActivity(plain);
     expect(captured).toHaveProperty('contributors', null);
+  });
+
+  it('creates or edits as asked, and returns the id the server used (#17)', async () => {
+    const inputs: Record<string, unknown>[] = [];
+    installFetch({
+      SaveActivity: (vars) => {
+        inputs.push((vars as { input: Record<string, unknown> }).input);
+        return jsonResponse({
+          data: {
+            saveActivity: {
+              __typename: 'SaveActivityPayload',
+              activity: { __typename: 'Activity', id: `${richActivity.id}-2` },
+            },
+          },
+        });
+      },
+      Activities: () => jsonResponse({ data: { activities: [] } }),
+    });
+    expect(await saveUserActivity(richActivity)).toBe(`${richActivity.id}-2`);
+    await saveUserActivity(richActivity, { create: true });
+    await saveUserActivity(richActivity, { create: true, allowDuplicate: true });
+    expect(inputs[0]).not.toHaveProperty('create');
+    expect(inputs[0]).not.toHaveProperty('allowDuplicate');
+    expect(inputs[1]).toHaveProperty('create', true);
+    expect(inputs[1]).not.toHaveProperty('allowDuplicate');
+    expect(inputs[2]).toMatchObject({ create: true, allowDuplicate: true });
   });
 });

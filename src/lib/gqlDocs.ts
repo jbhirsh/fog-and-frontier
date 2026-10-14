@@ -35,6 +35,7 @@ export const ACTIVITIES_QUERY = graphql(`
       hikeElevationFeet
       cuisine
       priceRange
+      costTier
       hours
       reservationUrl
       menuUrl
@@ -43,6 +44,30 @@ export const ACTIVITIES_QUERY = graphql(`
       completedDate
       notes
       contributors
+    }
+  }
+`);
+
+export const CHECK_DUPLICATE_QUERY = graphql(`
+  query CheckDuplicate($name: String!, $lat: Float!, $lng: Float!) {
+    checkDuplicate(name: $name, lat: $lat, lng: $lng) {
+      id
+      name
+      city
+      distanceMeters
+      confidence
+    }
+  }
+`);
+
+export const SUGGEST_TRIP_ACTIVITIES = graphql(`
+  mutation SuggestTripActivities($input: SuggestTripActivitiesInput!) {
+    suggestTripActivities(input: $input) {
+      suggestions {
+        activityId
+        reason
+        activity { id name category location { city } }
+      }
     }
   }
 `);
@@ -132,6 +157,7 @@ export const TRIP_QUERY = graphql(`
           hikeElevationFeet
           cuisine
           priceRange
+          costTier
           hours
           reservationUrl
           menuUrl
@@ -173,6 +199,49 @@ export const SAVE_ACTIVITY = graphql(`
   }
 `);
 
+export const SUGGEST_ACTIVITY = graphql(`
+  mutation SuggestActivity($input: SuggestActivityInput!) {
+    suggestActivity(input: $input) { suggestion { id } }
+  }
+`);
+
+export const PENDING_SUGGESTIONS = graphql(`
+  query PendingSuggestions {
+    pendingSuggestions {
+      id
+      suggestedBy
+      suggestedAt
+      activity {
+        id
+        name
+        shortDescription
+        longDescription
+        category
+        location { city }
+        duration
+        costTier
+        coverImage
+        allTrailsUrl
+        reservationUrl
+        menuUrl
+        notes
+      }
+    }
+  }
+`);
+
+export const ACCEPT_SUGGESTION = graphql(`
+  mutation AcceptSuggestion($id: ID!, $allowDuplicate: Boolean) {
+    acceptSuggestion(id: $id, allowDuplicate: $allowDuplicate) { activity { id name } }
+  }
+`);
+
+export const REJECT_SUGGESTION = graphql(`
+  mutation RejectSuggestion($id: ID!) {
+    rejectSuggestion(id: $id) { id }
+  }
+`);
+
 export const DELETE_ACTIVITY = graphql(`
   mutation DeleteActivity($input: DeleteActivityInput!) {
     deleteActivity(input: $input) { deletedId }
@@ -206,6 +275,7 @@ export const GENERATE_ACTIVITY = graphql(`
         hikeElevationFeet
         cuisine
         priceRange
+        costTier
         hours
         reservationUrl
         menuUrl
@@ -375,6 +445,7 @@ export type TripActivityRow = TripRow['activities'][number];
 // __typename) is structurally assignable to this, so one mapper covers both.
 export type SnapshotRow = NonNullable<TripActivityRow['snapshot']>;
 export type ActivityLike = Omit<SnapshotRow, '__typename'>;
+export type PendingSuggestionRow = DocumentType<typeof PENDING_SUGGESTIONS>['pendingSuggestions'][number];
 
 export type ActivityReviewsData = DocumentType<typeof ACTIVITY_REVIEWS_QUERY>;
 export type ActivityReviewRow = ActivityReviewsData['activityReviews'][number];

@@ -59,6 +59,7 @@ function toActivityRow(a: Activity) {
     hikeElevationFeet: a.hikeElevationFeet ?? null,
     cuisine: a.cuisine ?? null,
     priceRange: a.priceRange ?? null,
+    costTier: a.costTier ?? null,
     hours: a.hours ?? null,
     reservationUrl: a.reservationUrl ?? null,
     menuUrl: a.menuUrl ?? null,
@@ -217,6 +218,11 @@ export async function mockApis(page: Page) {
       }
       case 'UsersList':
         data = { users: [] };
+        break;
+      case 'PendingSuggestions':
+        // No suggestions waiting (#73): the owners' review queue renders
+        // nothing, so the owner baselines stay unchanged.
+        data = { pendingSuggestions: [] };
         break;
       case 'DrivingMiles': {
         // Road miles (#66): a deterministic stand-in, 1.3x the straight line,

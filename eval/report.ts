@@ -14,7 +14,7 @@ import type {
   SurfaceSummary,
 } from './types.js';
 
-const FEATURES: Feature[] = ['generateActivity', 'alltrailsLookup', 'discover'];
+const FEATURES: Feature[] = ['generateActivity', 'alltrailsLookup', 'discover', 'tripSuggestions'];
 
 // --- git provenance ----------------------------------------------------------
 
@@ -69,6 +69,7 @@ function summarize(cases: CaseResult[]): EvalSummary {
     generateActivity: tally(cases.filter(c => c.feature === 'generateActivity')),
     alltrailsLookup: tally(cases.filter(c => c.feature === 'alltrailsLookup')),
     discover: tally(cases.filter(c => c.feature === 'discover')),
+    tripSuggestions: tally(cases.filter(c => c.feature === 'tripSuggestions')),
   };
   return {
     ...overall,
