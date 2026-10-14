@@ -67,7 +67,11 @@ Rules of thumb:
   renders nothing until auth loads, then redirects non-owners to `/`. The
   second is the **Your Photos** gallery (#19): the photos are the owners' own,
   so `ActivityDetail` renders the whole section only for owners, and the
-  server's `activityPhotos` read is owner-gated too.
+  server's `activityPhotos` read is owner-gated too. The third is the
+  **review queue** (#73): pending suggestions, with Accept / Reject, above
+  the catalog list (`PendingSuggestions`). Only owners can decide them, so
+  `CuratedAdventures` asks for `pendingSuggestions` only for owners, and
+  shows the section only while something is waiting.
 
 Gates that are **not** the owner gate:
 
