@@ -78,6 +78,8 @@ type State = {
   invite: Row | null;
   tripList: Row[];
   counts: Row[];
+  // Whether a non-owner has an AI draft left today (#73).
+  assistLeft: boolean;
 };
 
 let state: State;
@@ -138,6 +140,9 @@ function routeExecute(q: unknown) {
   if (/SELECT email, display_name FROM users/.test(sql)) {
     return { rows: state.usersRows };
   }
+  if (/^INSERT INTO gemini_assists/.test(sql)) {
+    return { rows: state.assistLeft ? [{ n: 1 }] : [] };
+  }
   return { rows: [] };
 }
 
@@ -190,6 +195,7 @@ function setup(partial: Partial<State> = {}) {
     invite: null,
     tripList: [],
     counts: [],
+    assistLeft: true,
     ...partial,
   };
   execute.mockImplementation((q: unknown) => Promise.resolve(routeExecute(q)));
@@ -1221,6 +1227,123 @@ describe('Gemini ops', () => {
     expect(d.range).toBe('weekend');
     expect((d.events as Row[])[0]).toMatchObject({ name: 'Market', location: 'LG' });
     expect((d.sources as Row[])[0]).toMatchObject({ uri: 'http://s', title: 'Src' });
+  });
+
+  const DRAFT =
+    'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name } } }';
+  const assistClaims = () =>
+    execute.mock.calls.filter(([q]) => /INSERT INTO gemini_assists/.test(JSON.stringify(q))).length;
+  function stubCastleRock() {
+    stubFetch(
+      geminiText(
+        JSON.stringify({
+          name: 'Castle Rock',
+          shortDescription: 'Ridgeline hike',
+          category: 'hiking',
+          region: 'south-bay',
+          city: 'Los Gatos',
+          lat: 37.2,
+          lng: -122.1,
+          duration: 'Half Day',
+        }),
+      ),
+    );
+  }
+
+  it('generateActivity: anon → UNAUTHENTICATED', async () => {
+    setup();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } });
+    expect(code(r)).toBe('UNAUTHENTICATED');
+  });
+
+  it('generateActivity: a signed-in non-owner with drafts left gets one (#73)', async () => {
+    setup();
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.generateActivity).toEqual({ activity: { name: 'Castle Rock' } });
+    // The account's claim, then the shared one.
+    expect(assistClaims()).toBe(2);
+  });
+
+  it('generateActivity: a non-owner out of drafts → FORBIDDEN assist_limit, no Gemini call', async () => {
+    setup({ assistLeft: false });
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(code(r)).toBe('FORBIDDEN');
+    expect(appCode(r)).toBe('assist_limit');
+    expect(r.errors?.[0]?.message).toBe("You've used today's AI drafts. Try again tomorrow.");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('generateActivity: a non-owner with no title spends no draft', async () => {
+    setup();
+    const r = await run(DRAFT, { i: { title: ' ' } }, EDITOR);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(assistClaims()).toBe(0);
+  });
+
+  it.each([
+    ['a long title', { title: 'x'.repeat(201) }, 'title is too long'],
+    ['long notes', { title: 'Castle Rock', notes: 'x'.repeat(2001) }, 'notes are too long'],
+    [
+      'more than five links',
+      { title: 'Castle Rock', notes: Array.from({ length: 6 }, (_, i) => `https://e.example/${i}`).join(' ') },
+      'a draft can include at most 5 links',
+    ],
+    [
+      'links split between the title and notes',
+      {
+        title: 'http://a.co http://b.co http://c.co',
+        notes: 'https://d.example https://e.example https://f.example',
+      },
+      'a draft can include at most 5 links',
+    ],
+    [
+      'more than five links in the title',
+      { title: Array.from({ length: 6 }, (_, i) => `http://a${i}.co`).join(' ') },
+      'a draft can include at most 5 links',
+    ],
+  ])('generateActivity: a non-owner with %s → BAD_USER_INPUT, no draft spent', async (_name, input, message) => {
+    setup();
+    stubCastleRock();
+    const r = await run(DRAFT, { i: input }, EDITOR);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe(message);
+    expect(assistClaims()).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('generateActivity: a non-owner at each limit still gets a draft', async () => {
+    setup();
+    stubCastleRock();
+    const notes = `${Array.from({ length: 5 }, (_, i) => `HTTP://e.example/${i}`).join(' ')} `;
+    const r = await run(
+      DRAFT,
+      { i: { title: 'x'.repeat(200), notes: notes.padEnd(2000, 'n') } },
+      EDITOR,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(assistClaims()).toBe(2);
+  });
+
+  it('generateActivity: owners have no such limits', async () => {
+    setup();
+    stubCastleRock();
+    const r = await run(
+      DRAFT,
+      { i: { title: 'x'.repeat(300), notes: 'https://e.example/ '.repeat(10).padEnd(3000, 'n') } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+  });
+
+  it("generateActivity: owners aren't counted", async () => {
+    setup({ assistLeft: false });
+    stubCastleRock();
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(assistClaims()).toBe(0);
   });
 
   it('generateActivity: owner with no title → BAD_USER_INPUT', async () => {

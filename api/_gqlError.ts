@@ -42,7 +42,9 @@ export type AppCode =
   | 'duplicate'
   | 'already_member'
   | 'creator_cannot_leave'
-  | 'photo_limit';
+  | 'photo_limit'
+  | 'assist_limit'
+  | 'suggestion_limit';
 
 export function gqlError(
   message: string,

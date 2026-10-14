@@ -73,7 +73,10 @@ async function completed() {
   return out;
 }
 
-type ActivityInput = Record<string, unknown> & {
+/** The most a stored activity's JSON may hold. */
+export const MAX_ACTIVITY_JSON = 8000;
+
+export type ActivityInput = Record<string, unknown> & {
   completedDate?: unknown;
   contributors?: string[] | null;
 };
@@ -84,7 +87,7 @@ type ActivityInput = Record<string, unknown> & {
 // absent completedDate stays absent: dateToIso(undefined) is undefined, which
 // JSON.stringify drops. `contributors` is the list resolveContributors settled
 // (undefined, likewise dropped, for an activity left uncredited).
-function buildStoredActivity(
+export function buildStoredActivity(
   id: string,
   activity: ActivityInput,
   contributors: string[] | undefined,
@@ -174,9 +177,32 @@ async function checkDuplicate(
   return findDuplicates(args, await catalogPlaces());
 }
 
-async function rowById(id: string) {
+export async function rowById(id: string) {
   const rs = await db().execute({ sql: 'SELECT j FROM a WHERE id = ?', args: [id] });
   return rs.rows[0];
+}
+
+// What schema types can't check about an activity's input.
+export function checkActivityInput(activity: ActivityInput): void {
+  const costTier = activity.costTier;
+  if (costTier != null && !COST_TIERS.has(costTier as string)) {
+    throw badInput('costTier must be free, $, $$ or $$$');
+  }
+}
+
+/** Refuses a new activity with a high-confidence look-alike in the catalog (#17). */
+export async function refuseDuplicate(activity: ActivityInput): Promise<void> {
+  const location = activity.location as { coords: { lat: number; lng: number } };
+  const same = findDuplicates(
+    { name: activity.name as string, ...location.coords },
+    await catalogPlaces(),
+  ).find((m) => m.confidence === 'high');
+  if (same) throw conflict(`looks like a duplicate of ${same.name}`, 'duplicate');
+}
+
+/** `id`, or the first `id-2`, `id-3`, … no catalog row has. */
+export function freeCatalogId(id: string): Promise<string> {
+  return freeId(id, async (candidate) => (await rowById(candidate)) !== undefined);
 }
 
 async function saveActivity(
@@ -195,25 +221,15 @@ async function saveActivity(
 ) {
   const caller = requireOwnerCtx(ctx);
   if (!input.id) throw badInput('missing id');
-  const costTier = input.activity.costTier;
-  if (costTier != null && !COST_TIERS.has(costTier as string)) {
-    throw badInput('costTier must be free, $, $$ or $$$');
-  }
+  checkActivityInput(input.activity);
   let id = input.id;
   if (input.create) {
     // A new activity that looks like a saved one (#17) waits for the owner
     // to say it's different; the client checks first, so this is the
     // backstop. Then it takes a free id: a slug can be taken by a place
     // whose name no longer matches, and saving there would replace it.
-    if (!input.allowDuplicate) {
-      const location = input.activity.location as { coords: { lat: number; lng: number } };
-      const same = findDuplicates(
-        { name: input.activity.name as string, ...location.coords },
-        await catalogPlaces(),
-      ).find((m) => m.confidence === 'high');
-      if (same) throw conflict(`looks like a duplicate of ${same.name}`, 'duplicate');
-    }
-    id = await freeId(id, async (candidate) => (await rowById(candidate)) !== undefined);
+    if (!input.allowDuplicate) await refuseDuplicate(input.activity);
+    id = await freeCatalogId(id);
   }
   const row = input.create ? undefined : await rowById(id);
   const contributors = await resolveContributors(
@@ -223,7 +239,7 @@ async function saveActivity(
   );
   const stored = buildStoredActivity(id, input.activity, contributors);
   const json = JSON.stringify(stored);
-  if (json.length > 8000) throw badInput('activity too large');
+  if (json.length > MAX_ACTIVITY_JSON) throw badInput('activity too large');
   await db().execute({
     sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET j = excluded.j, t = excluded.t',
     args: [id, json, Date.now()],

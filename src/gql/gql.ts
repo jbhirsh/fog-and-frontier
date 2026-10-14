@@ -24,6 +24,7 @@ type Documents = {
     "\n  query UsersList {\n    users { email displayName }\n  }\n": typeof types.UsersListDocument,
     "\n  query Discover($range: DiscoverRange) {\n    discover(range: $range) {\n      range\n      events { name dateText startDate endDate location blurb sourceUrl }\n      sources { uri title }\n    }\n  }\n": typeof types.DiscoverDocument,
     "\n  mutation SaveActivity($input: SaveActivityInput!) {\n    saveActivity(input: $input) { activity { id } }\n  }\n": typeof types.SaveActivityDocument,
+    "\n  mutation SuggestActivity($input: SuggestActivityInput!) {\n    suggestActivity(input: $input) { suggestion { id } }\n  }\n": typeof types.SuggestActivityDocument,
     "\n  mutation DeleteActivity($input: DeleteActivityInput!) {\n    deleteActivity(input: $input) { deletedId }\n  }\n": typeof types.DeleteActivityDocument,
     "\n  mutation SetCompleted($input: SetCompletedInput!) {\n    setCompleted(input: $input) { __typename id completed }\n  }\n": typeof types.SetCompletedDocument,
     "\n  mutation GenerateActivity($input: GenerateActivityInput!) {\n    generateActivity(input: $input) {\n      activity {\n        name\n        shortDescription\n        longDescription\n        category\n        region\n        parkType\n        city\n        lat\n        lng\n        duration\n        durationDetail\n        difficulty\n        dogFriendly\n        hikeDistanceMiles\n        hikeElevationFeet\n        cuisine\n        priceRange\n        costTier\n        hours\n        reservationUrl\n        menuUrl\n        dietary\n        allTrailsUrl\n        notes\n        coverImage\n        coverCredit\n      }\n    }\n  }\n": typeof types.GenerateActivityDocument,
@@ -60,6 +61,7 @@ const documents: Documents = {
     "\n  query UsersList {\n    users { email displayName }\n  }\n": types.UsersListDocument,
     "\n  query Discover($range: DiscoverRange) {\n    discover(range: $range) {\n      range\n      events { name dateText startDate endDate location blurb sourceUrl }\n      sources { uri title }\n    }\n  }\n": types.DiscoverDocument,
     "\n  mutation SaveActivity($input: SaveActivityInput!) {\n    saveActivity(input: $input) { activity { id } }\n  }\n": types.SaveActivityDocument,
+    "\n  mutation SuggestActivity($input: SuggestActivityInput!) {\n    suggestActivity(input: $input) { suggestion { id } }\n  }\n": types.SuggestActivityDocument,
     "\n  mutation DeleteActivity($input: DeleteActivityInput!) {\n    deleteActivity(input: $input) { deletedId }\n  }\n": types.DeleteActivityDocument,
     "\n  mutation SetCompleted($input: SetCompletedInput!) {\n    setCompleted(input: $input) { __typename id completed }\n  }\n": types.SetCompletedDocument,
     "\n  mutation GenerateActivity($input: GenerateActivityInput!) {\n    generateActivity(input: $input) {\n      activity {\n        name\n        shortDescription\n        longDescription\n        category\n        region\n        parkType\n        city\n        lat\n        lng\n        duration\n        durationDetail\n        difficulty\n        dogFriendly\n        hikeDistanceMiles\n        hikeElevationFeet\n        cuisine\n        priceRange\n        costTier\n        hours\n        reservationUrl\n        menuUrl\n        dietary\n        allTrailsUrl\n        notes\n        coverImage\n        coverCredit\n      }\n    }\n  }\n": types.GenerateActivityDocument,
@@ -140,6 +142,10 @@ export function graphql(source: "\n  query Discover($range: DiscoverRange) {\n  
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SaveActivity($input: SaveActivityInput!) {\n    saveActivity(input: $input) { activity { id } }\n  }\n"): (typeof documents)["\n  mutation SaveActivity($input: SaveActivityInput!) {\n    saveActivity(input: $input) { activity { id } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SuggestActivity($input: SuggestActivityInput!) {\n    suggestActivity(input: $input) { suggestion { id } }\n  }\n"): (typeof documents)["\n  mutation SuggestActivity($input: SuggestActivityInput!) {\n    suggestActivity(input: $input) { suggestion { id } }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

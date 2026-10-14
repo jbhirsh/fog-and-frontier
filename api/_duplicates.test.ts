@@ -4,6 +4,7 @@ import {
   findDuplicates,
   freeId,
   normalizeName,
+  slugify,
   wordOverlap,
   type CatalogPlace,
 } from './_duplicates.js';
@@ -131,5 +132,21 @@ describe('freeId (#17)', () => {
     const isTaken = (id: string) => Promise.resolve(taken.has(id));
     expect(await freeId('big-basin', isTaken)).toBe('big-basin');
     expect(await freeId('castle-rock', isTaken)).toBe('castle-rock-3');
+  });
+});
+
+describe('slugify (#73)', () => {
+  it('lower-cases and joins the words with single dashes, trimming the ends', () => {
+    expect(slugify("  Sam's Chowder House! ")).toBe('sam-s-chowder-house');
+    expect(slugify('--Fort   Funston--')).toBe('fort-funston');
+  });
+
+  it('keeps at most 48 characters', () => {
+    expect(slugify('a'.repeat(60))).toBe('a'.repeat(48));
+  });
+
+  it('falls back to a random id for a name with no Latin letters or digits', () => {
+    expect(slugify('東京', () => 0.5)).toBe(`activity-${(0.5).toString(36).slice(2, 8)}`);
+    expect(slugify('!!!')).toMatch(/^activity-[0-9a-z]{1,6}$/);
   });
 });

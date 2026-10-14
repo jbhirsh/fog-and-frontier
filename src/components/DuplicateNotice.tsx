@@ -7,13 +7,21 @@ interface Props {
   onOpenActivity?: (id: string) => void;
   onSaveAnyway: () => void;
   saving: boolean;
+  /** The go-ahead's label; a suggestion (#73) is sent rather than saved. */
+  anywayLabel?: string;
 }
 
 // The Add review step's duplicate warning (#17). A high-confidence match
 // (same name within 500 m) holds the save: open the saved one, or say this is
 // different and save anyway. A possible one is a heads-up that doesn't stop
 // the save. Nothing renders without a match.
-export function DuplicateNotice({ matches, onOpenActivity, onSaveAnyway, saving }: Props) {
+export function DuplicateNotice({
+  matches,
+  onOpenActivity,
+  onSaveAnyway,
+  saving,
+  anywayLabel = 'Save anyway',
+}: Props) {
   // The buttons' labels lean on the sentence; point them at it.
   const sentenceId = useId();
   const high = matches.find((m) => m.confidence === 'high');
@@ -45,7 +53,7 @@ export function DuplicateNotice({ matches, onOpenActivity, onSaveAnyway, saving 
             aria-describedby={sentenceId}
             className="font-semibold text-on-surface underline disabled:opacity-50"
           >
-            Save anyway
+            {anywayLabel}
           </button>
         </div>
       </div>

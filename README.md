@@ -76,9 +76,10 @@ A few things in here worth a closer look:
   Hobby's 12-function cap — schema in `api/_schema.ts`, resolvers in
   `api/_resolvers/*`, typed end-to-end via `graphql-codegen`.
 - **Auth you can't bypass from the client.** `requireOwnerCtx` (Clerk-backed,
-  with `requireMemberCtx` / `requireCreatorCtx` for trips) gates every mutation
-  and paid AI call server-side; the client `useOwner()` hook only decides what
-  to *render*.
+  with `requireMemberCtx` / `requireCreatorCtx` for trips) gates every owner
+  mutation and paid AI call server-side; the one exception is a signed-in
+  account's suggestion and its capped Gemini draft (#73, `requireUserCtx`).
+  The client `useOwner()` hook only decides what to *render*.
 - **A production safety net born from an outage.** Earlier work shipped a bug that
   404'd the API and blanked the CSS in prod. The response — a **smoke gate**
   (canary checks against the real Vercel deployment, including detection of
