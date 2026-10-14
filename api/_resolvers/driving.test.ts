@@ -67,7 +67,8 @@ function fakeDb(q: string | { sql: string; args: unknown[] }) {
   if (sql === 'SELECT id, j FROM a') return { rows: catalogRows };
   // saveActivity reads the row's stored contributors (#9) before writing it.
   if (sql === 'SELECT j FROM a WHERE id = ?') return { rows: [] };
-  if (sql.startsWith('INSERT INTO a ')) return { rows: [] };
+  // One row written, as Turso reports it (a create checks it took the id).
+  if (sql.startsWith('INSERT INTO a ')) return { rows: [], rowsAffected: 1 };
   if (sql.startsWith('CREATE TABLE IF NOT EXISTS ors_usage')) return { rows: [] };
   if (sql.startsWith('INSERT INTO ors_usage') && typeof q !== 'string') {
     expect(sql).toMatch(/ON CONFLICT \(hour\) DO UPDATE SET n = n \+ 1 WHERE n < \?\s+RETURNING n/);
@@ -561,6 +562,32 @@ describe('drivingMiles after a catalog write', () => {
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(sqlCalls('SELECT id, j FROM a')).toHaveLength(2);
+  });
+
+  it('sees a newly created activity at once too', async () => {
+    orsReplies([5], [5, 9]);
+    await run(37, -122);
+    catalog([row('a', at(37, -122)), row('b', at(38, -122))]);
+    await write(SAVE, {
+      i: {
+        id: 'b',
+        create: true,
+        allowDuplicate: true,
+        activity: {
+          name: 'Trail',
+          shortDescription: 's',
+          category: 'hiking',
+          region: 'sf',
+          location: { city: 'X', coords: { lat: 38, lng: -122 } },
+          duration: 'Half Day',
+          coverImage: 'http://img',
+        },
+      },
+    });
+    expect((await run(37, -122)).data?.drivingMiles).toEqual([
+      { id: 'a', miles: 5 },
+      { id: 'b', miles: 9 },
+    ]);
   });
 
   it('drops a deleted activity at once', async () => {

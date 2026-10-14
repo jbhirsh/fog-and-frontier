@@ -13,10 +13,13 @@ import type {
   Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
+import { checkDuplicates, unacknowledgedHigh, type DuplicateMatch } from '../lib/duplicates';
+import { appCodeOf } from '../lib/gqlError';
 import { COST_TIERS, costLabel } from '../lib/cost';
 import { useOwner } from '../lib/useOwner';
 import { fetchUsers } from '../lib/userTrips';
 import { ContributorsField } from './ContributorsField';
+import { DuplicateNotice } from './DuplicateNotice';
 import { lookupAllTrails } from '../lib/alltrails';
 import { REGION_LABELS, sentenceCase } from '../lib/activityLabels';
 import {
@@ -33,6 +36,9 @@ interface Props {
   // Called with the saved activity right before onClose so the parent can
   // refresh any cached copy (e.g. ActivityDetail's displayed activity).
   onSaved?: (activity: Activity) => void;
+  // Opens a saved activity's detail; offered when a new one looks like it
+  // (#17). Without it the warning just names the look-alike.
+  onOpenActivity?: (id: string) => void;
 }
 
 const CATEGORIES: Category[] = [
@@ -121,7 +127,7 @@ function slugify(name: string): string {
   );
 }
 
-export function AddActivity({ onClose, editActivity, onSaved }: Props) {
+export function AddActivity({ onClose, editActivity, onSaved, onOpenActivity }: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const mode: 'create' | 'edit' = editActivity ? 'edit' : 'create';
   const [step, setStep] = useState<'form' | 'generating' | 'review'>(
@@ -213,27 +219,89 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
       };
       setDraft(activity);
       setStep('review');
+      void lookAlikes(activity);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to generate');
       setStep('form');
     }
   }
 
-  async function save() {
+  // A new activity that looks like a saved one (#17): matched as the review
+  // opens, again whenever its name or pin changes (the newest answer wins),
+  // and again on save. A high match holds the save until the owner picks
+  // "Save anyway" for the matches on screen; one they haven't seen holds it
+  // again.
+  const [matches, setMatches] = useState<DuplicateMatch[]>([]);
+  const checks = useRef(0);
+  const recheck = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(recheck.current), []);
+  async function lookAlikes(activity: Activity): Promise<DuplicateMatch[]> {
+    const mine = ++checks.current;
+    let found: DuplicateMatch[] = [];
+    try {
+      found = await checkDuplicates(activity);
+    } catch {
+      // Unanswered: the server still refuses a high match on save.
+    }
+    if (mine === checks.current) setMatches(found);
+    return found;
+  }
+  function changeDraft(next: Activity) {
+    const was = draft;
+    setDraft(next);
+    if (
+      mode === 'create' &&
+      was &&
+      (next.name !== was.name ||
+        next.location.coords.lat !== was.location.coords.lat ||
+        next.location.coords.lng !== was.location.coords.lng)
+    ) {
+      clearTimeout(recheck.current);
+      recheck.current = setTimeout(() => void lookAlikes(next), 400);
+    }
+  }
+  function backToForm() {
+    clearTimeout(recheck.current);
+    checks.current += 1; // drop any answer still on its way
+    setMatches([]);
+    setStep('form');
+  }
+
+  async function save(acknowledged: readonly string[] = []) {
     if (!draft) return;
     setSaving(true);
     setError(null);
+    let finalDraft = draft;
     try {
-      const finalDraft = await refreshTrailDetails(
-        draft,
-        editActivity?.allTrailsUrl,
-      );
-      await saveUserActivity(finalDraft);
+      finalDraft = await refreshTrailDetails(draft, editActivity?.allTrailsUrl);
+      if (mode === 'create') {
+        const found = await lookAlikes(finalDraft);
+        if (unacknowledgedHigh(found, acknowledged).length > 0) {
+          setError(
+            acknowledged.length > 0
+              ? 'Another saved activity looks like this one too. Check it before saving.'
+              : "This looks like one already saved. Open it, or choose Save anyway if it's a different place.",
+          );
+          setSaving(false);
+          return;
+        }
+        // The id follows the name as it is now; the server takes the next
+        // free one if that's taken, and says which it used.
+        const id = await saveUserActivity(
+          { ...finalDraft, id: slugify(finalDraft.name) },
+          { create: true, allowDuplicate: found.some((m) => m.confidence === 'high') },
+        );
+        finalDraft = { ...finalDraft, id };
+      } else {
+        await saveUserActivity(finalDraft);
+      }
       onSaved?.(finalDraft);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
       setSaving(false);
+      // The server found a look-alike the check missed: show it.
+      if (appCodeOf(e) === 'duplicate') void lookAlikes(finalDraft);
     }
   }
 
@@ -294,9 +362,14 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
             saving={saving}
             mode={mode}
             users={users}
-            onChange={setDraft}
-            onBack={mode === 'edit' ? onClose : () => setStep('form')}
+            onChange={changeDraft}
+            onBack={mode === 'edit' ? onClose : backToForm}
             onSave={() => void save()}
+            matches={matches}
+            onOpenActivity={onOpenActivity}
+            onSaveAnyway={() =>
+              void save(unacknowledgedHigh(matches, []).map((m) => m.id))
+            }
           />
         )}
       </div>
@@ -405,6 +478,9 @@ function ReviewStep({
   onChange,
   onBack,
   onSave,
+  matches,
+  onOpenActivity,
+  onSaveAnyway,
 }: {
   draft: Activity;
   error: string | null;
@@ -414,6 +490,9 @@ function ReviewStep({
   onChange: (a: Activity) => void;
   onBack: () => void;
   onSave: () => void;
+  matches: readonly DuplicateMatch[];
+  onOpenActivity?: (id: string) => void;
+  onSaveAnyway: () => void;
 }) {
   function patch<K extends keyof Activity>(key: K, value: Activity[K]) {
     onChange({ ...draft, [key]: value });
@@ -754,6 +833,13 @@ function ReviewStep({
         value={draft.contributors ?? []}
         users={users}
         onChange={(next) => patch('contributors', next)}
+      />
+
+      <DuplicateNotice
+        matches={matches}
+        onOpenActivity={onOpenActivity}
+        onSaveAnyway={onSaveAnyway}
+        saving={saving}
       />
 
       {error && <div className="text-error font-body-md">{error}</div>}
