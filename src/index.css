@@ -193,6 +193,15 @@ body {
   overflow-x: hidden;
 }
 
+/* Map tiles in their own compositing layer. A map that lands on a half pixel
+   (a dialog centred in a viewport an odd number of pixels taller than it) drew
+   a light hairline along every row of tile edges; composited, the tiles join
+   cleanly wherever the map sits. Only the tiles: text in the map (popups)
+   keeps its usual antialiasing. */
+.leaflet-tile-container {
+  will-change: transform;
+}
+
 /* Full bleed (the mobile map, #96): the list sheet covers the bottom 7rem
    even at its peek position, so lift Leaflet's own bottom controls (the
    required CARTO / OSM attribution) above it. The extra class out-specifies
