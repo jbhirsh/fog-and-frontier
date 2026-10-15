@@ -314,7 +314,9 @@ export function ActivityDetail({
                 href={directionsHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-xs min-h-11 text-primary-container hover:underline font-medium"
+                // 44px to tap, but the -10px margins keep it to the 24px of
+                // the facts beside it, so the rows below stay evenly spaced.
+                className="inline-flex items-center gap-xs min-h-11 -my-2.5 text-primary-container hover:underline font-medium"
               >
                 <span className="material-symbols-outlined text-icon-md">
                   directions
