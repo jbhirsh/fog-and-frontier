@@ -241,11 +241,13 @@ export function ActivityCard({
       {(completed || actionSlot) && (
         <div className="absolute top-sm right-sm z-10 flex flex-col items-end gap-xs">
           {completed && (
-            <div className="bg-primary-fixed text-primary px-sm py-xs rounded-full flex items-center gap-xs">
+            // The category tag's twin: the same 28px pill and 15px icon, so
+            // the two sit level across the top of the photo.
+            <div className="inline-flex h-7 items-center gap-xs rounded-full bg-primary-fixed px-sm text-primary">
               <span
                 className="material-symbols-outlined"
                 aria-hidden="true"
-                style={{ fontSize: 16 }}
+                style={{ fontSize: 15, marginLeft: glyphBleed('check_circle') }}
               >
                 check_circle
               </span>
