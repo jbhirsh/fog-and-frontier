@@ -170,6 +170,18 @@ describe('AddActivity — edit mode', () => {
     }
   });
 
+  it('draws the edge buttons\' focus rings inside, where the panel can\'t clip them', () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    for (const name of ['Cancel', 'Close']) {
+      expect(screen.getByRole('button', { name })).toHaveClass(
+        'focus-visible:ring-2',
+        'focus-visible:ring-inset',
+      );
+    }
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('-ml-md');
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('-mr-[14.5px]');
+  });
+
   it('skips the AllTrails lookup when the URL is unchanged on save', async () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     const name = screen.getByLabelText('Name');

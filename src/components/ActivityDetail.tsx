@@ -664,7 +664,7 @@ export function ActivityDetail({
               <button
                 type="button"
                 onClick={() => void handleDelete()}
-                className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors"
+                className="-mr-md inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
               >
                 <span
                   className="material-symbols-outlined"

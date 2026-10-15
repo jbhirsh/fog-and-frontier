@@ -263,7 +263,10 @@ export function AddActivity({ onClose, editActivity, onSaved }: Props) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full w-11 h-11 flex items-center justify-center hover:bg-surface-variant transition-colors"
+            // Pulled out by its 10px of padding and the glyph's 4.5px of
+            // empty side, so the × lines up with the fields' right edge; its
+            // focus ring is drawn inside, where the panel can't clip it.
+            className="-mr-[14.5px] rounded-full w-11 h-11 flex items-center justify-center hover:bg-surface-variant transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -760,7 +763,10 @@ function ReviewStep({
           type="button"
           onClick={onBack}
           disabled={saving}
-          className="px-md py-sm rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-50"
+          // A text button: pulled out by its padding so its label, not its
+          // hover fill, starts at the content's edge. Its focus ring is drawn
+          // inside, since outside it would be clipped by the scrolling panel.
+          className="-ml-md px-md py-sm rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
         >
           {mode === 'edit' ? 'Cancel' : 'Back'}
         </button>

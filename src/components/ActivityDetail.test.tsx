@@ -712,6 +712,15 @@ describe('ActivityDetail', () => {
       ).toBeInTheDocument();
     });
 
+    it('draws its focus ring inside, since it sits pulled out to the panel edge', () => {
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+      expect(screen.getByRole('button', { name: /delete activity/i })).toHaveClass(
+        '-mr-md',
+        'focus-visible:ring-2',
+        'focus-visible:ring-inset',
+      );
+    });
+
     it('shows a Delete button on built-in activities too', () => {
       const builtIn = builtInActivity();
       render(<ActivityDetail activity={builtIn} onClose={() => {}} />);
