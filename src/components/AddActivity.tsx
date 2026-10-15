@@ -18,6 +18,7 @@ import { useOwner } from '../lib/useOwner';
 import { fetchUsers } from '../lib/userTrips';
 import { ContributorsField } from './ContributorsField';
 import { lookupAllTrails } from '../lib/alltrails';
+import { REGION_LABELS, sentenceCase } from '../lib/activityLabels';
 import {
   generateActivity,
   type GeneratedFields,
@@ -349,7 +350,7 @@ function FormStep({
           onChange={(e) => onChangeNotes(e.target.value)}
           rows={5}
           placeholder="Anything specific you know about it — links, who recommended it, what you want to do there."
-          className="w-full bg-surface-container-low rounded-md px-sm py-sm border border-outline-variant focus:border-primary focus:outline-none font-mono text-body-md"
+          className={inputCls}
         />
       </Field>
 
@@ -491,11 +492,11 @@ function ReviewStep({
           <select
             value={draft.category}
             onChange={(e) => patch('category', e.target.value as Category)}
-            className={inputCls}
+            className={selectCls}
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {c}
+                {sentenceCase(c)}
               </option>
             ))}
           </select>
@@ -504,11 +505,11 @@ function ReviewStep({
           <select
             value={draft.region}
             onChange={(e) => patch('region', e.target.value as Region)}
-            className={inputCls}
+            className={selectCls}
           >
             {REGIONS.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {REGION_LABELS[r]}
               </option>
             ))}
           </select>
@@ -517,7 +518,7 @@ function ReviewStep({
           <select
             value={draft.duration}
             onChange={(e) => patch('duration', e.target.value as Duration)}
-            className={inputCls}
+            className={selectCls}
           >
             {DURATIONS.map((d) => (
               <option key={d} value={d}>
@@ -546,12 +547,12 @@ function ReviewStep({
                 (e.target.value || undefined) as Difficulty | undefined,
               )
             }
-            className={inputCls}
+            className={selectCls}
           >
             <option value="">—</option>
             {DIFFICULTIES.map((d) => (
               <option key={d} value={d}>
-                {d}
+                {sentenceCase(d)}
               </option>
             ))}
           </select>
@@ -565,14 +566,14 @@ function ReviewStep({
                 (e.target.value || undefined) as ParkType | undefined,
               )
             }
-            className={`${inputCls} capitalize`}
+            className={selectCls}
           >
             {/* The empty option is the sole "not in a park" representation;
                 exclude the literal 'none' so there aren't two ways to say it. */}
             <option value="">— Not in a park —</option>
             {PARK_TYPES.filter((p) => p !== 'none').map((p) => (
-              <option key={p} value={p} className="capitalize">
-                {p}
+              <option key={p} value={p}>
+                {sentenceCase(p)}
               </option>
             ))}
           </select>
@@ -589,7 +590,7 @@ function ReviewStep({
           <select
             value={draft.dogFriendly ? 'yes' : 'no'}
             onChange={(e) => patch('dogFriendly', e.target.value === 'yes')}
-            className={inputCls}
+            className={selectCls}
           >
             <option value="no">No</option>
             <option value="yes">Yes</option>
@@ -602,7 +603,7 @@ function ReviewStep({
             onChange={(e) =>
               patch('costTier', (e.target.value || undefined) as CostTier | undefined)
             }
-            className={inputCls}
+            className={selectCls}
           >
             <option value="">—</option>
             {COST_TIERS.map((tier) => (
@@ -658,7 +659,7 @@ function ReviewStep({
                     (e.target.value || undefined) as PriceRange | undefined,
                   )
                 }
-                className={inputCls}
+                className={selectCls}
               >
                 <option value="">—</option>
                 {PRICE_RANGES.map((p) => (
@@ -801,6 +802,11 @@ function ReviewStep({
 
 const inputCls =
   'w-full bg-surface-container-low rounded-md px-sm py-sm border border-outline-variant focus:border-primary focus:outline-none';
+
+// A select drawn like the text inputs beside it. The native control indents
+// its text ~3.5px further and stands 2px shorter, and its arrow ignores the
+// padding; so it's drawn without one, with the filter pills' caret instead.
+const selectCls = `${inputCls} appearance-none pr-10 select-caret`;
 
 function Field({
   label,

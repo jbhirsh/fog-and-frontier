@@ -137,6 +137,17 @@
   }
 }
 
+/* A select's caret, drawn instead of the native arrow (which ignores the
+   padding): the filter pills' expand_more glyph, 18px, on-surface-variant.
+   Its box sits 9px in, so its ink (4.5px inside the box) mirrors the text's
+   inset on the left. Pair with appearance-none and room on the right. */
+@utility select-caret {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath fill='%2342474e' d='M480-345 240-585l56-56 184 184 184-184 56 56-240 240Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
+  background-position: right 9px center;
+}
+
 @utility px-margin {
   padding-left: max(24px, 5vw);
   padding-right: max(24px, 5vw);

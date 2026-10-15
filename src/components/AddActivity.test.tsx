@@ -138,6 +138,38 @@ describe('AddActivity — edit mode', () => {
     expect(screen.queryByLabelText(/Elevation gain/)).not.toBeInTheDocument();
   });
 
+  it('names the review form\'s options in words, not slugs or CSS capitals', () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    const options = (label: string | RegExp) =>
+      [...screen.getByLabelText<HTMLSelectElement>(label).options].map((o) => o.textContent);
+    expect(options('Category')).toEqual([
+      'Hiking', 'Cycling', 'Water', 'Food', 'Culture', 'Scenic', 'Climbing', 'Camping', 'Other',
+    ]);
+    expect(options('Region')).toEqual([
+      'San Francisco', 'North Bay', 'East Bay', 'South Bay', 'Peninsula',
+      'Central Coast', 'NorCal', 'SoCal', 'Oregon', 'Washington',
+    ]);
+    expect(options('Difficulty')).toEqual(['—', 'Easy', 'Moderate', 'Advanced']);
+    expect(options(/^Park type/)).toEqual([
+      '— Not in a park —', 'National', 'State', 'Regional', 'County', 'City', 'Private',
+    ]);
+    // Nothing is left to CSS capitalize, which capitalises every word.
+    for (const label of ['Category', 'Region', 'Difficulty', /^Park type/]) {
+      expect(screen.getByLabelText(label)).not.toHaveClass('capitalize');
+    }
+  });
+
+  it('draws every select in the review form like the inputs, with the pills\' caret', () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    const selects = screen.getAllByRole('combobox').filter((el) => el.tagName === 'SELECT');
+    expect(selects.map((el) => el.closest('label')?.firstChild?.textContent)).toEqual([
+      'Category', 'Region', 'Duration', 'Difficulty', 'Park type (optional)', 'Dog friendly', 'Cost per person',
+    ]);
+    for (const select of selects) {
+      expect(select).toHaveClass('appearance-none', 'select-caret');
+    }
+  });
+
   it('skips the AllTrails lookup when the URL is unchanged on save', async () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     const name = screen.getByLabelText('Name');
