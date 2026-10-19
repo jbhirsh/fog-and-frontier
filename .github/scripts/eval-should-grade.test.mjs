@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -126,8 +126,25 @@ describe('evaluate', () => {
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
 
+  // Git hands its hooks GIT_DIR, GIT_INDEX_FILE and the like, naming this
+  // repository, and the pre-push hook runs this suite. Left in place they
+  // send every git command here, the script's own included, to this
+  // repository instead of the throwaway ones: `init --bare` once marked it
+  // bare. So no GIT_* variable from outside reaches these tests.
+  const outside = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => name.startsWith('GIT_')),
+  );
+  beforeAll(() => {
+    for (const name of Object.keys(outside)) delete process.env[name];
+  });
+  afterAll(() => {
+    Object.assign(process.env, outside);
+  });
+
   const env = {
-    ...process.env,
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+    ),
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_AUTHOR_NAME: 't',
