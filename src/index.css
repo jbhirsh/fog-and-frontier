@@ -115,6 +115,10 @@
   --animate-scrim-in: scrim-in 180ms ease-out;
   --animate-sheet-in: sheet-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-dialog-in: dialog-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Stepping to the next or previous activity in a list (#64), by its
+     buttons, the arrow keys or a swipe: it slides in from that side. */
+  --animate-step-in-from-right: step-in-from-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-step-in-from-left: step-in-from-left 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
   @keyframes scrim-in {
     from {
@@ -132,6 +136,20 @@
   @keyframes dialog-in {
     from {
       transform: scale(0.96);
+      opacity: 0;
+    }
+  }
+
+  @keyframes step-in-from-right {
+    from {
+      transform: translateX(32px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes step-in-from-left {
+    from {
+      transform: translateX(-32px);
       opacity: 0;
     }
   }

@@ -8,7 +8,7 @@ import {
   useNavigate,
   type InitialEntry,
 } from 'react-router-dom';
-import { act, render, screen, within } from '../test/render';
+import { act, fireEvent, render, screen, waitFor, within } from '../test/render';
 import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 import type { Activity } from '../data/types';
 import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
@@ -342,6 +342,99 @@ describe('ActivityPage (#86)', () => {
       expect(prev()).toHaveFocus();
       await userEvent.click(prev());
       expect(prev()).toHaveFocus();
+    });
+
+    describe('by swipe, on a touch screen', () => {
+      beforeEach(() => {
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(800);
+      });
+
+      // A slow one-finger swipe across most of the panel.
+      function swipe(dx: number, dy: number) {
+        const panel = screen.getByRole('dialog');
+        const at = (x: number, y: number) => ({ touches: [{ clientX: x, clientY: y }] });
+        fireEvent.touchStart(panel, at(200, 200));
+        fireEvent.touchMove(panel, at(200 + dx / 2, 200 + dy / 2));
+        fireEvent.touchMove(panel, at(200 + dx, 200 + dy));
+        fireEvent.touchEnd(panel, { touches: [] });
+      }
+
+      it('steps to the next on a swipe left and back on a swipe right, landing in place', async () => {
+        renderAt(['/'], CATALOG);
+        await openFromList();
+        // Its neighbours wait beside it, out of reach of assistive tech.
+        const next = screen.getByTestId('peek-next');
+        expect(next).toHaveTextContent(muirWoods.name);
+        expect(next).toHaveTextContent('3 of 3');
+        expect(next).toHaveAttribute('aria-hidden', 'true');
+        expect(next).toHaveAttribute('inert');
+        expect(screen.getByTestId('peek-prev')).toHaveTextContent(dogFriendlyTidepools.name);
+        swipe(-300, 0);
+        await waitFor(() => expect(path()).toBe(`/activity/${muirWoods.id}`));
+        // The preview already brought it in: no slide on top.
+        const stepped = screen.getByRole('dialog', { name: muirWoods.name });
+        expect(stepped.className).not.toContain('animate-');
+        // The last in the list: nothing to preview after it.
+        expect(screen.queryByTestId('peek-next')).toBeNull();
+        swipe(300, 0);
+        await waitFor(() => expect(path()).toBe(`/activity/${completedHike.id}`));
+        expect(screen.getByRole('dialog', { name: completedHike.name }).className).not.toContain(
+          'animate-',
+        );
+        // One step deeper each time: close leaves them all.
+        await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+        expect(path()).toBe('/');
+      });
+
+      it('closes on a swipe down from the top', async () => {
+        renderAt(['/'], CATALOG);
+        await openFromList();
+        swipe(0, 400);
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(path()).toBe('/');
+      });
+
+      it("doesn't replay the slide-in, or move focus, on Back or Forward", async () => {
+        renderAt(['/'], CATALOG);
+        await openFromList();
+        await userEvent.click(next());
+        // A nearby pick from there, then Back onto the stepped-to activity.
+        await userEvent.click(
+          within(screen.getByRole('dialog')).getByRole('button', { name: /Test Completed Hike/ }),
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'back' }));
+        const back = screen.getByRole('dialog', { name: muirWoods.name });
+        expect(back.className).not.toContain('animate-step-in');
+        expect(prev()).not.toHaveFocus();
+        // Back past the step, then Forward onto it again.
+        await userEvent.click(screen.getByRole('button', { name: 'back' }));
+        await userEvent.click(screen.getByRole('button', { name: 'forward' }));
+        expect(screen.getByRole('dialog', { name: muirWoods.name }).className).not.toContain(
+          'animate-step-in',
+        );
+        expect(prev()).not.toHaveFocus();
+      });
+
+      it('slides in on a step by button, but not on a nearby pick', async () => {
+        renderAt(['/'], CATALOG);
+        await openFromList();
+        await userEvent.click(prev());
+        expect(screen.getByRole('dialog', { name: dogFriendlyTidepools.name }).className).toContain(
+          'motion-safe:animate-step-in-from-left',
+        );
+        await userEvent.click(next());
+        await userEvent.click(next());
+        expect(screen.getByRole('dialog', { name: muirWoods.name }).className).toContain(
+          'motion-safe:animate-step-in-from-right',
+        );
+        await userEvent.click(
+          within(screen.getByRole('dialog')).getByRole('button', { name: /Test Completed Hike/ }),
+        );
+        expect(screen.getByRole('dialog', { name: completedHike.name }).className).not.toContain(
+          'motion-safe:animate-',
+        );
+      });
     });
 
     it('shows no steps without a list, or for an activity not in it', async () => {
