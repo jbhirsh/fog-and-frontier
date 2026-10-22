@@ -43,6 +43,15 @@ function Catalog() {
       <button type="button" onClick={() => open(completedHike.id, LIST)}>
         open the hike from the list
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          open(muirWoods.id);
+          open(muirWoods.id);
+        }}
+      >
+        open Muir Woods twice
+      </button>
       <label>
         Search <input />
       </label>
@@ -136,6 +145,42 @@ describe('ActivityPage (#86)', () => {
     expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(path()).toBe('/');
+  });
+
+  it('opens another activity after closing one', async () => {
+    // The page below keeps its own location while a detail is open over it,
+    // so closing brings back the very entry it opened from. Opening again
+    // from there must still work.
+    renderAt(['/'], CATALOG);
+    await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+    await userEvent.keyboard('{Escape}');
+    expect(path()).toBe('/');
+    await userEvent.click(screen.getByRole('button', { name: 'open the hike from the list' }));
+    expect(path()).toBe(`/activity/${completedHike.id}`);
+    expect(screen.getByRole('dialog', { name: completedHike.name })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+    expect(path()).toBe(`/activity/${muirWoods.id}`);
+  });
+
+  it('stacks an open from the page behind a detail on it, and closes past both', async () => {
+    // Nothing traps focus in the detail, so a card behind it can be tabbed to.
+    renderAt(['/'], CATALOG);
+    await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+    screen.getByRole('button', { name: 'open the hike from the list' }).focus();
+    await userEvent.keyboard('{Enter}');
+    expect(path()).toBe(`/activity/${completedHike.id}`);
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(path()).toBe('/');
+  });
+
+  it('opens only once from the page below before the first open lands', async () => {
+    renderAt(['/'], CATALOG);
+    await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods twice' }));
+    expect(path()).toBe(`/activity/${muirWoods.id}`);
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(path()).toBe('/');
   });
 
