@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { NavigationType, useLocation, useNavigationType, useParams } from 'react-router-dom';
 import { ActivityDetail } from '../components/ActivityDetail';
 import {
   listPosition,
@@ -10,6 +10,7 @@ import {
   useShowContributor,
 } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
+import type { Activity } from '../data/types';
 
 /**
  * An activity's permalink (#86): the detail for /activity/:id, drawn over the
@@ -36,17 +37,19 @@ export function ActivityPage() {
   // An id no longer in the catalog (deleted since the list was shown) is
   // stepped over rather than onto a dead end.
   const location = useLocation();
-  const [stepped, setStepped] = useState<{ to: string; by: 'prev' | 'next' }>();
+  const [stepped, setStepped] = useState<{ to: string; by: 'prev' | 'next'; swiped: boolean }>();
   const list = readActivityState(location.state)?.list?.filter((listed) =>
     activities.some((a) => a.id === listed),
   );
   const position = listPosition(list, id ?? '');
-  const step = (to: string, by: 'prev' | 'next') => {
-    setStepped({ to, by });
+  const step = (to: string, by: 'prev' | 'next', swiped: boolean) => {
+    setStepped({ to, by, swiped });
     open(to);
   };
-  // Focus follows a step only onto the activity it led to, not a later Back.
-  const cameBy = stepped?.to === id ? stepped?.by : undefined;
+  // Focus and the slide-in follow a step only onto the entry it pushed, not a
+  // later Back or Forward onto it (or onto an entry before it).
+  const navigation = useNavigationType();
+  const arrived = navigation === NavigationType.Push && stepped?.to === id ? stepped : undefined;
 
   const activity = activities.find((a) => a.id === id);
   if (activity) {
@@ -60,7 +63,11 @@ export function ActivityPage() {
         onSelectNearby={(a) => open(a.id)}
         showUploads={!!activity.completed}
         animateIn={activity.id === openedWith}
-        sequence={position ? sequenceOf(position, step, cameBy) : undefined}
+        sequence={
+          position
+            ? sequenceOf(position, activities, step, arrived?.by, arrived?.swiped)
+            : undefined
+        }
         onShowContributor={showContributor}
       />
     );
@@ -86,15 +93,21 @@ export function ActivityPage() {
 
 function sequenceOf(
   { index, total, prev, next }: ListPosition,
-  step: (to: string, by: 'prev' | 'next') => void,
+  activities: readonly Activity[],
+  step: (to: string, by: 'prev' | 'next', swiped: boolean) => void,
   cameBy: 'prev' | 'next' | undefined,
+  swiped: boolean | undefined,
 ) {
   return {
     index,
     total,
-    onPrev: prev ? () => step(prev, 'prev') : undefined,
-    onNext: next ? () => step(next, 'next') : undefined,
+    onPrev: prev ? (how?: 'swipe') => step(prev, 'prev', how === 'swipe') : undefined,
+    onNext: next ? (how?: 'swipe') => step(next, 'next', how === 'swipe') : undefined,
+    // The neighbours, for the previews that ride beside a swipe.
+    prevActivity: activities.find((a) => a.id === prev),
+    nextActivity: activities.find((a) => a.id === next),
     cameBy,
+    swiped: swiped === true,
   };
 }
 
