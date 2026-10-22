@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
-import { ACTIVITY_PATH, backgroundFor } from '../lib/activityRoute';
+import { ACTIVITY_PATH, AddressLocationContext, backgroundFor } from '../lib/activityRoute';
 import { ActivityPage } from '../pages/ActivityPage';
 
 interface Props {
@@ -24,7 +24,9 @@ export function ActivityPermalinkRoutes({
   const background = backgroundFor(location);
   return (
     <>
-      <PageRoutes location={background ?? location}>{children}</PageRoutes>
+      <AddressLocationContext.Provider value={location}>
+        <PageRoutes location={background ?? location}>{children}</PageRoutes>
+      </AddressLocationContext.Provider>
       {background && (
         <Routes>
           <Route path={ACTIVITY_PATH} element={<ActivityPage />} />

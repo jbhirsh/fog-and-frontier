@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { createContext, useCallback, useContext, useLayoutEffect, useRef } from 'react';
 import { matchPath, useLocation, useNavigate, type Location } from 'react-router-dom';
 import { withContributors } from './useCatalogFilters';
 
@@ -95,17 +95,29 @@ export function backgroundFor(location: Location): Location | null {
 }
 
 /**
+ * The location in the address bar, for the page drawn under an open detail.
+ * ActivityPermalinkRoutes renders that page against its background location,
+ * so useLocation() there keeps the key it had before the detail opened, and
+ * closing brings that same key back. A guard keyed on it would never reopen.
+ */
+export const AddressLocationContext = createContext<Location | null>(null);
+
+/**
  * Opens an activity's permalink over the current page. `list` is the browse
  * list it was opened from, in order (#64); from an open detail, the list it
  * was opened with carries over.
  */
 export function useOpenActivity(): (id: string, list?: readonly string[]) => void {
   const navigate = useNavigate();
-  const location = useLocation();
   // Like close, only the first open from an entry counts: the router applies
   // it in a transition, so a second one before it lands (a double click, a
   // quick second step) would push the same entry twice at the same depth,
-  // and close would then stop one short.
+  // and close would then stop one short. It opens from the address bar's
+  // entry, not the page's own location (see AddressLocationContext): that's
+  // the entry the guard must clear on, and an open from behind an open detail
+  // (tabbed to) must stack on that detail, or close would stop on it.
+  const pageLocation = useLocation();
+  const location = useContext(AddressLocationContext) ?? pageLocation;
   const opened = useRef<string | null>(null);
   useLayoutEffect(() => {
     opened.current = null;
