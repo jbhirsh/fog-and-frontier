@@ -77,11 +77,15 @@ interface Props {
    * {@link onSelect}.
    */
   onActivate?: (activity: Activity) => void;
-  /** Id of the activity whose pin should render highlighted (a hovered/focused
-   * card, #94). Larger disc + raised above neighbours; does not open a popup. */
+  /**
+   * Id of the activity whose pin should render highlighted (a hovered/focused
+   * card, #94). Larger disc + raised above neighbours; does not open a popup.
+   */
   highlightedId?: string | null;
-  /** Notified when a pin gains/loses hover (#94): the split view outlines the
-   * matching card. `null` when the pointer leaves the pin. */
+  /**
+   * Notified when a pin gains/loses hover (#94): the split view outlines the
+   * matching card. `null` when the pointer leaves the pin.
+   */
   onPinHoverChange?: (activity: Activity | null) => void;
   /**
    * Called ~400 ms after the map settles from a pan/zoom, with the current

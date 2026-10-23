@@ -139,6 +139,12 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   config, turns off any rule that would argue with it. CI's "Format
   (Prettier)" step fails an unformatted file and the pre-commit hook checks
   the staged ones: run `npm run format`, never hand-align around it.
+- **JSDoc that's written must be right; none is required.**
+  `eslint-plugin-jsdoc` (its TypeScript-flavoured recommended rules, every
+  `require-*` rule off) fails a `@param` naming no parameter, an unknown
+  tag, a malformed block or a type in braces in TypeScript (types live in
+  the code; plain `.js`/`.mjs` may use them). Change the comment with the
+  code it describes.
 - **No `legacy-peer-deps`.** Installs are plain `npm ci`. Resolve a peer conflict (or a security advisory with no upstream fix) with a version bump, or with a narrow `overrides` entry explained in the commit and here. Two of today's, `eslint-plugin-import` and `eslint-plugin-jsx-a11y` → `eslint: $eslint`, exist because neither has a release whose peer range includes ESLint 10. Delete each once it does (or move `import` to `eslint-plugin-import-x`, which already supports 10). The third, `@vercel/cli-config` → `zod: ^4.6.6`, lifts zod past GHSA-mrhx-c7xc-m3w5 (it fails CI's `npm audit`), since every release of `@vercel/cli-config`, which `@vercel/blob` pulls in, pins zod 4.1.11. Delete it once a release pins a fixed zod.
 - **Commit hygiene.** Imperative subject ≤72 chars; body explains _why_; end
   with the `Co-Authored-By:` trailer. One logical change per commit; squash

@@ -38,8 +38,10 @@ export function gqlErrorInfo(error: unknown): GqlErrorInfo {
   };
 }
 
-/** REST discriminator (`extensions.appCode`) for switch-on-code flows like
- * add-to-trip (trip_past vs duplicate). Null for network errors / no appCode. */
+/**
+ * REST discriminator (`extensions.appCode`) for switch-on-code flows like
+ * add-to-trip (trip_past vs duplicate). Null for network errors / no appCode.
+ */
 export function appCodeOf(error: unknown): string | null {
   return gqlErrorInfo(error).appCode;
 }
