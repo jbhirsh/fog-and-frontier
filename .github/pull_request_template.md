@@ -6,7 +6,10 @@
 UI changes need before/after visuals; the "PR visuals" check fails without
 them. Use screenshots for how things look, and a GIF (or a video dragged into
 this editor) for how things move or respond: drag, animation, opening and
-closing, scrolling, a multi-step flow.
+closing, scrolling, a multi-step flow. Show the app as production does: real
+photos, not the visual tests' blanks. `npm run gif -- <scenario.ts> --dir <PR>`
+records local builds of main and this branch, reading production's data, and
+prints the table below.
 
 | Before (`main`) | After |
 |---|---|

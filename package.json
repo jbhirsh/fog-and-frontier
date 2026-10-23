@@ -27,6 +27,7 @@
     "db:seed-preview": "node scripts/seed-preview-db.mjs",
     "db:snapshot": "node scripts/snapshot-prod-db.mjs",
     "links:check": "node scripts/check-links.mjs",
+    "gif": "node --experimental-strip-types scripts/pr-gif-cli.ts",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "eval": "TZ=America/Los_Angeles tsx eval/run-eval.ts"

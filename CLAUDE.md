@@ -18,6 +18,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
 - `npm run test:visual` — Playwright visual regression.
 - `npm run db:snapshot` / `db:seed-preview` — Turso helpers in `scripts/`. The catalog lives only in Turso; there is no static seed.
+- `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/pr-gif-cli.ts`; below, "Show UI changes in the PR").
 - `npm run links:check` — audit every outbound link in the live catalog (#68): dead links fail it, bot-blocked ones (AllTrails) are listed for checking by hand. Runs weekly in `links.yml`.
 
 ## Layout
@@ -156,6 +157,21 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   `PR visuals` check (`.github/scripts/pr-visuals.mjs`) fails a UI change with
   no picture unless "No visible UI change" is ticked; Claude Review asks for a
   GIF when motion changes.
+  Pictures show the app exactly as production does: the real catalog, photos,
+  fonts and map, never the visual tests' stub (its fixtures have blank covers
+  and it blanks every outside image). So take them from local production
+  builds of `main` ("before") and the branch ("after"), never the dev server,
+  with their reads sent to production's API and their photos through
+  production's image CDN; owner-only screens the same way, signed in through
+  the test flags. Record GIFs with `npm run gif -- <scenario.ts> --dir <PR
+  number>` (`scripts/pr-gif-cli.ts`): it builds both, records the scenario
+  (`scripts/gif-scenarios/`) against each with the pointer and keys drawn in,
+  at the speed the page moved, commits the GIFs to `screenshots` and prints
+  the Before/After table. `scripts/pr-gif.ts`'s header has the
+  rules for writing a scenario: its `glide`, `click`, `drag` and `scroll`,
+  which go by the clock, with pauses, never `locator.click()` or a bare
+  `page.mouse`; the pointer kept in frame; ending on a pause. Check a few
+  frames, and the long ones, before publishing.
 - **Review before raising a PR.** Review the full diff (e.g. a review subagent
   reading it) before opening the PR — review gates PR creation, rather than
   opening first and reviewing after.
