@@ -281,7 +281,7 @@ function git(cwd: string, ...args: string[]): string {
  * Runs `vite build` in `cwd` into `outDir`, as Vercel builds production
  * (VERCEL_ENV), so covers ask for the image CDN as they do there.
  */
-function build(root: string, cwd: string, outDir: string, mode: string) {
+export function build(root: string, cwd: string, outDir: string, mode: string) {
   console.log(`pr-gif: building ${cwd} (${mode})`);
   execFileSync(
     process.execPath,
@@ -307,7 +307,7 @@ function build(root: string, cwd: string, outDir: string, mode: string) {
  * answers. On localhost: tests/visual/helpers.ts's mockApis lets anything
  * that isn't through to the network.
  */
-async function serve(
+export async function serve(
   root: string,
   cwd: string,
   outDir: string,
@@ -345,7 +345,7 @@ async function serve(
 }
 
 /** Stops the servers this started, by their PIDs, and waits for them to go. */
-async function stopServers(servers: ChildProcess[]) {
+export async function stopServers(servers: ChildProcess[]) {
   await Promise.all(
     servers.map(
       (server) =>

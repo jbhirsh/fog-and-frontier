@@ -196,7 +196,27 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   separate on `main`), not as a stack of PRs. Once it merges, restart the same
   branch from `main` for the next change. Don't push helper branches: the
   visual workflow commits regenerated baselines onto the PR's own branch, and
-  screenshots share one branch (below).
+  screenshots share one branch (below). The one other branch is the bot's,
+  `bot/readme-screenshots` (next).
+- **The README's screenshots keep themselves current.** On a push to
+  `main` where the UI (`src/` outside tests, `index.html`, `public/`)
+  changed since the workflow's last finished run, `readme-screenshots.yml`
+  retakes `docs/screenshots/` with `scripts/readme-screenshots.ts`: a local
+  production build reading production's catalog and photos, as
+  `npm run gif` records (so the map shows OpenStreetMap's tiles, not
+  CARTO's, whose key only Vercel has). A file is replaced only when over 0.5% of its
+  pixels changed, and any that were open one PR from
+  `bot/readme-screenshots`, set to squash-merge itself once its checks
+  pass; if none changed, an open bot PR is closed as stale, and pushes that
+  don't touch the UI bring it up to date with `main`. Capturing (npm, the
+  build, Playwright) runs in a job with a read-only token; only the job
+  that pushes holds `BOT_PR_TOKEN`, and it runs no npm. Add a screenshot to
+  the README and to `SHOTS` together (a test holds them equal).
+  `BOT_PR_TOKEN` is a fine-grained token with Contents and Pull requests
+  write on this repo: GitHub runs no checks on a PR the Actions token
+  makes, so without it the PR never merges, and the Actions token works at
+  all only if Settings → Actions → General allows Actions to create pull
+  requests.
 - **Never** `git add -A`/`git add .` (stage files explicitly), modify a test to
   make it pass (fix the implementation instead), install packages outside the
   project root, or use `--no-verify`.

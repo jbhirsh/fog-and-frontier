@@ -1,0 +1,203 @@
+# README screenshots: after a change to the UI merges, retake the README's
+# screenshots (docs/screenshots/) from a local production build reading
+# production's catalog (scripts/readme-screenshots.ts) and, if any changed,
+# open (or refresh) one PR from bot/readme-screenshots with them, set to
+# merge itself once its checks pass. Not a PR gate, and main only: a run on
+# any other branch would build the bot's PR from that branch.
+#
+# Every push to main runs it. It retakes the screenshots when the UI (src/
+# outside tests, index.html, public/, the capture scripts) changed since the
+# last run that finished, so a UI push whose run a later push cancelled is
+# still caught. When the UI changed but no screenshot did, an open bot PR's
+# pictures are stale, so it's closed. When the UI didn't change, an open bot
+# PR is brought up to date with main, so a branch rule that requires it never
+# leaves the PR waiting.
+#
+# Two jobs, so the token that can push never meets npm: `capture` installs
+# and builds with a read-only token and no stored credentials, and hands the
+# new PNGs on as an artifact; `publish` runs only git and gh. BOT_PR_TOKEN,
+# a fine-grained token with Contents and Pull requests write on this
+# repository, opens the PR: GitHub runs no workflows for a push or PR made
+# with the Actions token, so without it the PR opens but its required checks
+# never report and it can't merge. With no BOT_PR_TOKEN the Actions token is
+# used, which needs Settings → Actions → General → "Allow GitHub Actions to
+# create and approve pull requests".
+name: README screenshots
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# The latest merge wins: an older run's screenshots are already out of date,
+# and the next run covers its changes (it diffs from the last finished run).
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  BRANCH: bot/readme-screenshots
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  capture:
+    name: Retake the screenshots
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ui: ${{ steps.ui.outputs.changed }}
+      changed: ${{ steps.capture.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Did the UI change since the last finished run?
+        id: ui
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow readme-screenshots.yml \
+            --branch main --status success --limit 1 --json headSha --jq '.[0].headSha // empty')
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -z "$last" ] \
+            || ! git cat-file -e "$last^{commit}" 2>/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$last" "$GITHUB_SHA")
+          ui=$(grep -E '^(src/|index\.html$|public/|scripts/readme-screenshots\.ts$|scripts/pr-gif(-cli)?\.ts$)' <<< "$files" \
+            | grep -vE '\.test\.tsx?$|^src/test/' || true)
+          echo "changed=$([ -n "$ui" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          printf 'UI files changed since %s:\n%s\n' "${last::7}" "${ui:-(none)}"
+
+      - uses: actions/setup-node@v7
+        if: steps.ui.outputs.changed == 'true'
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - if: steps.ui.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Install Chromium
+        if: steps.ui.outputs.changed == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Retake the screenshots
+        id: capture
+        if: steps.ui.outputs.changed == 'true'
+        run: node --experimental-strip-types scripts/readme-screenshots.ts capture
+
+      # The PR body names the bot's commit, which publish makes: __HEAD__
+      # stands in for it.
+      - name: Write the PR body
+        if: steps.capture.outputs.changed != ''
+        env:
+          CHANGED: ${{ steps.capture.outputs.changed }}
+        run: |
+          read -ra files <<< "$CHANGED"
+          mkdir -p out
+          cp -- "${files[@]/#/docs/screenshots/}" out/
+          node --experimental-strip-types scripts/readme-screenshots.ts pr-body \
+            "$GITHUB_SHA" __HEAD__ "${files[@]}" > out/pr-body.md
+
+      - uses: actions/upload-artifact@v7
+        if: steps.capture.outputs.changed != ''
+        with:
+          name: readme-screenshots
+          path: out
+          retention-days: 7
+
+  publish:
+    name: Open, refresh or close the PR
+    needs: capture
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.BOT_PR_TOKEN || github.token }}
+      UI: ${{ needs.capture.outputs.ui }}
+      CHANGED: ${{ needs.capture.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.BOT_PR_TOKEN || github.token }}
+
+      - uses: actions/download-artifact@v8
+        if: env.CHANGED != ''
+        with:
+          name: readme-screenshots
+          path: ${{ runner.temp }}/shots
+
+      - name: Find the open bot PR
+        id: pr
+        run: |
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+
+      # Nothing to retake: keep an open bot PR current with main.
+      - name: Bring the open bot PR up to date
+        if: env.UI != 'true' && steps.pr.outputs.number != ''
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          if ! out=$(gh pr update-branch "$PR" --rebase 2>&1); then
+            echo "$out"
+            grep -qi 'already up.to.date' <<< "$out" || exit 1
+          fi
+          echo "$out"
+
+      # The UI changed and every screenshot still matches: the open PR's
+      # pictures are of an older UI.
+      - name: Close the stale bot PR
+        if: env.UI == 'true' && env.CHANGED == '' && steps.pr.outputs.number != ''
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          gh pr close "$PR" --delete-branch \
+            --comment "The screenshots match the UI at ${GITHUB_SHA::7} again, so these are out of date."
+
+      # A fresh branch from this commit each time, so the PR is never behind
+      # main when it's (re)opened.
+      - name: Open or refresh the PR
+        if: env.CHANGED != ''
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          SHOTS: ${{ runner.temp }}/shots
+        run: |
+          read -ra files <<< "$CHANGED"
+          git switch -C "$BRANCH"
+          for file in "${files[@]}"; do cp -- "$SHOTS/$file" "docs/screenshots/$file"; done
+          git add -- "${files[@]/#/docs/screenshots/}"
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m 'Refresh the README screenshots' \
+            -m "The UI changed at ${GITHUB_SHA::7}, so scripts/readme-screenshots.ts retook the README's screenshots from a local production build reading production's catalog: ${files[*]}."
+          git push --force origin "$BRANCH"
+          sed "s/__HEAD__/$(git rev-parse HEAD)/g" "$SHOTS/pr-body.md" > "$RUNNER_TEMP/pr-body.md"
+          pr="$PR"
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/pr-body.md"
+          else
+            gh pr create --base main --head "$BRANCH" \
+              --title 'Refresh the README screenshots' --body-file "$RUNNER_TEMP/pr-body.md"
+            pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          fi
+          # Squash, as Dependabot's PRs merge (dependabot-merge.yml).
+          gh pr merge "$pr" --auto --squash
