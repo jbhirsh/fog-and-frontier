@@ -36,6 +36,19 @@ export default defineConfig({
       testMatch: /pages\.desktop\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
+    // The same desktop pages in Firefox and Safari's engine, the free stand-in
+    // for a cross-browser service: layout that only one engine gets wrong
+    // shows up as a diff against that engine's own baselines.
+    {
+      name: 'desktop-firefox',
+      testMatch: /pages\.desktop\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      name: 'desktop-webkit',
+      testMatch: /pages\.desktop\.spec\.ts/,
+      use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } },
+    },
     {
       name: 'mobile',
       testMatch: /pages\.mobile\.spec\.ts/,
