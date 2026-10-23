@@ -277,4 +277,72 @@ describe('PendingSuggestions (#73)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Accept Lands End' }));
     expect(anyway).toBeDisabled();
   });
+
+  describe('shown on request (#259)', () => {
+    let scroll: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      // jsdom has no scrollIntoView.
+      scroll = vi.fn();
+      Object.defineProperty(Element.prototype, 'scrollIntoView', {
+        value: scroll,
+        writable: true,
+        configurable: true,
+      });
+    });
+    afterEach(() => {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    });
+
+    it('does nothing until asked', () => {
+      const onRevealed = vi.fn();
+      render(<PendingSuggestions suggestions={[FF]} onRevealed={onRevealed} />);
+      expect(scroll).not.toHaveBeenCalled();
+      expect(screen.getByRole('heading', { name: /Waiting for review/ })).not.toHaveFocus();
+      expect(onRevealed).not.toHaveBeenCalled();
+    });
+
+    it('unfolds, scrolls into view and takes focus, then says it has', async () => {
+      const onRevealed = vi.fn();
+      const { rerender } = render(<PendingSuggestions suggestions={[FF]} onRevealed={onRevealed} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Waiting for review 1' }));
+      expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+
+      rerender(<PendingSuggestions suggestions={[FF]} reveal onRevealed={onRevealed} />);
+      expect(screen.getByRole('button', { name: 'Waiting for review 1' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+      expect(screen.getByRole('listitem')).toHaveTextContent('Fort Funston');
+      const section = screen.getByRole('region', { name: /Waiting for review/ });
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(scroll.mock.contexts[0]).toBe(section);
+      expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+      expect(screen.getByRole('heading', { name: /Waiting for review/ })).toHaveFocus();
+      expect(onRevealed).toHaveBeenCalledTimes(1);
+    });
+
+    it('copes with being asked when nothing is waiting', () => {
+      const onRevealed = vi.fn();
+      const { container } = render(
+        <PendingSuggestions suggestions={[]} reveal onRevealed={onRevealed} />,
+      );
+      expect(container).toBeEmptyDOMElement();
+      expect(scroll).not.toHaveBeenCalled();
+      expect(onRevealed).toHaveBeenCalledTimes(1);
+    });
+
+    it("doesn't let focus scroll the page as well", () => {
+      const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+      render(<PendingSuggestions suggestions={[FF]} reveal />);
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    });
+
+    it('clears the way below the header and the sticky toolbar', () => {
+      render(<PendingSuggestions suggestions={[FF]} />);
+      expect(screen.getByRole('region', { name: /Waiting for review/ })).toHaveClass(
+        'scroll-mt-40',
+        'md:scroll-mt-52',
+      );
+    });
+  });
 });

@@ -231,6 +231,19 @@ export function CuratedAdventures() {
   const openActivity = useOpenActivity();
   // The owners' review queue (#73); nothing is asked for anyone else.
   const pending = usePendingSuggestions(isOwner);
+  // The toolbar's Review button (#259) asks the queue to show itself. Map
+  // has no list header to hold the queue, so it first switches to the view
+  // that does: Split on a desktop, keeping the map; the list on a phone,
+  // dropping the map's area filter as Hide map does.
+  const [revealQueue, setRevealQueue] = useState(false);
+  const queueRevealed = useCallback(() => setRevealQueue(false), []);
+  function showQueue() {
+    if (view === 'map') {
+      if (!isLg) clearBounds();
+      setView(isLg ? 'split' : 'list');
+    }
+    setRevealQueue(true);
+  }
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
   const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
@@ -510,7 +523,14 @@ export function CuratedAdventures() {
           distance from {origin.label}
         </p>
       </div>
-      {isOwner && <PendingSuggestions suggestions={pending} onOpenActivity={openActivity} />}
+      {isOwner && (
+        <PendingSuggestions
+          suggestions={pending}
+          onOpenActivity={openActivity}
+          reveal={revealQueue}
+          onRevealed={queueRevealed}
+        />
+      )}
       {/* Bounds indicator (#95): why the list narrowed, with a way to undo. */}
       {bounds && (
         <div
@@ -547,31 +567,57 @@ export function CuratedAdventures() {
     </div>
   );
 
+  // How many suggestions wait for the owners (#259), in every view: the
+  // queue itself only shows above the list. Tapping it goes there.
+  const waiting = pending.length;
+  const reviewButton = isOwner && waiting > 0 && (
+    <button
+      type="button"
+      onClick={showQueue}
+      aria-label={`Review ${waiting} suggestion${waiting === 1 ? '' : 's'}`}
+      // Ends in its count's circle, so the right padding matches the space
+      // above and below it.
+      className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low pl-sm pr-base text-body-sm text-on-surface-variant hover:bg-surface-variant transition-colors whitespace-nowrap"
+    >
+      Review
+      <span
+        aria-hidden="true"
+        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] leading-none tabular-nums text-on-primary"
+      >
+        {waiting}
+      </span>
+    </button>
+  );
+
   // Header of the mobile map's list sheet (#96). It stays visible at `peek`, so
   // it carries the way back to the list and the same count / bounds summary
   // the list header shows. The exit reads "Hide map" rather than "List"
   // because the sheet already is the list.
   const mobileSheetHeader = (
     <div className="flex items-center justify-between gap-sm">
-      <button
-        type="button"
-        // Drop the map-driven viewport filter on the way out: the full-width
-        // list shouldn't stay narrowed to a map the user can no longer see.
-        onClick={() => {
-          clearBounds();
-          setView('list');
-        }}
-        className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
-      >
-        <span
-          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-          style={{ fontSize: 18, width: 18, height: 18 }}
-          aria-hidden="true"
+      {/* The way out, and beside it the owners' review count (#259). */}
+      <div className="flex shrink-0 items-center gap-xs">
+        <button
+          type="button"
+          // Drop the map-driven viewport filter on the way out: the full-width
+          // list shouldn't stay narrowed to a map the user can no longer see.
+          onClick={() => {
+            clearBounds();
+            setView('list');
+          }}
+          className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
         >
-          close
-        </span>
-        Hide map
-      </button>
+          <span
+            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            style={{ fontSize: 18, width: 18, height: 18 }}
+            aria-hidden="true"
+          >
+            close
+          </span>
+          Hide map
+        </button>
+        {reviewButton}
+      </div>
       <div
         role="status"
         aria-live="polite"
@@ -782,6 +828,7 @@ export function CuratedAdventures() {
               below it, a floating "Show map" button (below) opens the
               full-screen map and the sheet's "Hide map" closes it (#96). */}
           {isLg && <ViewModeToggle value={view} onChange={setView} />}
+          {reviewButton}
           {isSignedIn && (
             <button
               type="button"

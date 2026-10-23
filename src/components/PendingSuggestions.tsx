@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { authorLabel, formatReviewDate } from '../lib/activityReviews';
 import { gqlErrorInfo } from '../lib/gqlError';
 import { sentenceCase } from '../lib/activityLabels';
@@ -14,6 +14,12 @@ interface Props {
   suggestions: readonly PendingSuggestion[];
   /** Opens an activity's detail; offered once a suggestion joins the catalog. */
   onOpenActivity?: (id: string) => void;
+  /**
+   * Asked for by the toolbar's Review button (#259): unfold the queue, scroll
+   * it into view and move focus to it, then say so with `onRevealed`.
+   */
+  reveal?: boolean;
+  onRevealed?: () => void;
 }
 
 type Outcome = { text: string; openId?: string };
@@ -26,10 +32,20 @@ function without(record: Record<string, string>, key: string): Record<string, st
 // signed-in account suggested, with who suggested it, to accept into the
 // catalog (credited to them) or reject. Owner-only, like the server's
 // pendingSuggestions; renders nothing until something is waiting.
-export function PendingSuggestions({ suggestions, onOpenActivity }: Props) {
+export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onRevealed }: Props) {
   const headingId = useId();
+  const section = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState(true);
+  // Handled once: the request is cleared through onRevealed, so a later
+  // remount (switching views and back) doesn't scroll here again.
+  useEffect(() => {
+    if (!reveal) return;
+    setOpen(true);
+    section.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    heading.current?.focus({ preventScroll: true });
+    onRevealed?.();
+  }, [reveal, onRevealed]);
   const [busy, setBusy] = useState<string | null>(null);
   // Per suggestion: a look-alike the server found, or why it failed.
   const [duplicateOf, setDuplicateOf] = useState<Record<string, string>>({});
@@ -94,8 +110,12 @@ export function PendingSuggestions({ suggestions, onOpenActivity }: Props) {
   const button = 'min-h-11 rounded-full px-md font-body-sm text-body-sm disabled:opacity-50';
   return (
     <section
+      ref={section}
       aria-labelledby={headingId}
-      className="rounded-xl border border-outline-variant/40 bg-surface-container-low p-sm space-y-sm"
+      // Scrolled to just below the sticky app header (147px tall on a
+      // phone, 81px from md up), and from md up below List's sticky toolbar
+      // too (up to 110px; Split's doesn't stick, so it gets room to spare).
+      className="scroll-mt-40 md:scroll-mt-52 rounded-xl border border-outline-variant/40 bg-surface-container-low p-sm space-y-sm"
     >
       <h2
         id={headingId}
