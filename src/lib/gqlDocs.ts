@@ -60,6 +60,41 @@ export const CHECK_DUPLICATE_QUERY = graphql(`
   }
 `);
 
+// The places in a shared Instagram post or reel (#6).
+export const FIND_SHARED_PLACES = graphql(`
+  mutation FindSharedPlaces($url: String!, $hint: String) {
+    findSharedPlaces(url: $url, hint: $hint) {
+      post {
+        url
+        author
+        caption
+        imageUrl
+        isVideo
+      }
+      places {
+        name
+        city
+        lat
+        lng
+        detail
+        source
+        saved {
+          id
+          name
+          city
+          distanceMeters
+          confidence
+        }
+      }
+      read {
+        caption
+        video
+        geotag
+      }
+    }
+  }
+`);
+
 export const SUGGEST_TRIP_ACTIVITIES = graphql(`
   mutation SuggestTripActivities($input: SuggestTripActivitiesInput!) {
     suggestTripActivities(input: $input) {

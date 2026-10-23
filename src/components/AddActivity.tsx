@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -46,6 +46,9 @@ interface Props {
   // AllTrails refresh (an owner-only call) and no crediting: whoever suggests
   // it is credited when it's accepted.
   suggest?: boolean;
+  // A place picked from a shared Instagram post (#6): the form starts with
+  // its title and notes, and drafts it straight away.
+  seed?: { title: string; notes: string };
 }
 
 const CATEGORIES: Category[] = [
@@ -140,14 +143,15 @@ export function AddActivity({
   onSaved,
   onOpenActivity,
   suggest = false,
+  seed,
 }: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const mode: 'create' | 'edit' = editActivity ? 'edit' : 'create';
   const [step, setStep] = useState<'form' | 'generating' | 'review' | 'sent'>(
-    editActivity ? 'review' : 'form',
+    editActivity ? 'review' : seed?.title ? 'generating' : 'form',
   );
-  const [title, setTitle] = useState('');
-  const [notes, setNotes] = useState('');
+  const [title, setTitle] = useState(seed?.title ?? '');
+  const [notes, setNotes] = useState(seed?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
   // Today's AI drafts are used up (#260): the form leads to filling the
   // details in by hand instead of a dead end.
@@ -250,6 +254,16 @@ export function AddActivity({
       setStep('form');
     }
   }
+
+  // A seeded place (#6) is drafted as the dialog opens, once: on the next
+  // tick, which a remount in development cancels.
+  const draftSeed = useEffectEvent(() => void generate());
+  const seeded = Boolean(seed?.title);
+  useEffect(() => {
+    if (!seeded) return;
+    const start = setTimeout(draftSeed, 0);
+    return () => clearTimeout(start);
+  }, [seeded]);
 
   // A suggestion filled in by hand (#260), from the title and notes so far:
   // no draft is spent, and nothing is guessed. Its menus start on "Choose"

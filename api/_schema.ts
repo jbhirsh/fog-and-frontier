@@ -298,6 +298,31 @@ export const typeDefs = /* GraphQL */ `
     distanceMeters: Int!
     confidence: DuplicateConfidence!
   }
+
+  "Where in a shared post a place was found (#6): its caption, text on screen, speech in the video, its geotag, its picture, or the user's hint."
+  enum SharedPlaceSource { caption on_screen spoken geotag picture hint }
+  type SharedPlace {
+    name: String!
+    city: String!
+    lat: Float!
+    lng: Float!
+    "What the post says about it, in a line."
+    detail: String
+    source: SharedPlaceSource!
+    "A saved activity it looks like (#17), offered instead of adding it again."
+    saved: DuplicateMatch
+  }
+  type SharedPost {
+    url: String!
+    author: String
+    caption: String
+    "Instagram's link to its picture; it expires within days, so it's only shown, never saved."
+    imageUrl: String
+    isVideo: Boolean
+  }
+  "What could be read of the post, for the page to say what it couldn't see."
+  type SharedRead { caption: Boolean!  video: Boolean!  geotag: Boolean! }
+  type SharedPlacesPayload { post: SharedPost!  places: [SharedPlace!]!  read: SharedRead! }
   "Author is always the authenticated caller — never taken from input (#184)."
   input SaveActivityReviewInput { activityId: ID!  rating: Int  note: String }
   input DeleteActivityReviewInput { activityId: ID! }
@@ -422,6 +447,8 @@ export const typeDefs = /* GraphQL */ `
     suggestActivity(input: SuggestActivityInput!): SuggestActivityPayload!
     "Owner-only (#73): the suggestion joins the catalog, crediting its suggester. allowDuplicate accepts it even when it looks like one already saved (#17)."
     acceptSuggestion(id: ID!, allowDuplicate: Boolean): AcceptSuggestionPayload!
+    "Owner-only (#6): the places in a shared Instagram post or reel, found by Gemini from its caption, picture, video and geotag."
+    findSharedPlaces(url: String!, hint: String): SharedPlacesPayload!
     "Owner-only (#73): the suggestion is marked rejected and leaves the queue."
     rejectSuggestion(id: ID!): RejectSuggestionPayload!
     "Owner-only paid Gemini call (#78): catalog activities that fit a free-form request, best first."

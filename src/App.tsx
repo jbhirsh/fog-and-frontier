@@ -10,6 +10,7 @@ import { Explore } from './pages/Explore';
 import { Trips } from './pages/Trips';
 import { NewTrip } from './pages/NewTrip';
 import { TripDetail } from './pages/TripDetail';
+import { SharePage } from './pages/SharePage';
 import { Sentry } from './lib/sentry';
 import { ACTIVITY_PATH } from './lib/activityRoute';
 
@@ -61,6 +62,10 @@ export default function App() {
               <Route path="/trips" element={<Trips />} />
               <Route path="/trips/new" element={<NewTrip />} />
               <Route path="/trips/:id" element={<TripDetail />} />
+              {/* An Instagram post or reel shared to the app (#6): from the
+                  iPhone Shortcut, Android's share sheet (the manifest's
+                  share_target) or a pasted link. */}
+              <Route path="/share" element={<SharePage />} />
               {/* Never rendered here (an activity draws over the page below
                   it, in ActivityPermalinkRoutes), but it gives Sentry, which
                   matches the real URL against these routes, a name for it. */}

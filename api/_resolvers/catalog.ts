@@ -155,7 +155,7 @@ async function resolveContributors(
 }
 
 // The catalog as places to match a new activity against (#17).
-async function catalogPlaces(): Promise<CatalogPlace[]> {
+export async function catalogPlaces(): Promise<CatalogPlace[]> {
   return (await catalogActivities()).map((a) => {
     const location = a.location as { city: string; coords: { lat: number; lng: number } };
     return {

@@ -1302,6 +1302,16 @@ describe('Gemini ops', () => {
     );
   }
 
+  it('findSharedPlaces (#6): owners only, and only for an Instagram link', async () => {
+    const FIND = 'mutation($u: String!){ findSharedPlaces(url: $u){ places { name } read { caption } } }';
+    const reel = { u: 'https://www.instagram.com/reel/Ddl9QKSv0D7/' };
+    expect(code(await run(FIND, reel))).toBe('UNAUTHENTICATED');
+    expect(code(await run(FIND, reel, EDITOR))).toBe('FORBIDDEN');
+    const r = await run(FIND, { u: 'https://example.com/reel/Ddl9QKSv0D7/' }, OWNER);
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe("That isn't a link to an Instagram post or reel");
+  });
+
   it('generateActivity: anon → UNAUTHENTICATED', async () => {
     setup();
     const r = await run(DRAFT, { i: { title: 'Castle Rock' } });

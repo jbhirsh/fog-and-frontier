@@ -9,6 +9,7 @@ import { membershipMutation, membershipQuery } from './membership.js';
 import { reviewsMutation, reviewsQuery } from './reviews.js';
 import { photosMutation, photosQuery } from './photos.js';
 import { suggestionsMutation, suggestionsQuery } from './suggestions.js';
+import { shareMutation } from './share.js';
 
 // Single resolver map implementing api/_schema.ts. Scalars + Query + Mutation
 // are assembled from the per-domain resolver modules. Other types use
@@ -35,6 +36,7 @@ export const resolvers = {
     ...photosMutation,
     ...suggestionsMutation,
     ...geminiMutation,
+    ...shareMutation,
     ...tripsMutation,
     ...tripActivitiesMutation,
     ...votingMutation,

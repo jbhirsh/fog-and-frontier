@@ -1073,3 +1073,42 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     expect(suggestSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('AddActivity — seeded from a shared post (#6)', () => {
+  const generated: GeneratedFields = {
+    name: 'Carson Falls',
+    shortDescription: 'Tiered falls',
+    category: 'hiking',
+    region: 'north-bay',
+    city: 'Fairfax',
+    lat: 37.98,
+    lng: -122.62,
+    duration: 'Half Day',
+  };
+  const seed = { title: 'Carson Falls, Fairfax', notes: 'From an Instagram reel: https://www.instagram.com/reel/x/' };
+
+  it('drafts the place as it opens, once, from the seeded title and notes', async () => {
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} seed={seed} />);
+    // Straight to drafting: no form to fill in first.
+    expect(screen.queryByRole('button', { name: /Generate/ })).not.toBeInTheDocument();
+    await screen.findByRole('button', { name: /Save activity/ });
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    expect(generateSpy).toHaveBeenCalledWith(seed.title, seed.notes);
+  });
+
+  it('opens on the form, with the notes kept, for a seed with no place yet', async () => {
+    render(<AddActivity onClose={() => {}} seed={{ title: '', notes: seed.notes }} />);
+    expect(screen.getByLabelText('Title')).toHaveValue('');
+    expect(screen.getByLabelText('Notes / links (optional)')).toHaveValue(seed.notes);
+    await act(() => new Promise((r) => setTimeout(r, 10)));
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the form, seeded, when the draft fails', async () => {
+    generateSpy.mockRejectedValue(new Error('Gemini is down'));
+    render(<AddActivity onClose={() => {}} seed={seed} />);
+    expect(await screen.findByText('Gemini is down')).toBeInTheDocument();
+    expect(screen.getByLabelText('Title')).toHaveValue(seed.title);
+  });
+});

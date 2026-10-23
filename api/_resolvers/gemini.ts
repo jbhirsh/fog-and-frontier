@@ -33,7 +33,7 @@ const HOME_CITY = HOME_BASE.split(',')[0];
 // schema-shaped JSON. Trip suggestions alone search nothing: they only choose
 // from the catalog they're handed. Exported so the eval harness reports the model it graded.
 export const MODEL = 'gemini-3.8-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+export const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 const ROUTE = '/api/graphql';
 
 // Google Search for facts, URL context to read the pages a prompt names.
@@ -42,7 +42,7 @@ const GROUNDING_TOOLS = [{ googleSearch: {} }, { urlContext: {} }];
 // No temperature: from Gemini 3.6 on, Google ignores temperature/topP/topK
 // (later models will reject them), so effort is set with a thinking level.
 // Structured output alongside tools is a Gemini 3 preview feature.
-function jsonConfig(schema: unknown, thinkingLevel: 'low' | 'medium') {
+export function jsonConfig(schema: unknown, thinkingLevel: 'low' | 'medium') {
   return {
     responseMimeType: 'application/json',
     responseJsonSchema: schema,
@@ -55,7 +55,7 @@ type GeminiPart = { text?: string; thought?: boolean };
 // The answer's text. A grounded reply can arrive in more than one part, and a
 // thinking model may add thought parts, so join the text of every part that
 // isn't a thought.
-function responseText(data: {
+export function responseText(data: {
   candidates?: { content?: { parts?: GeminiPart[] } }[];
 }): string | undefined {
   const text = (data.candidates?.[0]?.content?.parts ?? [])

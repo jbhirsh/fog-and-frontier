@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { logServerError } from './_log.js';
+import { logEvent, logServerError } from './_log.js';
 
 // Type-safe shim: capture console.error calls into a string[] we own,
 // instead of poking at `vi.spyOn(...).mock.calls` which lints as `any`.
@@ -120,5 +120,34 @@ describe('logServerError', () => {
     });
     expect(cap.lines[0]).not.toContain('AIzaSy-fake-test-key-do-not-use');
     vi.unstubAllEnvs();
+  });
+});
+
+describe('logEvent', () => {
+  it('emits a single-line JSON info entry with the event and its fields', () => {
+    const lines: string[] = [];
+    const original = console.info;
+    console.info = (...args: unknown[]) => {
+      lines.push(args.map(String).join(' '));
+    };
+    try {
+      logEvent('share.read', { embed: 'ok', page: 'HTTP 429', places: 3 });
+      logEvent('bare');
+    } finally {
+      console.info = original;
+    }
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).not.toContain('\n');
+    const entry = JSON.parse(lines[0]) as Record<string, unknown>;
+    expect(entry).toMatchObject({
+      level: 'info',
+      source: 'api',
+      event: 'share.read',
+      embed: 'ok',
+      page: 'HTTP 429',
+      places: 3,
+    });
+    expect(new Date(entry.ts as string).toISOString()).toBe(entry.ts);
+    expect(JSON.parse(lines[1])).toMatchObject({ level: 'info', source: 'api', event: 'bare' });
   });
 });
