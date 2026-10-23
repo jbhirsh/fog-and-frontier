@@ -8,6 +8,7 @@ import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier/flat';
+import jsdoc from 'eslint-plugin-jsdoc';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 // Type-checked + a11y + import-cycle hardening, per Issue #1.
@@ -207,6 +208,38 @@ export default defineConfig([
     files: ['scripts/**/*.{js,mjs}', '.github/scripts/**/*.mjs', 'eslint.config.js'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
+  },
+
+  // JSDoc that's there must be right; none is required. The TypeScript
+  // flavour of the recommended rules (types live in the code, not in
+  // braces) checks that @param names match the parameters, tags are real,
+  // blocks are well formed and @returns sits on something that returns; every
+  // require-* rule that would demand a comment or a description is off.
+  {
+    files: ['**/*.{ts,tsx,js,mjs,cjs}'],
+    extends: [jsdoc.configs['flat/recommended-typescript-error']],
+    rules: {
+      'jsdoc/require-jsdoc': 'off',
+      'jsdoc/require-param': 'off',
+      'jsdoc/require-param-description': 'off',
+      'jsdoc/require-property': 'off',
+      'jsdoc/require-property-description': 'off',
+      'jsdoc/require-returns': 'off',
+      'jsdoc/require-returns-description': 'off',
+      'jsdoc/require-yields': 'off',
+      'jsdoc/require-next-type': 'off',
+      'jsdoc/require-throws-type': 'off',
+      'jsdoc/require-yields-type': 'off',
+    },
+  },
+  // Plain JavaScript has no annotations, so a type in braces (or @type) is
+  // its only type: allowed there.
+  {
+    files: ['**/*.{js,mjs,cjs}'],
+    rules: {
+      'jsdoc/no-types': 'off',
+      'jsdoc/check-tag-names': ['error', { typed: false }],
+    },
   },
 
   // Last: formatting is Prettier's (npm run format), so every rule that would
