@@ -63,7 +63,7 @@ export interface GenerateGracefulExpect {
   };
 }
 
-export type GenerateExpect = GenerateHappyExpect | GenerateGracefulExpect;
+type GenerateExpect = GenerateHappyExpect | GenerateGracefulExpect;
 
 export interface AlltrailsRangesExpect {
   lookup: {
@@ -113,26 +113,26 @@ interface GoldenCaseBase {
   notes: string;
 }
 
-export interface GenerateCase extends GoldenCaseBase {
+interface GenerateCase extends GoldenCaseBase {
   feature: 'generateActivity';
   input: { title: string; notes?: string };
   expect: GenerateExpect;
 }
 
-export interface AlltrailsCase extends GoldenCaseBase {
+interface AlltrailsCase extends GoldenCaseBase {
   feature: 'alltrailsLookup';
   input: { url: string };
   expect: AlltrailsExpect;
 }
 
-export interface DiscoverCase extends GoldenCaseBase {
+interface DiscoverCase extends GoldenCaseBase {
   feature: 'discover';
   input: { range: DiscoverRange };
   expect: DiscoverExpect;
 }
 
 /** One activity in a trip-suggestion case's fixture catalog (#78). */
-export type TripCandidateFixture = TripCandidate;
+type TripCandidateFixture = TripCandidate;
 
 export interface TripSuggestionsExpect {
   /** at least one of these ids must be picked */
@@ -143,7 +143,7 @@ export interface TripSuggestionsExpect {
   maxPicks: number;
 }
 
-export interface TripSuggestionsCase extends GoldenCaseBase {
+interface TripSuggestionsCase extends GoldenCaseBase {
   feature: 'tripSuggestions';
   /** the request, and the catalog it's ranked from (fixed, so no DB) */
   input: { prompt: string; catalog: TripCandidateFixture[] };
@@ -164,7 +164,7 @@ export interface GoldenSet {
 
 // --- grading shapes ----------------------------------------------------------
 
-export type CheckStatus = 'pass' | 'fail' | 'error' | 'skipped';
+type CheckStatus = 'pass' | 'fail' | 'error' | 'skipped';
 
 export interface CheckResult {
   name: string;

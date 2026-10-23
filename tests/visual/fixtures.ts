@@ -79,7 +79,7 @@ export const FIXTURE_EMAIL = 'jess@example.com';
 const FRIEND_EMAIL = 'tarun@example.com';
 const AT = '2026-09-01T17:00:00.000Z';
 
-export interface FixtureTripActivity {
+interface FixtureTripActivity {
   id: string;
   activityId: string;
   addedByEmail: string;
