@@ -16,6 +16,7 @@ import { saveUserActivity } from '../lib/userActivities';
 import { suggestUserActivity } from '../lib/suggestions';
 import { checkDuplicates, unacknowledgedHigh, type DuplicateMatch } from '../lib/duplicates';
 import { appCodeOf } from '../lib/gqlError';
+import { hasUsableCoords } from '../lib/nearbyActivities';
 import { COST_TIERS, costLabel } from '../lib/cost';
 import { useOwner } from '../lib/useOwner';
 import { fetchUsers } from '../lib/userTrips';
@@ -148,7 +149,15 @@ export function AddActivity({
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Today's AI drafts are used up (#260): the form leads to filling the
+  // details in by hand instead of a dead end.
+  const [draftsUsed, setDraftsUsed] = useState(false);
   const [draft, setDraft] = useState<Activity | null>(editActivity ?? null);
+  // A suggestion held back for what it lacks: said until it lacks nothing,
+  // following the fields as they're filled in.
+  const [heldBack, setHeldBack] = useState(false);
+  const lacking = heldBack && draft ? missingForSuggestion(draft) : [];
+  const held = lacking.length > 0 ? `Add ${listOf(lacking)} before sending.` : null;
   const [saving, setSaving] = useState(false);
   const { email } = useOwner();
   // The accounts the review step can credit (#9). If they can't be loaded,
@@ -233,9 +242,38 @@ export function AddActivity({
       setStep('review');
       void lookAlikes(activity);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to generate');
+      if (suggest && appCodeOf(e) === 'assist_limit') {
+        setDraftsUsed(true);
+      } else {
+        setError(e instanceof Error ? e.message : 'Failed to generate');
+      }
       setStep('form');
     }
+  }
+
+  // A suggestion filled in by hand (#260), from the title and notes so far:
+  // no draft is spent, and nothing is guessed. Its menus start on "Choose"
+  // (UNCHOSEN), and there's no pin until one is dropped (0, 0 reads as none),
+  // so no look-alike check until then either.
+  function fillByHand() {
+    if (!title.trim()) {
+      setError('Title is required');
+      return;
+    }
+    setError(null);
+    setMatches([]);
+    setDraft({
+      id: slugify(title),
+      name: title.trim(),
+      shortDescription: '',
+      category: UNCHOSEN,
+      region: UNCHOSEN,
+      location: { city: '', coords: { lat: 0, lng: 0 } },
+      duration: UNCHOSEN,
+      coverImage: '',
+      notes: notes.trim() || undefined,
+    });
+    setStep('review');
   }
 
   // A new activity that looks like a saved one (#17): matched as the review
@@ -264,6 +302,7 @@ export function AddActivity({
     if (
       mode === 'create' &&
       was &&
+      (!suggest || hasUsableCoords(next)) &&
       (next.name !== was.name ||
         next.location.coords.lat !== was.location.coords.lat ||
         next.location.coords.lng !== was.location.coords.lng)
@@ -273,6 +312,9 @@ export function AddActivity({
     }
   }
   function backToForm() {
+    // What the review step said was about the review step.
+    setError(null);
+    setHeldBack(false);
     clearTimeout(recheck.current);
     checks.current += 1; // drop any answer still on its way
     setMatches([]);
@@ -281,6 +323,13 @@ export function AddActivity({
 
   async function save(acknowledged: readonly string[] = []) {
     if (!draft) return;
+    // A suggestion may be filled in by hand (#260), and the owners can't
+    // edit it before accepting it: it needs what a card and a pin need.
+    if (suggest && missingForSuggestion(draft).length > 0) {
+      setError(null);
+      setHeldBack(true);
+      return;
+    }
     setSaving(true);
     setError(null);
     let finalDraft = draft;
@@ -373,7 +422,9 @@ export function AddActivity({
             titleInputRef={titleInputRef}
             onChangeTitle={setTitle}
             onChangeNotes={setNotes}
-            onSubmit={() => void generate()}
+            onSubmit={() => (draftsUsed ? fillByHand() : void generate())}
+            onFillByHand={suggest ? fillByHand : undefined}
+            draftsUsed={draftsUsed}
             onCancel={onClose}
             suggest={suggest}
           />
@@ -384,7 +435,7 @@ export function AddActivity({
         {step === 'review' && draft && (
           <ReviewStep
             draft={draft}
-            error={error}
+            error={error ?? held}
             saving={saving}
             mode={mode}
             suggest={suggest}
@@ -404,6 +455,33 @@ export function AddActivity({
       </div>
     </div>
   );
+}
+
+/**
+ * A menu a hand-filled suggestion leaves for the person to pick (#260): no
+ * category, region or duration is a fair guess, and the owners can't change
+ * one before accepting it. Shown as "Choose", and never sent.
+ */
+const UNCHOSEN = '' as never;
+
+/** What a suggestion still lacks before it can go to the owners (#260). */
+function missingForSuggestion(a: Activity): string[] {
+  const missing: string[] = [];
+  if (!a.name.trim()) missing.push('a name');
+  if (!a.shortDescription.trim()) missing.push('a short description');
+  if (!a.category) missing.push('a category');
+  if (!a.region) missing.push('a region');
+  if (!a.duration) missing.push('a duration');
+  if (!a.location.city.trim()) missing.push('a city');
+  if (!hasUsableCoords(a)) missing.push('a pin on the map');
+  return missing;
+}
+
+/** "a, b and c". */
+function listOf(items: readonly string[]): string {
+  return items.length < 2
+    ? items.join('')
+    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
 function SentStep({ onDone }: { onDone: () => void }) {
@@ -452,6 +530,8 @@ function FormStep({
   onChangeTitle,
   onChangeNotes,
   onSubmit,
+  onFillByHand,
+  draftsUsed,
   onCancel,
   suggest,
 }: {
@@ -462,9 +542,20 @@ function FormStep({
   onChangeTitle: (v: string) => void;
   onChangeNotes: (v: string) => void;
   onSubmit: () => void;
+  /** A suggestion's way to skip the draft and fill the details in (#260). */
+  onFillByHand?: () => void;
+  /** Today's drafts are used up: filling in by hand is the way on. */
+  draftsUsed: boolean;
   onCancel: () => void;
   suggest: boolean;
 }) {
+  // Generate is gone once the drafts are used up; focus goes to what
+  // replaced it, which reads out why.
+  const byHand = useRef<HTMLButtonElement>(null);
+  const usedId = useId();
+  useEffect(() => {
+    if (draftsUsed) byHand.current?.focus();
+  }, [draftsUsed]);
   return (
     <form
       onSubmit={(e) => {
@@ -475,7 +566,7 @@ function FormStep({
     >
       <p className="font-body-md text-on-surface-variant">
         {suggest
-          ? "Give it a title and any notes or up to five links. Gemini will research the rest (up to five a day), and you'll review it before it goes to the owners."
+          ? "Give it a title and any notes or up to five links. Gemini will research the rest (up to five a day), or you can fill it in yourself, and you'll review it before it goes to the owners."
           : "Give it a title and any notes or links you have. Gemini will research the rest — you'll get to review before saving."}
       </p>
 
@@ -503,6 +594,16 @@ function FormStep({
         />
       </Field>
 
+      {draftsUsed && (
+        <p
+          id={usedId}
+          role="status"
+          className="rounded-lg bg-surface-container-low px-sm py-sm font-body-md text-on-surface"
+        >
+          You&apos;ve used today&apos;s AI drafts. You can still fill in the details yourself.
+        </p>
+      )}
+
       {error && <div className="text-error font-body-md">{error}</div>}
 
       <div className="flex justify-end gap-sm pt-sm">
@@ -513,16 +614,41 @@ function FormStep({
         >
           Cancel
         </button>
-        <button
-          type="submit"
-          className="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
-        >
-          <span className="material-symbols-outlined text-icon-md">
-            auto_awesome
-          </span>
-          Generate
-        </button>
+        {draftsUsed ? (
+          <button
+            ref={byHand}
+            type="submit"
+            aria-describedby={usedId}
+            className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
+          >
+            Fill in by hand
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
+          >
+            <span className="material-symbols-outlined text-icon-md">
+              auto_awesome
+            </span>
+            Generate
+          </button>
+        )}
       </div>
+
+      {/* Someone who already knows the place needn't spend a draft. */}
+      {onFillByHand && !draftsUsed && (
+        <p className="text-right font-body-sm text-on-surface-variant">
+          Know the details already?{' '}
+          <button
+            type="button"
+            onClick={onFillByHand}
+            className="min-h-11 font-semibold text-primary underline"
+          >
+            Fill them in yourself
+          </button>
+        </p>
+      )}
     </form>
   );
 }
@@ -651,6 +777,11 @@ function ReviewStep({
             onChange={(e) => patch('category', e.target.value as Category)}
             className={selectCls}
           >
+            {!draft.category && (
+              <option value="" disabled>
+                Choose
+              </option>
+            )}
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {sentenceCase(c)}
@@ -664,6 +795,11 @@ function ReviewStep({
             onChange={(e) => patch('region', e.target.value as Region)}
             className={selectCls}
           >
+            {!draft.region && (
+              <option value="" disabled>
+                Choose
+              </option>
+            )}
             {REGIONS.map((r) => (
               <option key={r} value={r}>
                 {REGION_LABELS[r]}
@@ -677,6 +813,11 @@ function ReviewStep({
             onChange={(e) => patch('duration', e.target.value as Duration)}
             className={selectCls}
           >
+            {!draft.duration && (
+              <option value="" disabled>
+                Choose
+              </option>
+            )}
             {DURATIONS.map((d) => (
               <option key={d} value={d}>
                 {d}
