@@ -14,6 +14,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run build` — `lint`, then `tsc -b`, then `vite build`.
 - `npm run codegen` — `graphql-codegen` → typed GraphQL operations in `src/gql/`.
 - `npm run lint` — ESLint flat config.
+- `npm run format` / `format:check` — Prettier over the whole repo (`.prettierrc.json`: single quotes, 100 columns; `.prettierignore` leaves out the lockfile, `src/gql/`, `patches/` and `public/`).
 - `npm test` / `test:watch` / `test:coverage` — Vitest.
 - `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
 - `npm run test:visual` — Playwright visual regression.
@@ -40,11 +41,11 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - Contributors (#9): who added each activity (`contributors`, account emails) goes to any signed-in account and to no one else. The `Activity` / `ActivitySnapshot` field resolver in `api/_resolvers/catalog.ts` returns null to a signed-out caller, so the public catalog never says who added what; the UI simply has nothing to show them. `saveActivity` credits the caller on a new activity, keeps the stored list when the input omits it, and only credits emails with a `users` row. An activity saved before #9 stays uncredited until the backfill credits it.
 - Suggestions and capped AI drafts (#73), by decision: any signed-in account may suggest an activity (`suggestActivity`, `requireUserCtx`), with at most 10 of its own waiting at once. It waits in the `suggestions` table, which the public catalog read never touches, until an owner accepts it into the catalog (credited to its suggester, who then gets a `users` row) or rejects it; `pendingSuggestions`, `acceptSuggestion` and `rejectSuggestion` are owner-only. A suggestion keeps only http(s) links (`keepSavableLinks` in `api/_links.ts`), since these are the first links written by non-owners. To draft one, a signed-in non-owner may use `generateActivity`, the paid Gemini call, capped by a Turso-counted daily budget (`gemini_assists`, `api/_assistBudget.ts`): 5 drafts per account and 30 in all per UTC day, and each draft's title, notes and links are bounded (200 and 2000 characters, five links), since every link is read and billed. Over the cap, the call is refused with `assist_limit` before Gemini is reached. A hike drafted without its AllTrails link gets one more grounded call, Google Search alone, that looks only for its trail page (`api/_allTrailsSearch.ts`, #6): AllTrails often lists a place under another name. It's part of the same draft, so it isn't counted again, and one that fails isn't given back either: the draft was billed, and simply goes without the link. A draft whose request to Gemini fails (no answer, or a non-2xx) is given back (`releaseAssist`); one Gemini answered stays counted, however unusable, since it was billed. Owners aren't counted. Every other Gemini call stays owner-only. A draft isn't required: the suggest dialog can be filled in by hand, offered from the start and in Generate's place once today's drafts are used up (#260), and the client holds back any suggestion without a name, a short description, a category, a region, a duration, a city and a pin (a hand-filled one guesses none of them), since the owners can't edit one before accepting it.
 - Sharing from Instagram (#6), owner-only: `findSharedPlaces` (`requireOwnerCtx`) reads a shared Instagram post and has Gemini name its places, which an owner then adds one at a time through the usual dialog, `/share`. Phones reach it from the share sheet: Android through the manifest's `share_target`, iPhone through a Shortcut that opens `/share?url=…` (Safari has no share target). The reader, `api/_instagram.ts`, makes these outside calls, each on its own time limit, and never throws. First, two pages read side by side. Instagram's public embed page gives the caption, author and picture. The post page gives the video files and the geotag, and answers only a plain `curl` user agent carrying the cookies from Instagram's home page. Either alone is enough for a share, so if Instagram stops serving one, sharing still works from the other and the weekly canary fails. Then the smallest video (up to 60 MB), or else the picture (4 MB), only from Instagram's own media hosts and within 20 seconds. A video up to 14 MB goes to Gemini inline, within a request's 20 MB; a bigger one (some reels come only at a high bitrate) is uploaded through Gemini's Files API (`api/_geminiFiles.ts`), within 45 seconds, and deleted once Gemini has answered. Gemini is given whatever answered, with Google Search but not URL reading (the caption is a stranger's text), and isn't called when nothing answered and there's no hint. The page keeps each post's places for the session, so a reload doesn't pay for the same read again. A geotag is only a hint: they're often wrong. An activity added from a post keeps the post's link as its `sourceUrl`, which the detail shows to everyone ("Seen on Instagram"); the weekly link audit reads it through the embed page, which says when a post has been taken down or made private, and fails on one. Each share logs one `share.places` line saying which sources answered, and `instagram.yml` reads known posts weekly, so a change on Instagram's side shows up there.
-- Role-gated UI: owner-guarded *mutating* controls are **hidden** from non-owners (not disabled/greyed). See the Role-gated UI section below.
+- Role-gated UI: owner-guarded _mutating_ controls are **hidden** from non-owners (not disabled/greyed). See the Role-gated UI section below.
 
 ## Role-gated UI — hide owner-guarded controls from non-owners
 
-**Convention (current):** owner-guarded *mutating* affordances (add / edit /
+**Convention (current):** owner-guarded _mutating_ affordances (add / edit /
 delete / and other write actions) are **not rendered at all for non-owners.**
 Do not render them disabled with a "Sign in to edit"-style tooltip.
 
@@ -58,15 +59,15 @@ Rules of thumb:
 - **Mutating + owner-gated → hide.** Gate the JSX on `isOwner` (e.g.
   `{isOwner && <button …/>}`). No `disabled={!isOwner}`, no
   `title="Sign in to edit"`.
-- **Reads stay.** If a surface is a *read* (viewing data — e.g. a
+- **Reads stay.** If a surface is a _read_ (viewing data — e.g. a
   completion-status badge, or the owners' reviews), keep it visible to
-  everyone; only the *write* affordance inside it is hidden. The completion
+  everyone; only the _write_ affordance inside it is hidden. The completion
   **status** in `ActivityDetail` is rendered as a static badge for non-owners;
   only the interactive toggle is owner-only.
 - **Owner-only reads are an explicit decision, recorded here.** The first is
   the **Explore** surface (#111): its one action, Discover, is a paid
   owner-only call, so non-owners would only reach a dead end. Decision: hide
-  the tab *and* guard the route — the `/explore` NavLink in `Layout.tsx` is
+  the tab _and_ guard the route — the `/explore` NavLink in `Layout.tsx` is
   gated on `isOwner`, and `OwnerRoute` (`src/components/OwnerRoute.tsx`)
   renders nothing until auth loads, then redirects non-owners to `/`. The
   second is the **Your Photos** gallery (#19): the photos are the owners' own,
@@ -87,7 +88,7 @@ Gates that are **not** the owner gate:
 - **Sign-in-gated CTAs** ("is signed in", i.e. `useOwner().email`), e.g.
   "Select for trip" and "Add to trip" in `CuratedAdventures`, follow the same hide
   rule (#112): **not rendered for signed-out visitors** — no disabled state,
-  no "Sign in to…" tooltip. Signed-in users (owners *and* invited editors) see
+  no "Sign in to…" tooltip. Signed-in users (owners _and_ invited editors) see
   them, since adding to a trip is a member power (#51). The per-card "Add to
   trip" renders only while building a trip (selection mode, which an incoming
   trip target also opens), keeping the default browse view uncluttered.
@@ -98,7 +99,7 @@ Gates that are **not** the owner gate:
   contributor data to filter on, so it isn't rendered for them, and a shared
   `?contributors=` link is ignored rather than emptying their list.
 - **Trip-creator-gated** controls in `TripDetail` (reopen voting, mark past,
-  delete trip, finalize voting, remove member) — gated on being *this trip's*
+  delete trip, finalize voting, remove member) — gated on being _this trip's_
   creator, a per-trip role shown to trip members, not the global owner gate.
   They keep their existing presentation for the members who see them.
 
@@ -113,7 +114,7 @@ above — hiding a control never replaces server-side authorization.
   and signed-in views (the trips pages, #59) via `window.__TEST_FORCE_EMAIL__`
   (see `src/lib/authShim.ts`; the `signIn` helper in `tests/visual/helpers.ts`
   sets both).
-  Default (non-owner) snapshots must therefore show owner controls *absent*.
+  Default (non-owner) snapshots must therefore show owner controls _absent_.
   Run `npm run test:visual:update` after changing owner-gated presentation.
 
 ## GitHub issues are the source of truth for product context
@@ -121,6 +122,7 @@ above — hiding a control never replaces server-side authorization.
 **Always check `gh issue list` (and `gh issue view <n>`) before designing or implementing a feature.** Issues in this repo carry the full rationale — scope decisions, cross-feature coordination, acceptance criteria, deferred questions — and frequently reference each other (e.g. "coordinates with #16", "supersedes #7"). The codebase alone will not tell you why something was built the way it was.
 
 When picking up a task:
+
 1. `gh issue list --state all` to see what's in flight / closed.
 2. `gh issue view <n>` for any issue the user mentions or that matches the task.
 3. Skim issues that the relevant issue cross-references.
@@ -132,8 +134,13 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
 - Vercel function handlers: Node-style `(req, res)` — Web API style hangs in `vercel dev`.
 - **Tests ship with the code.** Any new resolver, reducer, or pure util needs its own unit test; run `npm run test:coverage` before pushing (CI enforces an 80% per-file gate — plain `vitest run` skips it). The coverage backlog in `vite.config.ts` (pre-gate files excluded from it) may only shrink: `src/test/coverageBacklog.test.ts` pins it to an explicit list and fails when a file is added (write tests instead), when one leaves the backlog without leaving the pinned list too (delete it there, so the pin ratchets down), or when an entry names a file that no longer exists. Tests are pure logic or RTL — no real network, DB, or browser. Multi-write DB paths get a test asserting a single `db().batch(stmts, 'write')` (see `transitionToPast`/`createTrip`/`patchTrip`).
 - **Mutation testing checks the assertions.** `mutation.yml` mutates the files a PR changes (the `mutate` globs in `stryker.config.json`, read by `.github/scripts/mutation-scope.mjs`; a changed test counts as a change to the file it covers) and fails below the `break` score; a weekly sweep covers everything. PR runs are incremental: each caches its results for the PR, so a later push re-runs only the mutants whose code or tests changed. A change to the lockfile, `patches/`, the Stryker or Vite config, or `src/test/` starts the PR over; a change that reaches a mutant only through an import isn't detected, which the weekly sweep backstops. A surviving mutant means a missing assertion: add the test, or delete the code if it can never matter. The globs mirror the coverage scope in `vite.config.ts`, backlog included, and `src/test/mutationScope.test.ts` fails if the two drift apart. `patches/` holds a `patch-package` fix that makes Stryker's vitest runner name tests the way Vitest 5 matches them (stryker-js#6210); the runner is pinned to 10.0.0 so a release can't break it. Delete the patch and unpin once a Stryker release carries the fix.
+- **Prettier formats everything** (code, CSS, Markdown, YAML, JSON); ESLint
+  checks correctness only, and `eslint-config-prettier`, last in the flat
+  config, turns off any rule that would argue with it. CI's "Format
+  (Prettier)" step fails an unformatted file and the pre-commit hook checks
+  the staged ones: run `npm run format`, never hand-align around it.
 - **No `legacy-peer-deps`.** Installs are plain `npm ci`. Resolve a peer conflict (or a security advisory with no upstream fix) with a version bump, or with a narrow `overrides` entry explained in the commit and here. Two of today's, `eslint-plugin-import` and `eslint-plugin-jsx-a11y` → `eslint: $eslint`, exist because neither has a release whose peer range includes ESLint 10. Delete each once it does (or move `import` to `eslint-plugin-import-x`, which already supports 10). The third, `@vercel/cli-config` → `zod: ^4.6.6`, lifts zod past GHSA-mrhx-c7xc-m3w5 (it fails CI's `npm audit`), since every release of `@vercel/cli-config`, which `@vercel/blob` pulls in, pins zod 4.1.11. Delete it once a release pins a fixed zod.
-- **Commit hygiene.** Imperative subject ≤72 chars; body explains *why*; end
+- **Commit hygiene.** Imperative subject ≤72 chars; body explains _why_; end
   with the `Co-Authored-By:` trailer. One logical change per commit; squash
   noisy commits (fixups, reverts, "address review") into a clean history before
   opening or updating a PR. Linear history (rebase, not merge). Amend or squash
@@ -168,8 +175,9 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   builds of `main` ("before") and the branch ("after"), never the dev server,
   with their reads sent to production's API and their photos through
   production's image CDN; owner-only screens the same way, signed in through
-  the test flags. Record GIFs with `npm run gif -- <scenario.ts> --dir <PR
-  number>` (`scripts/pr-gif-cli.ts`): it builds both, records the scenario
+  the test flags. Record GIFs with
+  `npm run gif -- <scenario.ts> --dir <PR number>`
+  (`scripts/pr-gif-cli.ts`): it builds both, records the scenario
   (`scripts/gif-scenarios/`) against each with the pointer and keys drawn in,
   at the speed the page moved, commits the GIFs to `screenshots` and prints
   the Before/After table. `scripts/pr-gif.ts`'s header has the

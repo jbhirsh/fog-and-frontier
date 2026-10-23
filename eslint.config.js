@@ -7,6 +7,7 @@ import importPlugin from 'eslint-plugin-import';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 import tseslint from 'typescript-eslint';
+import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 // Type-checked + a11y + import-cycle hardening, per Issue #1.
@@ -207,4 +208,8 @@ export default defineConfig([
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },
+
+  // Last: formatting is Prettier's (npm run format), so every rule that would
+  // argue with it is off.
+  eslintConfigPrettier,
 ]);

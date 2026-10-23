@@ -37,8 +37,8 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: package-lock.json
 
       - name: Install deps
@@ -46,6 +46,11 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      # Formatting is Prettier's; eslint-config-prettier turns off the lint
+      # rules that would disagree with it. Fix with `npm run format`.
+      - name: Format (Prettier)
+        run: npm run format:check
 
       # Cross-layer architecture rules: api/ ⇹ src/ isolation, src/lib may not
       # reach the UI, src/data stays a leaf. Complements eslint's import/no-cycle

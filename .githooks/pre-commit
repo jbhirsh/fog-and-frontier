@@ -9,6 +9,11 @@
 [ -n "$CI" ] && exit 0
 
 set -e
+echo "▶ pre-commit: prettier (staged files)"
+# Only what this commit stages; --ignore-unknown skips images and the like,
+# and .prettierignore still applies to files named on the command line.
+git diff --cached --name-only --diff-filter=ACMR -z \
+  | xargs -0 -r npx prettier --check --ignore-unknown
 echo "▶ pre-commit: eslint"
 npx eslint . --cache --cache-location node_modules/.cache/eslint/
 echo "▶ pre-commit: stylelint"
