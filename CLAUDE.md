@@ -71,7 +71,9 @@ Rules of thumb:
   **review queue** (#73): pending suggestions, with Accept / Reject, above
   the catalog list (`PendingSuggestions`). Only owners can decide them, so
   `CuratedAdventures` asks for `pendingSuggestions` only for owners, and
-  shows the section only while something is waiting.
+  shows the section only while something is waiting. Its count is a Review
+  button in the toolbar (and the mobile map's sheet), so it shows in every
+  view (#259).
 
 Gates that are **not** the owner gate:
 
