@@ -1,0 +1,19 @@
+{
+  "pattern": "**/*.{ts,tsx,js,mjs,cjs,css}",
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/reports/**",
+    "**/.stryker-tmp*/**",
+    "src/gql/**",
+    "**/*.test.{ts,tsx,mjs}",
+    "tests/**"
+  ],
+  "gitignore": true,
+  "minTokens": 70,
+  "minLines": 8,
+  "reporters": ["console", "json", "markdown"],
+  "output": "jscpd-report",
+  "absolute": false
+}

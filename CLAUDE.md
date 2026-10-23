@@ -178,6 +178,19 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   force-push `main`. CI's commit-message step (`.github/scripts/check-commits.sh`)
   fails a PR on a subject over 72 chars, a missing body, a fixup/"oops" commit
   or a merge commit.
+- **The weekly audit sweeps the whole repo** (`weekly-audit.yml`, Monday
+  06:00 UTC with the other sweeps, or by hand): knip (`knip.json`: unused
+  files, exports, types and dependencies, and used ones `package.json`
+  doesn't list), jscpd (`.jscpd.json`: duplicated code, tests aside, since
+  parallel test cases are meant to read alike), lychee (every Markdown
+  link, local file and `#anchor`), and a dependency-cruiser graph of
+  `src/` and `api/` as an artifact. Each finding keeps one issue labelled
+  `weekly-audit` (`.github/scripts/tracking-issue.mjs`, counts from
+  `audit-report.mjs`), updated each week and closed once clean; the run
+  stays green unless a tool breaks. Run `npx knip` and `npx jscpd` before
+  pushing a refactor: both are expected to report nothing, so a finding
+  is fixed, not left for the issue (an unused export goes; a genuine
+  duplicate becomes a shared helper).
 - **Few branches.** Work on one branch, with one PR open at a time. Related
   changes go in as separate commits on that PR (a rebase-merge keeps them
   separate on `main`), not as a stack of PRs. Once it merges, restart the same
