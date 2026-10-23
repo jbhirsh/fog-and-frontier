@@ -82,6 +82,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                         className="w-full h-full object-cover"
                         loading="lazy"
                         glyphSize={28}
+                        sizes="80px"
                       />
                     </span>
                   </span>

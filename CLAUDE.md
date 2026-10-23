@@ -25,6 +25,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `src/` — React app. `src/pages/`, `src/components/`, `src/lib/`, `src/data/types.ts` (Activity model).
 - `api/` — the GraphQL function. `graphql.ts` is the handler; `_schema.ts` is the SDL; `_resolvers/*` implement it. `_gqlContext.ts` has the server auth gates (`requireOwnerCtx`, `requireMemberCtx` / `requireCreatorCtx` for trips, and `requireUserCtx` for any signed-in account), built on the Clerk token check in `_auth.ts`; `_db.ts` is the Turso client.
 - `public/` — static assets.
+- Cover photos load through Vercel's image CDN on deployments (`src/lib/imageCdn.ts`, `CdnImage`): resized per card, cached a month, so visitors don't each go to Wikimedia, which hosts most of them and throttles a busy machine. Only the hosts in `vercel.json`'s `images.remotePatterns` (kept equal to `CDN_HOSTS` by a test) go through it; a photo on any other host loads from its own URL, so add a new host to both.
 - `scripts/` — DB / migration helpers (Node, `--experimental-strip-types` for `.mts/.ts`).
 - `tests/` — Playwright visual specs. Unit tests live next to source as `*.test.ts(x)`.
 

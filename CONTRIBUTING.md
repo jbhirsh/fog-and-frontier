@@ -162,7 +162,7 @@ Create the auth token at *Sentry → Settings → Auth Tokens* with scope
 | ---------------------------- | -------------------------------- | ------------------------------------------------------------------ |
 | `VITE_SENTRY_DSN`            | Vercel (all envs)                | Enables browser Sentry. Omit to disable (local dev).               |
 | `SENTRY_AUTH_TOKEN`          | Vercel (build env, all)          | Lets `@sentry/vite-plugin` upload source maps (`project:releases`). |
-| `VITE_VERCEL_ENV`            | Vite-injected from `VERCEL_ENV`  | Sentry environment tag. Wired in `vite.config.ts` `define`.        |
+| `VITE_VERCEL_ENV`            | Vite-injected from `VERCEL_ENV`  | Sentry environment tag; on a deployment (`production` or `preview`), also turns on the image CDN for covers (`src/lib/imageCdn.ts`). Wired in `vite.config.ts` `define`. |
 | `VITE_VERCEL_GIT_COMMIT_SHA` | Vite-injected from build env     | Tagged as the Sentry release so frames symbolicate correctly.      |
 
 ## CI

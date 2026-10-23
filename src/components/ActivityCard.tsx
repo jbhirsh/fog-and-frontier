@@ -132,6 +132,8 @@ export function ActivityCard({
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
             src={activity.coverImage}
             loading="lazy"
+            // One, two or three to a row (narrower beside the map).
+            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
           />
           {/* Category tag — frosted pill, navy label, accent icon. */}
           <span className="absolute top-sm left-sm inline-flex h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm backdrop-blur-sm font-label-caps text-label-caps text-primary">

@@ -1,5 +1,6 @@
 import type { TripActivity } from '../lib/userTrips';
 import { derivedEndTime, formatHHMM } from '../lib/userTrips';
+import { CdnImage } from './CdnImage';
 
 type Props = {
   activity: TripActivity;
@@ -135,7 +136,7 @@ function CardBody({
     <>
       <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-surface-variant flex items-center justify-center">
         {cover ? (
-          <img alt="" src={cover} className="w-full h-full object-cover" />
+          <CdnImage alt="" src={cover} sizes="80px" className="w-full h-full object-cover" />
         ) : (
           <span
             className="material-symbols-outlined text-outline"
