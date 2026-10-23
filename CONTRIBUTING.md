@@ -187,9 +187,9 @@ Actions only reads `.github/workflows/` there):
   edits. To record a GIF, run the flow in Playwright with
   `recordVideo: { dir, size }` on the browser context, then convert it:
   `ffmpeg -i in.webm -vf "fps=12,scale=320:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse" out.gif`.
-  Commit images to a `pr-screenshots/<topic>` branch whose tree carries a
-  `vercel.json` with deploys off, and link them by their
-  `raw.githubusercontent.com` URL.
+  Commit images to the one `screenshots` branch, in a folder named for the PR
+  (`<number>/`); its tree carries a `vercel.json` with deploys off. Link them
+  by their `raw.githubusercontent.com` URL at that commit's SHA.
 
 ### Dependency updates (Dependabot)
 

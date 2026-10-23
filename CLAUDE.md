@@ -132,15 +132,24 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   force-push `main`. CI's commit-message step (`.github/scripts/check-commits.sh`)
   fails a PR on a subject over 72 chars, a missing body, a fixup/"oops" commit
   or a merge commit.
+- **Few branches.** Work on one branch, with one PR open at a time. Related
+  changes go in as separate commits on that PR (a rebase-merge keeps them
+  separate on `main`), not as a stack of PRs. Once it merges, restart the same
+  branch from `main` for the next change. Don't push helper branches: the
+  visual workflow commits regenerated baselines onto the PR's own branch, and
+  screenshots share one branch (below).
 - **Never** `git add -A`/`git add .` (stage files explicitly), modify a test to
   make it pass (fix the implementation instead), install packages outside the
   project root, or use `--no-verify`.
 - **Show UI changes in the PR.** A PR that changes a component or stylesheet
   puts before/after visuals in its description (`.github/pull_request_template.md`):
   screenshots for how things look, GIFs for how things move or respond (drag,
-  animation, open/close, scroll, multi-step flows). Host the images on a
-  `pr-screenshots/<topic>` branch whose tree has a `vercel.json` with
-  `{"git":{"deploymentEnabled":false}}`, so they cost no deploy. The
+  animation, open/close, scroll, multi-step flows). Host the images on the one
+  `screenshots` branch, in a folder named for the PR (`<number>/`), and link
+  them by commit SHA so a later push can't change what a PR shows. Its tree has
+  a `vercel.json` with `{"git":{"deploymentEnabled":false}}`, so it costs no
+  deploy. (Older PRs' pictures, once on `pr-screenshots/<topic>` branches, now
+  live there under `<topic>/`.) The
   `PR visuals` check (`.github/scripts/pr-visuals.mjs`) fails a UI change with
   no picture unless "No visible UI change" is ticked; Claude Review asks for a
   GIF when motion changes.
