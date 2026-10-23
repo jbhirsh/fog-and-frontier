@@ -754,11 +754,14 @@ function ReviewStep({
       </Field>
 
       <Field label="Short description">
-        <input
-          type="text"
+        {/* Wrapped, and as tall as it is, so all of it can be read: one line
+            hid most of a drafted one. Still one paragraph: a line break
+            reads as a space. */}
+        <textarea
           value={draft.shortDescription}
-          onChange={(e) => patch('shortDescription', e.target.value)}
-          className={inputCls}
+          onChange={(e) => patch('shortDescription', e.target.value.replace(/\s*\n\s*/g, ' '))}
+          rows={2}
+          className={`${inputCls} field-sizing-content resize-none`}
         />
       </Field>
 
