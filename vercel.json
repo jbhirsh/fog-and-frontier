@@ -1,5 +1,60 @@
 {
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "images": {
+    "sizes": [
+      96,
+      192,
+      384,
+      640,
+      960,
+      1280
+    ],
+    "qualities": [
+      75
+    ],
+    "formats": [
+      "image/avif",
+      "image/webp"
+    ],
+    "minimumCacheTTL": 2678400,
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "upload.wikimedia.org"
+      },
+      {
+        "protocol": "https",
+        "hostname": "thumb.wikimedia.org"
+      },
+      {
+        "protocol": "https",
+        "hostname": "images.unsplash.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "live.staticflickr.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "www.nps.gov"
+      },
+      {
+        "protocol": "https",
+        "hostname": "imgc.ssmedia.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "www.gocalaveras.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "hiddenca.com"
+      }
+    ]
+  }
 }

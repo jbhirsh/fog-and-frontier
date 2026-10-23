@@ -22,6 +22,7 @@ import {
 } from '../lib/nearbyActivities';
 import { ActivityReviews } from './ActivityReviews';
 import { AddActivity } from './AddActivity';
+import { CdnImage } from './CdnImage';
 import { CoverImage } from './CoverImage';
 import { InlineError } from './InlineError';
 
@@ -78,6 +79,9 @@ const OWNS_ARROWS = [
 function ownsArrows(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(OWNS_ARROWS) !== null;
 }
+
+// The detail's cover fills its panel: the width of a phone, or at most 768px.
+const DETAIL_SIZES = '(min-width: 768px) 768px, 100vw';
 
 const STEP_BUTTON =
   'w-11 h-11 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default';
@@ -279,6 +283,7 @@ export function ActivityDetail({
               src={activity.coverImage}
               className="w-full h-full object-cover"
               glyphSize={64}
+              sizes={DETAIL_SIZES}
             />
             {/* The sheet's grab handle on a phone: it can be swiped down. */}
             <span
@@ -530,9 +535,10 @@ export function ActivityDetail({
                             className="flex gap-sm items-stretch text-left rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container transition-colors"
                           >
                             <div className="w-24 shrink-0 bg-surface-variant">
-                              <img
+                              <CdnImage
                                 src={a.coverImage}
                                 alt={a.name}
+                                sizes="96px"
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -876,6 +882,7 @@ function Peek({
           src={activity.coverImage}
           className="w-full h-full object-cover"
           glyphSize={64}
+          sizes={DETAIL_SIZES}
         />
         <span className="md:hidden absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-surface-container-lowest/80 shadow-sm" />
         <div className="absolute top-sm left-sm flex items-center gap-xs bg-surface-container-lowest/90 backdrop-blur-sm rounded-full p-xs">

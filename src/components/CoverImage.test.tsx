@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CoverImage } from './CoverImage';
+import { cdnUrl } from '../lib/imageCdn';
 
 describe('CoverImage', () => {
   it('renders the cover image with its alt, classes and loading hint', () => {
@@ -49,6 +50,14 @@ describe('CoverImage', () => {
     expect(screen.getByText('directions_walk')).toBeInTheDocument();
   });
 
+  it('treats a cover that isn’t a web address as no cover', () => {
+    const { container } = render(
+      <CoverImage src="javascript:alert(1)" alt="Muir Woods" category="hiking" />,
+    );
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Muir Woods' }).tagName).toBe('DIV');
+  });
+
   it('keeps a decorative (empty-alt) fallback out of the accessibility tree', () => {
     const { container } = render(
       <CoverImage src="https://img.test/dead.jpg" alt="" category="water" />,
@@ -87,5 +96,32 @@ describe('CoverImage', () => {
     // The new cover's own failure is tracked against the new URL.
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
     expect(screen.getByRole('img', { name: 'B' }).tagName).toBe('DIV');
+  });
+
+  describe('on a Vercel deployment (the image CDN)', () => {
+    const COMMONS = 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Library.jpg';
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('asks the CDN, at the size it’s shown (the whole viewport unless said)', () => {
+      vi.stubEnv('VITE_VERCEL_ENV', 'production');
+      const { rerender } = render(<CoverImage src={COMMONS} alt="Library" category="culture" />);
+      const img = screen.getByRole('img', { name: 'Library' });
+      expect(img).toHaveAttribute('src', cdnUrl(COMMONS, 960));
+      expect(img).toHaveAttribute('sizes', '100vw');
+      rerender(<CoverImage src={COMMONS} alt="Library" category="culture" sizes="80px" />);
+      expect(screen.getByRole('img', { name: 'Library' })).toHaveAttribute('sizes', '80px');
+    });
+
+    it('tries the photo’s own URL before the glyph', () => {
+      vi.stubEnv('VITE_VERCEL_ENV', 'production');
+      render(<CoverImage src={COMMONS} alt="Library" category="culture" />);
+      fireEvent.error(screen.getByRole('img', { name: 'Library' }));
+      expect(screen.getByRole('img', { name: 'Library' })).toHaveAttribute('src', COMMONS);
+      fireEvent.error(screen.getByRole('img', { name: 'Library' }));
+      expect(screen.getByRole('img', { name: 'Library' }).tagName).toBe('DIV');
+      expect(screen.getByText('museum')).toBeInTheDocument();
+    });
   });
 });

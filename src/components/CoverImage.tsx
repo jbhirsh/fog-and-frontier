@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import type { Category } from '../data/types';
 import { CATEGORY_ICON } from '../lib/mapPins';
+import { CdnImage } from './CdnImage';
+import { isWebUrl } from '../lib/imageCdn';
 
 interface Props {
-  /** Cover URL. Empty/missing renders the category fallback straight away. */
+  /**
+   * Cover URL. Empty, missing or not a web address (isWebUrl) renders the
+   * category fallback straight away.
+   */
   src: string | undefined;
   /** Alt text for the cover. Empty marks it decorative, fallback included. */
   alt: string;
@@ -14,12 +19,18 @@ interface Props {
   loading?: 'lazy' | 'eager';
   /** Fallback glyph size in px. */
   glyphSize?: number;
+  /**
+   * How wide the cover is shown, for the browser to pick a width from the
+   * image CDN (src/lib/imageCdn.ts): the whole viewport unless said.
+   */
+  sizes?: string;
 }
 
 /**
- * An activity cover that degrades to the category glyph on the placeholder
- * surface when the image is missing or fails to load (#120), instead of the
- * browser's broken-image icon. The parent owns the box (aspect ratio, radius,
+ * An activity cover, through Vercel's image CDN on a deployment (CdnImage),
+ * that degrades to the category glyph on the placeholder surface when the
+ * image is missing or fails to load (#120), instead of the browser's
+ * broken-image icon. The parent owns the box (aspect ratio, radius,
  * background); both states fill it, so a failed cover never shifts layout.
  */
 export function CoverImage({
@@ -29,20 +40,22 @@ export function CoverImage({
   className,
   loading,
   glyphSize = 44,
+  sizes = '100vw',
 }: Props) {
   // Track the URL that failed rather than a boolean, so a new `src` (the
   // detail view swapping activities in place, or a card's cover becoming a
   // user photo) gets its own load attempt instead of inheriting the failure.
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
-  if (src && failedSrc !== src) {
+  if (src && isWebUrl(src) && failedSrc !== src) {
     return (
-      <img
+      <CdnImage
         alt={alt}
         className={className}
         src={src}
+        sizes={sizes}
         loading={loading}
-        onError={() => setFailedSrc(src)}
+        onFailed={() => setFailedSrc(src)}
       />
     );
   }
