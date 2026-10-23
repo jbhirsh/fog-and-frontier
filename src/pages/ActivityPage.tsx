@@ -10,6 +10,7 @@ import {
   useShowContributor,
 } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
+import { useFocusTrap, useReturnFocus } from '../lib/focusTrap';
 import type { Activity } from '../data/types';
 
 /**
@@ -26,6 +27,10 @@ export function ActivityPage() {
   const open = useOpenActivity();
   const close = useCloseActivity();
   const showContributor = useShowContributor();
+  // Closing hands focus back to the card or pin that opened it (#258). The
+  // page stays mounted while it steps between activities, so that's the
+  // opener of the first one.
+  useReturnFocus();
   // The page stays mounted while Back, Forward or a nearby pick moves between
   // activities, so only the one it opened with animates in (#63), and only
   // until it moves on: coming back to it doesn't replay the open.
@@ -124,6 +129,8 @@ function Missing({
   animate: boolean;
 }) {
   const action = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialog);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -149,6 +156,7 @@ function Missing({
         className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default ${animate ? 'motion-safe:animate-scrim-in' : ''}`}
       />
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="activity-missing-title"
