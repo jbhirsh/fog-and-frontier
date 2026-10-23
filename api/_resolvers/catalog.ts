@@ -7,6 +7,7 @@ import {
   mapCatalogActivity,
   parseCatalogActivity,
 } from '../_gqlMap.js';
+import { isSavableUrl } from '../_links.js';
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
 import { forgetCatalog } from './driving.js';
@@ -187,6 +188,10 @@ export function checkActivityInput(activity: ActivityInput): void {
   const costTier = activity.costTier;
   if (costTier != null && !COST_TIERS.has(costTier as string)) {
     throw badInput('costTier must be free, $, $$ or $$$');
+  }
+  // Shown as a link, so a web page or nothing.
+  if (activity.sourceUrl != null && !isSavableUrl(activity.sourceUrl, null)) {
+    throw badInput('sourceUrl must be a web address');
   }
 }
 

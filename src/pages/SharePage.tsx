@@ -292,6 +292,7 @@ function SharedPost({ link }: { link: string }) {
         <AddActivity
           key={picked === 'by-hand' ? picked : placeKey(picked)}
           seed={picked === 'by-hand' ? postSeed(post) : draftSeed(picked, post)}
+          source={post.url}
           onClose={() => setPicked(null)}
           onOpenActivity={(id) => {
             setPicked(null);

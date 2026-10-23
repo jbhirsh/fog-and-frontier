@@ -26,6 +26,7 @@ describe('isSavableUrl', () => {
     expect(isSavableUrl('https://notalltrails.com/trail/x', host)).toBe(false);
     expect(LINK_HOSTS.reservationUrl).toBeNull();
     expect(LINK_HOSTS.menuUrl).toBeNull();
+    expect(LINK_HOSTS.sourceUrl).toBeNull();
   });
 });
 

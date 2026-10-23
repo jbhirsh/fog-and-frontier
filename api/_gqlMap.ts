@@ -100,6 +100,7 @@ export type SnapshotShape = {
   reservationUrl: string | null;
   menuUrl: string | null;
   dietary: string[] | null;
+  sourceUrl: string | null;
   completed: boolean | null;
   completedDate: string | null;
   notes: string | null;
@@ -136,6 +137,7 @@ export function coerceSnapshot(raw: unknown): SnapshotShape | null {
     reservationUrl: str(r.reservationUrl),
     menuUrl: str(r.menuUrl),
     dietary: strArray(r.dietary),
+    sourceUrl: str(r.sourceUrl),
     completed: bool(r.completed),
     completedDate: isoDate(r.completedDate),
     notes: str(r.notes),

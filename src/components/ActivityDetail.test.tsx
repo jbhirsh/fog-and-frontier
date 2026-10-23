@@ -184,6 +184,20 @@ describe('ActivityDetail', () => {
     expect(screen.getByText('Free')).toBeInTheDocument();
   });
 
+  it('links back to where it was found, for every visitor (#6)', () => {
+    ownerState.isOwner = false;
+    const reel = 'https://www.instagram.com/reel/Ddl9QKSv0D7/';
+    const { rerender } = render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    expect(screen.queryByRole('link', { name: /Seen on Instagram|Where we found it/ })).not.toBeInTheDocument();
+    rerender(<ActivityDetail activity={{ ...muirWoods, sourceUrl: reel }} onClose={() => {}} />);
+    const link = screen.getByRole('link', { name: /Seen on Instagram/ });
+    expect(link).toHaveAttribute('href', reel);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    rerender(<ActivityDetail activity={{ ...muirWoods, sourceUrl: 'https://example.com/hikes' }} onClose={() => {}} />);
+    expect(screen.getByRole('link', { name: /Where we found it/ })).toHaveAttribute('href', 'https://example.com/hikes');
+  });
+
   it('falls back to the short description when no long one is provided', () => {
     const a = { ...muirWoods, longDescription: undefined };
     render(<ActivityDetail activity={a} onClose={() => {}} />);

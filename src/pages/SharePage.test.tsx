@@ -44,6 +44,7 @@ vi.mock('../components/AddActivity', () => ({
   AddActivity: (props: {
     suggest?: boolean;
     seed?: { title: string; notes: string };
+    source?: string;
     onClose: () => void;
     onSaved?: () => void;
     onOpenActivity?: (id: string) => void;
@@ -51,6 +52,7 @@ vi.mock('../components/AddActivity', () => ({
     <div role="dialog" aria-label={props.suggest ? 'Suggest an activity' : 'Add an activity'}>
       <p data-testid="seed-title">{props.seed?.title}</p>
       <p data-testid="seed-notes">{props.seed?.notes}</p>
+      <p data-testid="source">{props.source}</p>
       <button type="button" onClick={props.onSaved}>
         Save it
       </button>
@@ -306,6 +308,8 @@ describe('SharePage — the places in a post', () => {
     const dialog = screen.getByRole('dialog', { name: 'Add an activity' });
     expect(dialog).toBeInTheDocument();
     expect(screen.getByTestId('seed-title')).toHaveTextContent('Carson Falls, Fairfax');
+    // The activity keeps the reel it came from.
+    expect(screen.getByTestId('source')).toHaveTextContent(REEL);
     expect(screen.getByTestId('seed-notes')).toHaveTextContent(`From an Instagram reel by @bayareatrails: ${REEL}`);
     await userEvent.click(screen.getByRole('button', { name: 'Save it' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close it' }));

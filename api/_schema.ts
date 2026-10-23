@@ -53,6 +53,8 @@ export const typeDefs = /* GraphQL */ `
     reservationUrl: String
     menuUrl: String
     dietary: [String!]
+    "Where it was found (#6): the Instagram post it was added from, say."
+    sourceUrl: String
     completed: Boolean
     completedDate: Date
     notes: String
@@ -90,6 +92,8 @@ export const typeDefs = /* GraphQL */ `
     reservationUrl: String
     menuUrl: String
     dietary: [String!]
+    "Where it was found (#6): the Instagram post it was added from, say."
+    sourceUrl: String
     completed: Boolean
     completedDate: Date
     notes: String
@@ -272,6 +276,8 @@ export const typeDefs = /* GraphQL */ `
     reservationUrl: String
     menuUrl: String
     dietary: [String!]
+    "Where it was found (#6): the Instagram post it was added from, say."
+    sourceUrl: String
     completed: Boolean
     completedDate: Date
     notes: String

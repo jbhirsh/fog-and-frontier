@@ -8,6 +8,7 @@ export const LINK_HOSTS: Record<string, RegExp | null> = {
   allTrailsUrl: /^(www\.)?alltrails\.com$/,
   reservationUrl: null,
   menuUrl: null,
+  sourceUrl: null,
 };
 
 export function isSavableUrl(value: unknown, host: RegExp | null): boolean {

@@ -25,6 +25,7 @@ import { AddActivity } from './AddActivity';
 import { CdnImage } from './CdnImage';
 import { CoverImage } from './CoverImage';
 import { InlineError } from './InlineError';
+import { sourceLabel } from '../lib/sharedPlaces';
 
 interface Props {
   activity: Activity;
@@ -481,6 +482,22 @@ export function ActivityDetail({
                   {activity.notes}
                 </p>
               </div>
+            )}
+
+            {/* Where it was found (#6): the reel it was added from. A read,
+                open to every visitor. */}
+            {activity.sourceUrl && (
+              <a
+                href={activity.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
+              >
+                {sourceLabel(activity.sourceUrl)}
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  open_in_new
+                </span>
+              </a>
             )}
 
             {/* Owner reviews (#184) — what each of us thought after doing it.

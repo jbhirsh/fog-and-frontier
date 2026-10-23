@@ -3,6 +3,7 @@ import { apolloClient } from './apolloClient';
 import {
   SOURCE_LABEL,
   bareSharedPost,
+  sourceLabel,
   draftSeed,
   findSharedPlaces,
   instagramLink,
@@ -233,6 +234,13 @@ describe('draftSeed', () => {
     expect(long.title).toHaveLength(200);
     expect(long.notes).toContain(`Caption: ${'c'.repeat(1200)}`);
     expect(long.notes).not.toContain('c'.repeat(1201));
+  });
+});
+
+describe('sourceLabel', () => {
+  it('says an Instagram source is one, and anything else is where it was found', () => {
+    expect(sourceLabel(REEL)).toBe('Seen on Instagram');
+    expect(sourceLabel('https://example.com/best-hikes')).toBe('Where we found it');
   });
 });
 

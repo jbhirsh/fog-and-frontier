@@ -5,6 +5,8 @@ import {
   HOST_STRIKES,
   LINK_FIELDS,
   collectLinks,
+  embedHasPost,
+  instagramEmbedUrl,
   judge,
   report,
   retryDelayMs,
@@ -20,9 +22,10 @@ describe('collectLinks', () => {
       'menuUrl',
       'reservationUrl',
       'coverImage',
+      'sourceUrl',
     ]);
     expect(ACTIVITIES_QUERY).toBe(
-      '{ activities { id name allTrailsUrl menuUrl reservationUrl coverImage } }',
+      '{ activities { id name allTrailsUrl menuUrl reservationUrl coverImage sourceUrl } }',
     );
     const links = collectLinks([
       {
@@ -167,6 +170,53 @@ describe('judge', () => {
         reason: 'not a web address',
       });
     }
+  });
+});
+
+// An activity's source on Instagram (#6), judged by its embed page.
+describe('Instagram posts', () => {
+  const post = { url: 'https://www.instagram.com/reel/Ddl9QKSv0D7/', image: false };
+
+  it('reads a post link through its embed page', () => {
+    for (const url of [
+      'https://www.instagram.com/reel/Ddl9QKSv0D7/',
+      'https://instagram.com/p/Ddl9QKSv0D7',
+      'http://m.instagram.com/someone/reels/Ddl9QKSv0D7/?igsh=x',
+      'https://www.instagram.com/tv/Ddl9QKSv0D7#top',
+    ]) {
+      expect(instagramEmbedUrl(url)).toBe('https://www.instagram.com/p/Ddl9QKSv0D7/embed/captioned/');
+    }
+    for (const url of [
+      'https://example.com/p/Ddl9QKSv0D7/',
+      'https://www.instagram.com/bayareatrails/',
+      'https://www.instagram.com/p/abc/',
+      'https://www.instagram.com/p/Ddl9QKSv0D7x!/',
+    ]) {
+      expect(instagramEmbedUrl(url)).toBeNull();
+    }
+  });
+
+  it('tells a post that’s up from one that’s gone, or a page it can’t read', () => {
+    const context = JSON.stringify(JSON.stringify({ gql_data: { shortcode_media: { id: '1' } } }));
+    expect(embedHasPost(`{"isProfileEmbed":false,"contextJSON":${context}}`)).toBe(true);
+    const empty = JSON.stringify(JSON.stringify({ gql_data: { shortcode_media: null } }));
+    expect(embedHasPost(`{"contextJSON":${empty}}`)).toBe(false);
+    expect(embedHasPost('{"isProfileEmbed":false,"contextJSON":null}')).toBe(false);
+    expect(embedHasPost('<html><script src="app.js"></script></html>')).toBeNull();
+  });
+
+  it('calls a post that’s gone dead, and a changed page one to check', () => {
+    expect(judge(post, { status: 200, contentType: 'text/html', post: true })).toEqual({ verdict: 'ok', reason: 'HTTP 200' });
+    expect(judge(post, { status: 200, contentType: 'text/html', post: false })).toEqual({
+      verdict: 'dead',
+      reason: 'post taken down or private',
+    });
+    expect(judge(post, { status: 200, contentType: 'text/html', post: null })).toEqual({
+      verdict: 'review',
+      reason: "Instagram's embed page has changed",
+    });
+    // An error answer is judged as any other.
+    expect(judge(post, { status: 404 })).toEqual({ verdict: 'dead', reason: 'HTTP 404' });
   });
 });
 
