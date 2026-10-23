@@ -1,6 +1,6 @@
 import type { TripActivity } from '../lib/userTrips';
 import { derivedEndTime, formatHHMM } from '../lib/userTrips';
-import { CdnImage } from './CdnImage';
+import { TripCardBody } from './TripCardBody';
 
 type Props = {
   activity: TripActivity;
@@ -68,11 +68,11 @@ export function TripActivityCard({
             onClick={onOpen}
             className="flex w-full gap-md rounded-lg text-left hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
           >
-            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
           </button>
         ) : (
           <div className="flex gap-md">
-            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
           </div>
         )}
         <div className="flex flex-wrap gap-xs">
@@ -116,43 +116,6 @@ export function TripActivityCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function CardBody({
-  cover,
-  name,
-  cityLine,
-  orphaned,
-}: {
-  cover: string | null;
-  name: string;
-  cityLine: string;
-  orphaned: boolean;
-}) {
-  return (
-    <>
-      <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-variant">
-        {cover ? (
-          <CdnImage alt="" src={cover} sizes="80px" className="size-full object-cover" />
-        ) : (
-          <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>
-            landscape
-          </span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1 space-y-xs">
-        <div className="line-clamp-1 font-headline-md text-body-lg text-on-surface">{name}</div>
-        {cityLine && (
-          <div className="line-clamp-1 font-body-md text-sm text-on-surface-variant">
-            {cityLine}
-          </div>
-        )}
-        {orphaned && (
-          <div className="font-body-md text-xs text-error">Original activity was deleted.</div>
-        )}
-      </div>
-    </>
   );
 }
 

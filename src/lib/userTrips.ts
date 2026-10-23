@@ -111,7 +111,8 @@ function rowToTripActivity(ta: TripRow['activities'][number]): TripActivity {
   };
 }
 
-function rowToTrip(row: TripRow): Trip {
+// The fields a trip and its list entry share.
+function rowToTripHeader(row: TripRow | TripListRow) {
   return {
     id: row.id,
     creator_email: row.creatorEmail,
@@ -123,6 +124,12 @@ function rowToTrip(row: TripRow): Trip {
     status: row.status,
     created_at: Date.parse(row.createdAt),
     marked_past_at: row.markedPastAt ? Date.parse(row.markedPastAt) : null,
+  };
+}
+
+function rowToTrip(row: TripRow): Trip {
+  return {
+    ...rowToTripHeader(row),
     activities: row.activities.map(rowToTripActivity),
     members: row.members.map((m) => ({
       email: m.email,
@@ -147,16 +154,7 @@ function rowToTrip(row: TripRow): Trip {
 
 function rowToTripListItem(row: TripListRow): TripListItem {
   return {
-    id: row.id,
-    creator_email: row.creatorEmail,
-    title: row.title,
-    description: row.description ?? null,
-    start_date: row.startDate,
-    end_date: row.endDate,
-    cover_image_url: row.coverImageUrl ?? null,
-    status: row.status,
-    created_at: Date.parse(row.createdAt),
-    marked_past_at: row.markedPastAt ? Date.parse(row.markedPastAt) : null,
+    ...rowToTripHeader(row),
     scheduled_count: row.scheduledCount,
     unscheduled_count: row.unscheduledCount,
   };
