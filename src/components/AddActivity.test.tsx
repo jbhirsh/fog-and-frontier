@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import type { Activity } from '../data/types';
 
 // react-leaflet imports browser-only Leaflet code that doesn't render under
 // jsdom. Stub the bits the LocationPicker uses with inert React nodes so the
-// review step can mount without booting a real map.
+// review step can mount without booting a real map. Its click handler is
+// kept, so a test can tap the map to drop a pin.
+const mapEvents = vi.hoisted(() => ({
+  click: undefined as undefined | ((e: { latlng: { lat: number; lng: number } }) => void),
+}));
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: { children?: React.ReactNode }) => (
     <div data-testid="map-container">{children}</div>
@@ -18,7 +22,10 @@ vi.mock('react-leaflet', () => ({
     setView: () => undefined,
     getZoom: () => 11,
   }),
-  useMapEvents: () => undefined,
+  useMapEvents: (handlers: typeof mapEvents) => {
+    mapEvents.click = handlers.click;
+    return undefined;
+  },
 }));
 
 vi.mock('leaflet', () => ({
@@ -796,5 +803,273 @@ describe('AddActivity — suggest mode (#73)', () => {
     expect(
       await screen.findByText("You've used today's AI drafts. Try again tomorrow."),
     ).toBeInTheDocument();
+  });
+});
+
+describe('AddActivity — a suggestion filled in by hand (#260)', () => {
+  const ASSIST_LIMIT = new CombinedGraphQLErrors({
+    errors: [
+      {
+        message: "You've used today's AI drafts. Try again tomorrow.",
+        extensions: { code: 'FORBIDDEN', appCode: 'assist_limit' },
+      },
+    ],
+  });
+
+  function openSuggest() {
+    ownerState.isOwner = false;
+    render(<AddActivity onClose={() => {}} suggest />);
+  }
+
+  async function byHand(title = 'Castle Rock', notes = '') {
+    openSuggest();
+    if (title) await userEvent.type(screen.getByLabelText('Title'), title);
+    if (notes) await userEvent.type(screen.getByLabelText('Notes / links (optional)'), notes);
+    await userEvent.click(screen.getByRole('button', { name: 'Fill them in yourself' }));
+  }
+
+  function dropPin(lat: number, lng: number) {
+    act(() => mapEvents.click?.({ latlng: { lat, lng } }));
+  }
+
+  it('is offered to a friend from the start, but not in the owners\' Add', () => {
+    openSuggest();
+    expect(screen.getByText(/or you can fill it in yourself/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fill them in yourself' })).toBeInTheDocument();
+  });
+
+  it("isn't offered to an owner adding an activity", () => {
+    render(<AddActivity onClose={() => {}} />);
+    expect(screen.queryByRole('button', { name: /Fill/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/fill it in yourself/)).not.toBeInTheDocument();
+  });
+
+  it('starts the review from the title and notes, without spending a draft', async () => {
+    await byHand('  Castle Rock  ', 'https://example.com/castle-rock');
+    expect(screen.getByRole('heading', { name: 'Review & send' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Castle Rock');
+    expect(screen.getByLabelText('Short description')).toHaveValue('');
+    expect(screen.getByLabelText('City')).toHaveValue('');
+    expect(screen.getByLabelText('Notes')).toHaveValue('https://example.com/castle-rock');
+    // Nothing is guessed about the place: its menus wait for a choice.
+    for (const menu of ['Category', 'Region', 'Duration']) {
+      expect(screen.getByLabelText(menu)).toHaveValue('');
+      expect(screen.getByLabelText(menu)).toHaveDisplayValue('Choose');
+    }
+    expect(screen.getByText('Tap the map to drop a pin.')).toBeInTheDocument();
+    expect(generateSpy).not.toHaveBeenCalled();
+    // No pin yet, so nothing to compare with the catalog.
+    expect(dupSpy).not.toHaveBeenCalled();
+  });
+
+  it('leaves out notes that are only blank', async () => {
+    await byHand('Castle Rock', '   ');
+    expect(screen.getByLabelText('Notes')).toHaveValue('');
+  });
+
+  it('needs a title first, as Generate does', async () => {
+    await byHand('');
+    expect(screen.getByText('Title is required')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Suggest activity' })).toBeInTheDocument();
+  });
+
+  async function choose() {
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'hiking');
+    await userEvent.selectOptions(screen.getByLabelText('Region'), 'south-bay');
+    await userEvent.selectOptions(screen.getByLabelText('Duration'), 'Half Day');
+  }
+
+  it("won't send until it has what a card and a pin need, saying what's left as it's filled in", async () => {
+    await byHand();
+    expect(screen.queryByText(/before sending/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(
+      screen.getByText(
+        'Add a short description, a category, a region, a duration, a city and a pin on the map before sending.',
+      ),
+    ).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText('Name'));
+    await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await choose();
+    // The message follows the fields, without another Send.
+    expect(screen.getByText('Add a name, a city and a pin on the map before sending.')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Name'), 'Castle Rock');
+    await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
+    expect(screen.getByText('Add a pin on the map before sending.')).toBeInTheDocument();
+    dropPin(37.23, -122.1);
+    expect(screen.queryByText(/before sending/)).not.toBeInTheDocument();
+    expect(suggestSpy).not.toHaveBeenCalled();
+    expect(dupSpy).not.toHaveBeenCalled();
+  });
+
+  it('counts blank text as missing', async () => {
+    await byHand();
+    await userEvent.type(screen.getByLabelText('Short description'), '   ');
+    await userEvent.type(screen.getByLabelText('City'), ' ');
+    await choose();
+    dropPin(37.23, -122.1);
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(
+      screen.getByText('Add a short description and a city before sending.'),
+    ).toBeInTheDocument();
+  });
+
+  it('asks for each menu left unchosen', async () => {
+    await byHand();
+    await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
+    dropPin(37.23, -122.1);
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(screen.getByText('Add a category, a region and a duration before sending.')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Region'), 'oregon');
+    expect(screen.getByText('Add a category and a duration before sending.')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Duration'), 'Weekend');
+    expect(screen.getByText('Add a category before sending.')).toBeInTheDocument();
+    // A chosen menu has no "Choose" left in it.
+    expect(screen.getByLabelText('Region')).not.toHaveDisplayValue('Choose');
+    expect(screen.queryAllByRole('option', { name: 'Choose' })).toHaveLength(1);
+    expect(suggestSpy).not.toHaveBeenCalled();
+  });
+
+  it('drops what the review step said on the way Back to the form', async () => {
+    await byHand();
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(screen.getByText(/before sending/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('heading', { name: 'Suggest activity' })).toBeInTheDocument();
+    expect(screen.queryByText(/before sending/)).not.toBeInTheDocument();
+    // And it isn't waiting on the review step when they come back.
+    await userEvent.click(screen.getByRole('button', { name: 'Fill them in yourself' }));
+    expect(screen.queryByText(/before sending/)).not.toBeInTheDocument();
+  });
+
+  it('drops an earlier failure on the way Back too', async () => {
+    suggestSpy.mockRejectedValueOnce(new Error('Network down'));
+    await byHand();
+    await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
+    await choose();
+    dropPin(37.23, -122.1);
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(await screen.findByText('Network down')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByText('Network down')).not.toBeInTheDocument();
+  });
+
+  it('goes through the same checks as a drafted one once filled in', async () => {
+    await byHand();
+    await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
+    await choose();
+    dropPin(37.23, -122.1);
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(await screen.findByRole('button', { name: 'Done' })).toBeInTheDocument();
+    // The look-alike check runs on send, as for a draft; the server's own
+    // checks (the pending cap, links, size) are the same mutation's.
+    expect(dupSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Castle Rock', location: { city: 'Los Gatos', coords: { lat: 37.23, lng: -122.1 } } }),
+    );
+    expect(suggestSpy).toHaveBeenCalledTimes(1);
+    const [sent, options] = suggestSpy.mock.calls[0] as [Activity, { allowDuplicate: boolean }];
+    expect(sent).toMatchObject({
+      name: 'Castle Rock',
+      shortDescription: 'Ridgeline hike',
+      category: 'hiking',
+      region: 'south-bay',
+      duration: 'Half Day',
+      coverImage: '',
+    });
+    expect(sent.contributors).toBeUndefined();
+    expect(options).toEqual({ allowDuplicate: false });
+    expect(lookupSpy).not.toHaveBeenCalled();
+  });
+
+  it('holds a look-alike found once the pin is down', async () => {
+    dupSpy.mockResolvedValue([
+      { id: 'castle-rock', name: 'Castle Rock', city: 'Los Gatos', distanceMeters: 30, confidence: 'high' },
+    ]);
+    await byHand();
+    await choose();
+    // Renaming with no pin asks nothing.
+    await userEvent.type(screen.getByLabelText('Name'), ' Park');
+    await new Promise((r) => setTimeout(r, 450));
+    expect(dupSpy).not.toHaveBeenCalled();
+    dropPin(37.23, -122.1);
+    await waitFor(() => expect(dupSpy).toHaveBeenCalledTimes(1), { timeout: 1000 });
+    expect(await screen.findByRole('button', { name: 'Send anyway' })).toBeInTheDocument();
+  });
+
+  it("leads to filling in by hand once today's drafts are used up", async () => {
+    openSuggest();
+    generateSpy.mockRejectedValue(ASSIST_LIMIT);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    const fill = await screen.findByRole('button', { name: 'Fill in by hand' });
+    expect(fill).toHaveFocus();
+    expect(fill).toHaveAccessibleDescription(
+      "You've used today's AI drafts. You can still fill in the details yourself.",
+    );
+    expect(screen.getByRole('status')).toHaveTextContent("You've used today's AI drafts.");
+    // No dead end, and no Generate to fail again; the server's own wording
+    // isn't shown as an error.
+    expect(screen.queryByRole('button', { name: /Generate/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fill them in yourself' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Try again tomorrow/)).not.toBeInTheDocument();
+    await userEvent.click(fill);
+    expect(screen.getByRole('heading', { name: 'Review & send' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Castle Rock');
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fills in by hand on Enter once the drafts are used up', async () => {
+    openSuggest();
+    generateSpy.mockRejectedValue(ASSIST_LIMIT);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock{Enter}');
+    await screen.findByRole('button', { name: 'Fill in by hand' });
+    await userEvent.type(screen.getByLabelText('Title'), '{Enter}');
+    expect(screen.getByRole('heading', { name: 'Review & send' })).toBeInTheDocument();
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Generate after any other failure', async () => {
+    openSuggest();
+    generateSpy.mockRejectedValue(new Error('Gemini is busy'));
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(await screen.findByText('Gemini is busy')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Generate/ })).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('leaves an owner with the error as it was', async () => {
+    generateSpy.mockRejectedValue(ASSIST_LIMIT);
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(
+      await screen.findByText("You've used today's AI drafts. Try again tomorrow."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Fill/ })).not.toBeInTheDocument();
+  });
+
+  it('checks a drafted suggestion too, if a field is emptied', async () => {
+    ownerState.isOwner = false;
+    generateSpy.mockResolvedValue({
+      name: 'Castle Rock',
+      shortDescription: 'Ridgeline hike',
+      category: 'hiking',
+      region: 'south-bay',
+      city: 'Los Gatos',
+      lat: 37.23,
+      lng: -122.1,
+      duration: 'Half Day',
+    } satisfies GeneratedFields);
+    render(<AddActivity onClose={() => {}} suggest />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await userEvent.clear(await screen.findByLabelText('City'));
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(screen.getByText('Add a city before sending.')).toBeInTheDocument();
+    expect(suggestSpy).not.toHaveBeenCalled();
   });
 });
