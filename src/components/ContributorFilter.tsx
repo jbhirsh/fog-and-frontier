@@ -84,7 +84,7 @@ export function ContributorFilter({ options, selected, onChange }: Props) {
             ref={pickerRef}
             aria-label="Contributed by"
             {...picker}
-            className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+            className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
           >
             <option value="" disabled>
               {selected.length > 0 ? 'Add contributor' : 'Any contributor'}

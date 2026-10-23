@@ -62,13 +62,15 @@ export default defineConfig([
   },
 
   // App code (browser + tests). Type-aware via tsconfig.app.json.
-  // Tailwind v4 class-conflict linting via eslint-plugin-better-tailwindcss
-  // (Phase C of Issue #1). We deliberately do NOT enable
-  // `enforce-consistent-class-order` — that's a Prettier-flavored rule and
-  // we don't use Prettier in this repo. Instead we run the correctness rules
-  // (`no-conflicting-classes`, `no-duplicate-classes`) which catch the cases
-  // the issue called out: `text-sm text-lg`, `p-3 p-4`, duplicated classes.
-  // The v4 entry point is `src/index.css` (CSS-based config, no JS config file).
+  // Tailwind v4 class linting via eslint-plugin-better-tailwindcss (the v4
+  // successor of eslint-plugin-tailwindcss; Phase C of Issue #1). Correctness:
+  // conflicting (`text-sm text-lg`), duplicate, unknown and deprecated
+  // classes. Consistency, all autofixed by `npm run lint:fix`: one class
+  // order, variant order, `!` position and variable syntax, and the canonical
+  // or shorthand spelling (`w-4 h-4` → `size-4`, `[16px]` → its scale step),
+  // which keeps arbitrary values to the ones the scale lacks. Line wrapping
+  // is left to Prettier. The v4 entry point is `src/index.css` (CSS-based
+  // config, no JS config file).
   {
     files: ['src/**/*.{ts,tsx}'],
     extends: [
@@ -104,6 +106,23 @@ export default defineConfig([
       'import/no-named-as-default-member': 'off',
       'better-tailwindcss/no-conflicting-classes': 'error',
       'better-tailwindcss/no-duplicate-classes': 'error',
+      // Plain CSS classes, not utilities: the icon font's (src/index.css)
+      // and Leaflet's.
+      'better-tailwindcss/no-unknown-classes': [
+        'error',
+        { ignore: ['^material-symbols-outlined$', '^leaflet-'] },
+      ],
+      'better-tailwindcss/no-deprecated-classes': 'error',
+      'better-tailwindcss/no-unnecessary-whitespace': 'error',
+      'better-tailwindcss/enforce-consistent-class-order': 'error',
+      'better-tailwindcss/enforce-consistent-variant-order': 'error',
+      'better-tailwindcss/enforce-consistent-important-position': 'error',
+      'better-tailwindcss/enforce-consistent-variable-syntax': 'error',
+      // collapse: false keeps two tokens that happen to share a value
+      // (`px-gutter py-md`, both 24px today) as written: they mean different
+      // things, and may not stay equal.
+      'better-tailwindcss/enforce-canonical-classes': ['error', { collapse: false }],
+      'better-tailwindcss/enforce-shorthand-classes': 'error',
     },
   },
 

@@ -62,7 +62,7 @@ export function CoverImage({
 
   return (
     <div
-      className="flex h-full w-full items-center justify-center bg-surface-variant text-on-surface-variant/40"
+      className="flex size-full items-center justify-center bg-surface-variant text-on-surface-variant/40"
       // A meaningful cover keeps its name when it falls back; a decorative one
       // stays invisible to assistive tech, as the empty-alt <img> was.
       {...(alt ? { role: 'img', 'aria-label': alt } : {})}

@@ -258,13 +258,13 @@ export function ActivityDetail({
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-md overflow-hidden">
+    <div className="fixed inset-0 z-1000 flex items-end justify-center overflow-hidden p-0 md:items-center md:p-md">
       <button
         ref={scrimRef}
         type="button"
         aria-label="Close activity details"
         onClick={onClose}
-        className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default ${animateIn ? SCRIM_IN : ''}`}
+        className={`absolute inset-0 cursor-default bg-on-surface/60 backdrop-blur-sm ${animateIn ? SCRIM_IN : ''}`}
       />
       {/* The track a sideways swipe moves: the panel, with its neighbours
           waiting beside it. */}
@@ -275,26 +275,26 @@ export function ActivityDetail({
           aria-label={activity.name}
           ref={scrollRef}
           tabIndex={-1}
-          className={`relative bg-surface-container-lowest focus:outline-none w-full max-h-[95dvh] overflow-y-auto overscroll-contain md:rounded-xl shadow-2xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
+          className={`relative max-h-[95dvh] w-full overflow-y-auto overscroll-contain bg-surface-container-lowest shadow-2xl focus:outline-none md:rounded-xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
         >
           <div className="relative aspect-video bg-surface-variant">
             <CoverImage
               alt={activity.name}
               category={activity.category}
               src={activity.coverImage}
-              className="w-full h-full object-cover"
+              className="size-full object-cover"
               glyphSize={64}
               sizes={DETAIL_SIZES}
             />
             {/* The sheet's grab handle on a phone: it can be swiped down. */}
             <span
               aria-hidden="true"
-              className="md:hidden absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-surface-container-lowest/80 shadow-sm"
+              className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden"
             />
             {sequence && (
               <nav
                 aria-label={`Adventure ${sequence.index + 1} of ${sequence.total} in this list`}
-                className="absolute top-sm left-sm flex items-center gap-xs bg-surface-container-lowest/90 backdrop-blur-sm rounded-full p-xs"
+                className="absolute top-sm left-sm flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm"
               >
                 <button
                   ref={prevRef}
@@ -307,7 +307,7 @@ export function ActivityDetail({
                 >
                   <span className="material-symbols-outlined">chevron_left</span>
                 </button>
-                <span className="font-body-sm text-on-surface-variant tabular-nums px-xs">
+                <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
                   {sequence.index + 1} of {sequence.total}
                 </span>
                 <button
@@ -327,18 +327,18 @@ export function ActivityDetail({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="absolute top-sm right-sm bg-surface-container-lowest/90 backdrop-blur-sm rounded-full w-11 h-11 flex items-center justify-center hover:bg-surface-container-lowest transition-colors"
+              className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
           </div>
           {activity.coverCredit && (
             // Commons covers are CC-licensed: credit author + license (#36).
-            <p className="px-md md:px-lg pt-xs font-body-sm text-on-surface-variant">
+            <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
               {activity.coverCredit}
             </p>
           )}
-          <div className="p-md md:p-lg space-y-md">
+          <div className="space-y-md p-md md:p-lg">
             <TitleRow activity={activity} />
 
             <Facts activity={activity} onShowContributor={onShowContributor} />
@@ -346,7 +346,7 @@ export function ActivityDetail({
             {(activity.allTrailsUrl ||
               activity.hikeDistanceMiles ||
               activity.hikeElevationFeet) && (
-              <div className="bg-surface-container-low rounded-lg p-md space-y-sm">
+              <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
                 <div className="flex items-center justify-between gap-sm">
                   <div className="font-label-caps text-label-caps text-on-surface-variant">
                     TRAIL DETAILS
@@ -381,7 +381,7 @@ export function ActivityDetail({
                       href={activity.allTrailsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="ml-auto inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
+                      className="ml-auto inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
                     >
                       View on AllTrails
                       <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
@@ -399,7 +399,7 @@ export function ActivityDetail({
               activity.reservationUrl ||
               activity.menuUrl ||
               (activity.dietary && activity.dietary.length > 0)) && (
-              <div className="bg-surface-container-low rounded-lg p-md space-y-sm">
+              <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
                 <div className="font-label-caps text-label-caps text-on-surface-variant">
                   RESTAURANT INFO
                 </div>
@@ -413,7 +413,7 @@ export function ActivityDetail({
                     {activity.dietary.map((d) => (
                       <span
                         key={d}
-                        className="font-body-sm text-on-surface-variant bg-surface-variant rounded-full px-sm py-xs capitalize"
+                        className="rounded-full bg-surface-variant px-sm py-xs font-body-sm text-on-surface-variant capitalize"
                       >
                         {d}
                       </span>
@@ -427,7 +427,7 @@ export function ActivityDetail({
                         href={activity.reservationUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
+                        className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
                       >
                         Reserve
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
@@ -440,7 +440,7 @@ export function ActivityDetail({
                         href={activity.menuUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
+                        className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
                       >
                         Menu / website
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
@@ -454,8 +454,8 @@ export function ActivityDetail({
             )}
 
             {activity.notes && (
-              <div className="bg-surface-container-low rounded-lg p-md">
-                <div className="font-label-caps text-label-caps text-on-surface-variant mb-xs">
+              <div className="rounded-lg bg-surface-container-low p-md">
+                <div className="mb-xs font-label-caps text-label-caps text-on-surface-variant">
                   NOTES
                 </div>
                 <p className="font-body-md text-body-md text-on-surface">{activity.notes}</p>
@@ -469,7 +469,7 @@ export function ActivityDetail({
                 href={activity.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
+                className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
               >
                 {sourceLabel(activity.sourceUrl)}
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
@@ -516,30 +516,30 @@ export function ActivityDetail({
                         </span>
                         {NEARBY_GROUP_HEADING[category]}
                       </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+                      <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
                         {items.map(({ activity: a, miles: m }) => (
                           <button
                             key={a.id}
                             type="button"
                             onClick={() => selectNearby(a)}
-                            className="flex gap-sm items-stretch text-left rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container transition-colors"
+                            className="flex items-stretch gap-sm overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-low text-left transition-colors hover:bg-surface-container"
                           >
                             <div className="w-24 shrink-0 bg-surface-variant">
                               <CdnImage
                                 src={a.coverImage}
                                 alt={a.name}
                                 sizes="96px"
-                                className="w-full h-full object-cover"
+                                className="size-full object-cover"
                               />
                             </div>
-                            <div className="flex-1 min-w-0 py-xs pr-sm">
-                              <div className="font-body-md font-bold text-on-surface truncate">
+                            <div className="min-w-0 flex-1 py-xs pr-sm">
+                              <div className="truncate font-body-md font-bold text-on-surface">
                                 {a.name}
                               </div>
-                              <div className="font-body-sm text-on-surface-variant truncate">
+                              <div className="truncate font-body-sm text-on-surface-variant">
                                 {a.location.city} · {m.toFixed(1)} mi away
                               </div>
-                              <div className="font-body-sm text-on-surface-variant truncate">
+                              <div className="truncate font-body-sm text-on-surface-variant">
                                 {a.duration}
                               </div>
                             </div>
@@ -560,8 +560,8 @@ export function ActivityDetail({
                   <h3 className="font-headline-md text-headline-md text-primary">Your Photos</h3>
                   {photos.length < MAX_PHOTOS_PER_ACTIVITY && (
                     <label
-                      className={`bg-secondary text-on-secondary px-md py-sm rounded-full font-medium transition-opacity flex items-center gap-xs ${
-                        uploading ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:opacity-90'
+                      className={`flex items-center gap-xs rounded-full bg-secondary px-md py-sm font-medium text-on-secondary transition-opacity ${
+                        uploading ? 'cursor-wait opacity-60' : 'cursor-pointer hover:opacity-90'
                       }`}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
@@ -590,22 +590,22 @@ export function ActivityDetail({
                     No photos yet — upload some from this trip.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-sm">
+                  <div className="grid grid-cols-2 gap-sm md:grid-cols-3">
                     {photos.map((photo, i) => (
                       <div
                         key={photo.id}
-                        className="relative aspect-square rounded-lg overflow-hidden bg-surface-variant group"
+                        className="group relative aspect-square overflow-hidden rounded-lg bg-surface-variant"
                       >
                         <img
                           src={photo.url}
                           alt={`${activity.name} ${i + 1}`}
-                          className="w-full h-full object-cover"
+                          className="size-full object-cover"
                         />
                         <button
                           type="button"
                           onClick={() => void removePhoto(photo.id)}
                           aria-label="Remove photo"
-                          className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-11 h-11 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                          className="absolute top-xs right-xs flex size-11 items-center justify-center rounded-full bg-on-surface/70 text-on-primary opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
                             delete
@@ -619,12 +619,12 @@ export function ActivityDetail({
             )}
 
             {isOwner && (
-              <div className="pt-md mt-md border-t border-outline-variant/40 flex flex-wrap justify-end gap-sm">
+              <div className="mt-md flex flex-wrap justify-end gap-sm border-t border-outline-variant/40 pt-md">
                 <button
                   ref={editRef}
                   type="button"
                   onClick={() => setEditing(true)}
-                  className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors"
+                  className="inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-on-surface-variant transition-colors hover:bg-surface-variant"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                     edit
@@ -634,7 +634,7 @@ export function ActivityDetail({
                 <button
                   type="button"
                   onClick={() => void handleDelete()}
-                  className="-mr-md inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
+                  className="-mr-md inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-error transition-colors hover:bg-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                     delete
@@ -725,7 +725,7 @@ function TitleRow({ activity }: { activity: Activity }) {
           type="button"
           onClick={toggle}
           aria-pressed={completed}
-          className={`inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps transition-colors ${
+          className={`inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps transition-colors ${
             completed
               ? 'bg-primary-fixed text-primary hover:bg-primary-fixed-dim'
               : 'bg-surface-variant text-on-surface-variant hover:bg-surface-container-high'
@@ -743,7 +743,7 @@ function TitleRow({ activity }: { activity: Activity }) {
         // the completion *status* is a read worth keeping — render it as a
         // static badge when the activity is completed, nothing otherwise.
         completed && (
-          <span className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps bg-primary-fixed text-primary">
+          <span className="inline-flex min-h-11 items-center gap-xs rounded-full bg-primary-fixed px-md py-sm font-label-caps text-label-caps text-primary">
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
               check_circle
             </span>
@@ -771,7 +771,7 @@ function Facts({
   const directionsHref = directionsUrl(activity.location.coords, isApplePlatform());
   return (
     <>
-      <div className="flex flex-wrap gap-sm md:gap-md text-on-surface-variant">
+      <div className="flex flex-wrap gap-sm text-on-surface-variant md:gap-md">
         <Stat icon="location_on" label={`${formatMiles(distance, true)} mi from ${origin.label}`} />
         {/* A read: open to every visitor, not owner-gated (#87). */}
         {directionsHref && (
@@ -781,7 +781,7 @@ function Facts({
             rel="noopener noreferrer"
             // 44px to tap, but the -10px margins keep it to the 24px of
             // the facts beside it, so the rows below stay evenly spaced.
-            className="inline-flex items-center gap-xs min-h-11 -my-2.5 text-primary-container hover:underline font-medium"
+            className="-my-2.5 inline-flex min-h-11 items-center gap-xs font-medium text-primary-container hover:underline"
           >
             <span className="material-symbols-outlined text-icon-md">directions</span>
             Get directions
@@ -834,7 +834,7 @@ function Peek({
       aria-hidden="true"
       inert
       data-testid={`peek-${side}`}
-      className={`invisible group-data-[swiping=true]/track:visible absolute inset-y-0 w-full overflow-hidden bg-surface-container-lowest md:rounded-xl shadow-2xl ${
+      className={`invisible absolute inset-y-0 w-full overflow-hidden bg-surface-container-lowest shadow-2xl group-data-[swiping=true]/track:visible md:rounded-xl ${
         side === 'next' ? 'left-[calc(100%+16px)]' : 'right-[calc(100%+16px)]'
       }`}
     >
@@ -843,32 +843,32 @@ function Peek({
           alt=""
           category={activity.category}
           src={activity.coverImage}
-          className="w-full h-full object-cover"
+          className="size-full object-cover"
           glyphSize={64}
           sizes={DETAIL_SIZES}
         />
-        <span className="md:hidden absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-surface-container-lowest/80 shadow-sm" />
-        <div className="absolute top-sm left-sm flex items-center gap-xs bg-surface-container-lowest/90 backdrop-blur-sm rounded-full p-xs">
+        <span className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden" />
+        <div className="absolute top-sm left-sm flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm">
           <span className={`${STEP_BUTTON} ${place === 1 ? 'opacity-35' : ''}`}>
             <span className="material-symbols-outlined">chevron_left</span>
           </span>
-          <span className="font-body-sm text-on-surface-variant tabular-nums px-xs">
+          <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
             {place} of {total}
           </span>
           <span className={`${STEP_BUTTON} ${place === total ? 'opacity-35' : ''}`}>
             <span className="material-symbols-outlined">chevron_right</span>
           </span>
         </div>
-        <span className="absolute top-sm right-sm bg-surface-container-lowest/90 backdrop-blur-sm rounded-full w-11 h-11 flex items-center justify-center">
+        <span className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm">
           <span className="material-symbols-outlined">close</span>
         </span>
       </div>
       {activity.coverCredit && (
-        <p className="px-md md:px-lg pt-xs font-body-sm text-on-surface-variant">
+        <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
           {activity.coverCredit}
         </p>
       )}
-      <div className="p-md md:p-lg space-y-md">
+      <div className="space-y-md p-md md:p-lg">
         <TitleRow activity={activity} />
         <Facts activity={activity} />
       </div>

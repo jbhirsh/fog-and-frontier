@@ -47,7 +47,7 @@ export function PromoteToPlanningModal({ candidates, onCancel, onConfirm }: Prop
         type="button"
         aria-label="Close dialog"
         onClick={onCancel}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-default"
+        className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
       />
 
       {/* Dialog panel */}
@@ -55,7 +55,7 @@ export function PromoteToPlanningModal({ candidates, onCancel, onConfirm }: Prop
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
+        className="relative w-full max-w-2xl space-y-md rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
 
@@ -65,7 +65,7 @@ export function PromoteToPlanningModal({ candidates, onCancel, onConfirm }: Prop
         </p>
 
         {/* Candidate checklist */}
-        <ul className="space-y-sm max-h-96 overflow-y-auto">
+        <ul className="max-h-96 space-y-sm overflow-y-auto">
           {candidates.map(({ activity, tally }) => {
             const name = activity.snapshot?.name ?? '(deleted activity)';
             const netLabel = tally.net > 0 ? `+${tally.net}` : `${tally.net}`;
@@ -73,18 +73,18 @@ export function PromoteToPlanningModal({ candidates, onCancel, onConfirm }: Prop
 
             return (
               <li key={activity.id}>
-                <label className="flex items-center gap-md cursor-pointer rounded-lg px-sm py-xs hover:bg-surface-variant transition-colors">
+                <label className="flex cursor-pointer items-center gap-md rounded-lg px-sm py-xs transition-colors hover:bg-surface-variant">
                   <input
                     type="checkbox"
                     checked={isChecked}
                     onChange={() => toggle(activity.id)}
-                    className="w-4 h-4 accent-primary shrink-0"
+                    className="size-4 shrink-0 accent-primary"
                   />
-                  <span className="flex-1 min-w-0 font-body-md text-sm text-on-surface line-clamp-1">
+                  <span className="line-clamp-1 min-w-0 flex-1 font-body-md text-sm text-on-surface">
                     {name}
                   </span>
                   <span
-                    className={`font-body-md text-xs px-sm py-xs rounded-full shrink-0 ${
+                    className={`shrink-0 rounded-full px-sm py-xs font-body-md text-xs ${
                       tally.net > 0
                         ? 'bg-tertiary-container text-on-tertiary-container'
                         : tally.net < 0
@@ -105,14 +105,14 @@ export function PromoteToPlanningModal({ candidates, onCancel, onConfirm }: Prop
           <button
             type="button"
             onClick={onCancel}
-            className="px-md py-sm rounded-full font-body-md border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant transition-colors"
+            className="rounded-full border border-outline-variant/40 px-md py-sm font-body-md text-on-surface-variant transition-colors hover:bg-surface-variant"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleConfirm}
-            className="px-md py-sm rounded-full font-body-md bg-primary text-on-primary hover:opacity-90 transition-opacity"
+            className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
           >
             Move to planning
           </button>

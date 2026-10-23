@@ -50,7 +50,7 @@ export function ActivityReviews({ activityId }: { activityId: string }) {
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps bg-secondary text-on-secondary hover:opacity-90 transition-opacity"
+            className="inline-flex min-h-11 items-center gap-xs rounded-full bg-secondary px-md py-sm font-label-caps text-label-caps text-on-secondary transition-opacity hover:opacity-90"
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
               rate_review
@@ -89,7 +89,7 @@ function ReviewCard({
   onEdit?: () => void;
 }) {
   return (
-    <article className="bg-surface-container-low rounded-lg p-md space-y-xs">
+    <article className="space-y-xs rounded-lg bg-surface-container-low p-md">
       <div className="flex flex-wrap items-center justify-between gap-sm">
         <div className="flex items-center gap-sm">
           <span className="font-body-md font-bold text-on-surface">
@@ -103,7 +103,7 @@ function ReviewCard({
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex items-center gap-xs px-sm py-xs min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors"
+            className="inline-flex min-h-11 items-center gap-xs rounded-full px-sm py-xs font-label-caps text-label-caps text-on-surface-variant transition-colors hover:bg-surface-variant"
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
               edit
@@ -113,7 +113,7 @@ function ReviewCard({
         )}
       </div>
       {review.note && (
-        <p className="font-body-md text-body-md text-on-surface whitespace-pre-line">
+        <p className="font-body-md text-body-md whitespace-pre-line text-on-surface">
           {review.note}
         </p>
       )}
@@ -166,7 +166,7 @@ function StarPicker({
             aria-pressed={filled}
             // Clicking the active star clears the rating (a note-only review).
             onClick={() => onChange(rating === star ? null : star)}
-            className="w-11 h-11 flex items-center justify-center text-secondary hover:bg-surface-variant rounded-full transition-colors"
+            className="flex size-11 items-center justify-center rounded-full text-secondary transition-colors hover:bg-surface-variant"
           >
             <span
               className="material-symbols-outlined"
@@ -228,7 +228,7 @@ function ReviewEditor({
   }
 
   return (
-    <div className="bg-surface-container-low rounded-lg p-md space-y-sm">
+    <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
       <InlineError message={error} onDismiss={() => setError(null)} />
       <StarPicker rating={rating} onChange={setRating} />
       <label className="block space-y-xs">
@@ -248,7 +248,7 @@ function ReviewEditor({
             type="button"
             onClick={() => void handleDelete()}
             disabled={busy}
-            className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-error transition-colors hover:bg-error-container disabled:opacity-50"
           >
             DELETE REVIEW
           </button>
@@ -257,7 +257,7 @@ function ReviewEditor({
           type="button"
           onClick={onDone}
           disabled={busy}
-          className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-on-surface-variant transition-colors hover:bg-surface-variant disabled:opacity-50"
         >
           CANCEL
         </button>
@@ -265,7 +265,7 @@ function ReviewEditor({
           type="button"
           onClick={() => void handleSave()}
           disabled={busy}
-          className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps bg-secondary text-on-secondary hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-xs rounded-full bg-secondary px-md py-sm font-label-caps text-label-caps text-on-secondary transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           SAVE REVIEW
         </button>

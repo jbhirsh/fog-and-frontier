@@ -177,16 +177,16 @@ function SharedPost({ link }: { link: string }) {
   );
   return (
     <Page>
-      <div className="flex items-start gap-md p-sm rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
+      <div className="flex items-start gap-md rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-sm">
         {post.imageUrl && !posterFailed && (
-          <div className="w-16 h-20 shrink-0 rounded-lg overflow-hidden bg-surface-variant">
+          <div className="h-20 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-variant">
             <CdnImage
               src={post.imageUrl}
               sizes="64px"
               alt=""
               referrerPolicy="no-referrer"
               onFailed={() => setPosterFailed(true)}
-              className="w-full h-full object-cover"
+              className="size-full object-cover"
             />
           </div>
         )}
@@ -196,7 +196,7 @@ function SharedPost({ link }: { link: string }) {
             {post.author ? ` · @${post.author}` : ''}
           </p>
           {post.caption && (
-            <p className="font-body-md text-on-surface line-clamp-3">{post.caption}</p>
+            <p className="line-clamp-3 font-body-md text-on-surface">{post.caption}</p>
           )}
           <PostLink url={post.url} />
         </div>
@@ -241,7 +241,7 @@ function SharedPost({ link }: { link: string }) {
               return (
                 <li
                   key={key}
-                  className="flex items-center gap-sm p-sm rounded-xl border border-outline-variant/40 bg-surface-container-lowest"
+                  className="flex items-center gap-sm rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-sm"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-body-md font-semibold text-on-surface">{place.name}</p>
@@ -334,7 +334,7 @@ function SharedPost({ link }: { link: string }) {
 }
 
 function Page({ children }: { children: React.ReactNode }) {
-  return <section className="px-margin py-lg max-w-2xl mx-auto space-y-md">{children}</section>;
+  return <section className="mx-auto max-w-2xl space-y-md py-lg px-margin">{children}</section>;
 }
 
 function PostLink({ url }: { url: string }) {
@@ -343,7 +343,7 @@ function PostLink({ url }: { url: string }) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className="font-body-sm text-primary-container underline break-all"
+      className="font-body-sm break-all text-primary-container underline"
     >
       Open on Instagram
     </a>

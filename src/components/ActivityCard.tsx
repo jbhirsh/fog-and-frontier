@@ -114,28 +114,28 @@ export function ActivityCard({
         // card, overlapping the neighbour. Chromium stretches by default, which
         // is why this only reproduces in Safari. Forcing stretch keeps the body
         // at the card width so the title's `truncate` can take effect.
-        className="group flex h-full w-full flex-col items-stretch text-left focus:outline-none"
+        className="group flex size-full flex-col items-stretch text-left focus:outline-none"
       >
         {/* Image-led cover. Selected/focus states live on the image, not a
             card border — there is no card chrome around the whole thing. */}
         <div
-          className={`relative aspect-[4/3] overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:outline-2 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] motion-reduce:transition-none ${
+          className={`relative aspect-4/3 overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-hover:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 motion-reduce:transition-none ${
             selected || highlighted
-              ? 'outline-2 shadow-[0_10px_30px_rgba(0,30,55,0.18)]'
+              ? 'shadow-[0_10px_30px_rgba(0,30,55,0.18)] outline-2'
               : 'outline-0'
           }`}
         >
           <CoverImage
             alt=""
             category={activity.category}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
+            className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
             src={activity.coverImage}
             loading="lazy"
             // One, two or three to a row (narrower beside the map).
             sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
           />
           {/* Category tag — frosted pill, navy label, accent icon. */}
-          <span className="absolute top-sm left-sm inline-flex h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm backdrop-blur-sm font-label-caps text-label-caps text-primary">
+          <span className="absolute top-sm left-sm inline-flex h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm font-label-caps text-label-caps text-primary backdrop-blur-sm">
             <span
               className="material-symbols-outlined text-secondary"
               aria-hidden="true"
@@ -147,10 +147,10 @@ export function ActivityCard({
           </span>
           {selectionMode && (
             <div
-              className={`absolute bottom-sm left-sm flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+              className={`absolute bottom-sm left-sm flex size-8 items-center justify-center rounded-full border-2 ${
                 selected
-                  ? 'bg-primary border-primary text-on-primary'
-                  : 'bg-surface-container-lowest/90 border-outline-variant/60 text-on-surface-variant'
+                  ? 'border-primary bg-primary text-on-primary'
+                  : 'border-outline-variant/60 bg-surface-container-lowest/90 text-on-surface-variant'
               }`}
               aria-hidden="true"
             >
@@ -170,7 +170,7 @@ export function ActivityCard({
             the meta row pins to the bottom and rows stay equal height. */}
         <div className="flex flex-1 flex-col px-xs pt-sm">
           <div className="flex items-center justify-between gap-sm">
-            <h3 className="min-w-0 flex-1 truncate text-[16px] font-semibold tracking-[-0.015em] text-on-surface group-hover:text-primary-container transition-colors">
+            <h3 className="min-w-0 flex-1 truncate text-[16px] font-semibold tracking-[-0.015em] text-on-surface transition-colors group-hover:text-primary-container">
               {activity.name}
             </h3>
             {activity.allTrailsRating != null && (

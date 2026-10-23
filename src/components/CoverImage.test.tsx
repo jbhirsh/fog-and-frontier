@@ -10,7 +10,7 @@ describe('CoverImage', () => {
         src="https://img.test/a.jpg"
         alt="Muir Woods"
         category="hiking"
-        className="h-full w-full object-cover"
+        className="size-full object-cover"
         loading="lazy"
       />,
     );
@@ -18,7 +18,7 @@ describe('CoverImage', () => {
     expect(img.tagName).toBe('IMG');
     expect(img).toHaveAttribute('src', 'https://img.test/a.jpg');
     expect(img).toHaveAttribute('loading', 'lazy');
-    expect(img).toHaveClass('h-full', 'w-full', 'object-cover');
+    expect(img).toHaveClass('size-full', 'object-cover');
     expect(screen.queryByText('directions_walk')).not.toBeInTheDocument();
   });
 

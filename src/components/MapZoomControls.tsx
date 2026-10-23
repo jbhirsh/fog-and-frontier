@@ -43,7 +43,7 @@ export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
         aria-label="Zoom in"
         disabled={atMax}
         onClick={() => map.zoomIn()}
-        className="flex h-9 w-9 items-center justify-center text-on-surface hover:bg-white/60 disabled:cursor-not-allowed disabled:text-on-surface/30 disabled:hover:bg-transparent"
+        className="flex size-9 items-center justify-center text-on-surface hover:bg-white/60 disabled:cursor-not-allowed disabled:text-on-surface/30 disabled:hover:bg-transparent"
       >
         <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
           add
@@ -55,7 +55,7 @@ export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
         aria-label="Zoom out"
         disabled={atMin}
         onClick={() => map.zoomOut()}
-        className="flex h-9 w-9 items-center justify-center text-on-surface hover:bg-white/60 disabled:cursor-not-allowed disabled:text-on-surface/30 disabled:hover:bg-transparent"
+        className="flex size-9 items-center justify-center text-on-surface hover:bg-white/60 disabled:cursor-not-allowed disabled:text-on-surface/30 disabled:hover:bg-transparent"
       >
         <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
           remove

@@ -49,24 +49,24 @@ export function TripActivityCard({
       draggable={draggable}
       onDragStart={draggable ? onDragStart : undefined}
       onDragEnd={draggable ? onDragEnd : undefined}
-      className={`bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden ${
+      className={`overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest ${
         isDragging ? 'opacity-40' : ''
       } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
       {showTimeRange && start && (
-        <div className="px-md py-xs bg-primary-fixed text-primary font-body-md text-sm border-b border-outline-variant/20">
+        <div className="border-b border-outline-variant/20 bg-primary-fixed px-md py-xs font-body-md text-sm text-primary">
           {formatHHMM(start)}
           {end ? ` – ${formatHHMM(end)}` : ''}
         </div>
       )}
-      <div className="p-sm space-y-sm">
+      <div className="space-y-sm p-sm">
         {/* Cover + title — a button when openable, so clicking the card (but
             not the action buttons or drag) opens the detail view. */}
         {onOpen && !orphaned ? (
           <button
             type="button"
             onClick={onOpen}
-            className="flex gap-md w-full text-left rounded-lg hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
+            className="flex w-full gap-md rounded-lg text-left hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
           >
             <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
           </button>
@@ -132,19 +132,19 @@ function CardBody({
 }) {
   return (
     <>
-      <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-surface-variant flex items-center justify-center">
+      <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-variant">
         {cover ? (
-          <CdnImage alt="" src={cover} sizes="80px" className="w-full h-full object-cover" />
+          <CdnImage alt="" src={cover} sizes="80px" className="size-full object-cover" />
         ) : (
           <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>
             landscape
           </span>
         )}
       </div>
-      <div className="flex-1 min-w-0 space-y-xs">
-        <div className="font-headline-md text-body-lg text-on-surface line-clamp-1">{name}</div>
+      <div className="min-w-0 flex-1 space-y-xs">
+        <div className="line-clamp-1 font-headline-md text-body-lg text-on-surface">{name}</div>
         {cityLine && (
-          <div className="font-body-md text-sm text-on-surface-variant line-clamp-1">
+          <div className="line-clamp-1 font-body-md text-sm text-on-surface-variant">
             {cityLine}
           </div>
         )}
@@ -175,7 +175,7 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       title={tooltip}
-      className={`font-body-md text-sm px-sm py-xs rounded-full border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+      className={`rounded-full border px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
         destructive
           ? 'border-error/40 text-error hover:bg-error-container'
           : 'border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant'

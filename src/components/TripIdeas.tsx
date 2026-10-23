@@ -66,7 +66,7 @@ export function TripIdeas({ seeded, picked, onChange, max }: Props) {
         rows={2}
         maxLength={2000}
         placeholder="e.g. a chill dog-friendly weekend near the coast, with a couple of good food stops"
-        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-body-md focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+        className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-md focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:outline-none"
       />
       <button
         type="button"

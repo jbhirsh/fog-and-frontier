@@ -43,7 +43,7 @@ export function AddToTripDropdown({ activityId, onAdded }: Props) {
         aria-expanded={open}
         aria-label="Add to trip"
         title="Add to trip"
-        className="inline-flex items-center gap-xs px-sm py-xs bg-primary text-on-primary border border-primary rounded-full hover:opacity-90 font-body-md text-sm shadow-md"
+        className="inline-flex items-center gap-xs rounded-full border border-primary bg-primary px-sm py-xs font-body-md text-sm text-on-primary shadow-md hover:opacity-90"
       >
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
           {open ? 'close' : 'add_circle'}
@@ -104,11 +104,11 @@ function DropdownMenu({
   }
 
   return (
-    <div className="absolute right-0 mt-xs w-72 max-h-80 overflow-y-auto bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-xl z-50">
+    <div className="absolute right-0 z-50 mt-xs max-h-80 w-72 overflow-y-auto rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-xl">
       <button
         type="button"
         onClick={handleNewTrip}
-        className="w-full text-left px-md py-sm hover:bg-surface-variant border-b border-outline-variant/20"
+        className="w-full border-b border-outline-variant/20 px-md py-sm text-left hover:bg-surface-variant"
       >
         <span className="block font-body-md text-on-surface">New trip from this</span>
         <span className="block font-body-md text-sm text-on-surface-variant">
@@ -134,7 +134,7 @@ function DropdownMenu({
             type="button"
             disabled={busy}
             onClick={(e) => void handleAddTo(trip.id, trip.title, e)}
-            className="w-full text-left px-md py-sm hover:bg-surface-variant font-body-md disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full px-md py-sm text-left font-body-md hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span className="block text-on-surface">{trip.title}</span>
             <span className="block text-sm text-on-surface-variant">
@@ -144,7 +144,7 @@ function DropdownMenu({
         ))
       )}
       {errMsg && (
-        <div className="px-md py-sm font-body-md text-sm text-error border-t border-outline-variant/20">
+        <div className="border-t border-outline-variant/20 px-md py-sm font-body-md text-sm text-error">
           {errMsg}
         </div>
       )}

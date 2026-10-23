@@ -51,14 +51,14 @@ export function ContributorsField({ value, users, onChange }: Props) {
 
   return (
     <fieldset ref={groupRef} tabIndex={-1} className="focus:outline-none">
-      <legend className="block font-body-sm text-on-surface-variant mb-xs">Contributors</legend>
+      <legend className="mb-xs block font-body-sm text-on-surface-variant">Contributors</legend>
       <div className="flex flex-wrap items-center gap-xs">
         {value.map((email) => (
           <span
             key={email}
             // The remove button brings its own room on the right; a lone chip
             // has none, so it pads both sides alike.
-            className={`inline-flex h-9 items-center gap-xs rounded-full bg-surface-container-low border border-outline-variant pl-sm ${value.length > 1 ? 'pr-xs' : 'pr-sm'} text-body-sm`}
+            className={`inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-low pl-sm ${value.length > 1 ? 'pr-xs' : 'pr-sm'} text-body-sm`}
           >
             {authorLabel(email)}
             {value.length > 1 && (
@@ -69,7 +69,7 @@ export function ContributorsField({ value, users, onChange }: Props) {
                 type="button"
                 aria-label={`Remove ${authorLabel(email)}`}
                 onClick={() => remove(email)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-variant"
+                className="inline-flex size-7 items-center justify-center rounded-full hover:bg-surface-variant"
               >
                 {/* Sized inline, as in FilterPill: the icon font's own rule
                     outranks Tailwind's size utilities. The fixed box clips
@@ -90,12 +90,12 @@ export function ContributorsField({ value, users, onChange }: Props) {
           // border, so it's hidden and drawn as a caret, as in FilterPill.
           // The caret's glyph sits ~5px inside its box, so the right padding
           // is trimmed to match the label's inset on the left.
-          <label className="inline-flex h-9 items-center gap-xs rounded-full border border-dashed border-outline-variant pl-sm pr-[9px] text-body-sm cursor-pointer hover:bg-surface-container-low transition-colors focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40">
+          <label className="inline-flex h-9 cursor-pointer items-center gap-xs rounded-full border border-dashed border-outline-variant pr-[9px] pl-sm text-body-sm transition-colors focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40 hover:bg-surface-container-low">
             <select
               ref={pickerRef}
               aria-label="Add contributor"
               {...picker}
-              className="appearance-none bg-transparent focus:outline-none cursor-pointer"
+              className="cursor-pointer appearance-none bg-transparent focus:outline-none"
             >
               <option value="" disabled>
                 + Add contributor

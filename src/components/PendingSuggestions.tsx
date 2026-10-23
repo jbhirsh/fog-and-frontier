@@ -116,7 +116,7 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
       // Scrolled to just below the sticky app header (147px tall on a
       // phone, 81px from md up), and from md up below List's sticky toolbar
       // too (up to 110px; Split's doesn't stick, so it gets room to spare).
-      className="scroll-mt-40 md:scroll-mt-52 rounded-xl border border-outline-variant/40 bg-surface-container-low p-sm space-y-sm"
+      className="scroll-mt-40 space-y-sm rounded-xl border border-outline-variant/40 bg-surface-container-low p-sm md:scroll-mt-52"
     >
       <h2
         id={headingId}
@@ -141,7 +141,7 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
               {open ? 'expand_less' : 'expand_more'}
             </span>
             Waiting for review {/* A circle (20px) that only widens for two digits. */}
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] text-body-sm leading-none tabular-nums text-on-primary">
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] text-body-sm leading-none text-on-primary tabular-nums">
               {waiting}
             </span>
           </button>
@@ -180,7 +180,7 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
                 key={s.id}
                 aria-labelledby={nameId}
                 aria-busy={busy === s.id}
-                className="rounded-lg border-2 border-dashed border-outline-variant bg-surface-container-lowest p-sm space-y-xs font-body-sm text-body-sm"
+                className="space-y-xs rounded-lg border-2 border-dashed border-outline-variant bg-surface-container-lowest p-sm font-body-sm text-body-sm"
               >
                 <h3 id={nameId} className="font-body-md text-body-md font-semibold text-on-surface">
                   {a.name}

@@ -145,6 +145,13 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   tag, a malformed block or a type in braces in TypeScript (types live in
   the code; plain `.js`/`.mjs` may use them). Change the comment with the
   code it describes.
+- **Tailwind classes are linted** (`eslint-plugin-better-tailwindcss`, its
+  rules listed in `eslint.config.js`): conflicting, duplicate, unknown or
+  deprecated classes fail, and one class order and the canonical spelling
+  (`size-4` for `w-4 h-4`, a scale step for an arbitrary value it equals)
+  are enforced, but two different tokens that share a value (`px-gutter`
+  and `py-md`) stay as written. `npm run lint:fix` rewrites them; a plain
+  CSS class the plugin can't see goes in the rule's `ignore`.
 - **No `legacy-peer-deps`.** Installs are plain `npm ci`. Resolve a peer conflict (or a security advisory with no upstream fix) with a version bump, or with a narrow `overrides` entry explained in the commit and here. Two of today's, `eslint-plugin-import` and `eslint-plugin-jsx-a11y` → `eslint: $eslint`, exist because neither has a release whose peer range includes ESLint 10. Delete each once it does (or move `import` to `eslint-plugin-import-x`, which already supports 10). The third, `@vercel/cli-config` → `zod: ^4.6.6`, lifts zod past GHSA-mrhx-c7xc-m3w5 (it fails CI's `npm audit`), since every release of `@vercel/cli-config`, which `@vercel/blob` pulls in, pins zod 4.1.11. Delete it once a release pins a fixed zod.
 - **Commit hygiene.** Imperative subject ≤72 chars; body explains _why_; end
   with the `Co-Authored-By:` trailer. One logical change per commit; squash

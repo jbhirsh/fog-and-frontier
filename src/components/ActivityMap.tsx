@@ -169,7 +169,7 @@ export function ActivityMap({
   // punch through it.
   return (
     <div
-      className={`relative isolate h-full w-full overflow-hidden ${
+      className={`relative isolate size-full overflow-hidden ${
         fullBleed ? 'leaflet-fullbleed' : 'rounded-xl border border-outline-variant/30 shadow-sm'
       }`}
     >
@@ -242,8 +242,8 @@ export function ActivityMap({
                   as the standalone fallback when there's no `onActivate`. */}
               {!onActivate && (
                 <Popup>
-                  <div className="space-y-xs min-w-[200px]">
-                    <div className="font-bold text-body-md">{a.name}</div>
+                  <div className="min-w-[200px] space-y-xs">
+                    <div className="text-body-md font-bold">{a.name}</div>
                     <div className="text-body-sm text-on-surface-variant">
                       {a.location.city} · {formatMiles(distance)} mi from {origin.name} ·{' '}
                       {a.duration}
@@ -251,7 +251,7 @@ export function ActivityMap({
                     <button
                       type="button"
                       onClick={() => onSelect(a)}
-                      className="inline-flex items-center min-h-11 text-primary font-bold underline cursor-pointer"
+                      className="inline-flex min-h-11 cursor-pointer items-center font-bold text-primary underline"
                     >
                       View details →
                     </button>
@@ -305,7 +305,7 @@ function LegendDot({
       <span
         aria-hidden="true"
         style={{ background: color }}
-        className={`inline-block rounded-full ${small ? 'h-1.5 w-1.5' : 'h-3 w-3'}`}
+        className={`inline-block rounded-full ${small ? 'size-1.5' : 'size-3'}`}
       />
       {label}
     </span>
