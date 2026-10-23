@@ -16,7 +16,7 @@ const FEATURES: Feature[] = ['generateActivity', 'alltrailsLookup', 'discover', 
  * Current commit SHA for the results file. Prefers the local git HEAD; when git
  * is unavailable (e.g. a checkout-less CI runner) falls back to GITHUB_SHA.
  */
-export function resolveGitSha(): string | null {
+function resolveGitSha(): string | null {
   try {
     // stderr suppressed so a "not a git repository" message never leaks into
     // the scorecard's console output.

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Breadcrumb, ErrorEvent, Exception } from '@sentry/react';
-import type { TransactionEvent } from '@sentry/core';
+import type { TransactionEvent } from './sentry';
 
 const { init, reactRouterV7BrowserTracingIntegration } = vi.hoisted(() => ({
   init: vi.fn(),

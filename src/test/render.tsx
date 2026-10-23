@@ -158,12 +158,4 @@ export function render(
   return Object.assign(rtlRender(ui, { wrapper: Wrapper, ...rtl }), { cache });
 }
 
-export {
-  screen,
-  within,
-  fireEvent,
-  act,
-  waitFor,
-  renderHook,
-  cleanup,
-} from '@testing-library/react';
+export { screen, within, fireEvent, act, waitFor } from '@testing-library/react';

@@ -166,7 +166,7 @@ interface Recordable<Self> {
 /** Id of the layer the pointer is drawn on. */
 export const POINTER_LAYER_ID = 'pr-gif-pointer';
 /** How long the pointer may rest outside the clip before stop() warns. */
-export const OFF_FRAME_MS = 500;
+const OFF_FRAME_MS = 500;
 
 /**
  * Draws the pointer and the keys pressed on every page `context` opens. Call

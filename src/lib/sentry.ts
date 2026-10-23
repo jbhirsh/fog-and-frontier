@@ -6,7 +6,15 @@ import {
   useNavigationType,
 } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
-import type { TransactionEvent } from '@sentry/core';
+
+/**
+ * The transaction event `beforeSendTransaction` sees, as `@sentry/react`
+ * types it (the type lives in `@sentry/core`, which only `@sentry/react`
+ * depends on).
+ */
+export type TransactionEvent = Parameters<
+  NonNullable<Sentry.BrowserOptions['beforeSendTransaction']>
+>[0];
 
 // Production error monitoring + tracing for the browser. Server-side errors
 // are covered by Vercel Observability via api/_log.ts. See issue #20.
