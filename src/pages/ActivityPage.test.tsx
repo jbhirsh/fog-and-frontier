@@ -14,6 +14,7 @@ import type { Activity } from '../data/types';
 import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
 import { useOpenActivity } from '../lib/activityRoute';
 import { CATALOG_LOAD_ERROR } from '../lib/userActivities';
+import { tabbables } from '../lib/focusTrap';
 
 function Probe() {
   const { pathname, search } = useLocation();
@@ -165,7 +166,8 @@ describe('ActivityPage (#86)', () => {
   });
 
   it('stacks an open from the page behind a detail on it, and closes past both', async () => {
-    // Nothing traps focus in the detail, so a card behind it can be tabbed to.
+    // Tab can't reach a card behind the detail any more (#258), but a script
+    // or a screen reader's cursor can still focus one.
     renderAt(['/'], CATALOG);
     await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
     screen.getByRole('button', { name: 'open the hike from the list' }).focus();
@@ -492,6 +494,87 @@ describe('ActivityPage (#86)', () => {
     });
   });
 
+  describe('keyboard focus (#258)', () => {
+    function inDetail() {
+      return screen.getByRole('dialog').contains(document.activeElement);
+    }
+
+    it('moves focus onto the detail when it opens', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      expect(screen.getByRole('dialog', { name: muirWoods.name })).toHaveFocus();
+    });
+
+    it('keeps Tab and Shift+Tab inside the detail, wrapping at its ends', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      const dialog = screen.getByRole('dialog');
+      // Its first control is Close, at the top of the cover.
+      await userEvent.tab();
+      expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus();
+      await userEvent.tab({ shift: true });
+      const last = document.activeElement;
+      expect(inDetail()).toBe(true);
+      expect(last).not.toBe(within(dialog).getByRole('button', { name: 'Close' }));
+      await userEvent.tab();
+      expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus();
+      for (let i = 0; i < 30; i++) {
+        await userEvent.tab();
+        expect(inDetail()).toBe(true);
+      }
+      for (let i = 0; i < 30; i++) {
+        await userEvent.tab({ shift: true });
+        expect(inDetail()).toBe(true);
+      }
+    });
+
+    it('hands focus back to the card that opened it on close', async () => {
+      renderAt(['/'], CATALOG);
+      const card = screen.getByRole('button', { name: 'open Muir Woods' });
+      await userEvent.click(card);
+      await userEvent.keyboard('{Escape}');
+      expect(card).toHaveFocus();
+
+      await userEvent.click(card);
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+      expect(card).toHaveFocus();
+    });
+
+    it('hands it back to the first card after stepping or a nearby pick', async () => {
+      renderAt(['/'], CATALOG);
+      const card = screen.getByRole('button', { name: 'open the hike from the list' });
+      await userEvent.click(card);
+      await userEvent.click(screen.getByRole('button', { name: 'Next adventure' }));
+      expect(path()).toBe(`/activity/${muirWoods.id}`);
+      await userEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', { name: /Test Completed Hike/ }),
+      );
+      expect(screen.getByRole('dialog', { name: completedHike.name })).toHaveFocus();
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(card).toHaveFocus();
+    });
+
+    it('focuses the detail again when Back brings up another one', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      await userEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', { name: /Test Completed Hike/ }),
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'back' }));
+      expect(screen.getByRole('dialog', { name: muirWoods.name })).toHaveFocus();
+    });
+
+    it('keeps Tab on the not-found action', async () => {
+      renderAt(['/activity/no-such-thing'], CATALOG);
+      const action = screen.getByRole('button', { name: 'Browse adventures' });
+      await userEvent.tab();
+      expect(action).toHaveFocus();
+      await userEvent.tab({ shift: true });
+      expect(action).toHaveFocus();
+    });
+  });
+
   it('says an unknown id is not found, rather than bouncing home', async () => {
     renderAt(['/activity/no-such-thing'], CATALOG);
     const dialog = screen.getByRole('dialog', { name: 'Activity not found' });
@@ -567,6 +650,19 @@ describe('ActivityPage (#86)', () => {
       await userEvent.click(screen.getByRole('button', { name: /EDIT ACTIVITY/ }));
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
       expect(path()).toBe(`/activity/${completedHike.id}`);
+    });
+
+    it('lets Tab on to the edit form layered over the detail (#258)', async () => {
+      renderAt(['/'], CATALOG);
+      await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
+      const detail = screen.getByRole('dialog', { name: muirWoods.name });
+      // Once the form is up the detail's last control isn't the end of the
+      // line: the form, drawn after it, comes next.
+      await userEvent.click(screen.getByRole('button', { name: /EDIT ACTIVITY/ }));
+      tabbables(detail).at(-1)!.focus();
+      await userEvent.tab();
+      // The form's own backdrop, the first thing in its layer.
+      expect(screen.getByRole('button', { name: 'Cancel adding activity' })).toHaveFocus();
     });
 
     // Your Photos is owner-only (#19).

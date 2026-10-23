@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '../test/render';
+import { act, fireEvent, render, screen, waitFor, within } from '../test/render';
+import { tabbables } from '../lib/focusTrap';
 import userEvent from '@testing-library/user-event';
 import type { Activity } from '../data/types';
 import { ActivityDetail } from './ActivityDetail';
@@ -385,6 +386,17 @@ describe('ActivityDetail', () => {
           screen.getByRole('region', { name: 'Nearby hikes' }),
         ).getByRole('button', { name: /Test Muir Woods/ }),
       ).toBeInTheDocument();
+    });
+
+    it('keeps focus in the panel when a nearby tap swaps in place (#258)', async () => {
+      const user = userEvent.setup();
+      stubScrollTo();
+      render(<ActivityDetail activity={muirWoods} onClose={() => {}} />, {
+        activities: [muirWoods, lunch],
+      });
+      await user.click(screen.getByRole('button', { name: /Trailside Tacos/ }));
+      // The tapped button left with Muir Woods' nearby list; focus didn't.
+      expect(screen.getByRole('dialog', { name: 'Trailside Tacos' })).toHaveFocus();
     });
 
     it('hands a nearby tap to onSelectNearby instead of swapping in place', async () => {
@@ -871,5 +883,46 @@ describe('ActivityDetail', () => {
         screen.getByRole('heading', { name: muirWoods.name }),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe('ActivityDetail — focus around the edit form (#258)', () => {
+  it('hands focus back to Edit when the form closes with focus in it', async () => {
+    render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    const edit = screen.getByRole('button', { name: /EDIT ACTIVITY/ });
+    // Cancelled from inside the form: the button pressed goes with it.
+    await userEvent.click(edit);
+    await userEvent.click(screen.getByRole('button', { name: 'stub-cancel' }));
+    expect(screen.queryByTestId('add-activity-modal')).not.toBeInTheDocument();
+    expect(edit).toHaveFocus();
+
+    // Saved: the same.
+    await userEvent.click(edit);
+    await userEvent.click(screen.getByRole('button', { name: 'stub-save' }));
+    expect(screen.queryByTestId('add-activity-modal')).not.toBeInTheDocument();
+    expect(edit).toHaveFocus();
+
+    // And the trap is back on: Tab from the detail's last control wraps
+    // within it rather than leaving for the page.
+    const panel = screen.getByRole('dialog');
+    tabbables(panel).at(-1)!.focus();
+    await userEvent.tab();
+    expect(panel).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it('leaves focus be when it stayed in the detail', async () => {
+    render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /EDIT ACTIVITY/ }));
+    const close = screen.getByRole('button', { name: 'Close' });
+    close.focus();
+    act(() => addActivityProps.current?.onClose());
+    expect(screen.queryByTestId('add-activity-modal')).not.toBeInTheDocument();
+    expect(close).toHaveFocus();
+  });
+
+  it("doesn't take focus when the form was never opened", () => {
+    render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
+    // It starts on the panel, not on Edit.
+    expect(screen.getByRole('dialog', { name: muirWoods.name })).toHaveFocus();
   });
 });

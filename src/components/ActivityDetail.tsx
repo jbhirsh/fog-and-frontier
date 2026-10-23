@@ -14,6 +14,7 @@ import { CATEGORY_ICON } from '../lib/mapPins';
 import { glyphBleed } from '../lib/iconMetrics';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useSwipe } from '../lib/swipe';
+import { useFocusTrap } from '../lib/focusTrap';
 import {
   NEARBY_GROUP_HEADING,
   NEARBY_RADIUS_MILES,
@@ -134,8 +135,14 @@ export function ActivityDetail({
   const nearbyIdPrefix = useId();
 
   function selectNearby(a: Activity) {
-    if (onSelectNearby) onSelectNearby(a);
-    else setActivity(a);
+    if (onSelectNearby) {
+      onSelectNearby(a);
+    } else {
+      // Swapped in place: the button tapped goes with the old activity's
+      // nearby list, so focus moves to the panel rather than out of it.
+      setActivity(a);
+      scrollRef.current?.focus({ preventScroll: true });
+    }
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -197,13 +204,34 @@ export function ActivityDetail({
     trackRef,
   );
 
+  // Tab stays inside the detail (#258), except while the edit form is up:
+  // that's drawn beside the detail rather than in it, and Tab must reach it.
+  // (The form has no trap of its own, so Tab past its end still leaves it.)
+  useFocusTrap(scrollRef, !editing);
+
+  // Closing the edit form takes focus with it, if it was in there; hand it
+  // back to Edit, or the trap would never see the next Tab.
+  const editRef = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    const closed = wasEditing.current && !editing;
+    wasEditing.current = editing;
+    if (closed && !scrollRef.current?.contains(document.activeElement)) {
+      editRef.current?.focus({ preventScroll: true });
+    }
+  }, [editing]);
+
   // A step remounts the detail; keep focus on the control that made it, or
   // its partner once the end of the list has disabled it.
   const prevRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const cameBy = sequence?.cameBy;
   useEffect(() => {
-    if (!cameBy) return;
+    if (!cameBy) {
+      // Otherwise focus starts on the dialog itself (#258).
+      scrollRef.current?.focus({ preventScroll: true });
+      return;
+    }
     const [mine, other] = cameBy === 'prev' ? [prevRef, nextRef] : [nextRef, prevRef];
     (mine.current?.disabled ? other.current : mine.current)?.focus();
   }, [cameBy]);
@@ -241,7 +269,8 @@ export function ActivityDetail({
           aria-modal="true"
           aria-label={activity.name}
           ref={scrollRef}
-          className={`relative bg-surface-container-lowest w-full max-h-[95dvh] overflow-y-auto overscroll-contain md:rounded-xl shadow-2xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
+          tabIndex={-1}
+          className={`relative bg-surface-container-lowest focus:outline-none w-full max-h-[95dvh] overflow-y-auto overscroll-contain md:rounded-xl shadow-2xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
         >
           <div className="relative aspect-video bg-surface-variant">
             <CoverImage
@@ -601,6 +630,7 @@ export function ActivityDetail({
             {isOwner && (
               <div className="pt-md mt-md border-t border-outline-variant/40 flex flex-wrap justify-end gap-sm">
                 <button
+                  ref={editRef}
                   type="button"
                   onClick={() => setEditing(true)}
                   className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors"
