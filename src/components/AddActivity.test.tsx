@@ -153,6 +153,23 @@ describe('AddActivity — edit mode', () => {
     );
   });
 
+  it('shows all of the short description, kept to one paragraph', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    const field = screen.getByLabelText('Short description');
+    // Wrapped and as tall as its text, not cut off on one line.
+    expect(field.tagName).toBe('TEXTAREA');
+    expect(field).toHaveClass('field-sizing-content');
+    expect(field).toHaveAttribute('rows', '2');
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Food trucks{Enter}and music');
+    expect(field).toHaveValue('Food trucks and music');
+    // A pasted break, and the space around it, is one space.
+    await userEvent.clear(field);
+    await userEvent.click(field);
+    await userEvent.paste('Food trucks \n\n live music');
+    expect(field).toHaveValue('Food trucks live music');
+  });
+
   it('does not expose AllTrails rating / distance / elevation as inputs', () => {
     render(
       <AddActivity onClose={() => {}} editActivity={baseActivity} />,
