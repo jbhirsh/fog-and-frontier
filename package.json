@@ -102,6 +102,9 @@
     },
     "eslint-plugin-jsx-a11y": {
       "eslint": "$eslint"
+    },
+    "@vercel/cli-config": {
+      "zod": "^4.6.6"
     }
   }
 }
