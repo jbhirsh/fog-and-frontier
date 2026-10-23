@@ -1,18 +1,11 @@
-import type {
-  Category,
-  CostTier,
-  Difficulty,
-  Duration,
-  ParkType,
-  PriceRange,
-  Region,
-} from '../data/types';
+import type { Category, Duration, ParkType, Region } from '../data/types';
+import { rowDetails, type Details } from './activityDetails';
 import { apolloClient } from './apolloClient';
 import { GENERATE_ACTIVITY, type GeneratedActivityRow } from './gqlDocs';
 
 // Gemini-generated activity draft (owner-only). Mirrors the catalog Activity
 // shape minus id/location-nesting (the model returns flat city/lat/lng).
-export type GeneratedFields = {
+export type GeneratedFields = Details & {
   name: string;
   shortDescription: string;
   longDescription?: string;
@@ -23,22 +16,7 @@ export type GeneratedFields = {
   lat: number;
   lng: number;
   duration: Duration;
-  durationDetail?: string;
-  difficulty?: Difficulty;
-  dogFriendly?: boolean;
-  hikeDistanceMiles?: number;
-  hikeElevationFeet?: number;
-  allTrailsUrl?: string;
-  cuisine?: string;
-  priceRange?: PriceRange;
-  costTier?: CostTier;
-  hours?: string;
-  reservationUrl?: string;
-  menuUrl?: string;
-  dietary?: string[];
-  notes?: string;
   coverImage?: string;
-  coverCredit?: string;
 };
 
 function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
@@ -53,22 +31,8 @@ function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
     lat: row.lat,
     lng: row.lng,
     duration: row.duration as Duration,
-    durationDetail: row.durationDetail ?? undefined,
-    difficulty: row.difficulty ?? undefined,
-    dogFriendly: row.dogFriendly ?? undefined,
-    hikeDistanceMiles: row.hikeDistanceMiles ?? undefined,
-    hikeElevationFeet: row.hikeElevationFeet ?? undefined,
-    allTrailsUrl: row.allTrailsUrl ?? undefined,
-    cuisine: row.cuisine ?? undefined,
-    priceRange: (row.priceRange ?? undefined) as PriceRange | undefined,
-    costTier: (row.costTier ?? undefined) as CostTier | undefined,
-    hours: row.hours ?? undefined,
-    reservationUrl: row.reservationUrl ?? undefined,
-    menuUrl: row.menuUrl ?? undefined,
-    dietary: row.dietary ?? undefined,
-    notes: row.notes ?? undefined,
+    ...rowDetails(row),
     coverImage: row.coverImage ?? undefined,
-    coverCredit: row.coverCredit ?? undefined,
   };
 }
 

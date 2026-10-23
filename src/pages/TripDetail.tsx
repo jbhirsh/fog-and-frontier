@@ -49,6 +49,7 @@ import {
   type UserSummary,
 } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
+import { formatDateRange } from '../lib/dateRange';
 
 const TALLY_REFRESH_MS = 30_000;
 
@@ -1440,26 +1441,4 @@ function ModalShell({
       </div>
     </div>
   );
-}
-
-function formatDateRange(start: string, end: string): string {
-  const startDate = new Date(`${start}T00:00:00Z`);
-  const endDate = new Date(`${end}T00:00:00Z`);
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-    return `${start} – ${end}`;
-  }
-  const sameYear = startDate.getUTCFullYear() === endDate.getUTCFullYear();
-  const startFmt = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: sameYear ? undefined : 'numeric',
-    timeZone: 'UTC',
-  });
-  const endFmt = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-  return `${startFmt.format(startDate)} – ${endFmt.format(endDate)}`;
 }

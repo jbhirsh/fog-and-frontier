@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
-import type { Activity, CostTier, Duration, PriceRange, Region } from '../data/types';
+import type { Activity, Duration, Region } from '../data/types';
+import { rowDetails } from './activityDetails';
 import { apolloClient } from './apolloClient';
 import { ACTIVITIES_QUERY, DELETE_ACTIVITY, SAVE_ACTIVITY, type ActivityLike } from './gqlDocs';
 
@@ -24,27 +25,13 @@ export function rowToActivity(row: ActivityLike): Activity {
       coords: { lat: loc?.coords.lat ?? 0, lng: loc?.coords.lng ?? 0 },
     },
     duration: (row.duration ?? '') as Duration,
-    durationDetail: row.durationDetail ?? undefined,
-    difficulty: row.difficulty ?? undefined,
-    dogFriendly: row.dogFriendly ?? undefined,
+    ...rowDetails(row),
     coverImage: row.coverImage ?? '',
-    coverCredit: row.coverCredit ?? undefined,
     galleryImages: row.galleryImages ?? undefined,
-    allTrailsUrl: row.allTrailsUrl ?? undefined,
     allTrailsRating: row.allTrailsRating ?? undefined,
-    hikeDistanceMiles: row.hikeDistanceMiles ?? undefined,
-    hikeElevationFeet: row.hikeElevationFeet ?? undefined,
-    cuisine: row.cuisine ?? undefined,
-    priceRange: (row.priceRange ?? undefined) as PriceRange | undefined,
-    costTier: (row.costTier ?? undefined) as CostTier | undefined,
-    hours: row.hours ?? undefined,
-    reservationUrl: row.reservationUrl ?? undefined,
-    menuUrl: row.menuUrl ?? undefined,
-    dietary: row.dietary ?? undefined,
     sourceUrl: row.sourceUrl ?? undefined,
     completed: row.completed ?? undefined,
     completedDate: row.completedDate ?? undefined,
-    notes: row.notes ?? undefined,
     contributors: row.contributors ?? undefined,
   };
 }

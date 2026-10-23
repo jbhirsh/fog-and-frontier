@@ -1,6 +1,6 @@
 import type { TripActivity } from '../lib/userTrips';
 import { VoteControls } from './VoteControls';
-import { CdnImage } from './CdnImage';
+import { TripCardBody } from './TripCardBody';
 
 type VoteTally = { up: number; down: number; net: number };
 
@@ -70,11 +70,11 @@ export function VotingCandidateCard({
             onClick={onOpen}
             className="flex min-w-0 flex-1 gap-md rounded-lg text-left hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
           >
-            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} wrap />
           </button>
         ) : (
           <div className="flex min-w-0 flex-1 gap-md">
-            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} wrap />
           </div>
         )}
 
@@ -101,45 +101,5 @@ export function VotingCandidateCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function CardBody({
-  cover,
-  name,
-  cityLine,
-  orphaned,
-}: {
-  cover: string | null;
-  name: string;
-  cityLine: string;
-  orphaned: boolean;
-}) {
-  return (
-    <>
-      <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-variant">
-        {cover ? (
-          <CdnImage alt="" src={cover} sizes="80px" className="size-full object-cover" />
-        ) : (
-          <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>
-            landscape
-          </span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1 space-y-xs">
-        {/* The full name on a phone, wrapping as it needs; one line from md. */}
-        <div className="font-headline-md text-body-lg wrap-break-word text-on-surface md:line-clamp-1 md:break-normal">
-          {name}
-        </div>
-        {cityLine && (
-          <div className="font-body-md text-sm wrap-break-word text-on-surface-variant md:line-clamp-1 md:break-normal">
-            {cityLine}
-          </div>
-        )}
-        {orphaned && (
-          <div className="font-body-md text-xs text-error">Original activity was deleted.</div>
-        )}
-      </div>
-    </>
   );
 }
