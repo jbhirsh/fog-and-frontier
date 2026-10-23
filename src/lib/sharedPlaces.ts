@@ -105,6 +105,11 @@ export function sharedLink(params: URLSearchParams): string | null {
   return null;
 }
 
+/** What an activity's source link (#6) says: where it was found. */
+export function sourceLabel(url: string): string {
+  return instagramLink(url) ? 'Seen on Instagram' : 'Where we found it';
+}
+
 /** A post known only by its link, for a place added by hand before it's read. */
 export function bareSharedPost(url: string): SharedPost {
   return { url, author: null, caption: null, imageUrl: null, isVideo: null };

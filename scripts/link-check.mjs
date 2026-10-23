@@ -12,6 +12,10 @@
  *             server error, a timeout, a page that now redirects to the home
  *             page, or a host that kept refusing and wasn't probed further.
  *             Check these in a browser before calling them dead.
+ *
+ * An Instagram post (an activity's source, #6) is judged by its embed page,
+ * which a script can read: a post that's been taken down or made private
+ * has no post in it.
  */
 
 /** The activity fields that link out, and whether each must be an image. */
@@ -20,6 +24,7 @@ export const LINK_FIELDS = [
   { field: 'menuUrl', image: false },
   { field: 'reservationUrl', image: false },
   { field: 'coverImage', image: true },
+  { field: 'sourceUrl', image: false },
 ];
 
 /** Hosts that refuse scripts outright: their 403 says nothing about the page. */
@@ -52,6 +57,26 @@ function hostOf(url) {
 
 function blocksBots(host) {
   return BOT_BLOCKING_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+}
+
+const INSTAGRAM_POST = /^https?:\/\/(?:www\.|m\.)?instagram\.com\/(?:[\w.]+\/)?(?:p|reels?|tv)\/([\w-]{5,64})(?:[/?#]|$)/i;
+
+/** The embed page of an Instagram post link, or null for any other link. */
+export function instagramEmbedUrl(url) {
+  const match = INSTAGRAM_POST.exec(url);
+  return match ? `https://www.instagram.com/p/${match[1]}/embed/captioned/` : null;
+}
+
+/**
+ * Whether an embed page holds its post: true or false, or null when it has
+ * no embed data at all (Instagram changed the page, or served something
+ * else), which says nothing about the post.
+ */
+export function embedHasPost(html) {
+  // A post that's gone has no context at all.
+  if (html.includes('"contextJSON":null')) return false;
+  if (!html.includes('"contextJSON":"')) return null;
+  return /shortcode_media\\":\{/.test(html);
 }
 
 /** 2xx answers that are the resource itself, as opposed to a 202 challenge page. */
@@ -88,6 +113,9 @@ export function judge(link, outcome) {
     return { verdict: 'review', reason: `HTTP ${status} (a challenge page?)` };
   }
   if (!REAL_SUCCESS.includes(status)) return { verdict: 'dead', reason: `HTTP ${status}` };
+  // An Instagram post, read through its embed page.
+  if (outcome.post === false) return { verdict: 'dead', reason: 'post taken down or private' };
+  if (outcome.post === null) return { verdict: 'review', reason: "Instagram's embed page has changed" };
   if (link.image && !contentType.toLowerCase().startsWith('image/')) {
     return {
       verdict: 'dead',

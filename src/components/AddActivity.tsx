@@ -49,6 +49,9 @@ interface Props {
   // A place picked from a shared Instagram post (#6): the form starts with
   // its title and notes, and drafts it straight away.
   seed?: { title: string; notes: string };
+  // Where it was found (#6): a shared post's link, kept on the activity as
+  // its sourceUrl, so the catalog links back to the reel it came from.
+  source?: string;
 }
 
 const CATEGORIES: Category[] = [
@@ -144,6 +147,7 @@ export function AddActivity({
   onOpenActivity,
   suggest = false,
   seed,
+  source,
 }: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const mode: 'create' | 'edit' = editActivity ? 'edit' : 'create';
@@ -233,6 +237,7 @@ export function AddActivity({
         reservationUrl: g.reservationUrl,
         menuUrl: g.menuUrl,
         dietary: g.dietary,
+        sourceUrl: source,
         notes: g.notes,
         // No match → no cover: CoverImage renders the category glyph. A stock
         // landscape stand-in reads as a wrong photo of the place (#36).
@@ -285,6 +290,7 @@ export function AddActivity({
       location: { city: '', coords: { lat: 0, lng: 0 } },
       duration: UNCHOSEN,
       coverImage: '',
+      sourceUrl: source,
       notes: notes.trim() || undefined,
     });
     setStep('review');
@@ -1048,6 +1054,16 @@ function ReviewStep({
               },
             });
           }}
+        />
+      </Field>
+
+      <Field label="Where you found it (optional)">
+        <input
+          type="url"
+          value={draft.sourceUrl ?? ''}
+          placeholder="https://www.instagram.com/reel/…"
+          onChange={(e) => patch('sourceUrl', e.target.value.trim() || undefined)}
+          className={inputCls}
         />
       </Field>
 

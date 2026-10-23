@@ -18,6 +18,8 @@ import {
   ACTIVITIES_QUERY,
   HOST_STRIKES,
   collectLinks,
+  embedHasPost,
+  instagramEmbedUrl,
   judge,
   report,
   retryDelayMs,
@@ -56,9 +58,35 @@ async function fetchCatalog() {
   return body.data.activities;
 }
 
+// The embed page answers this, as it does the share reader (api/_instagram.ts);
+// a browser's user agent gets a page with no post data in it.
+const INSTAGRAM_USER_AGENT = 'FogAndFrontier/1.0 (+https://fog-and-frontier.vercel.app)';
+
+// An Instagram post: its embed page, read for whether the post is still up.
+async function probeInstagram(embedUrl) {
+  try {
+    const res = await fetch(embedUrl, {
+      headers: { 'user-agent': INSTAGRAM_USER_AGENT },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const html = res.ok ? await res.text() : (await res.body?.cancel(), '');
+    return {
+      status: res.status,
+      contentType: res.headers.get('content-type') ?? '',
+      finalUrl: res.url,
+      ...(res.ok ? { post: embedHasPost(html) } : {}),
+    };
+  } catch (err) {
+    if (err?.name === 'TimeoutError') return { error: 'timeout' };
+    return { error: err?.cause?.code ?? err?.cause?.message ?? err?.code ?? err?.message ?? 'fetch failed' };
+  }
+}
+
 // GET, not HEAD: plenty of hosts answer HEAD wrongly. The body is dropped
 // unread once the status and type are in.
 async function probe(url) {
+  const embedUrl = instagramEmbedUrl(url);
+  if (embedUrl) return probeInstagram(embedUrl);
   try {
     for (let attempt = 0; ; attempt++) {
       const res = await fetch(url, {

@@ -40,6 +40,7 @@ export const ACTIVITIES_QUERY = graphql(`
       reservationUrl
       menuUrl
       dietary
+      sourceUrl
       completed
       completedDate
       notes
@@ -197,6 +198,7 @@ export const TRIP_QUERY = graphql(`
           reservationUrl
           menuUrl
           dietary
+          sourceUrl
           completed
           completedDate
           notes

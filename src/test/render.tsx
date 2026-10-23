@@ -52,6 +52,7 @@ export function toActivityRow(a: Activity) {
     reservationUrl: a.reservationUrl ?? null,
     menuUrl: a.menuUrl ?? null,
     dietary: a.dietary ?? null,
+    sourceUrl: a.sourceUrl ?? null,
     completed: a.completed ?? null,
     completedDate: a.completedDate ?? null,
     notes: a.notes ?? null,

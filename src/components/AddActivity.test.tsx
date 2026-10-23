@@ -1114,6 +1114,45 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
     expect(generateSpy).toHaveBeenCalledWith(seed.title, seed.notes);
   });
 
+  it('keeps the post it came from as where it was found, through to the save', async () => {
+    generateSpy.mockResolvedValue(generated);
+    const reel = 'https://www.instagram.com/reel/x/';
+    render(<AddActivity onClose={() => {}} seed={seed} source={reel} />);
+    const field = await screen.findByLabelText('Where you found it (optional)');
+    expect(field).toHaveValue(reel);
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].sourceUrl).toBe(reel);
+  });
+
+  it('keeps it for a place added by hand from a post too', async () => {
+    ownerState.isOwner = false;
+    const reel = 'https://www.instagram.com/reel/x/';
+    render(<AddActivity onClose={() => {}} suggest seed={{ title: '', notes: seed.notes }} source={reel} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Carson Falls');
+    await userEvent.click(screen.getByRole('button', { name: 'Fill them in yourself' }));
+    expect(await screen.findByLabelText('Where you found it (optional)')).toHaveValue(reel);
+  });
+
+  it('lets where it was found be changed, or cleared', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={{ ...baseActivity, sourceUrl: 'https://example.com/a' }} />);
+    const field = screen.getByLabelText('Where you found it (optional)');
+    expect(field).toHaveValue('https://example.com/a');
+    await userEvent.clear(field);
+    await userEvent.type(field, '  https://example.com/b ');
+    await userEvent.click(screen.getByRole('button', { name: /Save/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].sourceUrl).toBe('https://example.com/b');
+  });
+
+  it('saves no source once it’s cleared', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={{ ...baseActivity, sourceUrl: 'https://example.com/a' }} />);
+    await userEvent.clear(screen.getByLabelText('Where you found it (optional)'));
+    await userEvent.click(screen.getByRole('button', { name: /Save/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].sourceUrl).toBeUndefined();
+  });
+
   it('opens on the form, with the notes kept, for a seed with no place yet', async () => {
     render(<AddActivity onClose={() => {}} seed={{ title: '', notes: seed.notes }} />);
     expect(screen.getByLabelText('Title')).toHaveValue('');

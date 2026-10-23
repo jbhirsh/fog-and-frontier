@@ -291,12 +291,13 @@ describe('Query.activities (public)', () => {
             reservationUrl: 'http://resy',
             menuUrl: 'http://menu',
             dietary: ['vegetarian', 'vegan'],
+            sourceUrl: 'https://www.instagram.com/reel/Ddl9QKSv0D7/',
           }),
         },
       ],
     });
     const r = await run(
-      '{ activities { id parkType cuisine priceRange hours reservationUrl menuUrl dietary } }',
+      '{ activities { id parkType cuisine priceRange hours reservationUrl menuUrl dietary sourceUrl } }',
     );
     expect(r.errors).toBeUndefined();
     expect((r.data?.activities as Row[])[0]).toEqual({
@@ -308,6 +309,7 @@ describe('Query.activities (public)', () => {
       reservationUrl: 'http://resy',
       menuUrl: 'http://menu',
       dietary: ['vegetarian', 'vegan'],
+      sourceUrl: 'https://www.instagram.com/reel/Ddl9QKSv0D7/',
     });
   });
 
@@ -958,6 +960,22 @@ describe('costTier (#85)', () => {
     setup({ catalog: [{ id: 'a1', j: stored }] });
     const read = await run('{ activities { id costTier } }');
     expect(read.data?.activities).toEqual([{ id: 'a1', costTier: tier }]);
+  });
+
+  it('saves where an activity was found (#6)', async () => {
+    setup();
+    const reel = 'https://www.instagram.com/reel/Ddl9QKSv0D7/';
+    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), sourceUrl: reel } } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect(JSON.parse(executeWrites()[0]?.args[1] as string)).toMatchObject({ sourceUrl: reel });
+  });
+
+  it.each(['javascript:alert(1)', 'not a link'])('refuses %s as where it was found, writing nothing', async (bad) => {
+    setup();
+    const refused = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), sourceUrl: bad } } }, OWNER);
+    expect(code(refused)).toBe('BAD_USER_INPUT');
+    expect(refused.errors?.[0]?.message).toBe('sourceUrl must be a web address');
+    expect(executeWrites()).toEqual([]);
   });
 
   it('refuses a tier outside the set, writing nothing', async () => {

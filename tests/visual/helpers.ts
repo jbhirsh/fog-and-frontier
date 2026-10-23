@@ -63,6 +63,7 @@ function toActivityRow(a: Activity) {
     hours: a.hours ?? null,
     reservationUrl: a.reservationUrl ?? null,
     menuUrl: a.menuUrl ?? null,
+    sourceUrl: a.sourceUrl ?? null,
     dietary: a.dietary ?? null,
     completed: a.completed ?? null,
     completedDate: a.completedDate ?? null,

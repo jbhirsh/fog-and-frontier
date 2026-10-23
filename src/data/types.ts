@@ -73,6 +73,8 @@ export interface Activity {
   reservationUrl?: string;
   menuUrl?: string;
   dietary?: string[];
+  // Where it was found (#6): the Instagram post it was added from, say.
+  sourceUrl?: string;
   completed?: boolean;
   completedDate?: string;
   notes?: string;
