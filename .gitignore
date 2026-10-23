@@ -70,3 +70,8 @@ eval/results.json
 .stryker-tmp*
 reports/mutation
 reports/stryker-incremental.json
+jscpd-report/
+knip-report.json
+knip-report.md
+lychee.json
+links.md

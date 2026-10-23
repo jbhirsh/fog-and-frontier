@@ -1,0 +1,192 @@
+# Weekly audit: the checks that read the whole repository at once, too slow
+# or too noisy to gate a PR, on the shared Monday 06:00 UTC sweep slot
+# (Sunday night Pacific), plus manual dispatch.
+#
+#   - Dead code (knip, knip.json): unused files, exports, types and
+#     dependencies.
+#   - Duplicated code (jscpd, .jscpd.json).
+#   - Broken links (lychee) in the repo's Markdown: dead pages, missing
+#     files and images, anchors no heading matches. The live catalog's links
+#     are links.yml's.
+#   - Architecture graph (dependency-cruiser): src/ and api/ drawn as an
+#     artifact. The layering rules themselves gate every PR in ci.yml.
+#
+# Each finding keeps one issue, labelled weekly-audit
+# (.github/scripts/tracking-issue.mjs): opened when the sweep finds
+# something, its body replaced on the next, closed once a sweep comes back
+# clean. The run stays green whatever it finds; it fails only when a tool
+# itself breaks.
+name: Weekly audit
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+# bash with pipefail, so a tool that crashes on the left of a pipe fails the
+# step instead of handing on empty output.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  dead-code:
+    name: Dead code (knip)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      # knip exits 1 when it finds something and 2 when it breaks: only the
+      # second fails the run.
+      - name: Run knip
+        id: knip
+        run: |
+          # Not knip.json: that's its config, and the redirect would empty it
+          # before knip reads it.
+          for reporter in json markdown; do
+            set +e
+            npx knip --reporter "$reporter" > "knip-report.${reporter/markdown/md}"
+            status=$?
+            set -e
+            if [ "$status" -gt 1 ]; then exit "$status"; fi
+          done
+          # On its own line, so a failing count fails the step.
+          findings=$(node .github/scripts/audit-report.mjs knip knip-report.json)
+          echo "findings=$findings" >> "$GITHUB_OUTPUT"
+          cat knip-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node .github/scripts/tracking-issue.mjs --title "Dead code (weekly audit)"
+          --findings "${{ steps.knip.outputs.findings }}" --body-file knip-report.md
+
+  duplicates:
+    name: Duplicated code (jscpd)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Run jscpd
+        id: jscpd
+        run: |
+          npx jscpd
+          findings=$(node .github/scripts/audit-report.mjs jscpd jscpd-report/jscpd-report.json)
+          echo "findings=$findings" >> "$GITHUB_OUTPUT"
+          cat jscpd-report/jscpd-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node .github/scripts/tracking-issue.mjs --title "Duplicated code (weekly audit)"
+          --findings "${{ steps.jscpd.outputs.findings }}" --body-file jscpd-report/jscpd-report.md
+
+  links:
+    name: Broken links (lychee)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      # Every Markdown file git tracks; local links resolve against the
+      # checkout, and --include-fragments checks #anchors too.
+      - name: Run lychee
+        id: lychee
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          # The release whose JSON audit-report.mjs reads (error_map).
+          lycheeVersion: v0.24.2
+          args: >-
+            --no-progress --include-fragments --root-dir "${{ github.workspace }}"
+            --exclude-path node_modules
+            './**/*.md'
+          format: json
+          output: lychee.json
+          fail: false
+          jobSummary: false
+        env:
+          # Raises GitHub's rate limit for github.com links.
+          GITHUB_TOKEN: ${{ github.token }}
+      # lychee exits 2 for broken links; anything else but 0 means it broke.
+      - name: Write the report
+        id: report
+        run: |
+          case "${{ steps.lychee.outputs.exit_code }}" in
+            0 | 2) ;;
+            *)
+              echo "::error::lychee failed (exit ${{ steps.lychee.outputs.exit_code }}); see the step above."
+              exit 1
+              ;;
+          esac
+          findings=$(node .github/scripts/audit-report.mjs lychee lychee.json links.md)
+          echo "findings=$findings" >> "$GITHUB_OUTPUT"
+          cat links.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node .github/scripts/tracking-issue.mjs --title "Broken links (weekly audit)"
+          --findings "${{ steps.report.outputs.findings }}" --body-file links.md
+
+  architecture:
+    name: Architecture graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Install Graphviz
+        run: sudo apt-get update -q && sudo apt-get install -y -q graphviz
+      # Folders (archi) and every module (dot) as SVGs, and the rules report
+      # as HTML, from the same .dependency-cruiser.cjs ci.yml gates on.
+      - name: Draw the graph
+        run: |
+          mkdir -p architecture
+          npx depcruise src api --output-type archi | dot -Tsvg > architecture/folders.svg
+          npx depcruise src api --output-type dot | dot -Tsvg > architecture/modules.svg
+          npx depcruise src api --output-type err-html > architecture/rules.html
+      - name: Upload the graph
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: architecture
+          path: architecture
+          retention-days: 90
+      - name: Link it in the summary
+        run: |
+          echo "Architecture graph (folders.svg, modules.svg, rules.html): ${{ steps.upload.outputs.artifact-url }}" >> "$GITHUB_STEP_SUMMARY"
