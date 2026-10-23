@@ -35,6 +35,21 @@ map, filter, and plan trips around.
   day-by-day itinerary (day index, start time, ordering).
 - **AI discovery ("Explore")** — pick a date window (today / tomorrow / this
   weekend / next 7 days) and Google Gemini searches for local events to do.
+- **Share from Instagram** — share a post or reel to the app and Gemini lists
+  the places in it (from the caption, the geotag, and what's shown or said in
+  the video), each added one at a time. For owners only. Android
+  offers the installed app in its share sheet. On iPhone, where Safari can't
+  receive shares, a Shortcut does it, made once in the Shortcuts app:
+  1. New shortcut → in its details (ⓘ), turn on **Show in Share Sheet**, and
+     set it to receive **URLs** (and Text) from the share sheet.
+  2. Add **URL Encode** on the Shortcut Input.
+  3. Add **Open URLs** with
+     `https://fog-and-frontier.vercel.app/share?url=` followed by the URL
+     Encoded Text.
+  4. Name it "Fog and Frontier". In Instagram, Share → More → Fog and Frontier.
+
+  It opens Safari, so sign in there once. Without the Shortcut, copy the
+  post's link and paste it at `/share`.
 - **Owner-gated editing** — add / edit / delete / mark-complete are gated to
   owners, **enforced server-side** (the client gate is a UI hint only).
 

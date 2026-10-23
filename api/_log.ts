@@ -52,3 +52,15 @@ export function logServerError(err: unknown, ctx: LogContext = {}): void {
   };
   console.error(JSON.stringify(entry));
 }
+
+/**
+ * A single-line JSON note of something that worked, or half-worked, for
+ * Vercel's logs: which of a shared post's sources answered (#6), say, so a
+ * source that quietly stops answering shows up before anyone misses it.
+ * Fields are the caller's; never request bodies, tokens or env values.
+ */
+export function logEvent(event: string, fields: Record<string, unknown> = {}): void {
+  console.info(
+    JSON.stringify({ level: 'info', source: 'api', ts: new Date().toISOString(), event, ...fields }),
+  );
+}

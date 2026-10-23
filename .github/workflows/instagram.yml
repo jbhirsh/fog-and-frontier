@@ -1,0 +1,54 @@
+# Instagram canary (#6). Sharing a post to the app reads Instagram's public
+# pages, which Instagram can change without notice; this reads a few known
+# posts the same way (scripts/instagram-check.ts), so a change shows up here
+# rather than as someone's empty share.
+#
+# Weekly on the shared Monday 06:00 UTC sweep slot, plus manual dispatch. Not
+# a PR gate: Instagram changing isn't a PR's fault. The run fails when the
+# reader stops working, so GitHub's failed-run email is the alert; the report
+# is the job summary.
+name: Instagram canary
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  # Run GitHub's bundled JavaScript actions on the Node 24 runtime instead of
+  # the deprecated default (mirrors ci.yml).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  instagram:
+    name: Read Instagram posts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # Node built-ins only (the reader has no imports), so no install. Reads
+      # public posts: no secrets.
+      - name: Read posts
+        env:
+          INSTAGRAM_REPORT: instagram-report.md
+        run: |
+          set +e
+          node --experimental-strip-types scripts/instagram-check.ts
+          status=$?
+          if [ -f instagram-report.md ]; then
+            cat instagram-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Instagram canary crashed (exit $status) before writing a report; see the log."
+            echo "Instagram canary crashed (exit $status) before writing a report; see the log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
