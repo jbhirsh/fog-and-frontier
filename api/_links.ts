@@ -40,7 +40,7 @@ export function keepSavableLinks<T extends Record<string, unknown>>(activity: T)
     out.coverCredit = null;
   }
   if (Array.isArray(out.galleryImages)) {
-    out.galleryImages = out.galleryImages.filter((u) => isSavableUrl(u, null));
+    out.galleryImages = out.galleryImages.filter((u: unknown) => isSavableUrl(u, null));
   }
   return out as T;
 }

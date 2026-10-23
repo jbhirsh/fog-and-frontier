@@ -14,6 +14,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run build` — `lint`, then `tsc -b`, then `vite build`.
 - `npm run codegen` — `graphql-codegen` → typed GraphQL operations in `src/gql/`.
 - `npm run lint` — ESLint flat config.
+- `npm run typecov` — type-coverage over `tsconfig.app.json` and `tsconfig.api.json`: fails on any identifier typed `any`, and names it.
 - `npm run format` / `format:check` — Prettier over the whole repo (`.prettierrc.json`: single quotes, 100 columns; `.prettierignore` leaves out the lockfile, `src/gql/`, `patches/` and `public/`).
 - `npm test` / `test:watch` / `test:coverage` — Vitest.
 - `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
@@ -139,6 +140,15 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   config, turns off any rule that would argue with it. CI's "Format
   (Prettier)" step fails an unformatted file and the pre-commit hook checks
   the staged ones: run `npm run format`, never hand-align around it.
+- **No `any` anywhere.** CI's "Type coverage" step (`npm run typecov`)
+  holds `src/` and `api/` at 100%: an identifier whose type is `any`
+  fails it, wherever it came from (a `JSON.parse`, a mock's calls, an
+  `Array.isArray` on `unknown`, a library's loose type). Give it a real type
+  (annotate the parameter `unknown` and narrow, declare the `VITE_`
+  variable in `src/vite-env.d.ts`, type the router state
+  `Location<unknown>`); there are no ignore comments, and only the generated
+  `src/gql/` is skipped. The strict figure, which also counts casts, is in
+  the job summary for information.
 - **JSDoc that's written must be right; none is required.**
   `eslint-plugin-jsdoc` (its TypeScript-flavoured recommended rules, every
   `require-*` rule off) fails a `@param` naming no parameter, an unknown

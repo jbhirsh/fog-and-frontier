@@ -134,7 +134,7 @@ describe('backgroundFor', () => {
 });
 
 function Harness() {
-  const location = useLocation();
+  const location: Location<unknown> = useLocation();
   const open = useOpenActivity();
   const close = useCloseActivity();
   const showContributor = useShowContributor();

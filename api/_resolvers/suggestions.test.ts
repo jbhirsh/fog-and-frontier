@@ -309,7 +309,7 @@ describe('pendingSuggestions', () => {
     ]);
     expect(errors).toHaveBeenCalledTimes(2);
     const logged = errors.mock.calls.map(
-      ([line]) => JSON.parse(line as string) as Record<string, unknown>,
+      ([line]: unknown[]) => JSON.parse(line as string) as Record<string, unknown>,
     );
     expect(logged.map((l) => l.detail).sort()).toEqual([
       'pendingSuggestions: broken',

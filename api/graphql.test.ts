@@ -1526,7 +1526,7 @@ describe('Gemini ops', () => {
   });
 
   const givenBack = () =>
-    batch.mock.calls.filter(([stmts]) =>
+    batch.mock.calls.filter(([stmts]: unknown[]) =>
       (stmts as { sql: string }[]).some((s) => /^UPDATE gemini_assists SET n = n - 1/.test(s.sql)),
     );
 
@@ -2512,7 +2512,8 @@ describe('Mutation.addTripActivity', () => {
 // display_order, id].
 function slotUpdateArgs(): unknown {
   const call = execute.mock.calls.find(
-    ([q]) => typeof q !== 'string' && /UPDATE trip_activities/.test((q as { sql: string }).sql),
+    ([q]: unknown[]) =>
+      typeof q !== 'string' && /UPDATE trip_activities/.test((q as { sql: string }).sql),
   );
   return (call?.[0] as { args: unknown[] } | undefined)?.args;
 }

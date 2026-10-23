@@ -645,7 +645,7 @@ function str(v: unknown): string | null {
 function mapEvents(raw: unknown) {
   if (!Array.isArray(raw)) return [];
   return raw
-    .filter((e): e is Record<string, unknown> => Boolean(e) && typeof e === 'object')
+    .filter((e: unknown): e is Record<string, unknown> => Boolean(e) && typeof e === 'object')
     .map((e) => ({
       name: str(e.name),
       dateText: str(e.dateText),
@@ -822,7 +822,7 @@ async function suggestTripActivities(
   if (!prompt) throw badInput('prompt is required');
   if (prompt.length > 2000) throw badInput('prompt too long');
   const excluded = Array.isArray(input.excludeActivityIds)
-    ? input.excludeActivityIds.filter((id): id is string => typeof id === 'string')
+    ? input.excludeActivityIds.filter((id: unknown): id is string => typeof id === 'string')
     : [];
   if (excluded.length > MAX_EXCLUDED) throw badInput(`at most ${MAX_EXCLUDED} excluded activities`);
   const exclude = new Set(excluded);

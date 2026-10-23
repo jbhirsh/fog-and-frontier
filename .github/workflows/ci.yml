@@ -61,6 +61,23 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      # No `any` anywhere in src/ or api/: every identifier has a real type
+      # (src/gql, generated, aside). Fails on the first one and names it.
+      - name: Type coverage (no any)
+        run: npm run typecov
+
+      # Strict mode also counts `as` casts and `any[]`-typed values; shown in
+      # the job summary for information, never a gate.
+      - name: Strict type coverage (information only)
+        continue-on-error: true
+        # pipefail, so a type-coverage crash isn't read as an empty figure.
+        shell: bash
+        run: |
+          for p in app api; do
+            pct=$(npx type-coverage -p "tsconfig.$p.json" --strict --ignore-files 'src/gql/**' | grep -o '[0-9.]*%' | tail -1)
+            echo "Strict type coverage, $p: $pct" >> "$GITHUB_STEP_SUMMARY"
+          done
+
       # The typed GraphQL operations in src/gql/ are generated from the SDL in
       # api/_schema.ts. Regenerate and fail if the checked-in output drifts, so
       # a schema change that wasn't re-codegen'd can't merge.

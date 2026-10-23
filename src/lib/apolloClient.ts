@@ -19,7 +19,7 @@ export function setAuthTokenGetter(getter: () => Promise<string | null>): void {
 // reading the current token from the module-level getter at request time.
 const authLink = new SetContextLink(async (prevContext) => {
   const token = await tokenGetter();
-  const prevHeaders = (prevContext.headers ?? {}) as Record<string, string>;
+  const { headers: prevHeaders = {} } = prevContext as { headers?: Record<string, string> };
   return {
     headers: {
       ...prevHeaders,

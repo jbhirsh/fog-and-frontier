@@ -303,6 +303,17 @@ async function readPage(link: InstagramLink, fetchImpl: Fetch): Promise<Instagra
 }
 
 /**
+ * A promise's outcome, never rejecting: Promise.allSettled's, but with the
+ * rejection typed `unknown` (lib.es types it `any`).
+ */
+function settle<T>(promise: Promise<T>) {
+  return promise.then(
+    (value) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+}
+
+/**
  * A shared post, read from both sources at once. Never throws: when neither
  * answers, it's the bare link, and `steps` says why.
  */
@@ -310,19 +321,15 @@ export async function readInstagramPost(
   link: InstagramLink,
   fetchImpl: Fetch = fetch,
 ): Promise<{ post: InstagramPost; steps: ReadSteps }> {
-  const [embed, page] = await Promise.allSettled([
-    readEmbed(link, fetchImpl),
-    readPage(link, fetchImpl),
+  const [embed, page] = await Promise.all([
+    settle(readEmbed(link, fetchImpl)),
+    settle(readPage(link, fetchImpl)),
   ]);
   return {
-    post: mergePosts(
-      link,
-      embed.status === 'fulfilled' ? embed.value : null,
-      page.status === 'fulfilled' ? page.value : null,
-    ),
+    post: mergePosts(link, embed.ok ? embed.value : null, page.ok ? page.value : null),
     steps: {
-      embed: embed.status === 'fulfilled' ? 'ok' : why(embed.reason),
-      page: page.status === 'fulfilled' ? 'ok' : why(page.reason),
+      embed: embed.ok ? 'ok' : why(embed.error),
+      page: page.ok ? 'ok' : why(page.error),
     },
   };
 }

@@ -54,7 +54,7 @@ function enumVal(v: unknown, set: ReadonlySet<string>): string | null {
   return typeof v === 'string' && set.has(v) ? v : null;
 }
 function strArray(v: unknown): string[] | null {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null;
+  return Array.isArray(v) ? v.filter((x: unknown): x is string => typeof x === 'string') : null;
 }
 
 type LocationShape = { city: string; coords: { lat: number; lng: number } };

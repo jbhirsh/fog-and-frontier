@@ -96,7 +96,7 @@ function fakeDb(q: string | { sql: string; args: unknown[] }) {
 }
 
 function sqlCalls(prefix: string) {
-  return execute.mock.calls.filter(([q]) =>
+  return execute.mock.calls.filter(([q]: unknown[]) =>
     (typeof q === 'string' ? q : (q as { sql: string }).sql).startsWith(prefix),
   );
 }

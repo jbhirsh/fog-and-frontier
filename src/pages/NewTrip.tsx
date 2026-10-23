@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, type Location } from 'react-router-dom';
 import { useOwner } from '../lib/useOwner';
 import { createTrip, type CreateTripInput } from '../lib/userTrips';
 import { TripIdeas } from '../components/TripIdeas';
@@ -14,7 +14,8 @@ type LocationState = {
 
 export function NewTrip() {
   const navigate = useNavigate();
-  const location = useLocation();
+  // Router state is whatever a link put there: unknown until narrowed.
+  const location: Location<unknown> = useLocation();
   const { isOwner, isLoaded } = useOwner();
   const initialActivityIds = (location.state as LocationState)?.initial_activity_ids ?? [];
 

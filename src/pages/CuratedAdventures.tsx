@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams, type Location } from 'react-router-dom';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useDrivingMiles } from '../lib/drivingMiles';
 import { ActivityCard } from '../components/ActivityCard';
@@ -101,7 +101,8 @@ function cardElement(id: string): Element | null {
 }
 
 export function CuratedAdventures() {
-  const location = useLocation();
+  // Router state is whatever a link put there: unknown until narrowed.
+  const location: Location<unknown> = useLocation();
   const navigate = useNavigate();
   const incomingState = location.state as LocationState;
   const initialTarget: TargetTrip | null =
