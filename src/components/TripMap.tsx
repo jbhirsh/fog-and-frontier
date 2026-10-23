@@ -61,7 +61,7 @@ export function TripMap({ trip }: Props) {
 
   return (
     <div className="space-y-md">
-      <div className="flex items-center gap-md flex-wrap">
+      <div className="flex flex-wrap items-center gap-md">
         <div className="flex gap-xs overflow-x-auto" role="tablist" aria-label="Itinerary day">
           {buckets.map((b) => {
             const selected = !showAll && b.dayIndex === safeActiveDay;
@@ -75,9 +75,9 @@ export function TripMap({ trip }: Props) {
                   setShowAll(false);
                   setActiveDay(b.dayIndex);
                 }}
-                className={`whitespace-nowrap font-body-md text-sm px-sm py-xs rounded-full border transition-colors ${
+                className={`rounded-full border px-sm py-xs font-body-md text-sm whitespace-nowrap transition-colors ${
                   selected
-                    ? 'bg-primary text-on-primary border-primary'
+                    ? 'border-primary bg-primary text-on-primary'
                     : 'border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant'
                 }`}
               >
@@ -100,7 +100,7 @@ export function TripMap({ trip }: Props) {
         </label>
       </div>
 
-      <div className="flex flex-col min-h-[400px] rounded-xl overflow-hidden border border-outline-variant/30 shadow-sm">
+      <div className="flex min-h-[400px] flex-col overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
         <MapContainer
           center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           zoom={8}
@@ -122,9 +122,9 @@ export function TripMap({ trip }: Props) {
                 icon={glyphPin(color, { text: label })}
               >
                 <Popup>
-                  <div className="space-y-xs min-w-[180px]">
+                  <div className="min-w-[180px] space-y-xs">
                     <div className="font-bold">{activity.snapshot?.name}</div>
-                    <div className="text-on-surface-variant text-sm">
+                    <div className="text-sm text-on-surface-variant">
                       {dayLabel(trip, dayIndex)} ·{' '}
                       {activity.start_time ? formatHHMM(activity.start_time) : 'unscheduled'}
                     </div>
@@ -137,13 +137,13 @@ export function TripMap({ trip }: Props) {
       </div>
 
       {showAll && (
-        <div className="flex gap-md flex-wrap text-xs text-on-surface-variant">
+        <div className="flex flex-wrap gap-md text-xs text-on-surface-variant">
           {buckets.map((b) => (
             <span key={b.dayIndex} className="flex items-center gap-xs">
               <span
                 aria-hidden="true"
                 style={{ background: colorForDay(b.dayIndex) }}
-                className="w-3 h-3 rounded-full inline-block"
+                className="inline-block size-3 rounded-full"
               />
               {dayLabel(trip, b.dayIndex)}
             </span>

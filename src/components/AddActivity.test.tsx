@@ -229,7 +229,7 @@ describe('AddActivity — edit mode', () => {
       );
     }
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('-ml-md');
-    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('-mr-[14.5px]');
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('mr-[-14.5px]');
   });
 
   it('skips the AllTrails lookup when the URL is unchanged on save', async () => {

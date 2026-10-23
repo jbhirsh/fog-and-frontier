@@ -42,7 +42,7 @@ export function DuplicateNotice({
     return (
       <div
         role="alert"
-        className="rounded-lg border border-error bg-error-container/40 p-sm space-y-sm"
+        className="space-y-sm rounded-lg border border-error bg-error-container/40 p-sm"
       >
         <p id={sentenceId} className="font-body-md text-on-surface">
           This looks like a duplicate of <b>{high.name}</b> in {high.city}.

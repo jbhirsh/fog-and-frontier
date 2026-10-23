@@ -387,12 +387,12 @@ export function AddActivity({
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-md">
+    <div className="fixed inset-0 z-1000 flex items-end justify-center p-0 md:items-center md:p-md">
       <button
         type="button"
         aria-label="Cancel adding activity"
         onClick={onClose}
-        className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default"
+        className="absolute inset-0 cursor-default bg-on-surface/60 backdrop-blur-sm"
       />
       <div
         role="dialog"
@@ -400,9 +400,9 @@ export function AddActivity({
         aria-label={
           mode === 'edit' ? 'Edit activity' : suggest ? 'Suggest activity' : 'Add activity'
         }
-        className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
+        className="relative max-h-[95dvh] w-full max-w-2xl overflow-y-auto bg-surface-container-lowest shadow-2xl md:rounded-xl"
       >
-        <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant/30 bg-surface-container-lowest p-md">
           <h2 className="font-display text-headline-md text-primary">
             {mode === 'edit'
               ? 'Edit activity'
@@ -423,7 +423,7 @@ export function AddActivity({
             // Pulled out by its 10px of padding and the glyph's 4.5px of
             // empty side, so the × lines up with the fields' right edge; its
             // focus ring is drawn inside, where the panel can't clip it.
-            className="-mr-[14.5px] rounded-full w-11 h-11 flex items-center justify-center hover:bg-surface-variant transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
+            className="mr-[-14.5px] flex size-11 items-center justify-center rounded-full transition-colors hover:bg-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -505,7 +505,7 @@ function SentStep({ onDone }: { onDone: () => void }) {
   const sentId = useId();
   useEffect(() => done.current?.focus(), []);
   return (
-    <div className="px-md py-xl text-center space-y-md">
+    <div className="space-y-md px-md py-xl text-center">
       {/* The glyph leaves 4px empty on its left and 1.3px on its right, so a
           centred box draws it 1.3px right of centre; shifted back by half
           the difference, its ink is centred instead. */}
@@ -519,10 +519,7 @@ function SentStep({ onDone }: { onDone: () => void }) {
       <p id={sentId} className="font-body-lg text-on-surface">
         Sent to the owners for review.
       </p>
-      <p
-        id={`${sentId}-next`}
-        className="font-body-md text-on-surface-variant max-w-[28rem] mx-auto"
-      >
+      <p id={`${sentId}-next`} className="mx-auto max-w-112 font-body-md text-on-surface-variant">
         If they add it, it joins the catalog with you credited for it.
       </p>
       <button
@@ -530,7 +527,7 @@ function SentStep({ onDone }: { onDone: () => void }) {
         type="button"
         onClick={onDone}
         aria-describedby={`${sentId} ${sentId}-next`}
-        className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+        className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
       >
         Done
       </button>
@@ -578,7 +575,7 @@ function FormStep({
         e.preventDefault();
         onSubmit();
       }}
-      className="px-md py-md space-y-md"
+      className="space-y-md p-md"
     >
       <p className="font-body-md text-on-surface-variant">
         {suggest
@@ -595,7 +592,7 @@ function FormStep({
           onChange={(e) => onChangeTitle(e.target.value)}
           ref={titleInputRef}
           placeholder="e.g. Año Nuevo elephant seal walk"
-          className="w-full bg-surface-container-low rounded-md px-sm py-sm border border-outline-variant focus:border-primary focus:outline-none"
+          className="w-full rounded-md border border-outline-variant bg-surface-container-low p-sm focus:border-primary focus:outline-none"
         />
       </Field>
 
@@ -614,19 +611,19 @@ function FormStep({
         <p
           id={usedId}
           role="status"
-          className="rounded-lg bg-surface-container-low px-sm py-sm font-body-md text-on-surface"
+          className="rounded-lg bg-surface-container-low p-sm font-body-md text-on-surface"
         >
           You&apos;ve used today&apos;s AI drafts. You can still fill in the details yourself.
         </p>
       )}
 
-      {error && <div className="text-error font-body-md">{error}</div>}
+      {error && <div className="font-body-md text-error">{error}</div>}
 
       <div className="flex justify-end gap-sm pt-sm">
         <button
           type="button"
           onClick={onCancel}
-          className="px-md py-sm rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors"
+          className="rounded-full px-md py-sm text-on-surface-variant transition-colors hover:bg-surface-variant"
         >
           Cancel
         </button>
@@ -635,14 +632,14 @@ function FormStep({
             ref={byHand}
             type="submit"
             aria-describedby={usedId}
-            className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
+            className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
           >
             Fill in by hand
           </button>
         ) : (
           <button
             type="submit"
-            className="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
+            className="flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
           >
             <span className="material-symbols-outlined text-icon-md">auto_awesome</span>
             Generate
@@ -669,12 +666,12 @@ function FormStep({
 
 function GeneratingStep({ title }: { title: string }) {
   return (
-    <div className="px-md py-xl text-center space-y-md">
-      <div className="w-12 h-12 mx-auto rounded-full border-4 border-primary border-t-transparent animate-spin" />
+    <div className="space-y-md px-md py-xl text-center">
+      <div className="mx-auto size-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       <div className="font-body-lg text-on-surface">
         Researching <span className="font-bold">{title}</span>…
       </div>
-      <p className="font-body-md text-on-surface-variant max-w-[28rem] mx-auto">
+      <p className="mx-auto max-w-112 font-body-md text-on-surface-variant">
         Gemini is pulling together a description, location, duration, photo, and trail details. This
         usually takes a few seconds.
       </p>
@@ -730,13 +727,13 @@ function ReviewStep({
   }
 
   return (
-    <div className="px-md py-md space-y-md">
+    <div className="space-y-md p-md">
       {draft.coverImage && (
-        <div className="rounded-lg overflow-hidden aspect-video bg-surface-variant">
+        <div className="aspect-video overflow-hidden rounded-lg bg-surface-variant">
           <img
             src={draft.coverImage}
             alt={draft.name}
-            className="w-full h-full object-cover"
+            className="size-full object-cover"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
             }}
@@ -787,7 +784,7 @@ function ReviewStep({
         />
       </Field>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+      <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
         <Field label="Category">
           <select
             value={draft.category}
@@ -950,7 +947,7 @@ function ReviewStep({
           <div className="font-label-caps text-label-caps text-on-surface-variant">
             RESTAURANT DETAILS
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
             <Field label="Cuisine">
               <input
                 type="text"
@@ -1078,7 +1075,7 @@ function ReviewStep({
         anywayLabel={suggest ? 'Send anyway' : 'Save anyway'}
       />
 
-      {error && <div className="text-error font-body-md">{error}</div>}
+      {error && <div className="font-body-md text-error">{error}</div>}
 
       <div className="flex justify-between gap-sm pt-sm">
         <button
@@ -1088,7 +1085,7 @@ function ReviewStep({
           // A text button: pulled out by its padding so its label, not its
           // hover fill, starts at the content's edge. Its focus ring is drawn
           // inside, since outside it would be clipped by the scrolling panel.
-          className="-ml-md px-md py-sm rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
+          className="-ml-md rounded-full px-md py-sm text-on-surface-variant transition-colors hover:bg-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset disabled:opacity-50"
         >
           {mode === 'edit' ? 'Cancel' : 'Back'}
         </button>
@@ -1097,7 +1094,7 @@ function ReviewStep({
           onClick={onSave}
           disabled={saving}
           aria-busy={saving}
-          className="grid bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-50"
+          className="grid rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:opacity-50"
         >
           {/* Stack both labels in the same grid cell so the button reserves
               the wider label's width and the swap doesn't shift layout or
@@ -1117,7 +1114,7 @@ function ReviewStep({
             }`}
           >
             <span
-              className="w-4 h-4 rounded-full border-2 border-on-primary border-t-transparent animate-spin"
+              className="size-4 animate-spin rounded-full border-2 border-on-primary border-t-transparent"
               aria-hidden="true"
             />
             {suggest ? 'Sending' : 'Saving'}
@@ -1139,7 +1136,7 @@ const selectCls = `${inputCls} appearance-none pr-10 select-caret`;
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block font-body-sm text-on-surface-variant mb-xs">{label}</span>
+      <span className="mb-xs block font-body-sm text-on-surface-variant">{label}</span>
       {children}
     </label>
   );
@@ -1177,7 +1174,7 @@ function LocationPicker({
           1000) inside the map, so the dialog's sticky title (z-10) stays on
           top when the map scrolls under it. */}
       <div
-        className="relative isolate rounded-md overflow-hidden border border-outline-variant"
+        className="relative isolate overflow-hidden rounded-md border border-outline-variant"
         style={{ height: '280px' }}
       >
         <MapContainer

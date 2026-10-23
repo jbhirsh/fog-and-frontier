@@ -13,7 +13,7 @@ export function InlineError({
   return (
     <div
       role="alert"
-      className="flex items-start justify-between gap-sm bg-error-container text-on-error-container px-md py-sm rounded-lg font-body-md"
+      className="flex items-start justify-between gap-sm rounded-lg bg-error-container px-md py-sm font-body-md text-on-error-container"
     >
       <span>{message}</span>
       {onDismiss && (

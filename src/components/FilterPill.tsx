@@ -23,7 +23,7 @@ export function FilterPill({
   return (
     // Even padding; the edge icons are pulled out by their glyphs' empty
     // sides (glyphBleed), so the ink sits at the padding on both ends.
-    <label className="relative inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40">
+    <label className="relative inline-flex h-9 shrink-0 cursor-pointer items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-on-surface transition-colors focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/40 hover:bg-surface-container-low">
       {/* Fixed-size icon box: clips the Material Symbols ligature so a missing
           icon font (the visual tests stub it) can't blow out the chip width. */}
       <span

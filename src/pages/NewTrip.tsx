@@ -32,13 +32,13 @@ export function NewTrip() {
 
   if (!isLoaded) {
     return (
-      <section className="px-margin py-xl text-center text-on-surface-variant">Loading…</section>
+      <section className="py-xl px-margin text-center text-on-surface-variant">Loading…</section>
     );
   }
 
   if (!isOwner) {
     return (
-      <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
+      <section className="mx-auto max-w-2xl space-y-md py-xl px-margin text-center">
         <h1 className="font-display text-headline-lg text-primary">New trip</h1>
         <p className="font-body-lg text-on-surface-variant">
           Sign in with an owner account to create trips.
@@ -92,12 +92,12 @@ export function NewTrip() {
   }
 
   return (
-    <section className="px-margin py-xl max-w-2xl mx-auto space-y-lg">
+    <section className="mx-auto max-w-2xl space-y-lg py-xl px-margin">
       <div className="space-y-xs">
         <Link to="/trips" className="text-body-sm text-on-surface-variant underline">
           ← Trips
         </Link>
-        <h1 className="font-display text-headline-lg md:text-display text-primary">New trip</h1>
+        <h1 className="font-display text-headline-lg text-primary md:text-display">New trip</h1>
         {startCount > 0 && (
           <p className="font-body-md text-on-surface-variant">
             {startCount} activit
@@ -120,12 +120,12 @@ export function NewTrip() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-body-md focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-md focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:outline-none"
             placeholder="Weekend on the coast"
           />
         </Field>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        <div className="grid grid-cols-1 gap-md md:grid-cols-2">
           <Field label="Start date" htmlFor="trip-start" required>
             <input
               id="trip-start"
@@ -133,7 +133,7 @@ export function NewTrip() {
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               required
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-body-md focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-md focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:outline-none"
             />
           </Field>
           <Field label="End date" htmlFor="trip-end" required>
@@ -144,7 +144,7 @@ export function NewTrip() {
               onChange={(e) => setEndDate(e.target.value)}
               required
               min={startDate || undefined}
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-body-md focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-md focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:outline-none"
             />
           </Field>
         </div>
@@ -155,7 +155,7 @@ export function NewTrip() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-body-md focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-md focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:outline-none"
             placeholder="Optional"
           />
         </Field>
@@ -173,12 +173,12 @@ export function NewTrip() {
             type="url"
             value={coverImageUrl}
             onChange={(e) => setCoverImageUrl(e.target.value)}
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-body-md focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-md focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:outline-none"
             placeholder="https://…"
           />
         </Field>
 
-        <div className="flex items-start gap-sm bg-surface-container-low rounded-lg px-md py-sm">
+        <div className="flex items-start gap-sm rounded-lg bg-surface-container-low px-md py-sm">
           <input
             id="trip-open-voting"
             type="checkbox"
@@ -186,7 +186,7 @@ export function NewTrip() {
             onChange={(e) => setOpenVotingFirst(e.target.checked)}
             className="mt-1 accent-primary"
           />
-          <label htmlFor="trip-open-voting" className="space-y-xs cursor-pointer">
+          <label htmlFor="trip-open-voting" className="cursor-pointer space-y-xs">
             <span className="block font-body-md text-on-surface">Open voting first</span>
             <span className="block font-body-md text-sm text-on-surface-variant">
               Collect up/down votes on candidates before scheduling. You can finalize voting later
@@ -196,7 +196,7 @@ export function NewTrip() {
         </div>
 
         {error && (
-          <div className="bg-error-container text-on-error-container px-md py-sm rounded-lg font-body-md">
+          <div className="rounded-lg bg-error-container px-md py-sm font-body-md text-on-error-container">
             {error}
           </div>
         )}
@@ -205,7 +205,7 @@ export function NewTrip() {
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? 'Creating…' : 'Create trip'}
           </button>

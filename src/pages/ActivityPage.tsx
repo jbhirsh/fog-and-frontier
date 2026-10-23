@@ -148,35 +148,35 @@ function Missing({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center px-margin">
+    <div className="fixed inset-0 z-1000 flex items-center justify-center px-margin">
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm cursor-default ${animate ? 'motion-safe:animate-scrim-in' : ''}`}
+        className={`absolute inset-0 cursor-default bg-on-surface/60 backdrop-blur-sm ${animate ? 'motion-safe:animate-scrim-in' : ''}`}
       />
       <div
         ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="activity-missing-title"
-        className={`relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg text-center ${animate ? 'motion-safe:animate-dialog-in' : ''}`}
+        className={`relative w-full max-w-2xl rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg text-center shadow-xl ${animate ? 'motion-safe:animate-dialog-in' : ''}`}
       >
-        <span className="material-symbols-outlined text-on-surface-variant text-5xl">
+        <span className="material-symbols-outlined text-5xl text-on-surface-variant">
           wrong_location
         </span>
         <h2
           id="activity-missing-title"
-          className="font-headline-md text-headline-md text-on-surface mt-sm"
+          className="mt-sm font-headline-md text-headline-md text-on-surface"
         >
           {title}
         </h2>
-        <p className="font-body-md text-on-surface-variant mt-xs">{message}</p>
+        <p className="mt-xs font-body-md text-on-surface-variant">{message}</p>
         <button
           ref={action}
           type="button"
           onClick={onClose}
-          className="mt-md bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+          className="mt-md rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
         >
           Browse adventures
         </button>

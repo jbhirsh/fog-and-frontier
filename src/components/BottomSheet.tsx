@@ -136,7 +136,7 @@ export function BottomSheet({ snap, onSnapChange, header, children, label }: Pro
   return (
     <section
       aria-label={label}
-      className="fixed inset-x-0 bottom-0 z-[60] flex flex-col pb-[env(safe-area-inset-bottom)] rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-60 flex flex-col rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl"
       style={{
         height: dragging ? `${liveHeight}px` : SNAP_CSS[snap],
         transition:

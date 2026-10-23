@@ -48,15 +48,15 @@ export function Layout() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <header className="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/30">
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-50 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-xl">
         {/* Desktop (md+): one 80px row — brand · search · compact nav · auth.
             Mobile: wraps to [brand · auth], then the search, then the nav.
             order-* re-sequences the four for each layout. */}
-        <div className="flex flex-wrap items-center gap-x-md gap-y-sm px-margin py-sm md:py-0 md:h-20 w-full max-w-screen-2xl mx-auto">
+        <div className="mx-auto flex w-full max-w-screen-2xl flex-wrap items-center gap-x-md gap-y-sm py-sm px-margin md:h-20 md:py-0">
           <NavLink
             to="/"
-            className="order-1 font-display text-headline-md font-bold text-primary whitespace-nowrap"
+            className="order-1 font-display text-headline-md font-bold whitespace-nowrap text-primary"
           >
             Fog and Frontier
           </NavLink>
@@ -65,16 +65,16 @@ export function Layout() {
             <form
               role="search"
               onSubmit={(e) => e.preventDefault()}
-              className={`order-3 md:order-2 w-full md:w-[min(42vw,520px)] ${
+              className={`order-3 w-full md:order-2 md:w-[min(42vw,520px)] ${
                 isMapView ? 'hidden lg:block' : ''
               }`}
             >
-              <label className="flex items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest pl-gutter pr-xs py-xs shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
+              <label className="flex items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest py-xs pr-xs pl-gutter shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
                 <span className="material-symbols-outlined text-outline">search</span>
                 <input
                   value={q}
                   onChange={(e) => handleChange(e.target.value)}
-                  className="grow min-w-0 bg-transparent border-none focus:outline-none text-body-md"
+                  className="min-w-0 grow border-none bg-transparent text-body-md focus:outline-none"
                   placeholder="Search adventures, places, trails…"
                   type="text"
                   aria-label="Search adventures"
@@ -82,7 +82,7 @@ export function Layout() {
                 <button
                   type="submit"
                   aria-label="Search"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary text-on-secondary transition-opacity hover:opacity-90"
+                  className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary text-on-secondary transition-opacity hover:opacity-90"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
                     arrow_forward
@@ -93,7 +93,7 @@ export function Layout() {
           )}
 
           <nav
-            className={`order-4 md:order-3 w-full md:w-auto md:ml-auto flex items-center justify-center md:justify-end gap-x-sm text-body-sm whitespace-nowrap ${
+            className={`order-4 flex w-full items-center justify-center gap-x-sm text-body-sm whitespace-nowrap md:order-3 md:ml-auto md:w-auto md:justify-end ${
               isMapView ? 'hidden lg:flex' : ''
             }`}
           >
@@ -114,14 +114,14 @@ export function Layout() {
             </NavLink>
           </nav>
 
-          <div className="order-2 md:order-4 ml-auto md:ml-0 flex items-center shrink-0">
+          <div className="order-2 ml-auto flex shrink-0 items-center md:order-4 md:ml-0">
             {CLERK_ENABLED && (
               <>
                 <SignedOut>
                   <SignInButton mode="modal">
                     <button
                       type="button"
-                      className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
+                      className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
                     >
                       Sign in
                     </button>
@@ -140,18 +140,18 @@ export function Layout() {
           </div>
         </div>
       </header>
-      <main className="flex-grow">
+      <main className="grow">
         <Outlet />
       </main>
       {/* The catalog/split view (#4) owns the full page scroll Airbnb-style, so
           the footer is suppressed there; other pages keep it. */}
       {pathname !== '/' && (
-        <footer className="bg-primary w-full py-xl mt-xl">
-          <div className="flex flex-col md:flex-row justify-between items-center px-margin gap-md max-w-screen-2xl mx-auto">
+        <footer className="mt-xl w-full bg-primary py-xl">
+          <div className="mx-auto flex max-w-screen-2xl flex-col items-center justify-between gap-md px-margin md:flex-row">
             <div className="font-display text-headline-md font-bold text-on-primary">
               Fog and Frontier
             </div>
-            <div className="font-body-md text-body-md text-on-primary/70 text-center md:text-right">
+            <div className="text-center font-body-md text-body-md text-on-primary/70 md:text-right">
               Inspired by the Pacific Coast.
             </div>
           </div>

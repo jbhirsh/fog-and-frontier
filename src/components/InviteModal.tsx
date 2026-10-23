@@ -95,13 +95,13 @@ export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, bui
         type="button"
         aria-label="Close dialog"
         onClick={onClose}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-default"
+        className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Invite to this trip"
-        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
+        className="relative w-full max-w-2xl space-y-md rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">Invite to this trip</h2>
 
@@ -117,12 +117,12 @@ export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, bui
                 type="text"
                 readOnly
                 value={inviteLink ?? ''}
-                className="flex-1 bg-surface-container-low border border-outline-variant rounded-lg px-md py-sm font-body-md text-on-surface"
+                className="flex-1 rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm font-body-md text-on-surface"
               />
               <button
                 type="button"
                 onClick={() => void handleCopy()}
-                className="shrink-0 bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+                className="shrink-0 rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
               >
                 {copied ? 'Copied!' : 'Copy link'}
               </button>
@@ -141,7 +141,7 @@ export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, bui
               <button
                 type="button"
                 onClick={onClose}
-                className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+                className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
               >
                 Done
               </button>
@@ -172,21 +172,21 @@ export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, bui
                   setError(null);
                 }}
                 placeholder="name@example.com"
-                className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-md py-sm font-body-md text-on-surface"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm font-body-md text-on-surface"
               />
 
               {suggestions.length > 0 && (
                 <ul
                   role="listbox"
                   aria-label="Email suggestions"
-                  className="absolute z-10 w-full mt-xs bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-lg overflow-hidden"
+                  className="absolute z-10 mt-xs w-full overflow-hidden rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg"
                 >
                   {suggestions.map((u) => (
                     <li key={u.email} role="option" aria-selected={false}>
                       <button
                         type="button"
                         onClick={() => handleSelectSuggestion(u)}
-                        className="w-full text-left px-md py-sm hover:bg-surface-variant font-body-md"
+                        className="w-full px-md py-sm text-left font-body-md hover:bg-surface-variant"
                       >
                         <span className="block text-on-surface">{u.display_name ?? u.email}</span>
                         {u.display_name && (
@@ -213,7 +213,7 @@ export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, bui
                 type="button"
                 onClick={() => void handleCreate()}
                 disabled={busy}
-                className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy ? 'Creating…' : 'Create invite link'}
               </button>

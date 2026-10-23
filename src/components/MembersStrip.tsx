@@ -40,14 +40,14 @@ export function MembersStrip({
         return (
           <div
             key={member.email}
-            className="inline-flex items-center gap-xs bg-surface-variant rounded-full px-sm py-xs font-body-md text-on-surface-variant"
+            className="inline-flex items-center gap-xs rounded-full bg-surface-variant px-sm py-xs font-body-md text-on-surface-variant"
           >
             <span>
               {member.display_name ?? member.email}
               {isOwnChip && <span className="ml-xs text-on-surface-variant/60">· You</span>}
             </span>
             {member.is_creator && (
-              <span className="font-label-caps text-label-caps text-primary bg-primary-fixed px-xs rounded-full text-xs">
+              <span className="rounded-full bg-primary-fixed px-xs font-label-caps text-label-caps text-xs text-primary">
                 Creator
               </span>
             )}
@@ -58,7 +58,7 @@ export function MembersStrip({
                 disabled={removeDisabled}
                 title={removeDisabled ? 'Only the trip creator can remove members' : undefined}
                 aria-label={`Remove ${member.email}`}
-                className="inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 hover:text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 hover:text-on-surface-variant disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {/* Pulled out by the glyph's empty side, so the chip's insets match. */}
                 <span
@@ -77,7 +77,7 @@ export function MembersStrip({
       {invites.map((invite) => (
         <div
           key={invite.invite_token}
-          className="inline-flex items-center gap-xs bg-surface-variant rounded-full px-sm py-xs font-body-md text-on-surface-variant opacity-60 border border-dashed border-outline-variant"
+          className="inline-flex items-center gap-xs rounded-full border border-dashed border-outline-variant bg-surface-variant px-sm py-xs font-body-md text-on-surface-variant opacity-60"
         >
           <span>{invite.invited_email ?? 'pending invite'}</span>
           <button
@@ -101,7 +101,7 @@ export function MembersStrip({
         <button
           type="button"
           onClick={onLeave}
-          className="font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
+          className="rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-on-surface-variant hover:bg-surface-variant"
         >
           Leave trip
         </button>
@@ -111,7 +111,7 @@ export function MembersStrip({
       <button
         type="button"
         onClick={onInvite}
-        className="inline-flex items-center gap-xs font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-primary hover:bg-surface-variant"
+        className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-primary hover:bg-surface-variant"
       >
         <span className="material-symbols-outlined text-icon-sm">person_add</span>+ Invite
       </button>

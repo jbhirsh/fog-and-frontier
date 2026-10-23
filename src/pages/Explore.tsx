@@ -205,10 +205,10 @@ export function Explore() {
 
   return (
     <>
-      <section className="px-margin py-lg md:py-xl lg:py-24 bg-surface-container-low border-b border-outline-variant/20">
-        <div className="max-w-4xl mx-auto text-center space-y-md">
-          <h1 className="font-display text-headline-lg md:text-display text-primary">Explore</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
+      <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin md:py-xl lg:py-24">
+        <div className="mx-auto max-w-4xl space-y-md text-center">
+          <h1 className="font-display text-headline-lg text-primary md:text-display">Explore</h1>
+          <p className="mx-auto max-w-2xl font-body-lg text-body-lg text-on-surface-variant">
             What's happening around {HOME_LOCATION.label} right now? Pick a window and let Gemini
             search for things to do.
           </p>
@@ -218,10 +218,10 @@ export function Explore() {
                 key={r.value}
                 type="button"
                 onClick={() => setRange(r.value)}
-                className={`px-md py-sm rounded-full font-body-md transition-colors border ${
+                className={`rounded-full border px-md py-sm font-body-md transition-colors ${
                   range === r.value
-                    ? 'bg-primary text-on-primary border-primary'
-                    : 'bg-surface-container-lowest text-on-surface border-outline-variant hover:bg-surface-variant'
+                    ? 'border-primary bg-primary text-on-primary'
+                    : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-variant'
                 }`}
               >
                 {r.label}
@@ -234,7 +234,7 @@ export function Explore() {
                 type="button"
                 onClick={() => void discover()}
                 disabled={loading}
-                className="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-sm rounded-full font-body-lg shadow-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                className="inline-flex items-center gap-xs rounded-full bg-primary px-lg py-sm font-body-lg text-on-primary shadow-md transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span className="material-symbols-outlined">auto_awesome</span>
                 {loading ? 'Searching…' : events ? 'Refresh' : 'Discover events'}
@@ -242,7 +242,7 @@ export function Explore() {
             </div>
           )}
           {lastFetched && !loading && (
-            <p className="font-body-sm text-on-surface-variant pt-xs">
+            <p className="pt-xs font-body-sm text-on-surface-variant">
               Last refreshed {timeAgo(lastFetched.at)} for{' '}
               {RANGES.find((r) => r.value === lastFetched.range)?.label}
             </p>
@@ -250,25 +250,25 @@ export function Explore() {
         </div>
       </section>
 
-      <section className="px-margin py-xl max-w-screen-2xl mx-auto">
+      <section className="mx-auto max-w-screen-2xl py-xl px-margin">
         {loading && <LoadingState />}
         {!loading && error && <ErrorState message={error} onRetry={() => void discover()} />}
         {!loading && !error && !events && <EmptyHero isOwner={isOwner} />}
         {!loading && !error && events && events.length === 0 && (
-          <div className="text-center py-xl text-on-surface-variant">
+          <div className="py-xl text-center text-on-surface-variant">
             Nothing surfaced for that window. Try a different range.
           </div>
         )}
         {!loading && !error && events && events.length > 0 && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+            <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 lg:grid-cols-3">
               {events.map((e, i) => (
                 <EventCard key={`${e.name}-${i}`} event={e} />
               ))}
             </div>
             {sources.length > 0 && (
-              <div className="mt-xl pt-md border-t border-outline-variant/30">
-                <p className="font-body-sm text-on-surface-variant mb-xs">
+              <div className="mt-xl border-t border-outline-variant/30 pt-md">
+                <p className="mb-xs font-body-sm text-on-surface-variant">
                   Sources Gemini searched
                 </p>
                 <ul className="flex flex-wrap gap-xs">
@@ -287,7 +287,7 @@ export function Explore() {
                 </ul>
               </div>
             )}
-            <p className="mt-md font-body-sm text-on-surface-variant text-center">
+            <p className="mt-md text-center font-body-sm text-on-surface-variant">
               AI-generated suggestions — verify dates and details with the source before you go.
             </p>
           </>
@@ -303,18 +303,18 @@ function EventCard({ event }: { event: DiscoverEvent }) {
       href={event.sourceUrl}
       target="_blank"
       rel="noreferrer"
-      className="block rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-md hover:shadow-md transition-shadow"
+      className="block rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-md transition-shadow hover:shadow-md"
     >
-      <div className="font-body-sm text-secondary uppercase tracking-wide font-bold">
+      <div className="font-body-sm font-bold tracking-wide text-secondary uppercase">
         {event.dateText}
       </div>
-      <h3 className="font-display text-headline-md text-primary mt-xs">{event.name}</h3>
-      <div className="font-body-md text-on-surface-variant mt-xs flex items-center gap-xs">
+      <h3 className="mt-xs font-display text-headline-md text-primary">{event.name}</h3>
+      <div className="mt-xs flex items-center gap-xs font-body-md text-on-surface-variant">
         <span className="material-symbols-outlined text-icon-md">location_on</span>
         {event.location}
       </div>
-      <p className="font-body-md text-on-surface mt-sm">{event.blurb}</p>
-      <div className="mt-md font-body-sm text-primary flex items-center gap-xs">
+      <p className="mt-sm font-body-md text-on-surface">{event.blurb}</p>
+      <div className="mt-md flex items-center gap-xs font-body-sm text-primary">
         View source
         <span className="material-symbols-outlined text-icon-sm">open_in_new</span>
       </div>
@@ -324,8 +324,8 @@ function EventCard({ event }: { event: DiscoverEvent }) {
 
 function LoadingState() {
   return (
-    <div className="text-center py-lg md:py-xl px-md space-y-md max-w-2xl mx-auto">
-      <div className="w-12 h-12 mx-auto rounded-full border-4 border-primary border-t-transparent animate-spin" />
+    <div className="mx-auto max-w-2xl space-y-md px-md py-lg text-center md:py-xl">
+      <div className="mx-auto size-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       <p className="font-body-lg text-body-lg text-on-surface">
         Searching the web for upcoming events…
       </p>
@@ -338,13 +338,13 @@ function LoadingState() {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="text-center px-md py-lg md:py-xl space-y-md">
+    <div className="space-y-md px-md py-lg text-center md:py-xl">
       <p className="font-body-lg text-error">Something went wrong.</p>
-      <p className="font-body-md text-on-surface-variant max-w-xl mx-auto">{message}</p>
+      <p className="mx-auto max-w-xl font-body-md text-on-surface-variant">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md"
+        className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary"
       >
         Try again
       </button>
@@ -354,9 +354,9 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 
 function EmptyHero({ isOwner }: { isOwner: boolean }) {
   return (
-    <div className="text-center py-lg md:py-xl px-md space-y-sm text-on-surface-variant max-w-2xl mx-auto">
+    <div className="mx-auto max-w-2xl space-y-sm px-md py-lg text-center text-on-surface-variant md:py-xl">
       <span
-        className="material-symbols-outlined text-outline block"
+        className="material-symbols-outlined block text-outline"
         style={{ fontSize: 64, lineHeight: 1 }}
       >
         explore

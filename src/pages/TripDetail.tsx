@@ -341,7 +341,7 @@ export function TripDetail() {
 
   if (!ownerLoaded || isLoading || claimInProgress) {
     return (
-      <section className="px-margin py-xl text-center text-on-surface-variant">Loading…</section>
+      <section className="py-xl px-margin text-center text-on-surface-variant">Loading…</section>
     );
   }
 
@@ -350,7 +350,7 @@ export function TripDetail() {
   // sign-in, then the claim effect fires once they're authenticated).
   if (inviteToken && !email) {
     return (
-      <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
+      <section className="mx-auto max-w-2xl space-y-md py-xl px-margin text-center">
         <h1 className="font-display text-headline-lg text-primary">You&apos;re invited</h1>
         <p className="font-body-lg text-on-surface-variant">
           Sign in to accept your invitation and join this trip.
@@ -359,7 +359,7 @@ export function TripDetail() {
           <SignInButton mode="modal">
             <button
               type="button"
-              className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+              className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
             >
               Sign in to accept
             </button>
@@ -378,7 +378,7 @@ export function TripDetail() {
   // not-found branch below.
   if (error === 'unauthorized') {
     return (
-      <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
+      <section className="mx-auto max-w-2xl space-y-md py-xl px-margin text-center">
         <h1 className="font-display text-headline-lg text-primary">Trip</h1>
         <p className="font-body-lg text-on-surface-variant">Sign in to view this trip.</p>
         <Link to="/trips" className="text-primary underline">
@@ -390,7 +390,7 @@ export function TripDetail() {
 
   if (error || !trip) {
     return (
-      <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
+      <section className="mx-auto max-w-2xl space-y-md py-xl px-margin text-center">
         <p className="font-body-lg text-on-surface-variant">
           {error === 'not-found' ? "We couldn't find that trip." : "Couldn't load this trip."}
         </p>
@@ -418,12 +418,12 @@ export function TripDetail() {
       />
 
       {actionError && (
-        <div className="px-margin pt-md max-w-screen-2xl mx-auto">
+        <div className="mx-auto max-w-screen-2xl pt-md px-margin">
           <InlineError message={actionError} onDismiss={() => setActionError(null)} />
         </div>
       )}
 
-      <div className="px-margin pt-md max-w-screen-2xl mx-auto">
+      <div className="mx-auto max-w-screen-2xl pt-md px-margin">
         <MembersStrip
           members={trip.members}
           invites={trip.invites}
@@ -457,10 +457,10 @@ export function TripDetail() {
           }
         />
       ) : (
-        <section className="px-margin py-lg max-w-screen-2xl mx-auto space-y-lg">
+        <section className="mx-auto max-w-screen-2xl space-y-lg py-lg px-margin">
           <TripMap trip={trip} />
 
-          <div className="flex items-center justify-between gap-md flex-wrap">
+          <div className="flex flex-wrap items-center justify-between gap-md">
             <h2 className="font-headline-md text-headline-md text-on-surface">Itinerary</h2>
             <button
               type="button"
@@ -475,7 +475,7 @@ export function TripDetail() {
               }}
               disabled={isPast}
               title={isPast ? PAST_TOOLTIP : undefined}
-              className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span
                 className="material-symbols-outlined text-icon-md"
@@ -487,8 +487,8 @@ export function TripDetail() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-            <div className="lg:col-span-2 space-y-md">
+          <div className="grid grid-cols-1 gap-gutter lg:grid-cols-3">
+            <div className="space-y-md lg:col-span-2">
               {buckets.map((bucket) => (
                 <DaySection
                   key={bucket.dayIndex}
@@ -630,19 +630,19 @@ function VotingView({
 }) {
   const candidates = trip.activities;
   return (
-    <section className="px-margin py-lg max-w-screen-2xl mx-auto space-y-lg">
-      <div className="rounded-xl bg-tertiary-container/40 border border-outline-variant/20 px-md py-sm font-body-md text-on-surface-variant">
+    <section className="mx-auto max-w-screen-2xl space-y-lg py-lg px-margin">
+      <div className="rounded-xl border border-outline-variant/20 bg-tertiary-container/40 px-md py-sm font-body-md text-on-surface-variant">
         Voting is open — react to each candidate. Scheduling unlocks once the trip creator finalizes
         voting.
       </div>
 
-      <div className="flex items-center justify-between gap-md flex-wrap">
+      <div className="flex flex-wrap items-center justify-between gap-md">
         <h2 className="font-headline-md text-headline-md text-on-surface">Candidates</h2>
         <div className="flex items-center gap-sm">
           <button
             type="button"
             onClick={onAddFromCurated}
-            className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 text-on-surface-variant px-md py-sm font-body-md hover:bg-surface-variant"
+            className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 px-md py-sm font-body-md text-on-surface-variant hover:bg-surface-variant"
           >
             <span
               className="material-symbols-outlined text-icon-md"
@@ -663,7 +663,7 @@ function VotingView({
                   ? 'Add candidates before finalizing'
                   : undefined
             }
-            className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span className="material-symbols-outlined text-icon-md">how_to_vote</span>
             Finalize voting
@@ -680,7 +680,7 @@ function VotingView({
           to start voting.
         </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        <div className="grid grid-cols-1 gap-md md:grid-cols-2">
           {candidates.map((a) => (
             <div key={a.id} className="space-y-xs">
               <VotingCandidateCard
@@ -734,11 +734,11 @@ function VoteBreakdown({ trip, tripActivityId }: { trip: Trip; tripActivityId: s
       {rows.map((r) => (
         <span
           key={r.email}
-          className="inline-flex items-center gap-xs text-sm font-body-md text-on-surface-variant bg-surface-container-low rounded-full px-sm py-xs"
+          className="inline-flex items-center gap-xs rounded-full bg-surface-container-low px-sm py-xs font-body-md text-sm text-on-surface-variant"
         >
           {/* Lifted 1px, as in VoteControls: the thumbs sit low in their box. */}
           <span
-            className={`material-symbols-outlined text-icon-sm relative -top-px ${
+            className={`material-symbols-outlined relative -top-px text-icon-sm ${
               r.value === 1 ? 'text-primary' : 'text-error'
             }`}
           >
@@ -757,9 +757,9 @@ function VotingResults({ trip, onOpen }: { trip: Trip; onOpen: (a: TripActivity)
   if (trip.votes.length === 0) return null;
   const ranked = sortByNetScore(trip.activities, trip.votes);
   return (
-    <div className="space-y-md pt-md border-t border-outline-variant/20">
+    <div className="space-y-md border-t border-outline-variant/20 pt-md">
       <h2 className="font-headline-md text-headline-md text-on-surface">Voting results</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+      <div className="grid grid-cols-1 gap-md md:grid-cols-2">
         {ranked.map((a) => (
           <div key={a.id} className="space-y-xs">
             <VotingCandidateCard
@@ -860,9 +860,9 @@ function TripHeader({
 
   if (editing) {
     return (
-      <section className="px-margin py-lg bg-surface-container-low border-b border-outline-variant/20">
+      <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin">
         <form
-          className="max-w-3xl mx-auto space-y-md"
+          className="mx-auto max-w-3xl space-y-md"
           onSubmit={(e) => {
             e.preventDefault();
             onSave(draft);
@@ -875,16 +875,16 @@ function TripHeader({
             required
             disabled={isPast}
             title={isPast ? 'This trip is past' : undefined}
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm font-display text-headline-md disabled:opacity-60"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-display text-headline-md disabled:opacity-60"
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+          <div className="grid grid-cols-1 gap-md md:grid-cols-2">
             <input
               type="date"
               value={draft.start_date}
               onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
               disabled={isPast}
               title={isPast ? 'This trip is past' : undefined}
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm disabled:opacity-60"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm disabled:opacity-60"
             />
             <input
               type="date"
@@ -893,7 +893,7 @@ function TripHeader({
               min={draft.start_date || undefined}
               disabled={isPast}
               title={isPast ? 'This trip is past' : undefined}
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm disabled:opacity-60"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm disabled:opacity-60"
             />
           </div>
           <textarea
@@ -901,19 +901,19 @@ function TripHeader({
             onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             rows={2}
             placeholder="Description (optional)"
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
           />
           <input
             type="url"
             value={draft.cover_image_url}
             onChange={(e) => setDraft({ ...draft, cover_image_url: e.target.value })}
             placeholder="Cover image URL (optional)"
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
           />
           <div className="flex items-center gap-md">
             <button
               type="submit"
-              className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+              className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
             >
               Save
             </button>
@@ -934,24 +934,24 @@ function TripHeader({
   const editTooltip = isPast ? 'This trip is past' : undefined;
 
   return (
-    <section className="px-margin py-lg bg-surface-container-low border-b border-outline-variant/20">
-      <div className="max-w-screen-2xl mx-auto flex flex-wrap items-start justify-between gap-md">
+    <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin">
+      <div className="mx-auto flex max-w-screen-2xl flex-wrap items-start justify-between gap-md">
         <div className="space-y-xs">
           <Link to="/trips" className="text-body-sm text-on-surface-variant underline">
             ← Trips
           </Link>
-          <h1 className="font-display text-headline-lg md:text-display text-primary">
+          <h1 className="font-display text-headline-lg text-primary md:text-display">
             {trip.title}
           </h1>
           <p className="font-body-md text-on-surface-variant">{dateRange}</p>
           {trip.description && (
-            <p className="font-body-md text-on-surface max-w-2xl">{trip.description}</p>
+            <p className="max-w-2xl font-body-md text-on-surface">{trip.description}</p>
           )}
         </div>
 
         <div className="flex items-center gap-sm">
           {isPast ? (
-            <span className="font-label-caps text-label-caps text-on-surface-variant bg-surface-variant px-sm py-xs rounded-full">
+            <span className="rounded-full bg-surface-variant px-sm py-xs font-label-caps text-label-caps text-on-surface-variant">
               {trip.marked_past_at
                 ? `Past · ended ${new Date(trip.marked_past_at).toLocaleDateString('en-US', {
                     month: 'short',
@@ -960,11 +960,11 @@ function TripHeader({
                 : 'Past'}
             </span>
           ) : isVoting ? (
-            <span className="font-label-caps text-label-caps text-on-tertiary-container bg-tertiary-container px-sm py-xs rounded-full">
+            <span className="rounded-full bg-tertiary-container px-sm py-xs font-label-caps text-label-caps text-on-tertiary-container">
               Voting
             </span>
           ) : (
-            <span className="font-label-caps text-label-caps text-primary bg-primary-fixed px-sm py-xs rounded-full">
+            <span className="rounded-full bg-primary-fixed px-sm py-xs font-label-caps text-label-caps text-primary">
               Planning
             </span>
           )}
@@ -972,7 +972,7 @@ function TripHeader({
             type="button"
             onClick={onEdit}
             title={isPast ? 'Past trip — only cover and description are editable' : editTooltip}
-            className="font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
+            className="rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-on-surface-variant hover:bg-surface-variant"
           >
             Edit
           </button>
@@ -985,12 +985,12 @@ function TripHeader({
               }}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
-              className="w-9 h-9 inline-flex items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
+              className="inline-flex size-9 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
             >
               <span className="material-symbols-outlined">more_horiz</span>
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-xs w-56 bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-lg z-10 overflow-hidden">
+              <div className="absolute right-0 z-10 mt-xs w-56 overflow-hidden rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg">
                 {!isPast && !isVoting && (
                   <MenuItem
                     onClick={() => {
@@ -1059,7 +1059,7 @@ function MenuItem({
       onClick={onClick}
       disabled={disabled}
       title={tooltip}
-      className={`w-full text-left font-body-md px-md py-sm hover:bg-surface-variant disabled:opacity-60 disabled:cursor-not-allowed ${
+      className={`w-full px-md py-sm text-left font-body-md hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60 ${
         destructive ? 'text-error' : 'text-on-surface'
       }`}
     >
@@ -1100,7 +1100,7 @@ function DaySection({
         setDragOver(false);
         onDropOnDay(e);
       }}
-      className={`rounded-xl border-2 transition-colors p-md space-y-sm ${
+      className={`space-y-sm rounded-xl border-2 p-md transition-colors ${
         dragOver
           ? 'border-primary bg-primary-fixed/40'
           : 'border-outline-variant/30 bg-surface-container-low'
@@ -1168,7 +1168,7 @@ function UnscheduledPanel({
         setDragOver(false);
         onDrop(e);
       }}
-      className={`rounded-xl border-2 transition-colors p-md space-y-sm h-fit ${
+      className={`h-fit space-y-sm rounded-xl border-2 p-md transition-colors ${
         dragOver
           ? 'border-primary bg-primary-fixed/40'
           : 'border-outline-variant/30 bg-surface-container-low'
@@ -1181,7 +1181,7 @@ function UnscheduledPanel({
           onClick={onAddFromCurated}
           disabled={isPast}
           title={isPast ? PAST_TOOLTIP : undefined}
-          className="font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant disabled:opacity-60 disabled:cursor-not-allowed"
+          className="rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-on-surface-variant hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60"
         >
           + Add
         </button>
@@ -1193,7 +1193,7 @@ function UnscheduledPanel({
             type="button"
             onClick={onAddFromCurated}
             disabled={isPast}
-            className="text-primary underline disabled:opacity-60 disabled:cursor-not-allowed"
+            className="text-primary underline disabled:cursor-not-allowed disabled:opacity-60"
           >
             Add activity
           </button>{' '}
@@ -1251,7 +1251,7 @@ function SlotDialog({
           <select
             value={dayIndex}
             onChange={(e) => setDayIndex(Number(e.target.value))}
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
           >
             {Array.from({ length: dayCount }, (_, i) => (
               <option key={i} value={i}>
@@ -1266,7 +1266,7 @@ function SlotDialog({
             type="time"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
           />
         </label>
         <div className="flex items-center justify-end gap-md">
@@ -1276,7 +1276,7 @@ function SlotDialog({
           <button
             type="button"
             onClick={() => onSubmit(dayIndex, startTime)}
-            className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+            className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
           >
             Save
           </button>
@@ -1327,14 +1327,14 @@ function MarkPastModal({
           fine.
         </p>
       ) : (
-        <div className="space-y-xs max-h-96 overflow-y-auto">
+        <div className="max-h-96 space-y-xs overflow-y-auto">
           {scheduled.map((a) => {
             const aid = a.activity_id ?? '';
             const inputId = `mp-${a.id}`;
             return (
               <div
                 key={a.id}
-                className="flex items-start gap-sm py-sm border-b border-outline-variant/20 last:border-b-0"
+                className="flex items-start gap-sm border-b border-outline-variant/20 py-sm last:border-b-0"
               >
                 <input
                   id={inputId}
@@ -1343,7 +1343,7 @@ function MarkPastModal({
                   onChange={() => toggle(aid)}
                   className="mt-1 accent-primary"
                 />
-                <label htmlFor={inputId} className="flex-1 space-y-xs cursor-pointer">
+                <label htmlFor={inputId} className="flex-1 cursor-pointer space-y-xs">
                   <span className="block font-body-md text-on-surface">
                     {a.snapshot?.name ?? '(activity)'}
                   </span>
@@ -1367,7 +1367,7 @@ function MarkPastModal({
         <button
           type="button"
           onClick={submit}
-          className="bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90"
+          className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
         >
           Mark trip past
         </button>
@@ -1401,7 +1401,7 @@ function ConfirmDialog({
         <button
           type="button"
           onClick={onConfirm}
-          className={`px-md py-sm rounded-full font-body-md hover:opacity-90 ${
+          className={`rounded-full px-md py-sm font-body-md hover:opacity-90 ${
             destructive ? 'bg-error text-on-error' : 'bg-primary text-on-primary'
           }`}
         >
@@ -1427,13 +1427,13 @@ function ModalShell({
         type="button"
         aria-label="Close dialog"
         onClick={onCancel}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-default"
+        className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
+        className="relative w-full max-w-2xl space-y-md rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
         {children}

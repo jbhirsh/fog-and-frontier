@@ -62,32 +62,32 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
             Within {TRIP_SUGGESTION_RADIUS_MILES} miles of the candidates, starting with what the
             trip doesn&apos;t have yet.
           </p>
-          <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-sm">
+          <ul className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-3">
             {visible.map(({ activity: a, miles, nearName }) => (
               <li
                 key={a.id}
-                className="flex items-stretch rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-low"
+                className="flex items-stretch overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-low"
               >
                 <button
                   type="button"
                   onClick={() => onOpen(a)}
-                  className="flex flex-1 min-w-0 gap-sm items-stretch text-left hover:bg-surface-container transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
+                  className="flex min-w-0 flex-1 items-stretch gap-sm text-left transition-colors hover:bg-surface-container focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset"
                 >
-                  <span className="relative w-20 min-h-20 shrink-0 bg-surface-variant">
+                  <span className="relative min-h-20 w-20 shrink-0 bg-surface-variant">
                     <span className="absolute inset-0">
                       <CoverImage
                         src={a.coverImage}
                         alt=""
                         category={a.category}
-                        className="w-full h-full object-cover"
+                        className="size-full object-cover"
                         loading="lazy"
                         glyphSize={28}
                         sizes="80px"
                       />
                     </span>
                   </span>
-                  <span className="flex-1 min-w-0 py-xs">
-                    <span className="block font-body-md font-bold text-on-surface line-clamp-2">
+                  <span className="min-w-0 flex-1 py-xs">
+                    <span className="line-clamp-2 block font-body-md font-bold text-on-surface">
                       {a.name}
                     </span>
                     <span className="flex items-center gap-xs font-body-sm text-on-surface-variant">
@@ -96,7 +96,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                       </span>
                       <span className="truncate">{a.location.city}</span>
                     </span>
-                    <span className="block font-body-sm text-on-surface-variant truncate">
+                    <span className="block truncate font-body-sm text-on-surface-variant">
                       {miles.toFixed(1)} mi from {nearName}
                     </span>
                   </span>
@@ -106,7 +106,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                   onClick={() => void add(a)}
                   disabled={busy}
                   aria-label={`Add ${a.name} as a candidate`}
-                  className="shrink-0 self-center mx-sm inline-flex items-center justify-center gap-xs rounded-full border border-outline-variant/40 text-primary min-w-11 min-h-11 sm:px-sm font-body-md hover:bg-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="mx-sm inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-xs self-center rounded-full border border-outline-variant/40 font-body-md text-primary hover:bg-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container disabled:cursor-not-allowed disabled:opacity-60 sm:px-sm"
                 >
                   <span aria-hidden="true" className="material-symbols-outlined text-icon-md">
                     add
@@ -123,7 +123,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
             <button
               type="button"
               onClick={() => setShown((n) => n + TRIP_SUGGESTIONS_PAGE)}
-              className="min-h-11 text-primary underline font-body-md"
+              className="min-h-11 font-body-md text-primary underline"
             >
               Show more
             </button>

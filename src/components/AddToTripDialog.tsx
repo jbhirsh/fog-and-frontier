@@ -58,13 +58,13 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
         type="button"
         aria-label="Close dialog"
         onClick={onClose}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-default"
+        className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Add to trip"
-        className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md max-h-[80vh] overflow-y-auto"
+        className="relative max-h-[80vh] w-full max-w-2xl space-y-md overflow-y-auto rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">
           Add {activityIds.length} activit{activityIds.length === 1 ? 'y' : 'ies'} to a trip
@@ -74,9 +74,9 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
           type="button"
           onClick={handleCreateNew}
           disabled={busy}
-          className="w-full text-left bg-primary-fixed text-primary px-md py-md rounded-lg hover:bg-primary-container/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full rounded-lg bg-primary-fixed p-md text-left text-primary transition-colors hover:bg-primary-container/40 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <span className="font-headline-md text-body-lg block">New trip from selection</span>
+          <span className="block font-headline-md text-body-lg">New trip from selection</span>
           <span className="font-body-md text-sm">
             Create a trip and pre-load these activities in Unscheduled.
           </span>
@@ -98,7 +98,7 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
                     type="button"
                     onClick={() => void handleAddToExisting(trip)}
                     disabled={busy}
-                    className="w-full text-left bg-surface-container-low border border-outline-variant/30 px-md py-sm rounded-lg hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-outline-variant/30 bg-surface-container-low px-md py-sm text-left transition-colors hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <span className="block font-body-md text-on-surface">{trip.title}</span>
                     <span className="block font-body-md text-sm text-on-surface-variant">
@@ -112,7 +112,7 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
         </div>
 
         {error && (
-          <div className="bg-error-container text-on-error-container px-md py-sm rounded-lg font-body-md">
+          <div className="rounded-lg bg-error-container px-md py-sm font-body-md text-on-error-container">
             {error}
           </div>
         )}

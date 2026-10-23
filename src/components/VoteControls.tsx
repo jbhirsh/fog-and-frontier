@@ -24,7 +24,7 @@ export function VoteControls({ tally, myVote, disabled = false, disabledTooltip,
   }
 
   return (
-    <div className="inline-flex items-center rounded-full border border-outline-variant/40 overflow-hidden">
+    <div className="inline-flex items-center overflow-hidden rounded-full border border-outline-variant/40">
       <ThumbButton
         label="Upvote"
         icon="thumb_up"
@@ -78,7 +78,7 @@ function ThumbButton({
       title={disabled ? disabledTooltip : undefined}
       onClick={onClick}
       // 44px tall on touch screens (#228); compact from md, as before.
-      className={`flex items-center gap-xs px-sm py-xs min-h-11 min-w-11 md:min-h-auto md:min-w-auto font-body-md text-sm transition-colors disabled:cursor-not-allowed ${
+      className={`flex min-h-11 min-w-11 items-center gap-xs px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed md:min-h-auto md:min-w-auto ${
         active ? `${activeClass} font-medium` : 'text-on-surface-variant'
       } ${disabled ? '' : 'hover:bg-surface-variant'}`}
     >

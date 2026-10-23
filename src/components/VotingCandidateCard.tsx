@@ -46,16 +46,16 @@ export function VotingCandidateCard({
       onDragStart={votingOpen && draggable ? onDragStart : undefined}
       onDragOver={votingOpen && draggable ? onDragOver : undefined}
       onDrop={votingOpen && draggable ? onDrop : undefined}
-      className={`bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden ${
+      className={`overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest ${
         votingOpen && draggable ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
       {/* Below md the controls wrap onto their own row (#228): beside the
           thumbnail they left the name a few pixels wide on a phone. */}
-      <div className="flex flex-wrap md:flex-nowrap gap-x-md gap-y-sm p-sm">
+      <div className="flex flex-wrap gap-x-md gap-y-sm p-sm md:flex-nowrap">
         {/* Drag handle */}
         {votingOpen && draggable && (
-          <div className="flex items-center shrink-0 text-on-surface-variant/50">
+          <div className="flex shrink-0 items-center text-on-surface-variant/50">
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
               drag_indicator
             </span>
@@ -68,19 +68,19 @@ export function VotingCandidateCard({
           <button
             type="button"
             onClick={onOpen}
-            className="flex gap-md flex-1 min-w-0 text-left rounded-lg hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
+            className="flex min-w-0 flex-1 gap-md rounded-lg text-left hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
           >
             <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
           </button>
         ) : (
-          <div className="flex gap-md flex-1 min-w-0">
+          <div className="flex min-w-0 flex-1 gap-md">
             <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
           </div>
         )}
 
         {/* Vote controls + remove: a row of their own on a phone, the right
             side of the card from md up. */}
-        <div className="basis-full md:basis-auto flex md:flex-col items-center md:items-end justify-end md:justify-start gap-sm md:gap-xs shrink-0">
+        <div className="flex shrink-0 basis-full items-center justify-end gap-sm md:basis-auto md:flex-col md:items-end md:justify-start md:gap-xs">
           <VoteControls
             tally={tally}
             myVote={myVote}
@@ -93,7 +93,7 @@ export function VotingCandidateCard({
               type="button"
               aria-label="Remove candidate"
               onClick={onRemove}
-              className="font-body-md text-sm pl-[10px] pr-sm py-xs min-h-11 md:min-h-auto rounded-full border border-error/40 text-error hover:bg-error-container transition-colors"
+              className="min-h-11 rounded-full border border-error/40 py-xs pr-sm pl-[10px] font-body-md text-sm text-error transition-colors hover:bg-error-container md:min-h-auto"
             >
               ✕ Remove
             </button>
@@ -117,22 +117,22 @@ function CardBody({
 }) {
   return (
     <>
-      <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-surface-variant flex items-center justify-center">
+      <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-variant">
         {cover ? (
-          <CdnImage alt="" src={cover} sizes="80px" className="w-full h-full object-cover" />
+          <CdnImage alt="" src={cover} sizes="80px" className="size-full object-cover" />
         ) : (
           <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>
             landscape
           </span>
         )}
       </div>
-      <div className="flex-1 min-w-0 space-y-xs">
+      <div className="min-w-0 flex-1 space-y-xs">
         {/* The full name on a phone, wrapping as it needs; one line from md. */}
-        <div className="font-headline-md text-body-lg text-on-surface break-words md:break-normal md:line-clamp-1">
+        <div className="font-headline-md text-body-lg wrap-break-word text-on-surface md:line-clamp-1 md:break-normal">
           {name}
         </div>
         {cityLine && (
-          <div className="font-body-md text-sm text-on-surface-variant break-words md:break-normal md:line-clamp-1">
+          <div className="font-body-md text-sm wrap-break-word text-on-surface-variant md:line-clamp-1 md:break-normal">
             {cityLine}
           </div>
         )}

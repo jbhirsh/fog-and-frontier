@@ -432,7 +432,7 @@ export function CuratedAdventures() {
 
   const listContent =
     visibleResults.length === 0 ? (
-      <div className="text-center py-xl text-on-surface-variant">
+      <div className="py-xl text-center text-on-surface-variant">
         {bounds && results.length > 0
           ? 'No activities in this area.'
           : 'No activities match those filters.'}
@@ -481,7 +481,7 @@ export function CuratedAdventures() {
             <button
               type="button"
               onClick={handleShowMore}
-              className="inline-flex items-center min-h-11 px-md rounded-full border border-outline-variant/40 text-primary font-body-md hover:bg-surface-variant"
+              className="inline-flex min-h-11 items-center rounded-full border border-outline-variant/40 px-md font-body-md text-primary hover:bg-surface-variant"
             >
               Show more ({remaining} left)
             </button>
@@ -555,12 +555,12 @@ export function CuratedAdventures() {
       aria-label={`Review ${waiting} suggestion${waiting === 1 ? '' : 's'}`}
       // Ends in its count's circle, so the right padding matches the space
       // above and below it.
-      className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low pl-sm pr-base text-body-sm text-on-surface-variant hover:bg-surface-variant transition-colors whitespace-nowrap"
+      className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low pr-base pl-sm text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant"
     >
       Review
       <span
         aria-hidden="true"
-        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] leading-none tabular-nums text-on-primary"
+        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] leading-none text-on-primary tabular-nums"
       >
         {waiting}
       </span>
@@ -583,7 +583,7 @@ export function CuratedAdventures() {
             clearBounds();
             setView('list');
           }}
-          className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
+          className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-variant"
         >
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
@@ -644,7 +644,7 @@ export function CuratedAdventures() {
   // line of its own. The mobile map's sheet keeps the box.
   const renderFilterChips = (inToolbar: boolean) => (
     <div
-      className={`flex items-center gap-sm overflow-x-auto px-0.5 py-1 -my-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+      className={`-my-1 flex scrollbar-none items-center gap-sm overflow-x-auto px-0.5 py-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [&::-webkit-scrollbar]:hidden ${
         inToolbar ? 'md:contents' : ''
       }`}
     >
@@ -658,7 +658,7 @@ export function CuratedAdventures() {
           value={String(maxDistance)}
           onChange={(e) => setMaxDistance(Number(e.target.value))}
           aria-label="Distance"
-          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
         >
           <option value={String(Infinity)}>Any distance</option>
           {DISTANCE_LIMITS.map((miles) => (
@@ -673,7 +673,7 @@ export function CuratedAdventures() {
           value={duration}
           onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
           aria-label="Duration"
-          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
         >
           {DURATION_OPTIONS.map((d) => (
             <option key={d} value={d}>
@@ -687,7 +687,7 @@ export function CuratedAdventures() {
           value={category}
           onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
           aria-label="Category"
-          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
         >
           {CATEGORY_OPTIONS.map((c) => (
             <option key={c} value={c}>
@@ -701,7 +701,7 @@ export function CuratedAdventures() {
           value={parkType}
           onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
           aria-label="Park type"
-          className="appearance-none bg-transparent focus:outline-none cursor-pointer text-body-sm"
+          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
         >
           {PARK_TYPE_OPTIONS.map((p) => (
             <option key={p} value={p}>
@@ -792,15 +792,15 @@ export function CuratedAdventures() {
 
   const filterToolbar = (
     <section
-      className={`border-b border-outline-variant/20 bg-surface px-gutter py-sm z-40 backdrop-blur-xl ${
+      className={`z-40 border-b border-outline-variant/20 bg-surface px-gutter py-sm backdrop-blur-xl ${
         view === 'list' ? 'md:sticky md:top-20' : ''
       }`}
     >
-      <div className="max-w-screen-2xl mx-auto flex flex-col gap-sm md:flex-row md:flex-wrap md:items-center">
+      <div className="mx-auto flex max-w-screen-2xl flex-col gap-sm md:flex-row md:flex-wrap md:items-center">
         {renderFilterChips(true)}
         {/* View toggle + trip actions: their own row below the filters on
             mobile, right-aligned inline on desktop. */}
-        <div className="flex flex-wrap md:flex-nowrap shrink-0 items-center justify-center gap-sm md:ml-auto md:justify-end">
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-sm md:ml-auto md:flex-nowrap md:justify-end">
           {/* Split only exists at lg+, so the segmented control does too;
               below it, a floating "Show map" button (below) opens the
               full-screen map and the sheet's "Hide map" closes it (#96). */}
@@ -816,7 +816,7 @@ export function CuratedAdventures() {
                   setSelectionMode(true);
                 }
               }}
-              className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm text-on-surface-variant hover:bg-surface-variant transition-colors whitespace-nowrap"
+              className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant"
             >
               <span
                 className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
@@ -839,7 +839,7 @@ export function CuratedAdventures() {
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="inline-flex h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm text-on-primary hover:opacity-90 transition-opacity whitespace-nowrap"
+              className="inline-flex h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm whitespace-nowrap text-on-primary transition-opacity hover:opacity-90"
             >
               <span
                 className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
@@ -861,7 +861,7 @@ export function CuratedAdventures() {
       {/* In the toolbar so List, Split and Map all show it: a failed catalog
           read must not pass for an empty catalog. */}
       {loadError && (
-        <div className="max-w-screen-2xl mx-auto pt-sm">
+        <div className="mx-auto max-w-screen-2xl pt-sm">
           <InlineError message={loadError} />
         </div>
       )}
@@ -922,7 +922,7 @@ export function CuratedAdventures() {
               and the map can't slide under the sticky header. */}
           <section className="min-h-0 flex-1 px-gutter py-md">
             <h1 className="sr-only">Curated Adventures — map</h1>
-            <div className="h-full w-full">
+            <div className="size-full">
               <ActivityMap
                 activities={results}
                 onSelect={(a) => openFromList(a.id)}
@@ -938,14 +938,12 @@ export function CuratedAdventures() {
       ) : view === 'split' ? (
         <>
           {filterToolbar}
-          <section className="max-w-screen-2xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <section className="mx-auto max-w-screen-2xl lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             {/* List column flows in the normal page scroll (Airbnb-style): the
               page's own scrollbar moves the cards while the map stays pinned —
               no separate inner scrollbar. */}
             <div
-              className={`px-gutter py-md ${
-                selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''
-              }`}
+              className={`px-gutter py-md ${selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''}`}
             >
               {listHeader}
               {listContent}
@@ -954,7 +952,7 @@ export function CuratedAdventures() {
               the list scrolls past. Mounted only at lg+ (below it the split
               collapses to list-only). */}
             {splitMapVisible && (
-              <div className="hidden lg:block lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-md">
+              <div className="hidden p-md lg:sticky lg:top-20 lg:block lg:h-[calc(100vh-80px)]">
                 <ActivityMap
                   activities={results}
                   onSelect={(a) => openFromList(a.id)}
@@ -972,7 +970,7 @@ export function CuratedAdventures() {
         <>
           {filterToolbar}
           <section
-            className={`px-gutter py-md max-w-screen-2xl mx-auto ${
+            className={`mx-auto max-w-screen-2xl px-gutter py-md ${
               selectionMode && selectedForTrip.size > 0 ? 'pb-32' : showMapButton ? 'pb-24' : ''
             }`}
           >
@@ -1000,8 +998,8 @@ export function CuratedAdventures() {
       )}
 
       {selectionMode && (
-        <div className="fixed bottom-0 inset-x-0 z-40 px-gutter py-md bg-surface/95 backdrop-blur-xl border-t border-outline-variant/30">
-          <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-md flex-wrap">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/30 bg-surface/95 px-gutter py-md backdrop-blur-xl">
+          <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-md">
             <div className="font-body-md text-on-surface">
               {targetTrip ? (
                 <>
@@ -1013,7 +1011,7 @@ export function CuratedAdventures() {
                 <>{selectedForTrip.size} selected</>
               )}
               {overBulkCap && (
-                <span className="ml-sm text-error font-body-md text-sm">
+                <span className="ml-sm font-body-md text-sm text-error">
                   Pick at most {MAX_BULK_ADD} at a time.
                 </span>
               )}
@@ -1037,7 +1035,7 @@ export function CuratedAdventures() {
                 }}
                 disabled={selectedForTrip.size === 0 || submittingTarget || overBulkCap}
                 title={overBulkCap ? `Pick at most ${MAX_BULK_ADD}` : undefined}
-                className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submittingTarget
                   ? 'Adding…'
@@ -1054,7 +1052,7 @@ export function CuratedAdventures() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-surface-container-lowest border border-outline-variant/30 px-md py-sm rounded-lg shadow-lg font-body-md"
+          className="fixed top-24 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-md py-sm font-body-md shadow-lg"
         >
           {tripAddedToast}
         </div>
