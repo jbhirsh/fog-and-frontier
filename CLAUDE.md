@@ -18,7 +18,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run format` / `format:check` — Prettier over the whole repo (`.prettierrc.json`: single quotes, 100 columns; `.prettierignore` leaves out the lockfile, `src/gql/`, `patches/` and `public/`).
 - `npm test` / `test:watch` / `test:coverage` — Vitest.
 - `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
-- `npm run test:visual` — Playwright visual regression.
+- `npm run test:visual` — Playwright visual regression: the desktop pages in Chromium, Firefox and WebKit (`desktop`, `desktop-firefox`, `desktop-webkit`) and the mobile ones on an iPhone (WebKit), each against its own Linux baselines. Baselines come from CI, not a laptop (fonts differ): run `visual.yml` by hand with `update_snapshots` on the branch, which commits them there.
 - `npm run db:snapshot` / `db:seed-preview` — Turso helpers in `scripts/`. The catalog lives only in Turso; there is no static seed.
 - `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/pr-gif-cli.ts`; below, "Show UI changes in the PR").
 - `npm run links:check` — audit every outbound link in the live catalog (#68): dead links fail it, bot-blocked ones (AllTrails) are listed for checking by hand. Runs weekly in `links.yml`.

@@ -30,7 +30,9 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        # Chromium (desktop), WebKit (the iPhone and desktop Safari) and
+        # Firefox (desktop): see the projects in playwright.config.ts.
+        run: npx playwright install --with-deps chromium webkit firefox
 
       # Detect Linux baselines anywhere under tests/visual. `compgen -G "**/*.png"`
       # does NOT recurse into subdirectories unless `shopt -s globstar` is set,
