@@ -184,12 +184,19 @@ Actions only reads `.github/workflows/` there):
 - **PR visuals** (`.github/workflows/pr-visuals.yml`) — fails a PR that
   changes a component or stylesheet when its description has no image, GIF or
   video and "No visible UI change" isn't ticked. It re-runs on description
-  edits. To record a GIF, run the flow in Playwright with
-  `recordVideo: { dir, size }` on the browser context, then convert it:
-  `ffmpeg -i in.webm -vf "fps=12,scale=320:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse" out.gif`.
-  Commit images to the one `screenshots` branch, in a folder named for the PR
-  (`<number>/`); its tree carries a `vercel.json` with deploys off. Link them
-  by their `raw.githubusercontent.com` URL at that commit's SHA.
+  edits. Pictures show the app as production does (real catalog, photos,
+  fonts and map), never the visual tests' blank fixtures. For a GIF, write a
+  scenario (the mouse and keyboard steps; see `scripts/gif-scenarios/` and
+  the rules in `scripts/pr-gif.ts`) and run
+  `npm run gif -- scripts/gif-scenarios/<flow>.ts --dir <PR number>`. It
+  records local production builds of `main` and the branch, reading
+  production's data and photos, with the pointer and keys drawn in, at real
+  speed (`--side-by-side` adds a joined GIF), commits them and prints the
+  Before/After table. Owner-only screens work the same way, signed in
+  through the test flags. It needs ffmpeg. Commit images to the one `screenshots` branch, in a
+  folder named for the PR (`<number>/`); its tree carries a `vercel.json` with
+  deploys off. Link them by their `raw.githubusercontent.com` URL at that
+  commit's SHA.
 
 ### Dependency updates (Dependabot)
 

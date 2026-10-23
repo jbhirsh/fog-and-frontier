@@ -164,6 +164,35 @@ export default defineConfig([
     },
   },
 
+  // TypeScript tooling scripts, run with `node --experimental-strip-types`
+  // (scripts/pr-gif.ts records GIFs for PR descriptions). Node, plus the DOM
+  // for code handed to a browser page. Type-aware via tsconfig.scripts.json.
+  {
+    files: ['scripts/**/*.ts'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
+      importPlugin.flatConfigs.recommended,
+      importPlugin.flatConfigs.typescript,
+    ],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+      parserOptions: {
+        project: ['./tsconfig.scripts.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    settings: {
+      'import/resolver': {
+        typescript: { project: './tsconfig.scripts.json' },
+      },
+    },
+    rules: {
+      'import/no-cycle': ['error', { ignoreExternal: true }],
+      'import/no-named-as-default-member': 'off',
+    },
+  },
+
   // Tooling config files. Node globals, but not type-aware — these files aren't
   // part of any tsconfig include and don't need cross-file project analysis.
   {
