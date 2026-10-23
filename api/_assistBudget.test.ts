@@ -121,7 +121,7 @@ describe('claimAssist', () => {
     const [stmts] = batch.mock.calls[0] as [{ sql: string }[]];
     expect(stmts).toHaveLength(2);
     // Nothing is written outside the batch but the table itself.
-    expect(execute.mock.calls.every(([q]) => typeof q === 'string')).toBe(true);
+    expect(execute.mock.calls.every(([q]: unknown[]) => typeof q === 'string')).toBe(true);
     // Refused by its own cap: neither count moves.
     for (let i = 0; i < 4; i += 1) await claimAssist('a@example.com', DAY);
     expect(await claimAssist('a@example.com', DAY)).toBe(false);

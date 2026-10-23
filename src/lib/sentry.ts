@@ -61,7 +61,7 @@ export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 function scrubUrlAttrs<T extends object>(data: T): T {
   let changed = false;
   const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(data)) {
+  for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
     if (typeof v === 'string' && v.includes('?') && /url/i.test(k)) {
       next[k] = stripQueryString(v);
       changed = true;
@@ -126,11 +126,10 @@ export function scrubEvent(event: Event): Event {
 }
 
 export function initSentry(): void {
-  const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+  const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return;
 
-  const environment =
-    (import.meta.env.VITE_VERCEL_ENV as string | undefined) ?? import.meta.env.MODE;
+  const environment = import.meta.env.VITE_VERCEL_ENV ?? import.meta.env.MODE;
   // Production samples 10% of transactions to stay inside Sentry's free-tier
   // quota; preview/dev capture everything so a sneeze surfaces.
   const tracesSampleRate = environment === 'production' ? 0.1 : 1.0;
@@ -138,7 +137,7 @@ export function initSentry(): void {
   Sentry.init({
     dsn,
     environment,
-    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA as string | undefined,
+    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA,
     integrations: [
       Sentry.reactRouterV7BrowserTracingIntegration({
         useEffect,

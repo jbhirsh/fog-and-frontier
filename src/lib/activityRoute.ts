@@ -87,7 +87,7 @@ export const CATALOG_LOCATION: Location = {
  * direct link to an activity has no page of ours behind it, so it gets the
  * catalog.
  */
-export function backgroundFor(location: Location): Location | null {
+export function backgroundFor(location: Location<unknown>): Location | null {
   const state = readActivityState(location.state);
   if (state) return state.backgroundLocation;
   return isActivityPath(location.pathname) ? CATALOG_LOCATION : null;
@@ -99,7 +99,7 @@ export function backgroundFor(location: Location): Location | null {
  * so useLocation() there keeps the key it had before the detail opened, and
  * closing brings that same key back. A guard keyed on it would never reopen.
  */
-export const AddressLocationContext = createContext<Location | null>(null);
+export const AddressLocationContext = createContext<Location<unknown> | null>(null);
 
 /**
  * Opens an activity's permalink over the current page. `list` is the browse
@@ -115,7 +115,7 @@ export function useOpenActivity(): (id: string, list?: readonly string[]) => voi
   // entry, not the page's own location (see AddressLocationContext): that's
   // the entry the guard must clear on, and an open from behind an open detail
   // (tabbed to) must stack on that detail, or close would stop on it.
-  const pageLocation = useLocation();
+  const pageLocation: Location<unknown> = useLocation();
   const location = useContext(AddressLocationContext) ?? pageLocation;
   const opened = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -157,7 +157,7 @@ export function useOpenActivity(): (id: string, list?: readonly string[]) => voi
  */
 export function useCloseActivity(): () => void {
   const navigate = useNavigate();
-  const location = useLocation();
+  const location: Location<unknown> = useLocation();
   const live = useRef<string | null>(location.key);
   const closed = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -189,7 +189,7 @@ export function useCloseActivity(): () => void {
  */
 export function useShowContributor(): (email: string) => void {
   const navigate = useNavigate();
-  const location = useLocation();
+  const location: Location<unknown> = useLocation();
   const shown = useRef<string | null>(null);
   useLayoutEffect(() => {
     shown.current = null;

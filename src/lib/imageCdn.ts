@@ -37,7 +37,7 @@ export const CDN_HOSTS = [
  * but has no image CDN.
  */
 export function onVercel(): boolean {
-  const env = import.meta.env.VITE_VERCEL_ENV as string | undefined;
+  const env = import.meta.env.VITE_VERCEL_ENV;
   return env === 'production' || env === 'preview';
 }
 

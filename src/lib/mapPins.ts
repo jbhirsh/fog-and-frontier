@@ -24,9 +24,7 @@ export function cartoTileUrl(apiKey: string | undefined): string {
   return key ? `${CARTO_TILE_BASE}?key=${encodeURIComponent(key)}` : CARTO_TILE_BASE;
 }
 
-export const CARTO_TILE_URL = cartoTileUrl(
-  import.meta.env.VITE_CARTO_API_KEY as string | undefined,
-);
+export const CARTO_TILE_URL = cartoTileUrl(import.meta.env.VITE_CARTO_API_KEY);
 
 export const CARTO_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';

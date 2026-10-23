@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavigationType, useLocation, useNavigationType, useParams } from 'react-router-dom';
+import {
+  NavigationType,
+  useLocation,
+  useNavigationType,
+  useParams,
+  type Location,
+} from 'react-router-dom';
 import { ActivityDetail } from '../components/ActivityDetail';
 import {
   listPosition,
@@ -41,7 +47,7 @@ export function ActivityPage() {
   // neighbour one deeper, so Back retraces them and close leaves them all.
   // An id no longer in the catalog (deleted since the list was shown) is
   // stepped over rather than onto a dead end.
-  const location = useLocation();
+  const location: Location<unknown> = useLocation();
   const [stepped, setStepped] = useState<{ to: string; by: 'prev' | 'next'; swiped: boolean }>();
   const list = readActivityState(location.state)?.list?.filter((listed) =>
     activities.some((a) => a.id === listed),

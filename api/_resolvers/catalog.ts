@@ -104,7 +104,9 @@ const MAX_CONTRIBUTORS = 10;
 function storedContributors(j: unknown): string[] {
   try {
     const list = (JSON.parse(String(j)) as { contributors?: unknown }).contributors;
-    return Array.isArray(list) ? list.filter((e): e is string => typeof e === 'string') : [];
+    return Array.isArray(list)
+      ? list.filter((e: unknown): e is string => typeof e === 'string')
+      : [];
   } catch {
     return [];
   }

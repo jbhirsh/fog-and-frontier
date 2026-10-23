@@ -770,7 +770,7 @@ export async function createTrip(args: CreateTripArgs, creatorEmail: string): Pr
 
   if (Array.isArray(args.initialActivityIds)) {
     const seen = new Set<string>();
-    for (const raw of args.initialActivityIds) {
+    for (const raw of args.initialActivityIds as unknown[]) {
       if (typeof raw !== 'string' || seen.has(raw)) continue;
       seen.add(raw);
       const snapshotJson = await fetchActivitySnapshot(raw);

@@ -1165,6 +1165,8 @@ function LocationPicker({
   lng: number;
   onChange: (lat: number, lng: number) => void;
 }) {
+  // The dragged marker, read on dragend (Leaflet types the event's target any).
+  const marker = useRef<L.Marker>(null);
   const valid = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
   const center: [number, number] = valid ? [lat, lng] : [37.2872, -121.95];
 
@@ -1191,14 +1193,14 @@ function LocationPicker({
           <ClickToPlace onPlace={onChange} />
           {valid && (
             <Marker
+              ref={marker}
               position={[lat, lng]}
               icon={pickerIcon}
               draggable
               eventHandlers={{
-                dragend: (e) => {
-                  const m = e.target as L.Marker;
-                  const p = m.getLatLng();
-                  onChange(p.lat, p.lng);
+                dragend: () => {
+                  const p = marker.current?.getLatLng();
+                  if (p) onChange(p.lat, p.lng);
                 },
               }}
             />

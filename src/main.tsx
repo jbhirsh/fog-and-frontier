@@ -14,7 +14,7 @@ initSentry();
 // copies took.
 dropLegacyPhotos();
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 // ApolloProvider wraps App in both paths so the data layer works whether or
 // not Clerk is configured. It sits *inside* the Clerk providers so the auth
