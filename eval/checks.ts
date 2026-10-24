@@ -268,6 +268,28 @@ function checkRestaurantFields(activity: Record<string, unknown>): CheckResult {
     : fail('expect:restaurant-fields', `missing: ${missing.join(', ')}`);
 }
 
+// The drafted AllTrails link names one of the expected trails: an
+// alltrails.com trail page, its query (tracking), trailing slash and any
+// leading section (a locale, /explore) aside.
+function checkAllTrailsUrl(activity: Record<string, unknown>, accept: string[]): CheckResult {
+  const v = activity.allTrailsUrl;
+  const want = `one of [${accept.join(', ')}]`;
+  if (typeof v !== 'string' || v.trim() === '') {
+    return fail('expect:allTrailsUrl', `allTrailsUrl missing; expected ${want}`);
+  }
+  let url: URL;
+  try {
+    url = new URL(v);
+  } catch {
+    return fail('expect:allTrailsUrl', `allTrailsUrl=${v} isn't a URL; expected ${want}`);
+  }
+  const trail = /(?:^|\/)trail\/(.+?)\/?$/.exec(url.pathname)?.[1];
+  const onAllTrails = /^(www\.)?alltrails\.com$/.test(url.hostname);
+  return onAllTrails && trail !== undefined && accept.includes(trail)
+    ? pass('expect:allTrailsUrl', `allTrailsUrl=${v}`)
+    : fail('expect:allTrailsUrl', `allTrailsUrl=${v}, expected ${want}`);
+}
+
 // --- generateActivity: happy path ------------------------------------------
 
 export function checkGenerateHappy(
@@ -311,6 +333,7 @@ export function checkGenerateHappy(
   if (expect.city) results.push(checkCity(activity, expect.city));
   if (expect.geo) results.push(checkGeo('expect:geo', activity, expect.geo));
   if (expect.restaurantFields) results.push(checkRestaurantFields(activity));
+  if (expect.allTrailsTrails) results.push(checkAllTrailsUrl(activity, expect.allTrailsTrails));
 
   return results;
 }

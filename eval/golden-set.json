@@ -305,6 +305,38 @@
       "notes": "Castle Rock STATE Park on the Skyline crest → parkType state, category climbing (sandstone bouldering). Region ambiguous across the Santa Cruz Mtns crest (south-bay / peninsula / central-coast) — all accepted. Coords: 37.2316/-122.1169, 15000 Skyline Blvd (Wikipedia 'Castle Rock State Park (California)'). Mailing city is Los Gatos; the park is between Los Gatos and Saratoga, so both accepted. As of 2026-07-09."
     },
     {
+      "id": "gen-dragon-mountain-share",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Dragon Mountain Peak, Milpitas",
+        "notes": "From an Instagram reel by @bhuti_hikes: https://www.instagram.com/reel/DeneiZFxFGB/\n\nCaption: 🥾 9 Bay Area Hikes You Don’t Want to Miss! 🌿\nIf you love chasing waterfalls, exploring coastal trails, and finding beautiful views, add these hikes to your bucket list! From hidden gems to some of the most scenic trails in the Bay Area, these are worth exploring. 🤍\n\n📍 Dragon Mountain Peak\n📍 Morning Sun Trail\n📍 Alamere Falls\n📍 Muir Beach to Pirate’s Cove\n📍 Linda Falls\n📍 Stonewall Panoramic Trail\n📍 Steep Ravine Trail\n📍 Rodeo Beach to Hill 88\n📍 Cataract Falls\nSave this list for your next hiking adventure, and send it to someone you want to explore these trails with! 🥾🌲\nWhich one would you hike first? 👇\n\n#BayAreaHikes #explore #optoutside #CaliforniaHikes #HikingAdventure"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": [
+          "hiking"
+        ],
+        "region": [
+          "south-bay",
+          "east-bay"
+        ],
+        "city": [
+          "Milpitas"
+        ],
+        "geo": {
+          "lat": 37.4524,
+          "lng": -121.8505,
+          "toleranceKm": 3
+        },
+        "allTrailsTrails": [
+          "us/california/dragon-mountain-stairs",
+          "us/california/dragon-mountain-trail-2"
+        ]
+      },
+      "notes": "The first real share (#6): a reel listing nine Bay Area hikes, drafted as the share page seeds it (place name and city as the title; the post's link and caption as notes). Thiên Long Sơn, a private Vietnamese Buddhist monastery in the hills above Milpitas whose 450-step 'Stairway to Heaven' is the hike. Its first draft came back with no AllTrails link although AllTrails lists it twice: 'Dragon Mountain Stairs' (trailhead 17 m from the drafted pin; 0.9 mi, 583 ft) and 'Dragon Mountain Trail' (2.8 mi, 1,066 ft), checked with AllTrails' own search on 2026-10-24. Coords: the drafted pin, 37.4524/-121.8505, at the Stairs trailhead. Region: Milpitas sits on the South Bay / East Bay line (gen-mission-peak files it under east-bay), so either. parkType not graded: private grounds, which the model may call 'private' or omit."
+    },
+    {
       "id": "gen-pinnacles-camping",
       "feature": "generateActivity",
       "kind": "happy",

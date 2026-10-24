@@ -227,6 +227,7 @@ Rules:
 - The home base is ${HOME_BASE}. Most activities are within a few hours' drive of the SF Bay Area, but coastal Oregon, Washington, and SoCal are also valid.
 - Use Google Search to check the facts (location, park, hours, prices, trail stats, links) rather than answering from memory, and read any links in the user's notes. If you cannot verify something (e.g. exact AllTrails URL, hike distance), omit that optional field rather than guess.
 - Only give a URL (allTrailsUrl, reservationUrl, menuUrl) that you found in your search results or the user's links; never construct one. Give the page's own address, never a vertexaisearch.cloud.google.com redirect.
+- For a hike or walk, look for its AllTrails listing before leaving "allTrailsUrl" out. AllTrails lists trails rather than places, so search it by every name the place goes by (its common English name and any local or translated one) and by the route or feature it's known for (for example "… Stairs", "… Trail", "… Loop"), and give the alltrails.com/trail/ page of the route that best matches the activity.
 - Coordinates: provide best-known lat/lng for the activity (the trailhead, the restaurant, the park entrance).
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
 - "duration" should reflect realistic round-trip time from ${HOME_BASE} including driving.
