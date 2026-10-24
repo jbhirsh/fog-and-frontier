@@ -99,6 +99,8 @@ export const typeDefs = /* GraphQL */ `
     notes: String
     "Who added it (#9): account emails, at least one. Null for signed-out callers."
     contributors: [String!]
+    "The activity it's part of (#269): a park, for one of its hikes or stops. One level only."
+    parentId: ID
   }
 
   "Frozen copy stored on a trip — embedded (keyFields:false), all-nullable to tolerate pre-validation rows."
@@ -295,6 +297,8 @@ export const typeDefs = /* GraphQL */ `
     notes: String
     coverImage: String
     coverCredit: String
+    "The saved park it's part of (#269), matched from the park Gemini named; null when none is saved."
+    parentId: ID
   }
 
   input CoordsInput {
@@ -340,6 +344,8 @@ export const typeDefs = /* GraphQL */ `
     notes: String
     "Account emails to credit (#9), each a known user, at least one. Omitted keeps the stored list (the caller for a new activity)."
     contributors: [String!]
+    "The activity it's part of (#269): saved, not itself part of another, and never this one. Omitted keeps the stored park (none for a new activity); null clears it."
+    parentId: ID
   }
   "allowDuplicate: suggest it even when it looks like one already saved (#17)."
   input SuggestActivityInput {

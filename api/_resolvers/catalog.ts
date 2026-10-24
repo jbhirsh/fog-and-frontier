@@ -4,6 +4,7 @@ import { findDuplicates, freeId, type CatalogPlace } from '../_duplicates.js';
 import { COST_TIERS, dateToIso, mapCatalogActivity, parseCatalogActivity } from '../_gqlMap.js';
 import { isSavableUrl } from '../_links.js';
 import { logServerError } from '../_log.js';
+import { checkParent, parentIdOf, releaseSubItems } from '../_parents.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
 import { forgetCatalog } from './driving.js';
 import { deleteBlobs, deletePhotosOf, pathnamesFrom } from './photos.js';
@@ -217,6 +218,8 @@ async function saveActivity(
   const caller = requireOwnerCtx(ctx);
   if (!input.id) throw badInput('missing id');
   checkActivityInput(input.activity);
+  // The park it's part of (#269); a new activity has no sub-items yet.
+  await checkParent(input.create ? null : input.id, input.activity.parentId);
   if (input.create) {
     // A new activity that looks like a saved one (#17) waits for the owner
     // to say it's different; the client checks first, so this is the
@@ -248,7 +251,13 @@ async function saveActivity(
   const id = input.id;
   const row = await rowById(id);
   const contributors = await resolveContributors(row, input.activity.contributors, caller.email);
-  const { stored, json } = storedJson(id, input.activity, contributors);
+  // Like contributors, an edit that leaves the park out keeps the stored
+  // one; null clears it.
+  const activity =
+    input.activity.parentId === undefined
+      ? { ...input.activity, parentId: parentIdOf(row?.j) ?? undefined }
+      : input.activity;
+  const { stored, json } = storedJson(id, activity, contributors);
   await db().execute({
     sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET j = excluded.j, t = excluded.t',
     args: [id, json, Date.now()],
@@ -280,12 +289,14 @@ async function deleteActivity(
   // that no surface can reach, and a reused id would inherit them. One batch
   // so the catalog row and its side rows never diverge. The photos' blobs go
   // after it, and a failure there is logged rather than failing a delete that
-  // already happened: it leaves only unlisted blobs, not a broken row.
+  // already happened: it leaves only unlisted blobs, not a broken row. A
+  // park's hikes and stops (#269) are left standalone in the same batch.
   const results = await db().batch(
     [
       { sql: 'DELETE FROM a WHERE id = ?', args: [id] },
       { sql: 'DELETE FROM activity_reviews WHERE activity_id = ?', args: [id] },
       deletePhotosOf(id),
+      releaseSubItems(id),
     ],
     'write',
   );

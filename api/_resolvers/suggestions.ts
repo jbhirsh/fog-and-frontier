@@ -44,13 +44,14 @@ async function suggestActivity(
   if (!input.allowDuplicate) await refuseDuplicate(input.activity);
   const id = randomUUID();
   // Credit is set on accept, and the catalog id chosen then too. Whether the
-  // owners have done it is theirs to say, so completion is dropped. Only
-  // real web pages are kept as links.
+  // owners have done it is theirs to say, so completion is dropped, and so
+  // is which park it's part of (#269). Only real web pages are kept as links.
   const draft = keepSavableLinks({
     ...input.activity,
     completed: undefined,
     completedDate: undefined,
     contributors: undefined,
+    parentId: undefined,
   });
   const json = JSON.stringify(buildStoredActivity(id, draft, undefined));
   if (json.length > MAX_ACTIVITY_JSON) throw badInput('activity too large');

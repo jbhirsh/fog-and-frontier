@@ -21,7 +21,8 @@
           "lat": 37.934,
           "lng": -122.7468,
           "toleranceKm": 15
-        }
+        },
+        "partOf": ["Point Reyes National Seashore"]
       },
       "notes": "Point Reyes National Seashore (north Marin). Coords centered on the Palomarin trailhead (NPS Palomarin Trailhead page, 37.934/-122.7468); the falls themselves sit ~4 km NW (NPS Alamere Falls page, 37.9537/-122.7835), so a 15 km tolerance covers whichever point the model returns. parkType national = National Seashore. City intentionally omitted (Bolinas vs Point Reyes Station vs 'Point Reyes' all defensible). Source: nps.gov/pore; as of 2026-07-09."
     },
@@ -63,7 +64,8 @@
           "lng": -121.9083,
           "toleranceKm": 12
         },
-        "costTier": ["free", "$"]
+        "costTier": ["free", "$"],
+        "partOf": ["Mission Peak Regional Preserve"]
       },
       "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14)."
     },
@@ -85,7 +87,8 @@
           "lng": -122.5033,
           "toleranceKm": 10
         },
-        "costTier": ["free"]
+        "costTier": ["free"],
+        "partOf": ["Golden Gate National Recreation Area"]
       },
       "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09. costTier free: no entry or parking fee at Lands End (nps.gov/goga fees; as of 2026-10-14)."
     },
@@ -105,7 +108,8 @@
           "lat": 37.1723,
           "lng": -122.2225,
           "toleranceKm": 20
-        }
+        },
+        "partOf": ["Big Basin Redwoods State Park"]
       },
       "notes": "Big Basin Redwoods STATE Park, Santa Cruz Mountains → parkType state. Region is genuinely ambiguous (Santa Cruz Mtns read as south-bay, peninsula, or central-coast depending on framing) — that ambiguity is deliberate, so all three are accepted. Coords: park HQ, 21600 Big Basin Way, Boulder Creek (37.1723/-122.2225; parks.ca.gov/bigbasin + Wikipedia infobox). 20 km tolerance because trailheads span a large park. City omitted (Boulder Creek vs 'Big Basin'). As of 2026-07-09. Owner-verified addition (2026-07-09): the park runs a post-CZU-fire day-use parking reservation system — reservations are ENCOURAGED but not required ($8 reserved incl. $2 fee, limited first-come-first-served $10; bicycle/bus arrivals exempt). Source: parks.ca.gov/post/49. Descriptions mentioning day-use/advance parking reservations are factual, not fabricated."
     },
@@ -147,7 +151,8 @@
           "lat": 37.252,
           "lng": -122.3824,
           "toleranceKm": 10
-        }
+        },
+        "partOf": []
       },
       "notes": "Historic tavern at 202 Stage Rd, Pescadero → category food, restaurantFields (cuisine + priceRange must be present). No parkType (restaurant, per the system prompt's 'omit for non-park' rule). Region ambiguous: coastal San Mateo County reads as peninsula or central-coast, both accepted. Coords: 37.252/-122.3824 (Wikipedia 'Duarte's Tavern' + Yelp address). As of 2026-07-09. Owner-verified addition (2026-07-09): founded 1894 by Portuguese immigrant Frank Duarte as a saloon/barbershop; restaurant era dates to the 1930s (reopened 1935 after Prohibition; Emma Duarte began the pie-making tradition then). Famous for artichoke soup and olallieberry pie; James Beard America's Classics award 2003; run by the fourth Duarte generation. Sources: duartestavern.com history page, Wikipedia, NPR (2009). Descriptions citing the 1894 founding or the since-the-1930s restaurant era are factual, not fabricated."
     },
@@ -209,7 +214,8 @@
           "lat": 37.2316,
           "lng": -122.1169,
           "toleranceKm": 15
-        }
+        },
+        "partOf": ["Castle Rock State Park"]
       },
       "notes": "Castle Rock STATE Park on the Skyline crest → parkType state, category climbing (sandstone bouldering). Region ambiguous across the Santa Cruz Mtns crest (south-bay / peninsula / central-coast) — all accepted. Coords: 37.2316/-122.1169, 15000 Skyline Blvd (Wikipedia 'Castle Rock State Park (California)'). Mailing city is Los Gatos; the park is between Los Gatos and Saratoga, so both accepted. As of 2026-07-09."
     },
@@ -254,7 +260,8 @@
           "lat": 36.4932,
           "lng": -121.1463,
           "toleranceKm": 20
-        }
+        },
+        "partOf": ["Pinnacles National Park"]
       },
       "notes": "Pinnacles National Park → parkType national, category camping. Coords centered on Pinnacles Campground (east side, 5000 Hwy 146, Paicines: 36.4932/-121.1463, Recreation.gov #234015 / nps.gov/pinn). 20 km tolerance covers both the east (Paicines) and west (Soledad) approaches. City omitted (Paicines vs 'Pinnacles'). Region central-coast (San Benito/Monterey county). As of 2026-07-09."
     },

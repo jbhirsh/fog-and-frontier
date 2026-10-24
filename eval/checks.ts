@@ -21,6 +21,7 @@ import {
   PRICE_RANGE_VALUES,
   COST_TIER_VALUES,
 } from '../api/_resolvers/gemini.js';
+import { normalizeName as placeName } from '../api/_duplicates.js';
 import type {
   AlltrailsExpect,
   AlltrailsGracefulExpect,
@@ -279,6 +280,30 @@ function checkAllTrailsUrl(activity: Record<string, unknown>, accept: string[]):
     : fail('expect:allTrailsUrl', `allTrailsUrl=${v}, expected ${want}`);
 }
 
+// The park Gemini says the activity lies inside (#269), by name: the one a
+// draft's parent is matched from. An empty list wants none; a draft that is
+// one of the parks wants none either.
+function checkPartOf(activity: Record<string, unknown>, accept: string[]): CheckResult {
+  const v = activity.partOf;
+  const given = typeof v === 'string' ? placeName(v) : '';
+  if (accept.length === 0) {
+    return given === ''
+      ? pass('expect:partOf', 'in no park, and none named')
+      : fail('expect:partOf', `partOf=${String(v)}, expected none`);
+  }
+  const want = `one of [${accept.join(', ')}]`;
+  if (given === '') {
+    // A draft of the park itself rightly names no park.
+    const name = typeof activity.name === 'string' ? placeName(activity.name) : '';
+    return accept.some((park) => placeName(park) === name)
+      ? pass('expect:partOf', `drafted the park itself, ${String(activity.name)}`)
+      : fail('expect:partOf', `partOf missing; expected ${want}`);
+  }
+  return accept.some((name) => placeName(name) === given)
+    ? pass('expect:partOf', `partOf=${String(v)}`)
+    : fail('expect:partOf', `partOf=${String(v)}, expected ${want}`);
+}
+
 // --- generateActivity: happy path ------------------------------------------
 
 export function checkGenerateHappy(value: unknown, expect: GenerateHappyExpect): CheckResult[] {
@@ -308,6 +333,7 @@ export function checkGenerateHappy(value: unknown, expect: GenerateHappyExpect):
   if (expect.geo) results.push(checkGeo('expect:geo', activity, expect.geo));
   if (expect.restaurantFields) results.push(checkRestaurantFields(activity));
   if (expect.allTrailsTrails) results.push(checkAllTrailsUrl(activity, expect.allTrailsTrails));
+  if (expect.partOf) results.push(checkPartOf(activity, expect.partOf));
 
   return results;
 }

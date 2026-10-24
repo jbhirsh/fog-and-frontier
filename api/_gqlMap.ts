@@ -179,7 +179,13 @@ export function mapCatalogActivity(
     // `activities` query can't be 500'd by a stray park designation.
     parkType: enumVal(parsed.parkType, PARK_TYPES),
     completedDate: isoDate(parsed.completedDate),
+    parentId: parentIdFor(parsed.parentId, id),
   };
+}
+
+// The park an activity is part of (#269): another activity's id, never its own.
+function parentIdFor(parentId: unknown, id: string): string | null {
+  return typeof parentId === 'string' && parentId && parentId !== id ? parentId : null;
 }
 
 // Fields `Activity` declares non-null (api/_schema.ts) besides `id`, which the
@@ -210,9 +216,14 @@ export function parseCatalogActivity(raw: unknown, rowId: string): CatalogParseR
   if (!coerced) return { ok: false, invalid: ['(not an object)'] };
   const invalid = REQUIRED_CATALOG_FIELDS.filter((f) => coerced[f] === null);
   if (invalid.length > 0) return { ok: false, invalid };
+  const id = coerced.id ?? rowId;
   return {
     ok: true,
-    activity: { ...coerced, id: coerced.id ?? rowId },
+    activity: {
+      ...coerced,
+      id,
+      parentId: parentIdFor((raw as { parentId?: unknown }).parentId, id),
+    },
   };
 }
 

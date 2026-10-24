@@ -373,3 +373,82 @@ describe('checkTripSuggestions', () => {
     ]);
   });
 });
+
+describe('partOf (via checkGenerateHappy)', () => {
+  const graded = (partOf: unknown, accept: string[]) =>
+    findCheck(
+      checkGenerateHappy({ activity: activityRecord({ partOf }) }, { partOf: accept }),
+      'expect:partOf',
+    );
+
+  it('passes the expected park, however it is written', () => {
+    for (const name of [
+      'Point Reyes National Seashore',
+      'the point reyes national seashore',
+      'Point Reyes National Seashore.',
+    ]) {
+      expect(graded(name, ['Point Reyes National Seashore'])).toMatchObject({
+        status: 'pass',
+        detail: `partOf=${name}`,
+      });
+    }
+    expect(
+      graded('Golden Gate National Recreation Area', [
+        'Muir Woods National Monument',
+        'Golden Gate National Recreation Area',
+      ]).status,
+    ).toBe('pass');
+  });
+
+  it('fails a missing park, or another one', () => {
+    const want = 'one of [Point Reyes National Seashore]';
+    expect(graded(undefined, ['Point Reyes National Seashore'])).toMatchObject({
+      status: 'fail',
+      detail: `partOf missing; expected ${want}`,
+    });
+    expect(graded('  ', ['Point Reyes National Seashore']).status).toBe('fail');
+    expect(graded(7, ['Point Reyes National Seashore']).status).toBe('fail');
+    expect(graded('Point Reyes', ['Point Reyes National Seashore'])).toMatchObject({
+      status: 'fail',
+      detail: `partOf=Point Reyes, expected ${want}`,
+    });
+  });
+
+  it('passes a draft of the park itself, which names none', () => {
+    const park = (name: unknown) =>
+      findCheck(
+        checkGenerateHappy(
+          { activity: activityRecord({ name }) },
+          { partOf: ['Point Reyes National Seashore'] },
+        ),
+        'expect:partOf',
+      );
+    expect(park('Point Reyes National Seashore')).toMatchObject({
+      status: 'pass',
+      detail: 'drafted the park itself, Point Reyes National Seashore',
+    });
+    expect(park('the Point Reyes National Seashore').status).toBe('pass');
+    expect(park('Point Reyes Lighthouse').status).toBe('fail');
+    expect(park(7).status).toBe('fail');
+  });
+
+  it('wants none for a place in no park', () => {
+    expect(graded(undefined, [])).toMatchObject({
+      status: 'pass',
+      detail: 'in no park, and none named',
+    });
+    expect(graded('', []).status).toBe('pass');
+    expect(graded('Pescadero State Beach', [])).toMatchObject({
+      status: 'fail',
+      detail: 'partOf=Pescadero State Beach, expected none',
+    });
+  });
+
+  it('isn’t graded unless the case asks', () => {
+    expect(
+      checkGenerateHappy({ activity: activityRecord({}) }, {}).some(
+        (c) => c.name === 'expect:partOf',
+      ),
+    ).toBe(false);
+  });
+});
