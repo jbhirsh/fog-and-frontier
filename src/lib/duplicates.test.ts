@@ -43,7 +43,13 @@ describe('checkDuplicates (#17)', () => {
       lng: muirWoods.location.coords.lng,
     });
     expect(found).toEqual([
-      { id: 'muir', name: 'Muir Woods', city: 'Mill Valley', distanceMeters: 40, confidence: 'high' },
+      {
+        id: 'muir',
+        name: 'Muir Woods',
+        city: 'Mill Valley',
+        distanceMeters: 40,
+        confidence: 'high',
+      },
     ]);
   });
 });

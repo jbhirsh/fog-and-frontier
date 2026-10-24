@@ -44,12 +44,25 @@ describe('trailQuestion', () => {
   });
 
   it('leaves out the facts the draft doesn’t have', () => {
-    const q = trailQuestion({ name: 'Mission Peak', lat: 37.5, lng: -121.9, city: '  ', shortDescription: 7 });
+    const q = trailQuestion({
+      name: 'Mission Peak',
+      lat: 37.5,
+      lng: -121.9,
+      city: '  ',
+      shortDescription: 7,
+    });
     expect(q.user).toBe('Place: Mission Peak\nCoordinates: 37.5, -121.9');
   });
 
   it('trims what it passes on', () => {
-    expect(trailQuestion({ ...DRAGON, city: ' Milpitas ', shortDescription: null, longDescription: undefined }).user).toBe(
+    expect(
+      trailQuestion({
+        ...DRAGON,
+        city: ' Milpitas ',
+        shortDescription: null,
+        longDescription: undefined,
+      }).user,
+    ).toBe(
       'Place: Dragon Mountain Peak (Thiên Long Sơn)\nTown: Milpitas\nCoordinates: 37.4524, -121.8505',
     );
   });
@@ -120,7 +133,12 @@ describe('findAllTrailsUrl', () => {
     expect(await findAllTrailsUrl(DRAGON, ask)).toBe(STAIRS);
     expect(ask).toHaveBeenCalledTimes(1);
     // Kept as the clean link, not as given.
-    expect(await findAllTrailsUrl(DRAGON, answering(JSON.stringify({ allTrailsUrl: `${STAIRS}?ref=x` })))).toBe(STAIRS);
+    expect(
+      await findAllTrailsUrl(
+        DRAGON,
+        answering(JSON.stringify({ allTrailsUrl: `${STAIRS}?ref=x` })),
+      ),
+    ).toBe(STAIRS);
     expect(ask).toHaveBeenCalledWith(trailQuestion(DRAGON));
   });
 
@@ -134,7 +152,9 @@ describe('findAllTrailsUrl', () => {
       JSON.stringify({ allTrailsUrl: null }),
       JSON.stringify({ allTrailsUrl: 'https://www.alltrails.com/parks/us/california/x' }),
       JSON.stringify({ allTrailsUrl: 'https://www.alltrails.com/trail/us/california' }),
-      JSON.stringify({ allTrailsUrl: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc' }),
+      JSON.stringify({
+        allTrailsUrl: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc',
+      }),
       'not json',
     ]) {
       expect(await findAllTrailsUrl(DRAGON, answering(answer)), String(answer)).toBeNull();

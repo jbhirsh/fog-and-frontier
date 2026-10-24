@@ -5,11 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, useLocation } from 'react-router-dom';
 import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
 import type { CompletedSeed } from '../test/render';
-import {
-  completedHike,
-  dogFriendlyTidepools,
-  muirWoods,
-} from '../test/fixtures';
+import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 
 import { CuratedAdventures } from './CuratedAdventures';
 
@@ -36,7 +32,6 @@ function renderExplore(path = '/', completed: CompletedSeed[] = []) {
 }
 
 describe('Curated Adventures page', () => {
-
   it('shows an error, not an empty catalog, when the catalog read fails', async () => {
     render(
       <MemoryRouter>
@@ -44,9 +39,7 @@ describe('Curated Adventures page', () => {
       </MemoryRouter>,
       { activitiesError: true },
     );
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      "Couldn't load activities",
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load activities");
   });
 
   it('renders all activities by default, sorted by distance', () => {
@@ -66,9 +59,7 @@ describe('Curated Adventures page', () => {
 
   it('shows an empty state when nothing matches the search', async () => {
     renderExplore('/?q=nothing-matches-this-zzz');
-    expect(
-      await screen.findByText('No activities match those filters.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('No activities match those filters.')).toBeInTheDocument();
   });
 
   it('filters by duration', async () => {
@@ -84,9 +75,7 @@ describe('Curated Adventures page', () => {
     const distanceSelect = screen.getByDisplayValue('Any distance');
     await userEvent.selectOptions(distanceSelect, '25');
     // From San Jose, all fixtures are >25 miles away.
-    expect(
-      screen.getByText('No activities match those filters.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('No activities match those filters.')).toBeInTheDocument();
   });
 
   it('toggles the Free filter (#85)', async () => {
@@ -99,7 +88,9 @@ describe('Curated Adventures page', () => {
     const free = screen.getByRole('switch', { name: 'Free' });
     expect(free).toHaveAttribute('aria-checked', 'false');
     // Its icon is pulled out by its glyph's empty side, like Dog friendly's.
-    expect(free.querySelector<HTMLElement>('.material-symbols-outlined')?.style.marginLeft).toBe('-0.056em');
+    expect(free.querySelector<HTMLElement>('.material-symbols-outlined')?.style.marginLeft).toBe(
+      '-0.056em',
+    );
     await userEvent.click(free);
     expect(free).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
@@ -146,8 +137,10 @@ describe('Curated Adventures page', () => {
     renderExplore();
     // The pill's label is the visible text; the select under it is invisible.
     const pillText = (name: string) =>
-      screen.getByRole('combobox', { name }).closest('label')?.querySelector('span[aria-hidden="true"].whitespace-nowrap')
-        ?.textContent;
+      screen
+        .getByRole('combobox', { name })
+        .closest('label')
+        ?.querySelector('span[aria-hidden="true"].whitespace-nowrap')?.textContent;
     expect(pillText('Distance')).toBe('Any distance');
     expect(pillText('Duration')).toBe('Any duration');
     expect(pillText('Category')).toBe('Any category');
@@ -164,7 +157,9 @@ describe('Curated Adventures page', () => {
 
   it('spells out the category options rather than leaving them to CSS', () => {
     renderExplore();
-    const options = within(screen.getByRole('combobox', { name: 'Category' })).getAllByRole('option');
+    const options = within(screen.getByRole('combobox', { name: 'Category' })).getAllByRole(
+      'option',
+    );
     expect(options.map((o) => o.textContent)).toEqual([
       'Any category',
       'Hiking',
@@ -193,14 +188,10 @@ describe('Curated Adventures page', () => {
   // filters underneath; closing goes back to it.
   it('opens a card at its permalink and closes back to the filtered catalog', async () => {
     renderExplore('/?q=muir');
-    await userEvent.click(
-      screen.getByRole('button', { name: /Test Muir Woods/ }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Test Muir Woods')).toBeInTheDocument();
-    expect(screen.getByTestId('path')).toHaveTextContent(
-      `/activity/${muirWoods.id}`,
-    );
+    expect(screen.getByTestId('path')).toHaveTextContent(`/activity/${muirWoods.id}`);
     expect(screen.getByTestId('search')).toBeEmptyDOMElement();
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
@@ -217,9 +208,7 @@ describe('Curated Adventures page', () => {
       el.getAttribute('data-activity-id'),
     );
     expect(order).toHaveLength(3);
-    const second = [muirWoods, completedHike, dogFriendlyTidepools].find(
-      (a) => a.id === order[1],
-    )!;
+    const second = [muirWoods, completedHike, dogFriendlyTidepools].find((a) => a.id === order[1])!;
     await userEvent.click(screen.getByRole('button', { name: new RegExp(second.name) }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('2 of 3')).toBeInTheDocument();
@@ -237,17 +226,19 @@ describe('Curated Adventures page', () => {
   describe('Completed only (#5)', () => {
     it('is off by default and shows every activity', () => {
       renderExplore();
-      expect(
-        screen.getByRole('switch', { name: 'Completed only' }),
-      ).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getByRole('switch', { name: 'Completed only' })).toHaveAttribute(
+        'aria-checked',
+        'false',
+      );
       expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     });
 
     it('filters to completed activities from ?completed=1', async () => {
       renderExplore('/?completed=1');
-      expect(
-        screen.getByRole('switch', { name: 'Completed only' }),
-      ).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('switch', { name: 'Completed only' })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
       expect(await screen.findByText(/^1 place · sorted/)).toBeInTheDocument();
       expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
       expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
@@ -259,9 +250,7 @@ describe('Curated Adventures page', () => {
       const toggle = screen.getByRole('switch', { name: 'Completed only' });
       await userEvent.click(toggle);
       expect(toggle).toHaveAttribute('aria-checked', 'true');
-      expect(screen.getByTestId('search')).toHaveTextContent(
-        '?q=test&completed=1',
-      );
+      expect(screen.getByTestId('search')).toHaveTextContent('?q=test&completed=1');
       expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
       expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
 
@@ -277,9 +266,7 @@ describe('Curated Adventures page', () => {
         { id: completedHike.id, completed: false },
       ]);
       expect(await screen.findByText('Test Muir Woods')).toBeInTheDocument();
-      expect(
-        screen.queryByText('Test Completed Hike'),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText('Test Completed Hike')).not.toBeInTheDocument();
     });
   });
 });

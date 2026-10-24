@@ -53,7 +53,13 @@ describe('collectLinks', () => {
         url: 'https://upload.wikimedia.org/m.jpg',
         image: true,
       },
-      { id: 'cafe', name: 'Cafe', field: 'menuUrl', url: 'https://cafe.example/menu', image: false },
+      {
+        id: 'cafe',
+        name: 'Cafe',
+        field: 'menuUrl',
+        url: 'https://cafe.example/menu',
+        image: false,
+      },
     ]);
   });
 });
@@ -160,7 +166,10 @@ describe('judge', () => {
 
   it('sends other failures to review', () => {
     expect(judge(page, { error: 'timeout' })).toEqual({ verdict: 'review', reason: 'timed out' });
-    expect(judge(page, { error: 'ECONNRESET' })).toEqual({ verdict: 'review', reason: 'ECONNRESET' });
+    expect(judge(page, { error: 'ECONNRESET' })).toEqual({
+      verdict: 'review',
+      reason: 'ECONNRESET',
+    });
   });
 
   it('calls a link that isn’t a web address dead, whatever came back', () => {
@@ -184,7 +193,9 @@ describe('Instagram posts', () => {
       'http://m.instagram.com/someone/reels/Ddl9QKSv0D7/?igsh=x',
       'https://www.instagram.com/tv/Ddl9QKSv0D7#top',
     ]) {
-      expect(instagramEmbedUrl(url)).toBe('https://www.instagram.com/p/Ddl9QKSv0D7/embed/captioned/');
+      expect(instagramEmbedUrl(url)).toBe(
+        'https://www.instagram.com/p/Ddl9QKSv0D7/embed/captioned/',
+      );
     }
     for (const url of [
       'https://example.com/p/Ddl9QKSv0D7/',
@@ -206,7 +217,10 @@ describe('Instagram posts', () => {
   });
 
   it('calls a post that’s gone dead, and a changed page one to check', () => {
-    expect(judge(post, { status: 200, contentType: 'text/html', post: true })).toEqual({ verdict: 'ok', reason: 'HTTP 200' });
+    expect(judge(post, { status: 200, contentType: 'text/html', post: true })).toEqual({
+      verdict: 'ok',
+      reason: 'HTTP 200',
+    });
     expect(judge(post, { status: 200, contentType: 'text/html', post: false })).toEqual({
       verdict: 'dead',
       reason: 'post taken down or private',

@@ -46,9 +46,7 @@ const server = new ApolloServer<GqlContext>({
     const isLogged = typeof code !== 'string' || !NON_LOGGED_CODES.has(code);
     if (isLogged) {
       const original =
-        error instanceof GraphQLError && error.originalError
-          ? error.originalError
-          : error;
+        error instanceof GraphQLError && error.originalError ? error.originalError : error;
       logServerError(original, {
         route: '/api/graphql',
         method: 'POST',

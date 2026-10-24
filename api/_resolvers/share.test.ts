@@ -18,7 +18,10 @@ vi.mock('../_instagram.js', async (importActual) => ({
 }));
 vi.mock('./catalog.js', () => ({ catalogPlaces: mocks.catalogPlaces }));
 vi.mock('../_log.js', () => ({ logEvent: mocks.logEvent, logServerError: mocks.logServerError }));
-vi.mock('../_geminiFiles.js', () => ({ uploadFile: mocks.uploadFile, deleteFile: mocks.deleteFile }));
+vi.mock('../_geminiFiles.js', () => ({
+  uploadFile: mocks.uploadFile,
+  deleteFile: mocks.deleteFile,
+}));
 
 const {
   GEMINI_TIMEOUT_MS,
@@ -54,16 +57,27 @@ const FULL_POST: InstagramPost = {
   geotag: { name: 'Marin', lat: 38, lng: -122.6 },
 };
 
-const CATARACT = { name: 'Cataract Falls', city: 'Fairfax', lat: 37.9358, lng: -122.6345, detail: 'Best after rain', source: 'caption' };
-const CARSON = { name: 'Carson Falls', city: 'Fairfax', lat: 37.9843, lng: -122.6233, source: 'on_screen' };
+const CATARACT = {
+  name: 'Cataract Falls',
+  city: 'Fairfax',
+  lat: 37.9358,
+  lng: -122.6345,
+  detail: 'Best after rain',
+  source: 'caption',
+};
+const CARSON = {
+  name: 'Carson Falls',
+  city: 'Fairfax',
+  lat: 37.9843,
+  lng: -122.6233,
+  source: 'on_screen',
+};
 
 function geminiAnswers(body: unknown, init: ResponseInit = {}) {
   vi.stubGlobal(
     'fetch',
     vi.fn(() =>
-      Promise.resolve(
-        new Response(typeof body === 'string' ? body : JSON.stringify(body), init),
-      ),
+      Promise.resolve(new Response(typeof body === 'string' ? body : JSON.stringify(body), init)),
     ),
   );
 }
@@ -79,7 +93,10 @@ async function find(args: { url: string; hint?: string | null }, ctx: object = O
 
 beforeEach(() => {
   process.env.GEMINI_API_KEY = 'test-key';
-  mocks.readInstagramPost.mockResolvedValue({ post: FULL_POST, steps: { embed: 'ok', page: 'ok' } });
+  mocks.readInstagramPost.mockResolvedValue({
+    post: FULL_POST,
+    steps: { embed: 'ok', page: 'ok' },
+  });
   mocks.fetchMedia.mockImplementation((url: string) =>
     Promise.resolve(
       url === IMAGE
@@ -120,10 +137,14 @@ describe('placesPrompt', () => {
   });
 
   it('cuts a very long caption', () => {
-    const prompt = placesPrompt({ shortcode: 'x', url: REEL, caption: 'a'.repeat(MAX_CAPTION + 50) }, '', {
-      image: false,
-      video: false,
-    });
+    const prompt = placesPrompt(
+      { shortcode: 'x', url: REEL, caption: 'a'.repeat(MAX_CAPTION + 50) },
+      '',
+      {
+        image: false,
+        video: false,
+      },
+    );
     expect(prompt).toContain(`Caption:\n${'a'.repeat(MAX_CAPTION)}`);
     expect(prompt).not.toContain('a'.repeat(MAX_CAPTION + 1));
   });
@@ -139,8 +160,22 @@ describe('cleanPlaces', () => {
         ],
       }),
     ).toEqual([
-      { name: 'Cataract Falls', city: 'Fairfax', lat: 37.9358, lng: -122.6345, detail: 'Best after rain', source: 'caption' },
-      { name: 'Carson Falls', city: 'Fairfax', lat: 37.9843, lng: -122.6233, detail: null, source: 'caption' },
+      {
+        name: 'Cataract Falls',
+        city: 'Fairfax',
+        lat: 37.9358,
+        lng: -122.6345,
+        detail: 'Best after rain',
+        source: 'caption',
+      },
+      {
+        name: 'Carson Falls',
+        city: 'Fairfax',
+        lat: 37.9843,
+        lng: -122.6233,
+        detail: null,
+        source: 'caption',
+      },
     ]);
     expect(PLACE_SOURCES).toEqual(['caption', 'on_screen', 'spoken', 'geotag', 'picture', 'hint']);
   });
@@ -165,12 +200,18 @@ describe('cleanPlaces', () => {
     expect(cleanPlaces({ places: [{ ...CATARACT, lat: 90, lng: -180 }] })).toHaveLength(1);
     expect(cleanPlaces({ places: [{ ...CATARACT, lat: 0 }] })).toHaveLength(1);
     expect(cleanPlaces({ places: [{ ...CATARACT, lng: 0 }] })).toHaveLength(1);
-    expect(cleanPlaces({ places: [{ ...CATARACT, name: 'x'.repeat(120), city: 'y'.repeat(80) }] })).toHaveLength(1);
+    expect(
+      cleanPlaces({ places: [{ ...CATARACT, name: 'x'.repeat(120), city: 'y'.repeat(80) }] }),
+    ).toHaveLength(1);
   });
 
   it('drops a detail that’s too long, and keeps the place', () => {
-    expect(cleanPlaces({ places: [{ ...CATARACT, detail: 'x'.repeat(301) }] })[0].detail).toBeNull();
-    expect(cleanPlaces({ places: [{ ...CATARACT, detail: 'x'.repeat(300) }] })[0].detail).toHaveLength(300);
+    expect(
+      cleanPlaces({ places: [{ ...CATARACT, detail: 'x'.repeat(301) }] })[0].detail,
+    ).toBeNull();
+    expect(
+      cleanPlaces({ places: [{ ...CATARACT, detail: 'x'.repeat(300) }] })[0].detail,
+    ).toHaveLength(300);
   });
 
   it('keeps the first of a name given twice, however it’s written', () => {
@@ -179,7 +220,14 @@ describe('cleanPlaces', () => {
     });
     expect(places.map((p) => p.city)).toEqual(['Fairfax']);
     // A name of no Latin words is matched as written.
-    expect(cleanPlaces({ places: [{ ...CATARACT, name: '岩' }, { ...CATARACT, name: '岩' }] })).toHaveLength(1);
+    expect(
+      cleanPlaces({
+        places: [
+          { ...CATARACT, name: '岩' },
+          { ...CATARACT, name: '岩' },
+        ],
+      }),
+    ).toHaveLength(1);
   });
 
   it(`keeps at most ${MAX_PLACES}`, () => {
@@ -198,9 +246,21 @@ describe('cleanPlaces', () => {
 describe('markSaved', () => {
   it('marks a place the catalog already has, by a high-confidence match only', () => {
     const catalog = [
-      { id: 'cataract-falls', name: 'Cataract Falls', city: 'Fairfax', lat: 37.9359, lng: -122.6346 },
+      {
+        id: 'cataract-falls',
+        name: 'Cataract Falls',
+        city: 'Fairfax',
+        lat: 37.9359,
+        lng: -122.6346,
+      },
       // Shares words and is near, but isn't the same name: possible only.
-      { id: 'carson-falls-trail', name: 'Carson Falls Trail', city: 'Fairfax', lat: 37.9843, lng: -122.6233 },
+      {
+        id: 'carson-falls-trail',
+        name: 'Carson Falls Trail',
+        city: 'Fairfax',
+        lat: 37.9843,
+        lng: -122.6233,
+      },
     ];
     const [cataract, carson] = markSaved(cleanPlaces({ places: [CATARACT, CARSON] }), catalog);
     expect(cataract.saved).toMatchObject({ id: 'cataract-falls', confidence: 'high' });
@@ -212,7 +272,13 @@ describe('findSharedPlaces', () => {
   it('finds the places in a shared reel, from all it could read', async () => {
     geminiAnswers(answer(JSON.stringify({ places: [CATARACT, CARSON] })));
     mocks.catalogPlaces.mockResolvedValue([
-      { id: 'cataract-falls', name: 'Cataract Falls', city: 'Fairfax', lat: 37.9358, lng: -122.6345 },
+      {
+        id: 'cataract-falls',
+        name: 'Cataract Falls',
+        city: 'Fairfax',
+        lat: 37.9358,
+        lng: -122.6345,
+      },
     ]);
     const result = await find({ url: `Look! ${REEL}?igsh=abc`, hint: '  the second one ' });
     expect(result.post).toEqual({
@@ -311,11 +377,17 @@ describe('findSharedPlaces', () => {
   // The Dragon Mountain reel (DeneiZFxFGB): 26 seconds, served only at 17.7 MB.
   describe('a video too big to send inline', () => {
     const big = Buffer.alloc(INLINE_VIDEO_BYTES + 1, 1);
-    const UPLOADED = { name: 'files/abc', uri: 'https://generativelanguage.googleapis.com/v1beta/files/abc', mimeType: 'video/mp4' };
+    const UPLOADED = {
+      name: 'files/abc',
+      uri: 'https://generativelanguage.googleapis.com/v1beta/files/abc',
+      mimeType: 'video/mp4',
+    };
     beforeEach(() => {
       mocks.fetchMedia.mockImplementation((url: string) =>
         Promise.resolve(
-          url === IMAGE ? { data: Buffer.from('jpeg'), mimeType: 'image/jpeg' } : { data: big, mimeType: 'video/mp4' },
+          url === IMAGE
+            ? { data: Buffer.from('jpeg'), mimeType: 'image/jpeg' }
+            : { data: big, mimeType: 'video/mp4' },
         ),
       );
       mocks.deleteFile.mockResolvedValue(true);
@@ -348,7 +420,9 @@ describe('findSharedPlaces', () => {
     it('is deleted even when Gemini fails', async () => {
       geminiAnswers('quota', { status: 429 });
       mocks.uploadFile.mockResolvedValue({ file: UPLOADED });
-      await expect(find({ url: REEL })).rejects.toMatchObject({ extensions: { code: 'BAD_GATEWAY' } });
+      await expect(find({ url: REEL })).rejects.toMatchObject({
+        extensions: { code: 'BAD_GATEWAY' },
+      });
       expect(mocks.deleteFile).toHaveBeenCalledWith('files/abc', 'test-key');
     });
 
@@ -383,7 +457,10 @@ describe('findSharedPlaces', () => {
         now.mockRestore();
       }
       expect(mocks.fetchMedia).toHaveBeenLastCalledWith(IMAGE, MAX_IMAGE_BYTES);
-      expect(mocks.logEvent).toHaveBeenCalledWith('share.places', expect.objectContaining({ image: 'ok' }));
+      expect(mocks.logEvent).toHaveBeenCalledWith(
+        'share.places',
+        expect.objectContaining({ image: 'ok' }),
+      );
     });
 
     it('sends one exactly at the inline limit inline', async () => {
@@ -392,7 +469,9 @@ describe('findSharedPlaces', () => {
       geminiAnswers(answer(JSON.stringify({ places: [] })));
       await find({ url: REEL });
       expect(mocks.uploadFile.mock.calls.length).toBe(0);
-      const parts = (geminiRequest().body.contents as { parts: { inlineData?: { data: string } }[] }[])[0].parts;
+      const parts = (
+        geminiRequest().body.contents as { parts: { inlineData?: { data: string } }[] }[]
+      )[0].parts;
       expect(parts[1].inlineData?.data.length).toBe(Math.ceil(INLINE_VIDEO_BYTES / 3) * 4);
     });
   });
@@ -443,14 +522,22 @@ describe('findSharedPlaces', () => {
     expect(result.post.imageUrl).toBeNull();
     expect(mocks.logEvent).toHaveBeenCalledWith(
       'share.places',
-      expect.objectContaining({ page: 'HTTP 429', image: 'none', video: 'not given', geotag: false }),
+      expect.objectContaining({
+        page: 'HTTP 429',
+        image: 'none',
+        video: 'not given',
+        geotag: false,
+      }),
     );
     mocks.readInstagramPost.mockResolvedValue({
       post: { ...FULL_POST, videoUrls: undefined, isVideo: false },
       steps: { embed: 'ok', page: 'ok' },
     });
     await find({ url: REEL });
-    expect(mocks.logEvent).toHaveBeenLastCalledWith('share.places', expect.objectContaining({ video: 'none' }));
+    expect(mocks.logEvent).toHaveBeenLastCalledWith(
+      'share.places',
+      expect.objectContaining({ video: 'none' }),
+    );
   });
 
   it('asks Gemini nothing when there’s nothing to go on', async () => {
@@ -504,33 +591,52 @@ describe('findSharedPlaces', () => {
 
   it('is for owners only, refusing anyone else before reading Instagram', async () => {
     geminiAnswers(answer('{}'));
-    await expect(find({ url: REEL }, FRIEND)).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+    await expect(find({ url: REEL }, FRIEND)).rejects.toMatchObject({
+      extensions: { code: 'FORBIDDEN' },
+    });
     expect(mocks.readInstagramPost).not.toHaveBeenCalled();
     expect(mocks.fetchMedia).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('says when Gemini never answered, or timed out', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('socket hang up'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new Error('socket hang up'))),
+    );
     await expect(find({ url: REEL })).rejects.toMatchObject({
       message: "Couldn't reach Gemini to read the post",
       extensions: { code: 'BAD_GATEWAY' },
     });
-    expect(mocks.logEvent).toHaveBeenLastCalledWith('share.places', expect.objectContaining({ gemini: 'unreachable' }));
-    expect(mocks.logServerError).toHaveBeenLastCalledWith(expect.objectContaining({ message: 'socket hang up' }), {
-      route: '/api/graphql',
-      method: 'POST',
-      status: 502,
-    });
+    expect(mocks.logEvent).toHaveBeenLastCalledWith(
+      'share.places',
+      expect.objectContaining({ gemini: 'unreachable' }),
+    );
+    expect(mocks.logServerError).toHaveBeenLastCalledWith(
+      expect.objectContaining({ message: 'socket hang up' }),
+      {
+        route: '/api/graphql',
+        method: 'POST',
+        status: 502,
+      },
+    );
     // Only the request's own time limit reads as timed out, in the log.
     for (const [err, gemini] of [
       [new DOMException('timed out', 'TimeoutError'), 'timed out'],
       [new DOMException('aborted', 'AbortError'), 'unreachable'],
       [Object.assign(new Error('x'), { name: 'TimeoutError' }), 'unreachable'],
     ] as const) {
-      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(err)));
-      await expect(find({ url: REEL })).rejects.toMatchObject({ extensions: { code: 'BAD_GATEWAY' } });
-      expect(mocks.logEvent).toHaveBeenLastCalledWith('share.places', expect.objectContaining({ gemini }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.reject(err)),
+      );
+      await expect(find({ url: REEL })).rejects.toMatchObject({
+        extensions: { code: 'BAD_GATEWAY' },
+      });
+      expect(mocks.logEvent).toHaveBeenLastCalledWith(
+        'share.places',
+        expect.objectContaining({ gemini }),
+      );
     }
   });
 
@@ -546,7 +652,10 @@ describe('findSharedPlaces', () => {
       status: 502,
       detail: `quota ${'x'.repeat(494)}`,
     });
-    expect(mocks.logEvent).toHaveBeenLastCalledWith('share.places', expect.objectContaining({ gemini: 'HTTP 429' }));
+    expect(mocks.logEvent).toHaveBeenLastCalledWith(
+      'share.places',
+      expect.objectContaining({ gemini: 'HTTP 429' }),
+    );
   });
 
   it('finds no places in an answer it can’t use', async () => {
@@ -554,7 +663,10 @@ describe('findSharedPlaces', () => {
       geminiAnswers(body);
       const result = await find({ url: REEL });
       expect(result.places).toEqual([]);
-      expect(mocks.logEvent).toHaveBeenLastCalledWith('share.places', expect.objectContaining({ places: 0, gemini: 'unusable' }));
+      expect(mocks.logEvent).toHaveBeenLastCalledWith(
+        'share.places',
+        expect.objectContaining({ places: 0, gemini: 'unusable' }),
+      );
     }
   });
 

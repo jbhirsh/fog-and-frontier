@@ -86,10 +86,19 @@ describe('findSharedPlaces', () => {
         ...PLACE,
         name: 'Cataract Falls',
         source: 'caption',
-        saved: { __typename: 'DuplicateMatch', id: 'cataract-falls', name: 'Cataract Falls', city: 'Fairfax', distanceMeters: 12, confidence: 'high' },
+        saved: {
+          __typename: 'DuplicateMatch',
+          id: 'cataract-falls',
+          name: 'Cataract Falls',
+          city: 'Fairfax',
+          distanceMeters: 12,
+          confidence: 'high',
+        },
       },
     ]);
-    const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body) as {
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body,
+    ) as {
       variables: unknown;
     };
     expect(body.variables).toEqual({ url: REEL, hint: 'the second one' });
@@ -99,7 +108,9 @@ describe('findSharedPlaces', () => {
     const fetchMock = vi.fn(() => Promise.resolve(reply({ data: { findSharedPlaces: null } })));
     vi.stubGlobal('fetch', fetchMock);
     await expect(findSharedPlaces(REEL, '   ')).rejects.toThrow("Couldn't read the post");
-    const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body) as {
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body,
+    ) as {
       variables: unknown;
     };
     expect(body.variables).toEqual({ url: REEL, hint: null });
@@ -194,11 +205,13 @@ describe('sharedLink', () => {
     expect(sharedLink(new URLSearchParams({ text: `Look at this ${REEL} wow` }))).toBe(REEL);
     expect(sharedLink(new URLSearchParams({ title: `${REEL}` }))).toBe(REEL);
     // url first, then text.
-    expect(
-      sharedLink(new URLSearchParams({ text: 'https://example.com/a', url: REEL })),
-    ).toBe(REEL);
+    expect(sharedLink(new URLSearchParams({ text: 'https://example.com/a', url: REEL }))).toBe(
+      REEL,
+    );
     expect(sharedLink(new URLSearchParams({ url: 'not a link', text: REEL }))).toBe(REEL);
-    expect(sharedLink(new URLSearchParams({ url: 'https://evil.example/', text: REEL }))).toBe(REEL);
+    expect(sharedLink(new URLSearchParams({ url: 'https://evil.example/', text: REEL }))).toBe(
+      REEL,
+    );
   });
 
   it('finds none in a share without a link to a post', () => {
@@ -221,16 +234,28 @@ describe('draftSeed', () => {
   });
 
   it('says only what it has, and keeps within a draft’s limits', () => {
-    const bare: SharedPost = { url: REEL, author: null, caption: null, imageUrl: null, isVideo: false };
+    const bare: SharedPost = {
+      url: REEL,
+      author: null,
+      caption: null,
+      imageUrl: null,
+      isVideo: false,
+    };
     expect(draftSeed({ ...PLACE, detail: null }, bare)).toEqual({
       title: 'Carson Falls, Fairfax',
       notes: `From an Instagram post: ${REEL}`,
     });
     // A caption of nothing but links adds nothing.
-    expect(draftSeed({ ...PLACE, detail: null }, { ...bare, caption: 'https://a.example/x http://b.example/y' }).notes).toBe(
-      `From an Instagram post: ${REEL}`,
+    expect(
+      draftSeed(
+        { ...PLACE, detail: null },
+        { ...bare, caption: 'https://a.example/x http://b.example/y' },
+      ).notes,
+    ).toBe(`From an Instagram post: ${REEL}`);
+    const long = draftSeed(
+      { ...PLACE, name: 'n'.repeat(250) },
+      { ...POST, caption: 'c'.repeat(3000) },
     );
-    const long = draftSeed({ ...PLACE, name: 'n'.repeat(250) }, { ...POST, caption: 'c'.repeat(3000) });
     expect(long.title).toHaveLength(200);
     expect(long.notes).toContain(`Caption: ${'c'.repeat(1200)}`);
     expect(long.notes).not.toContain('c'.repeat(1201));
@@ -246,14 +271,25 @@ describe('sourceLabel', () => {
 
 describe('bareSharedPost', () => {
   it('knows a post only by its link', () => {
-    expect(bareSharedPost(REEL)).toEqual({ url: REEL, author: null, caption: null, imageUrl: null, isVideo: null });
+    expect(bareSharedPost(REEL)).toEqual({
+      url: REEL,
+      author: null,
+      caption: null,
+      imageUrl: null,
+      isVideo: null,
+    });
   });
 });
 
 describe('postSeed', () => {
   it('starts a by-hand draft with the post in the notes', () => {
-    expect(postSeed(POST)).toEqual({ title: '', notes: `From an Instagram reel by @bayareatrails: ${REEL}` });
-    expect(postSeed({ ...POST, author: null, isVideo: null }).notes).toBe(`From an Instagram post: ${REEL}`);
+    expect(postSeed(POST)).toEqual({
+      title: '',
+      notes: `From an Instagram reel by @bayareatrails: ${REEL}`,
+    });
+    expect(postSeed({ ...POST, author: null, isVideo: null }).notes).toBe(
+      `From an Instagram post: ${REEL}`,
+    );
   });
 });
 

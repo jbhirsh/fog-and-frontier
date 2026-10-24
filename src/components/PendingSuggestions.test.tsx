@@ -81,9 +81,15 @@ describe('PendingSuggestions (#73)', () => {
     expect(section).toHaveTextContent('San Francisco · Scenic · Half Day');
     expect(section).toHaveTextContent('Notes: Great for dogs');
     expect(screen.getAllByText(/Suggested by Sam/)).toHaveLength(2);
-    expect(screen.getAllByText('Mar 2, 2026')[0]).toHaveAttribute('datetime', '2026-03-02T12:00:00.000Z');
+    expect(screen.getAllByText('Mar 2, 2026')[0]).toHaveAttribute(
+      'datetime',
+      '2026-03-02T12:00:00.000Z',
+    );
     // Focusable from script only, so it can take focus as an item leaves.
-    expect(screen.getByRole('heading', { name: /Waiting for review/ })).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('heading', { name: /Waiting for review/ })).toHaveAttribute(
+      'tabindex',
+      '-1',
+    );
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getAllByText(/Notes:/)).toHaveLength(1);
 
@@ -125,7 +131,9 @@ describe('PendingSuggestions (#73)', () => {
     rerender(<PendingSuggestions suggestions={[]} />);
     expect(screen.getByRole('status')).toHaveTextContent('Added Fort Funston to the catalog.');
     // No count or toggle for an empty queue.
-    expect(screen.getByRole('heading', { name: 'Nothing else waiting for review' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Nothing else waiting for review' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Waiting for review/ })).not.toBeInTheDocument();
     // No way to open it without somewhere to open it.
     expect(screen.queryByRole('button', { name: 'Open it' })).not.toBeInTheDocument();
@@ -177,7 +185,9 @@ describe('PendingSuggestions (#73)', () => {
     expect(screen.getAllByRole('listitem')[0]).toHaveAttribute('aria-busy', 'true');
     expect(screen.getAllByRole('listitem')[1]).toHaveAttribute('aria-busy', 'false');
     finish('fort-funston');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept Lands End' })).toBeEnabled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Accept Lands End' })).toBeEnabled(),
+    );
   });
 
   it('rejects only once confirmed', async () => {
@@ -197,7 +207,9 @@ describe('PendingSuggestions (#73)', () => {
   });
 
   it("clears one suggestion's error without touching another's", async () => {
-    acceptSpy.mockRejectedValueOnce(new Error('First down')).mockRejectedValueOnce(new Error('Second down'));
+    acceptSpy
+      .mockRejectedValueOnce(new Error('First down'))
+      .mockRejectedValueOnce(new Error('Second down'));
     render(<PendingSuggestions suggestions={[FF, LANDS_END]} />);
     await userEvent.click(screen.getByRole('button', { name: 'Accept Fort Funston' }));
     await screen.findByText('First down');
@@ -239,7 +251,9 @@ describe('PendingSuggestions (#73)', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<PendingSuggestions suggestions={[FF, LANDS_END]} />);
     await userEvent.click(screen.getByRole('button', { name: 'Accept Fort Funston' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('Fort Funston was already decided.');
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Fort Funston was already decided.',
+    );
     expect(refreshSpy).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Reject Lands End' }));
@@ -303,7 +317,9 @@ describe('PendingSuggestions (#73)', () => {
 
     it('unfolds, scrolls into view and takes focus, then says it has', async () => {
       const onRevealed = vi.fn();
-      const { rerender } = render(<PendingSuggestions suggestions={[FF]} onRevealed={onRevealed} />);
+      const { rerender } = render(
+        <PendingSuggestions suggestions={[FF]} onRevealed={onRevealed} />,
+      );
       await userEvent.click(screen.getByRole('button', { name: 'Waiting for review 1' }));
       expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
 

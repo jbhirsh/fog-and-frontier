@@ -362,18 +362,13 @@ export function ActivityDetail({
                       <span className="font-headline-md text-headline-md">
                         {activity.allTrailsRating.toFixed(1)}
                       </span>
-                      <span className="font-body-md text-on-surface-variant">
-                        AllTrails
-                      </span>
+                      <span className="font-body-md text-on-surface-variant">AllTrails</span>
                     </div>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-md text-on-surface-variant">
                   {activity.hikeDistanceMiles != null && (
-                    <Stat
-                      icon="straighten"
-                      label={`${activity.hikeDistanceMiles} mi`}
-                    />
+                    <Stat icon="straighten" label={`${activity.hikeDistanceMiles} mi`} />
                   )}
                   {activity.hikeElevationFeet != null && (
                     <Stat
@@ -389,10 +384,7 @@ export function ActivityDetail({
                       className="ml-auto inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
                     >
                       View on AllTrails
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 16 }}
-                      >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                         open_in_new
                       </span>
                     </a>
@@ -412,15 +404,9 @@ export function ActivityDetail({
                   RESTAURANT INFO
                 </div>
                 <div className="flex flex-wrap gap-md text-on-surface-variant">
-                  {activity.cuisine && (
-                    <Stat icon="restaurant_menu" label={activity.cuisine} />
-                  )}
-                  {activity.priceRange && (
-                    <Stat icon="payments" label={activity.priceRange} />
-                  )}
-                  {activity.hours && (
-                    <Stat icon="schedule" label={activity.hours} />
-                  )}
+                  {activity.cuisine && <Stat icon="restaurant_menu" label={activity.cuisine} />}
+                  {activity.priceRange && <Stat icon="payments" label={activity.priceRange} />}
+                  {activity.hours && <Stat icon="schedule" label={activity.hours} />}
                 </div>
                 {activity.dietary && activity.dietary.length > 0 && (
                   <div className="flex flex-wrap gap-xs">
@@ -444,10 +430,7 @@ export function ActivityDetail({
                         className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
                       >
                         Reserve
-                        <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: 16 }}
-                        >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                           open_in_new
                         </span>
                       </a>
@@ -460,10 +443,7 @@ export function ActivityDetail({
                         className="inline-flex items-center gap-xs text-primary-container hover:underline font-medium"
                       >
                         Menu / website
-                        <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: 16 }}
-                        >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                           open_in_new
                         </span>
                       </a>
@@ -478,9 +458,7 @@ export function ActivityDetail({
                 <div className="font-label-caps text-label-caps text-on-surface-variant mb-xs">
                   NOTES
                 </div>
-                <p className="font-body-md text-body-md text-on-surface">
-                  {activity.notes}
-                </p>
+                <p className="font-body-md text-body-md text-on-surface">{activity.notes}</p>
               </div>
             )}
 
@@ -519,17 +497,12 @@ export function ActivityDetail({
                   Nearby — do at the same time
                 </h3>
                 <p className="font-body-sm text-on-surface-variant">
-                  Other activities within {NEARBY_RADIUS_MILES} miles of{' '}
-                  {activity.location.city}.
+                  Other activities within {NEARBY_RADIUS_MILES} miles of {activity.location.city}.
                 </p>
                 {nearbyGroups.map(({ category, items }) => {
                   const headingId = `${nearbyIdPrefix}-${category}`;
                   return (
-                    <section
-                      key={category}
-                      aria-labelledby={headingId}
-                      className="space-y-xs"
-                    >
+                    <section key={category} aria-labelledby={headingId} className="space-y-xs">
                       <h4
                         id={headingId}
                         className="flex items-center gap-xs font-label-caps text-label-caps text-on-surface-variant"
@@ -584,9 +557,7 @@ export function ActivityDetail({
             {isOwner && (completed || showUploads) && (
               <section className="space-y-sm">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-headline-md text-headline-md text-primary">
-                    Your Photos
-                  </h3>
+                  <h3 className="font-headline-md text-headline-md text-primary">Your Photos</h3>
                   {photos.length < MAX_PHOTOS_PER_ACTIVITY && (
                     <label
                       className={`bg-secondary text-on-secondary px-md py-sm rounded-full font-medium transition-opacity flex items-center gap-xs ${
@@ -636,10 +607,7 @@ export function ActivityDetail({
                           aria-label="Remove photo"
                           className="absolute top-xs right-xs bg-on-surface/70 text-on-primary rounded-full w-11 h-11 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         >
-                          <span
-                            className="material-symbols-outlined"
-                            style={{ fontSize: 18 }}
-                          >
+                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
                             delete
                           </span>
                         </button>
@@ -658,10 +626,7 @@ export function ActivityDetail({
                   onClick={() => setEditing(true)}
                   className="inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-variant transition-colors"
                 >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: 14 }}
-                  >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                     edit
                   </span>
                   EDIT ACTIVITY
@@ -671,10 +636,7 @@ export function ActivityDetail({
                   onClick={() => void handleDelete()}
                   className="-mr-md inline-flex items-center gap-xs px-md py-sm min-h-11 rounded-full font-label-caps text-label-caps text-error hover:bg-error-container transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-container"
                 >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: 14 }}
-                  >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                     delete
                   </span>
                   DELETE ACTIVITY
@@ -757,9 +719,7 @@ function TitleRow({ activity }: { activity: Activity }) {
   const { isOwner } = useOwner();
   return (
     <div className="flex flex-wrap items-start justify-between gap-sm">
-      <h2 className="font-display text-headline-lg text-primary">
-        {activity.name}
-      </h2>
+      <h2 className="font-display text-headline-lg text-primary">{activity.name}</h2>
       {isOwner ? (
         <button
           type="button"
@@ -823,25 +783,14 @@ function Facts({
             // the facts beside it, so the rows below stay evenly spaced.
             className="inline-flex items-center gap-xs min-h-11 -my-2.5 text-primary-container hover:underline font-medium"
           >
-            <span className="material-symbols-outlined text-icon-md">
-              directions
-            </span>
+            <span className="material-symbols-outlined text-icon-md">directions</span>
             Get directions
           </a>
         )}
-        <Stat
-          icon="schedule"
-          label={activity.durationDetail ?? activity.duration}
-        />
-        {activity.difficulty && (
-          <Stat icon="trending_up" label={activity.difficulty} capitalize />
-        )}
+        <Stat icon="schedule" label={activity.durationDetail ?? activity.duration} />
+        {activity.difficulty && <Stat icon="trending_up" label={activity.difficulty} capitalize />}
         {activity.parkType && activity.parkType !== 'none' && (
-          <Stat
-            icon="forest"
-            label={`${activity.parkType} park`}
-            capitalize
-          />
+          <Stat icon="forest" label={`${activity.parkType} park`} capitalize />
         )}
         <Stat icon="place" label={activity.location.city} />
         {activity.dogFriendly && <Stat icon="pets" label="Dog friendly" />}
@@ -850,10 +799,7 @@ function Facts({
         )}
         {/* Signed-in only: the server sends no contributors otherwise (#9). */}
         {activity.contributors && activity.contributors.length > 0 && (
-          <Contributors
-            emails={activity.contributors}
-            onShow={onShowContributor}
-          />
+          <Contributors emails={activity.contributors} onShow={onShowContributor} />
         )}
       </div>
 
@@ -930,21 +876,11 @@ function Peek({
   );
 }
 
-function Stat({
-  icon,
-  label,
-  capitalize,
-}: {
-  icon: string;
-  label: string;
-  capitalize?: boolean;
-}) {
+function Stat({ icon, label, capitalize }: { icon: string; label: string; capitalize?: boolean }) {
   return (
     <div className="flex items-center gap-xs">
       <span className="material-symbols-outlined text-icon-md">{icon}</span>
-      <span className={`font-body-md ${capitalize ? 'capitalize' : ''}`}>
-        {label}
-      </span>
+      <span className={`font-body-md ${capitalize ? 'capitalize' : ''}`}>{label}</span>
     </div>
   );
 }

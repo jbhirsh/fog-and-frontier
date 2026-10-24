@@ -22,10 +22,7 @@ const bounds: MapBounds = {
 // Build a minimal Activity with the given coords. `coords` may be omitted to
 // simulate an activity missing coordinates. Only the fields the bounds filter
 // reads are meaningful; the rest are filler to satisfy the type.
-function makeActivity(
-  id: string,
-  coords?: { lat: number; lng: number },
-): Activity {
+function makeActivity(id: string, coords?: { lat: number; lng: number }): Activity {
   return {
     id,
     name: id,

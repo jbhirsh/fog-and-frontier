@@ -54,7 +54,10 @@ export function keepTripPicks(raw: unknown, candidates: readonly TripCandidate[]
     // Only the candidates' own (string) ids get through.
     const id = item.activityId as string;
     if (!known.has(id) || picks.some((p) => p.activityId === id)) continue;
-    picks.push({ activityId: id, reason: typeof item.reason === 'string' ? item.reason.trim() : '' });
+    picks.push({
+      activityId: id,
+      reason: typeof item.reason === 'string' ? item.reason.trim() : '',
+    });
     if (picks.length === MAX_TRIP_SUGGESTIONS) break;
   }
   return picks;

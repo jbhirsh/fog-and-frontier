@@ -3,12 +3,15 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { CdnImage } from './CdnImage';
 import { cdnUrl } from '../lib/imageCdn';
 
-const PHOTO = 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Santa_Clara_Central_Park_Library.jpg';
+const PHOTO =
+  'https://upload.wikimedia.org/wikipedia/commons/b/bd/Santa_Clara_Central_Park_Library.jpg';
 const OTHER = 'https://upload.wikimedia.org/wikipedia/commons/d/d5/Los_Gatos_Creek_Trail.jpg';
 
 describe('CdnImage', () => {
   it('asks the CDN, offering every width at the size it’s shown', () => {
-    render(<CdnImage cdn src={PHOTO} alt="Library" sizes="96px" className="w-full" loading="lazy" />);
+    render(
+      <CdnImage cdn src={PHOTO} alt="Library" sizes="96px" className="w-full" loading="lazy" />,
+    );
     const img = screen.getByRole('img', { name: 'Library' });
     expect(img).toHaveAttribute('src', cdnUrl(PHOTO, 960));
     expect(img.getAttribute('srcset')).toContain(`${cdnUrl(PHOTO, 96)} 96w`);
@@ -52,7 +55,9 @@ describe('CdnImage', () => {
 
   it('gives an address that isn’t a web one no source at all', () => {
     const onFailed = vi.fn();
-    render(<CdnImage cdn src="javascript:alert(1)" alt="Library" sizes="96px" onFailed={onFailed} />);
+    render(
+      <CdnImage cdn src="javascript:alert(1)" alt="Library" sizes="96px" onFailed={onFailed} />,
+    );
     const img = screen.getByRole('img', { name: 'Library' });
     expect(img).not.toHaveAttribute('src');
     expect(img).not.toHaveAttribute('srcset');
@@ -72,7 +77,10 @@ describe('CdnImage', () => {
 
   it('shows an inline image as it is', () => {
     render(<CdnImage cdn src="data:image/png;base64,AAAA" alt="Library" sizes="96px" />);
-    expect(screen.getByRole('img', { name: 'Library' })).toHaveAttribute('src', 'data:image/png;base64,AAAA');
+    expect(screen.getByRole('img', { name: 'Library' })).toHaveAttribute(
+      'src',
+      'data:image/png;base64,AAAA',
+    );
   });
 
   it('copes with no fallback of the caller’s', () => {

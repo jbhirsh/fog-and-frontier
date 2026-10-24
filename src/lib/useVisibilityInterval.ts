@@ -9,11 +9,7 @@
 
 import { useEffect, useRef } from 'react';
 
-export function useVisibilityInterval(
-  callback: () => void,
-  ms: number,
-  enabled: boolean,
-): void {
+export function useVisibilityInterval(callback: () => void, ms: number, enabled: boolean): void {
   // Always hold the latest callback without re-triggering the effect.
   const callbackRef = useRef(callback);
   useEffect(() => {

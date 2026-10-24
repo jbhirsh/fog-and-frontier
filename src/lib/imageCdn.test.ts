@@ -12,7 +12,8 @@ import {
   viaCdn,
 } from './imageCdn';
 
-const COMMONS = 'https://upload.wikimedia.org/wikipedia/commons/d/d5/Los_Gatos_Creek_Trail_%28Campbell%2C_California%29.jpg';
+const COMMONS =
+  'https://upload.wikimedia.org/wikipedia/commons/d/d5/Los_Gatos_Creek_Trail_%28Campbell%2C_California%29.jpg';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -57,7 +58,9 @@ describe('imageSrc', () => {
   it('keeps a web address or inline image, percent-encoding " < and >', () => {
     expect(imageSrc(COMMONS)).toBe(COMMONS);
     expect(imageSrc('data:image/png;base64,AAAA')).toBe('data:image/png;base64,AAAA');
-    expect(imageSrc('https://img.example/a"b<c>d"e.jpg')).toBe('https://img.example/a%22b%3Cc%3Ed%22e.jpg');
+    expect(imageSrc('https://img.example/a"b<c>d"e.jpg')).toBe(
+      'https://img.example/a%22b%3Cc%3Ed%22e.jpg',
+    );
     // Anything else a URL may hold stays as it is.
     expect(imageSrc("https://img.example/o'neill&co(1).jpg?w=1&h=2")).toBe(
       "https://img.example/o'neill&co(1).jpg?w=1&h=2",
@@ -105,7 +108,9 @@ describe('imageSources', () => {
 
   it('leaves a photo as it is off Vercel, or from another host', () => {
     expect(imageSources(COMMONS, false)).toEqual({ src: COMMONS });
-    expect(imageSources('https://example.com/a.jpg', true)).toEqual({ src: 'https://example.com/a.jpg' });
+    expect(imageSources('https://example.com/a.jpg', true)).toEqual({
+      src: 'https://example.com/a.jpg',
+    });
   });
 
   it('goes by where it was built, unless told', () => {
@@ -133,7 +138,9 @@ describe('vercel.json', () => {
   ).images;
 
   it('allows exactly the hosts, widths and quality the app asks for', () => {
-    expect(images.remotePatterns).toEqual(CDN_HOSTS.map((hostname) => ({ protocol: 'https', hostname })));
+    expect(images.remotePatterns).toEqual(
+      CDN_HOSTS.map((hostname) => ({ protocol: 'https', hostname })),
+    );
     expect(images.sizes).toEqual([...CDN_WIDTHS]);
     expect(images.qualities).toEqual([CDN_QUALITY]);
   });

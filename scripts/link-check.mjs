@@ -59,7 +59,8 @@ function blocksBots(host) {
   return BOT_BLOCKING_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
 }
 
-const INSTAGRAM_POST = /^https?:\/\/(?:www\.|m\.)?instagram\.com\/(?:[\w.]+\/)?(?:p|reels?|tv)\/([\w-]{5,64})(?:[/?#]|$)/i;
+const INSTAGRAM_POST =
+  /^https?:\/\/(?:www\.|m\.)?instagram\.com\/(?:[\w.]+\/)?(?:p|reels?|tv)\/([\w-]{5,64})(?:[/?#]|$)/i;
 
 /** The embed page of an Instagram post link, or null for any other link. */
 export function instagramEmbedUrl(url) {
@@ -102,7 +103,7 @@ export function judge(link, outcome) {
   // Only these say the page is gone. Other 4xx are as often a firewall's
   // answer to a script as a real error.
   if (status === 404 || status === 410) return { verdict: 'dead', reason: `HTTP ${status}` };
-  if (status >= 400 && status < 500 || status === 999) {
+  if ((status >= 400 && status < 500) || status === 999) {
     return {
       verdict: 'review',
       reason: blocksBots(host) ? `HTTP ${status} (blocks scripts)` : `HTTP ${status}`,
@@ -115,7 +116,8 @@ export function judge(link, outcome) {
   if (!REAL_SUCCESS.includes(status)) return { verdict: 'dead', reason: `HTTP ${status}` };
   // An Instagram post, read through its embed page.
   if (outcome.post === false) return { verdict: 'dead', reason: 'post taken down or private' };
-  if (outcome.post === null) return { verdict: 'review', reason: "Instagram's embed page has changed" };
+  if (outcome.post === null)
+    return { verdict: 'review', reason: "Instagram's embed page has changed" };
   if (link.image && !contentType.toLowerCase().startsWith('image/')) {
     return {
       verdict: 'dead',
@@ -123,7 +125,12 @@ export function judge(link, outcome) {
     };
   }
   // A retired page often redirects to the site's home page, which answers 200.
-  if (finalUrl && hostOf(finalUrl) && new URL(finalUrl).pathname === '/' && new URL(link.url).pathname !== '/') {
+  if (
+    finalUrl &&
+    hostOf(finalUrl) &&
+    new URL(finalUrl).pathname === '/' &&
+    new URL(link.url).pathname !== '/'
+  ) {
     return { verdict: 'review', reason: 'redirects to the home page' };
   }
   return { verdict: 'ok', reason: `HTTP ${status}` };
@@ -168,7 +175,9 @@ export function report(results) {
     // A | in a name or link would end its table cell early.
     const cell = (v) => String(v).replaceAll('|', '\\|');
     for (const r of rows) {
-      lines.push(`| ${cell(r.name)} (\`${r.id}\`) | ${r.field} | ${cell(r.reason)} | ${cell(r.url)} |`);
+      lines.push(
+        `| ${cell(r.name)} (\`${r.id}\`) | ${r.field} | ${cell(r.reason)} | ${cell(r.url)} |`,
+      );
     }
   };
   table('Dead', dead);

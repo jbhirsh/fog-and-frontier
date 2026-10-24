@@ -38,13 +38,25 @@ describe('xfail tallying (buildResults summary)', () => {
 
     // Per-surface tallies apply the same rules.
     expect(summary.bySurface.generateActivity).toEqual({
-      total: 2, graded: 2, passed: 2, failed: 0, errored: 0,
+      total: 2,
+      graded: 2,
+      passed: 2,
+      failed: 0,
+      errored: 0,
     });
     expect(summary.bySurface.alltrailsLookup).toEqual({
-      total: 1, graded: 1, passed: 0, failed: 1, errored: 0,
+      total: 1,
+      graded: 1,
+      passed: 0,
+      failed: 1,
+      errored: 0,
     });
     expect(summary.bySurface.discover).toEqual({
-      total: 2, graded: 1, passed: 0, failed: 1, errored: 1,
+      total: 2,
+      graded: 1,
+      passed: 0,
+      failed: 1,
+      errored: 1,
     });
   });
 

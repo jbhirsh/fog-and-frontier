@@ -17,9 +17,10 @@ export function judgeTripsCanary({ status, contentType, payload }) {
   if (!contentType.includes('application/json')) {
     return { ok: false, detail: `expected JSON, got ${contentType}` };
   }
-  const body = /** @type {{ data?: { trips?: unknown } | null, errors?: Array<{ message?: string, extensions?: { code?: unknown } }> }} */ (
-    payload ?? {}
-  );
+  const body =
+    /** @type {{ data?: { trips?: unknown } | null, errors?: Array<{ message?: string, extensions?: { code?: unknown } }> }} */ (
+      payload ?? {}
+    );
   if (body.data?.trips != null) {
     return { ok: false, detail: 'anonymous caller got trip data back' };
   }

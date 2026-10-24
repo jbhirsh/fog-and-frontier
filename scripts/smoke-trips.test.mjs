@@ -31,9 +31,10 @@ describe('judgeTripsCanary', () => {
   });
 
   it('fails a response that is not JSON', () => {
-    expect(
-      judgeTripsCanary({ status: 200, contentType: 'text/html', payload: refused }),
-    ).toEqual({ ok: false, detail: 'expected JSON, got text/html' });
+    expect(judgeTripsCanary({ status: 200, contentType: 'text/html', payload: refused })).toEqual({
+      ok: false,
+      detail: 'expected JSON, got text/html',
+    });
   });
 
   it('fails when an anonymous caller gets trips back, even alongside an error', () => {

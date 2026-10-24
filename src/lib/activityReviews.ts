@@ -68,10 +68,7 @@ export function formatReviewDate(iso: string): string {
 
 // Mirrors the server's validation so the UI can disable Save rather than let
 // the round-trip fail. Returns null when the draft is saveable.
-export function validateDraft(
-  rating: number | null,
-  note: string,
-): string | null {
+export function validateDraft(rating: number | null, note: string): string | null {
   const trimmed = note.trim();
   if (rating === null && !trimmed) return 'Add a rating or a note.';
   if (

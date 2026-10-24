@@ -21,7 +21,13 @@ export const ACTIVITIES_QUERY = graphql(`
       category
       region
       parkType
-      location { city coords { lat lng } }
+      location {
+        city
+        coords {
+          lat
+          lng
+        }
+      }
       duration
       durationDetail
       difficulty
@@ -102,7 +108,14 @@ export const SUGGEST_TRIP_ACTIVITIES = graphql(`
       suggestions {
         activityId
         reason
-        activity { id name category location { city } }
+        activity {
+          id
+          name
+          category
+          location {
+            city
+          }
+        }
       }
     }
   }
@@ -110,7 +123,11 @@ export const SUGGEST_TRIP_ACTIVITIES = graphql(`
 
 export const COMPLETED_QUERY = graphql(`
   query Completed {
-    completed { __typename id completed }
+    completed {
+      __typename
+      id
+      completed
+    }
   }
 `);
 
@@ -179,7 +196,13 @@ export const TRIP_QUERY = graphql(`
           category
           region
           parkType
-          location { city coords { lat lng } }
+          location {
+            city
+            coords {
+              lat
+              lng
+            }
+          }
           duration
           durationDetail
           difficulty
@@ -205,16 +228,35 @@ export const TRIP_QUERY = graphql(`
           contributors
         }
       }
-      members { email displayName addedByEmail addedAt isCreator }
-      invites { inviteToken invitedEmail invitedByEmail invitedAt }
-      votes { __typename tripActivityId memberEmail value }
+      members {
+        email
+        displayName
+        addedByEmail
+        addedAt
+        isCreator
+      }
+      invites {
+        inviteToken
+        invitedEmail
+        invitedByEmail
+        invitedAt
+      }
+      votes {
+        __typename
+        tripActivityId
+        memberEmail
+        value
+      }
     }
   }
 `);
 
 export const USERS_QUERY = graphql(`
   query UsersList {
-    users { email displayName }
+    users {
+      email
+      displayName
+    }
   }
 `);
 
@@ -222,8 +264,19 @@ export const DISCOVER_QUERY = graphql(`
   query Discover($range: DiscoverRange) {
     discover(range: $range) {
       range
-      events { name dateText startDate endDate location blurb sourceUrl }
-      sources { uri title }
+      events {
+        name
+        dateText
+        startDate
+        endDate
+        location
+        blurb
+        sourceUrl
+      }
+      sources {
+        uri
+        title
+      }
     }
   }
 `);
@@ -232,13 +285,21 @@ export const DISCOVER_QUERY = graphql(`
 
 export const SAVE_ACTIVITY = graphql(`
   mutation SaveActivity($input: SaveActivityInput!) {
-    saveActivity(input: $input) { activity { id } }
+    saveActivity(input: $input) {
+      activity {
+        id
+      }
+    }
   }
 `);
 
 export const SUGGEST_ACTIVITY = graphql(`
   mutation SuggestActivity($input: SuggestActivityInput!) {
-    suggestActivity(input: $input) { suggestion { id } }
+    suggestActivity(input: $input) {
+      suggestion {
+        id
+      }
+    }
   }
 `);
 
@@ -254,7 +315,9 @@ export const PENDING_SUGGESTIONS = graphql(`
         shortDescription
         longDescription
         category
-        location { city }
+        location {
+          city
+        }
         duration
         costTier
         coverImage
@@ -269,25 +332,38 @@ export const PENDING_SUGGESTIONS = graphql(`
 
 export const ACCEPT_SUGGESTION = graphql(`
   mutation AcceptSuggestion($id: ID!, $allowDuplicate: Boolean) {
-    acceptSuggestion(id: $id, allowDuplicate: $allowDuplicate) { activity { id name } }
+    acceptSuggestion(id: $id, allowDuplicate: $allowDuplicate) {
+      activity {
+        id
+        name
+      }
+    }
   }
 `);
 
 export const REJECT_SUGGESTION = graphql(`
   mutation RejectSuggestion($id: ID!) {
-    rejectSuggestion(id: $id) { id }
+    rejectSuggestion(id: $id) {
+      id
+    }
   }
 `);
 
 export const DELETE_ACTIVITY = graphql(`
   mutation DeleteActivity($input: DeleteActivityInput!) {
-    deleteActivity(input: $input) { deletedId }
+    deleteActivity(input: $input) {
+      deletedId
+    }
   }
 `);
 
 export const SET_COMPLETED = graphql(`
   mutation SetCompleted($input: SetCompletedInput!) {
-    setCompleted(input: $input) { __typename id completed }
+    setCompleted(input: $input) {
+      __typename
+      id
+      completed
+    }
   }
 `);
 
@@ -329,7 +405,11 @@ export const GENERATE_ACTIVITY = graphql(`
 export const ALLTRAILS_LOOKUP = graphql(`
   mutation AlltrailsLookup($input: AlltrailsLookupInput!) {
     alltrailsLookup(input: $input) {
-      lookup { allTrailsRating hikeDistanceMiles hikeElevationFeet }
+      lookup {
+        allTrailsRating
+        hikeDistanceMiles
+        hikeElevationFeet
+      }
     }
   }
 `);
@@ -352,7 +432,10 @@ export const SAVE_ACTIVITY_REVIEW = graphql(`
 
 export const DELETE_ACTIVITY_REVIEW = graphql(`
   mutation DeleteActivityReview($input: DeleteActivityReviewInput!) {
-    deleteActivityReview(input: $input) { activityId authorEmail }
+    deleteActivityReview(input: $input) {
+      activityId
+      authorEmail
+    }
   }
 `);
 
@@ -360,74 +443,122 @@ export const DELETE_ACTIVITY_REVIEW = graphql(`
 // expires within the hour, so the list is refetched rather than kept.
 export const ACTIVITY_PHOTOS_QUERY = graphql(`
   query ActivityPhotos($activityId: ID!) {
-    activityPhotos(activityId: $activityId) { __typename id activityId url createdAt }
+    activityPhotos(activityId: $activityId) {
+      __typename
+      id
+      activityId
+      url
+      createdAt
+    }
   }
 `);
 
 export const PHOTO_UPLOAD = graphql(`
   mutation PhotoUpload($input: PhotoUploadInput!) {
-    photoUpload(input: $input) { pathname clientToken }
+    photoUpload(input: $input) {
+      pathname
+      clientToken
+    }
   }
 `);
 
 export const ADD_ACTIVITY_PHOTO = graphql(`
   mutation AddActivityPhoto($input: AddActivityPhotoInput!) {
-    addActivityPhoto(input: $input) { photo { __typename id activityId url createdAt } }
+    addActivityPhoto(input: $input) {
+      photo {
+        __typename
+        id
+        activityId
+        url
+        createdAt
+      }
+    }
   }
 `);
 
 export const REMOVE_ACTIVITY_PHOTO = graphql(`
   mutation RemoveActivityPhoto($input: RemoveActivityPhotoInput!) {
-    removeActivityPhoto(input: $input) { removedId }
+    removeActivityPhoto(input: $input) {
+      removedId
+    }
   }
 `);
 
 export const CREATE_TRIP = graphql(`
   mutation CreateTrip($input: CreateTripInput!) {
-    createTrip(input: $input) { trip { id } }
+    createTrip(input: $input) {
+      trip {
+        id
+      }
+    }
   }
 `);
 
 export const PATCH_TRIP = graphql(`
   mutation PatchTrip($input: PatchTripInput!) {
-    patchTrip(input: $input) { trip { id } }
+    patchTrip(input: $input) {
+      trip {
+        id
+      }
+    }
   }
 `);
 
 export const DELETE_TRIP = graphql(`
   mutation DeleteTrip($input: DeleteTripInput!) {
-    deleteTrip(input: $input) { deletedId }
+    deleteTrip(input: $input) {
+      deletedId
+    }
   }
 `);
 
 export const ADD_TRIP_ACTIVITY = graphql(`
   mutation AddTripActivity($input: AddTripActivityInput!) {
-    addTripActivity(input: $input) { tripActivity { id } }
+    addTripActivity(input: $input) {
+      tripActivity {
+        id
+      }
+    }
   }
 `);
 
 export const ASSIGN_SLOT = graphql(`
   mutation AssignSlot($input: AssignSlotInput!) {
-    assignSlot(input: $input) { tripActivity { id } }
+    assignSlot(input: $input) {
+      tripActivity {
+        id
+      }
+    }
   }
 `);
 
 export const SET_DISPLAY_ORDER = graphql(`
   mutation SetDisplayOrder($input: SetDisplayOrderInput!) {
-    setDisplayOrder(input: $input) { tripActivity { id } }
+    setDisplayOrder(input: $input) {
+      tripActivity {
+        id
+      }
+    }
   }
 `);
 
 export const REMOVE_TRIP_ACTIVITY = graphql(`
   mutation RemoveTripActivity($input: RemoveTripActivityInput!) {
-    removeTripActivity(input: $input) { deletedId }
+    removeTripActivity(input: $input) {
+      deletedId
+    }
   }
 `);
 
 export const CAST_VOTE = graphql(`
   mutation CastVote($input: CastVoteInput!) {
     castVote(input: $input) {
-      vote { __typename tripActivityId memberEmail value }
+      vote {
+        __typename
+        tripActivityId
+        memberEmail
+        value
+      }
     }
   }
 `);
@@ -448,26 +579,37 @@ export const TRANSITION_TRIP = graphql(`
 export const INVITE_MEMBER = graphql(`
   mutation InviteMember($input: InviteMemberInput!) {
     inviteMember(input: $input) {
-      invite { inviteToken invitedEmail invitedByEmail invitedAt }
+      invite {
+        inviteToken
+        invitedEmail
+        invitedByEmail
+        invitedAt
+      }
     }
   }
 `);
 
 export const REMOVE_MEMBER = graphql(`
   mutation RemoveMember($input: RemoveMemberInput!) {
-    removeMember(input: $input) { removedEmail }
+    removeMember(input: $input) {
+      removedEmail
+    }
   }
 `);
 
 export const REVOKE_INVITE = graphql(`
   mutation RevokeInvite($input: RevokeInviteInput!) {
-    revokeInvite(input: $input) { revokedToken }
+    revokeInvite(input: $input) {
+      revokedToken
+    }
   }
 `);
 
 export const CLAIM_INVITE = graphql(`
   mutation ClaimInvite($input: ClaimInviteInput!) {
-    claimInvite(input: $input) { tripId }
+    claimInvite(input: $input) {
+      tripId
+    }
   }
 `);
 
@@ -482,7 +624,9 @@ export type TripActivityRow = TripRow['activities'][number];
 // __typename) is structurally assignable to this, so one mapper covers both.
 export type SnapshotRow = NonNullable<TripActivityRow['snapshot']>;
 export type ActivityLike = Omit<SnapshotRow, '__typename'>;
-export type PendingSuggestionRow = DocumentType<typeof PENDING_SUGGESTIONS>['pendingSuggestions'][number];
+export type PendingSuggestionRow = DocumentType<
+  typeof PENDING_SUGGESTIONS
+>['pendingSuggestions'][number];
 
 export type ActivityReviewsData = DocumentType<typeof ACTIVITY_REVIEWS_QUERY>;
 export type ActivityReviewRow = ActivityReviewsData['activityReviews'][number];
@@ -499,6 +643,9 @@ export type GeneratedActivityRow = DocumentType<
 // the coarse (~1 km) origin; see src/lib/drivingMiles.ts.
 export const DRIVING_MILES_QUERY = graphql(`
   query DrivingMiles($lat: Float!, $lng: Float!) {
-    drivingMiles(lat: $lat, lng: $lng) { id miles }
+    drivingMiles(lat: $lat, lng: $lng) {
+      id
+      miles
+    }
   }
 `);

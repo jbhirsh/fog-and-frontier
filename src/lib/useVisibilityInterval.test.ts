@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useVisibilityInterval } from './useVisibilityInterval';
 
@@ -131,9 +124,7 @@ describe('useVisibilityInterval', () => {
     const cb1 = vi.fn();
     const cb2 = vi.fn();
     let currentCb = cb1;
-    const { rerender } = renderHook(() =>
-      useVisibilityInterval(currentCb, 1000, true),
-    );
+    const { rerender } = renderHook(() => useVisibilityInterval(currentCb, 1000, true));
 
     vi.advanceTimersByTime(1000);
     expect(cb1).toHaveBeenCalledTimes(1);

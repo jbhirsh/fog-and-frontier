@@ -18,9 +18,7 @@ import {
   type TripVote,
 } from './userTrips';
 
-function snapshot(
-  overrides: Partial<TripActivitySnapshot> = {},
-): TripActivitySnapshot {
+function snapshot(overrides: Partial<TripActivitySnapshot> = {}): TripActivitySnapshot {
   return {
     id: 'a',
     name: 'A',
@@ -108,9 +106,7 @@ describe('approxDurationMinutes', () => {
 
 describe('derivedEndTime', () => {
   it('returns start + approx duration', () => {
-    expect(
-      derivedEndTime(ta({}, { duration: '2-3 Hours' })),
-    ).toBe('11:30');
+    expect(derivedEndTime(ta({}, { duration: '2-3 Hours' }))).toBe('11:30');
   });
 
   it('returns null for unscheduled activities', () => {
@@ -130,7 +126,7 @@ describe('dayCount', () => {
 });
 
 describe('defaultStartTimeForDay', () => {
-  it("defaults to 09:00 when the day is empty", () => {
+  it('defaults to 09:00 when the day is empty', () => {
     expect(defaultStartTimeForDay([])).toBe('09:00');
   });
 
@@ -175,9 +171,7 @@ describe('defaultStartTimeForDay', () => {
   });
 
   it('ignores unscheduled activities', () => {
-    const existing = [
-      ta({ start_time: null, day_index: null }),
-    ];
+    const existing = [ta({ start_time: null, day_index: null })];
     expect(defaultStartTimeForDay(existing)).toBe('09:00');
   });
 
@@ -216,9 +210,7 @@ describe('inviteLinkPath', () => {
   });
 
   it('encodes special characters in inviteToken', () => {
-    expect(inviteLinkPath('trip-1', 'tok=abc&x=1')).toBe(
-      '/trips/trip-1?invite=tok%3Dabc%26x%3D1',
-    );
+    expect(inviteLinkPath('trip-1', 'tok=abc&x=1')).toBe('/trips/trip-1?invite=tok%3Dabc%26x%3D1');
   });
 
   it('encodes both params when both contain special characters', () => {
@@ -293,10 +285,7 @@ describe('memberVoteBreakdown', () => {
   });
 
   it('ignores votes for other trip_activity_ids', () => {
-    const votes = [
-      vote(ACTIVITY_ID, 'alice@x.com', 1),
-      vote('other-act', 'bob@x.com', 1),
-    ];
+    const votes = [vote(ACTIVITY_ID, 'alice@x.com', 1), vote('other-act', 'bob@x.com', 1)];
     const result = memberVoteBreakdown(votes, [], ACTIVITY_ID);
     expect(result).toHaveLength(1);
     expect(result[0].email).toBe('alice@x.com');
@@ -305,11 +294,7 @@ describe('memberVoteBreakdown', () => {
 
 // ── Vote aggregation helpers ──────────────────────────────────────────────────
 
-function vote(
-  trip_activity_id: string,
-  member_email: string,
-  value: -1 | 1,
-): TripVote {
+function vote(trip_activity_id: string, member_email: string, value: -1 | 1): TripVote {
   return { trip_activity_id, member_email, value };
 }
 
@@ -340,12 +325,9 @@ describe('tallyFor', () => {
 });
 
 describe('myVote', () => {
-  const votes = [
-    vote('a1', 'alice@x.com', 1),
-    vote('a1', 'bob@x.com', -1),
-  ];
+  const votes = [vote('a1', 'alice@x.com', 1), vote('a1', 'bob@x.com', -1)];
 
-  it('returns the caller\'s vote value', () => {
+  it("returns the caller's vote value", () => {
     expect(myVote(votes, 'a1', 'alice@x.com')).toBe(1);
     expect(myVote(votes, 'a1', 'bob@x.com')).toBe(-1);
   });

@@ -5,11 +5,7 @@ import { MockedProvider } from '@apollo/client/testing/react';
 import type { MockedResponse } from '@apollo/client/testing';
 import type { Activity } from '../data/types';
 import { createApolloCache } from '../lib/apolloClient';
-import {
-  ACTIVITIES_QUERY,
-  ACTIVITY_REVIEWS_QUERY,
-  COMPLETED_QUERY,
-} from '../lib/gqlDocs';
+import { ACTIVITIES_QUERY, ACTIVITY_REVIEWS_QUERY, COMPLETED_QUERY } from '../lib/gqlDocs';
 import type { ActivityReviewRow } from '../lib/gqlDocs';
 
 // Domain Activity -> the GraphQL ACTIVITIES row (every selected field + the

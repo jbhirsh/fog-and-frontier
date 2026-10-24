@@ -41,10 +41,7 @@ export function isApplePlatform(hints: PlatformHints = navigator): boolean {
  * Directions URL to `coords`, or null when the coordinates are missing or not
  * a real place (non-finite, or outside the valid latitude/longitude range).
  */
-export function directionsUrl(
-  coords: Coords | null | undefined,
-  apple: boolean,
-): string | null {
+export function directionsUrl(coords: Coords | null | undefined, apple: boolean): string | null {
   const lat = coords?.lat;
   const lng = coords?.lng;
   if (!isCoordinate(lat, 90) || !isCoordinate(lng, 180)) return null;
@@ -55,9 +52,6 @@ export function directionsUrl(
   return `${GOOGLE_MAPS_DIR}?${new URLSearchParams({ api: '1', destination })}`;
 }
 
-function isCoordinate(
-  value: number | null | undefined,
-  limit: number,
-): value is number {
+function isCoordinate(value: number | null | undefined, limit: number): value is number {
   return Number.isFinite(value) && Math.abs(value as number) <= limit;
 }

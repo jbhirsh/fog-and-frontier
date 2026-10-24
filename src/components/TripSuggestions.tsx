@@ -53,14 +53,14 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
       </p>
       {suggestions.length === 0 ? (
         <p className="font-body-md text-on-surface-variant">
-          Nothing else in the catalog is within {TRIP_SUGGESTION_RADIUS_MILES} miles
-          of this trip&apos;s candidates.
+          Nothing else in the catalog is within {TRIP_SUGGESTION_RADIUS_MILES} miles of this
+          trip&apos;s candidates.
         </p>
       ) : (
         <>
           <p className="font-body-sm text-on-surface-variant">
-            Within {TRIP_SUGGESTION_RADIUS_MILES} miles of the candidates, starting
-            with what the trip doesn&apos;t have yet.
+            Within {TRIP_SUGGESTION_RADIUS_MILES} miles of the candidates, starting with what the
+            trip doesn&apos;t have yet.
           </p>
           <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-sm">
             {visible.map(({ activity: a, miles, nearName }) => (
@@ -91,10 +91,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                       {a.name}
                     </span>
                     <span className="flex items-center gap-xs font-body-sm text-on-surface-variant">
-                      <span
-                        aria-hidden="true"
-                        className="material-symbols-outlined text-icon-sm"
-                      >
+                      <span aria-hidden="true" className="material-symbols-outlined text-icon-sm">
                         {CATEGORY_ICON[a.category]}
                       </span>
                       <span className="truncate">{a.location.city}</span>

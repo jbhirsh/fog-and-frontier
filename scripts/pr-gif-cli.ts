@@ -247,7 +247,10 @@ export function remoteBranch(ref: string): string | null {
 
 /** A GIF's size for the log, and a warning when it's too big to show. */
 export function sizeNote(file: string, bytes: number): string {
-  const size = bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+  const size =
+    bytes >= 1024 * 1024
+      ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+      : `${Math.round(bytes / 1024)} KB`;
   return bytes > GIF_WARN_BYTES
     ? `pr-gif: ${file} is ${size}, over 5 MB, which a PR may not show: record a shorter flow, or a narrower one (width)`
     : `pr-gif: ${file} is ${size}`;
@@ -267,7 +270,11 @@ export function freePort(): Promise<number> {
 }
 
 function git(cwd: string, ...args: string[]): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
+  return execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+  }).trim();
 }
 
 /**
@@ -278,8 +285,20 @@ function build(root: string, cwd: string, outDir: string, mode: string) {
   console.log(`pr-gif: building ${cwd} (${mode})`);
   execFileSync(
     process.execPath,
-    [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', mode, '--outDir', outDir, '--emptyOutDir'],
-    { cwd, stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env, VERCEL_ENV: 'production' } },
+    [
+      join(root, 'node_modules/vite/bin/vite.js'),
+      'build',
+      '--mode',
+      mode,
+      '--outDir',
+      outDir,
+      '--emptyOutDir',
+    ],
+    {
+      cwd,
+      stdio: ['ignore', 'ignore', 'inherit'],
+      env: { ...process.env, VERCEL_ENV: 'production' },
+    },
   );
 }
 
@@ -297,20 +316,30 @@ async function serve(
   const port = await freePort();
   const server = spawn(
     process.execPath,
-    [join(root, 'node_modules/vite/bin/vite.js'), 'preview', '--outDir', outDir, '--port', String(port), '--strictPort'],
+    [
+      join(root, 'node_modules/vite/bin/vite.js'),
+      'preview',
+      '--outDir',
+      outDir,
+      '--port',
+      String(port),
+      '--strictPort',
+    ],
     { cwd, stdio: ['ignore', 'ignore', 'inherit'] },
   );
   servers.push(server);
   const url = `http://localhost:${port}`;
   const deadline = Date.now() + 30_000;
   for (;;) {
-    if (server.exitCode !== null) throw new Error(`vite preview for ${outDir} exited (${server.exitCode})`);
+    if (server.exitCode !== null)
+      throw new Error(`vite preview for ${outDir} exited (${server.exitCode})`);
     try {
       if ((await fetch(url)).ok) return url;
     } catch {
       // Not listening yet.
     }
-    if (Date.now() > deadline) throw new Error(`vite preview for ${outDir} didn't answer at ${url}`);
+    if (Date.now() > deadline)
+      throw new Error(`vite preview for ${outDir} didn't answer at ${url}`);
     await new Promise((r) => setTimeout(r, 250));
   }
 }
@@ -442,7 +471,13 @@ export async function main(argv: readonly string[]): Promise<void> {
     const out = join(work, 'gifs');
     const made: string[] = [];
     if (beforeUrl) {
-      await record(scenario, beforeUrl, options, join(work, 'frames-before'), join(out, files.before));
+      await record(
+        scenario,
+        beforeUrl,
+        options,
+        join(work, 'frames-before'),
+        join(out, files.before),
+      );
       made.push(files.before);
     }
     await record(scenario, afterUrl, options, join(work, 'frames-after'), join(out, files.after));

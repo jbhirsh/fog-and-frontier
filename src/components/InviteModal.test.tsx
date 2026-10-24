@@ -23,9 +23,7 @@ function defaultProps(overrides: Partial<Parameters<typeof InviteModal>[0]> = {}
 describe('InviteModal', () => {
   it('renders the modal with title and email input', () => {
     render(<InviteModal {...defaultProps()} />);
-    expect(
-      screen.getByRole('dialog', { name: 'Invite to this trip' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Invite to this trip' })).toBeInTheDocument();
     expect(screen.getByLabelText('Email address')).toBeInTheDocument();
   });
 
@@ -37,11 +35,7 @@ describe('InviteModal', () => {
   });
 
   it('excludes already-excluded emails from suggestions', async () => {
-    render(
-      <InviteModal
-        {...defaultProps({ excludeEmails: ['alice@example.com'] })}
-      />,
-    );
+    render(<InviteModal {...defaultProps({ excludeEmails: ['alice@example.com'] })} />);
     await userEvent.type(screen.getByLabelText('Email address'), 'ali');
     expect(screen.queryByText('Alice')).not.toBeInTheDocument();
   });
@@ -58,12 +52,8 @@ describe('InviteModal', () => {
     const onCreateInvite = vi.fn().mockResolvedValue({ invite_token: 'tok' });
     render(<InviteModal {...defaultProps({ onCreateInvite })} />);
     await userEvent.type(screen.getByLabelText('Email address'), 'not-an-email');
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Create invite link' }),
-    );
-    expect(
-      screen.getByText('Please enter a valid email address.'),
-    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Create invite link' }));
+    expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
     expect(onCreateInvite).not.toHaveBeenCalled();
   });
 
@@ -72,22 +62,15 @@ describe('InviteModal', () => {
     const buildLink = vi.fn((t: string) => `https://example.com/invite/${t}`);
     render(<InviteModal {...defaultProps({ onCreateInvite, buildLink })} />);
 
-    await userEvent.type(
-      screen.getByLabelText('Email address'),
-      'new@example.com',
-    );
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Create invite link' }),
-    );
+    await userEvent.type(screen.getByLabelText('Email address'), 'new@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Create invite link' }));
 
     await waitFor(() => {
       expect(onCreateInvite).toHaveBeenCalledWith('new@example.com');
     });
 
     // Link-ready state shows the invite link in a readonly input
-    const linkInput = await screen.findByDisplayValue(
-      'https://example.com/invite/tok',
-    );
+    const linkInput = await screen.findByDisplayValue('https://example.com/invite/tok');
     expect(linkInput).toBeInTheDocument();
     expect(linkInput).toHaveAttribute('readonly');
 
@@ -99,19 +82,12 @@ describe('InviteModal', () => {
     const onCreateInvite = vi.fn().mockResolvedValue({ invite_token: 'tok' });
     render(<InviteModal {...defaultProps({ onCreateInvite })} />);
 
-    await userEvent.type(
-      screen.getByLabelText('Email address'),
-      'new@example.com',
-    );
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Create invite link' }),
-    );
+    await userEvent.type(screen.getByLabelText('Email address'), 'new@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Create invite link' }));
 
     await screen.findByDisplayValue('https://example.com/invite/tok');
 
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Invite someone else' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Invite someone else' }));
 
     // Back to input state
     expect(screen.getByLabelText('Email address')).toBeInTheDocument();
@@ -125,18 +101,11 @@ describe('InviteModal', () => {
   });
 
   it('shows an error message when onCreateInvite rejects', async () => {
-    const onCreateInvite = vi
-      .fn()
-      .mockRejectedValue(new Error('Server error'));
+    const onCreateInvite = vi.fn().mockRejectedValue(new Error('Server error'));
     render(<InviteModal {...defaultProps({ onCreateInvite })} />);
 
-    await userEvent.type(
-      screen.getByLabelText('Email address'),
-      'bad@example.com',
-    );
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Create invite link' }),
-    );
+    await userEvent.type(screen.getByLabelText('Email address'), 'bad@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Create invite link' }));
 
     await waitFor(() => {
       expect(screen.getByText('Server error')).toBeInTheDocument();

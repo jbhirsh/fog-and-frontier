@@ -191,10 +191,7 @@ describe('haversineMeters', () => {
   it('measures great-circle distance', () => {
     expect(haversineMeters({ lat: 0, lng: 0 }, { lat: 0, lng: 1 })).toBeCloseTo(111195, -1);
     // San Francisco → Los Angeles, ~559 km.
-    const d = haversineMeters(
-      { lat: 37.7749, lng: -122.4194 },
-      { lat: 34.0522, lng: -118.2437 },
-    );
+    const d = haversineMeters({ lat: 37.7749, lng: -122.4194 }, { lat: 34.0522, lng: -118.2437 });
     expect(d).toBeGreaterThan(558_500);
     expect(d).toBeLessThan(559_700);
     expect(haversineMeters({ lat: 10, lng: 0 }, { lat: northOf(10, 2000), lng: 0 })).toBeCloseTo(
@@ -269,9 +266,7 @@ describe('pickImage', () => {
     expect(pickImage({ ...good, extmetadata: undefined })?.credit).toBe(
       'Photo: via Wikimedia Commons',
     );
-    expect(pickImage({ ...good, extmetadata: {} })?.credit).toBe(
-      'Photo: via Wikimedia Commons',
-    );
+    expect(pickImage({ ...good, extmetadata: {} })?.credit).toBe('Photo: via Wikimedia Commons');
   });
 
   it('accepts png and webp', () => {
@@ -294,13 +289,28 @@ describe('pickImage', () => {
 });
 
 describe('nearbyPageImages', () => {
-  const place: CoverPlace = { name: 'Castle Rock State Park', category: 'hiking', lat: 37.2, lng: -122.1 };
+  const place: CoverPlace = {
+    name: 'Castle Rock State Park',
+    category: 'hiking',
+    lat: 37.2,
+    lng: -122.1,
+  };
   const at = (m: number) => [{ lat: northOf(37.2, m), lon: -122.1 }];
 
   it('keeps name-matching articles within 2 km, in search-rank order', () => {
     const out = nearbyPageImages(place, [
-      { title: 'Castle Rock (Santa Cruz)', index: 2, pageimage: 'Second_rock_view.jpg', coordinates: at(10) },
-      { title: 'Castle Rock State Park (California)', index: 1, pageimage: 'Castle_Rock_SP.jpg', coordinates: at(2000) },
+      {
+        title: 'Castle Rock (Santa Cruz)',
+        index: 2,
+        pageimage: 'Second_rock_view.jpg',
+        coordinates: at(10),
+      },
+      {
+        title: 'Castle Rock State Park (California)',
+        index: 1,
+        pageimage: 'Castle_Rock_SP.jpg',
+        coordinates: at(2000),
+      },
     ]);
     expect(out).toEqual(['File:Castle Rock SP.jpg', 'File:Second rock view.jpg']);
   });
@@ -336,7 +346,12 @@ describe('nearbyPageImages', () => {
         { title: 'Castle Rock', index: 3, pageimage: 'B.jpg' },
         { title: 'Castle Rock', index: 4, pageimage: 'C.jpg', coordinates: [{ lon: -122.1 }] },
         { title: 'Castle Rock', index: 5, pageimage: 'D.jpg', coordinates: [{ lat: 37.2 }] },
-        { title: 'Castle Rock', index: 6, pageimage: 'Castle_Rock_locator_map.png', coordinates: at(0) },
+        {
+          title: 'Castle Rock',
+          index: 6,
+          pageimage: 'Castle_Rock_locator_map.png',
+          coordinates: at(0),
+        },
         { title: 'Castle Rock', index: 7, pageimage: 'Castle_Rock.svg', coordinates: at(0) },
       ]),
     ).toEqual([]);
@@ -407,8 +422,12 @@ afterEach(() => {
 
 describe('namesPlace', () => {
   it('needs two of the name’s words, or its only one', () => {
-    expect(namesPlace('Castle Rock State Park', 'Category:Castle Rock State Park (California)')).toBe(true);
-    expect(namesPlace('Castle Rock State Park', 'Category:Rock formations in California')).toBe(false);
+    expect(
+      namesPlace('Castle Rock State Park', 'Category:Castle Rock State Park (California)'),
+    ).toBe(true);
+    expect(namesPlace('Castle Rock State Park', 'Category:Rock formations in California')).toBe(
+      false,
+    );
     expect(namesPlace('Castle Rock State Park', 'Category:BMW 00 touring Series')).toBe(false);
     expect(namesPlace('Huntington Falls', 'Category:Huntington Falls')).toBe(true);
     expect(namesPlace('Alcatraz', 'Category:Alcatraz Island')).toBe(true);
@@ -426,7 +445,10 @@ describe('placeFilesFirst', () => {
       { title: 'File:A.jpg', categories: [{ title: 'Category:Cars' }] },
       { title: 'File:B.jpg' },
       { title: 'File:C.jpg', categories: [{ title: 'Category:Castle Rock State Park' }] },
-      { title: 'File:D.jpg', categories: [{ title: 7 }, { title: 'Category:Castle Rock State Park (California)' }] },
+      {
+        title: 'File:D.jpg',
+        categories: [{ title: 7 }, { title: 'Category:Castle Rock State Park (California)' }],
+      },
     ];
     expect(placeFilesFirst({ name: 'Castle Rock State Park' }, titles, filed)).toEqual([
       'File:C.jpg',
@@ -499,7 +521,12 @@ describe('findCoverImage', () => {
   // Castle Rock State Park's best-ranked photos were a car shot at the park,
   // titled "Castle Rock" and filed under the car's model.
   it('takes a photo filed under the place over a nearer one only titled like it', async () => {
-    const place: CoverPlace = { name: 'Castle Rock State Park', category: 'hiking', lat: 37.2309, lng: -122.0956 };
+    const place: CoverPlace = {
+      name: 'Castle Rock State Park',
+      category: 'hiking',
+      lat: 37.2309,
+      lng: -122.0956,
+    };
     stubFetch((p) => {
       if (p.get('list') === 'geosearch') {
         return {
@@ -515,8 +542,16 @@ describe('findCoverImage', () => {
       return {
         query: {
           pages: [
-            { title: 'File:Castle Rock (136032939).jpeg', imageinfo: [info('https://u.org/bmw')], categories: [{ title: 'Category:BMW 00 touring Series' }] },
-            { title: 'File:In Castle Rock Park - panoramio.jpg', imageinfo: [info('https://u.org/park')], categories: [{ title: 'Category:Castle Rock State Park (California)' }] },
+            {
+              title: 'File:Castle Rock (136032939).jpeg',
+              imageinfo: [info('https://u.org/bmw')],
+              categories: [{ title: 'Category:BMW 00 touring Series' }],
+            },
+            {
+              title: 'File:In Castle Rock Park - panoramio.jpg',
+              imageinfo: [info('https://u.org/park')],
+              categories: [{ title: 'Category:Castle Rock State Park (California)' }],
+            },
           ],
         },
       };

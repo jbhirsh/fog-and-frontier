@@ -142,9 +142,7 @@ describe('evaluate', () => {
   });
 
   const env = {
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
-    ),
+    ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))),
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_AUTHOR_NAME: 't',
@@ -299,14 +297,23 @@ describe('evaluate', () => {
 
   it('grades when the PR’s history or its earlier runs can’t be read', async () => {
     const { cwd, git, commit, lines } = repo();
-    const unreadable = { grade: true, reason: 'the PR or its earlier runs could not be read, so it is graded' };
+    const unreadable = {
+      grade: true,
+      reason: 'the PR or its earlier runs could not be read, so it is graded',
+    };
     expect(await run(cwd, { ACTION: 'opened', AFTER: 'f'.repeat(40) })).toEqual(unreadable);
     git('checkout', '-q', '-b', 'pr');
     const head = commit('ai', { 'api/ai.ts': lines.replace('c\n', 'C\n') });
     const offline = async () => {
       throw new Error('runs: HTTP 403');
     };
-    const ctx = { GITHUB_EVENT_NAME: 'pull_request', DRAFT: 'false', BASE_REF: 'main', ACTION: 'synchronize', AFTER: head };
+    const ctx = {
+      GITHUB_EVENT_NAME: 'pull_request',
+      DRAFT: 'false',
+      BASE_REF: 'main',
+      ACTION: 'synchronize',
+      AFTER: head,
+    };
     expect(await evaluate(ctx, AI, cwd, offline)).toEqual(unreadable);
   });
 

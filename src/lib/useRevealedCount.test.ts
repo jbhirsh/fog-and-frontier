@@ -100,10 +100,9 @@ describe('useWhenVisible', () => {
   // does when the element mounts.
   function mount(onVisible: () => void, watchKey = 'k', margin?: number) {
     const el = document.createElement('div');
-    const view = renderHook(
-      ({ cb, key }) => useWhenVisible<HTMLDivElement>(cb, key, margin),
-      { initialProps: { cb: onVisible, key: watchKey } },
-    );
+    const view = renderHook(({ cb, key }) => useWhenVisible<HTMLDivElement>(cb, key, margin), {
+      initialProps: { cb: onVisible, key: watchKey },
+    });
     act(() => view.result.current(el));
     return { ...view, el };
   }

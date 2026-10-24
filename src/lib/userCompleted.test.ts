@@ -102,9 +102,7 @@ describe('userCompleted', () => {
 
   it('override beats baseline in either direction', () => {
     expect(isEffectivelyCompleted(muirWoods, { [muirWoods.id]: true })).toBe(true);
-    expect(
-      isEffectivelyCompleted(completedHike, { [completedHike.id]: false }),
-    ).toBe(false);
+    expect(isEffectivelyCompleted(completedHike, { [completedHike.id]: false })).toBe(false);
   });
 
   it('toggle on a non-completed activity optimistically completes it and persists value:true', async () => {
@@ -114,9 +112,7 @@ describe('userCompleted', () => {
     act(() => result.current.toggle());
 
     await waitFor(() => expect(result.current.completed).toBe(true));
-    await waitFor(() =>
-      expect(calls).toContainEqual({ id: muirWoods.id, value: true }),
-    );
+    await waitFor(() => expect(calls).toContainEqual({ id: muirWoods.id, value: true }));
   });
 
   it('toggle back to baseline clears the override (persists value:null)', async () => {
@@ -127,9 +123,7 @@ describe('userCompleted', () => {
     act(() => result.current.toggle());
     await waitFor(() => expect(result.current.completed).toBe(false));
 
-    await waitFor(() =>
-      expect(calls).toContainEqual({ id: muirWoods.id, value: null }),
-    );
+    await waitFor(() => expect(calls).toContainEqual({ id: muirWoods.id, value: null }));
   });
 
   it('can unmark a baseline-completed activity (persists value:false)', async () => {
@@ -139,9 +133,7 @@ describe('userCompleted', () => {
     act(() => result.current.toggle());
 
     await waitFor(() => expect(result.current.completed).toBe(false));
-    await waitFor(() =>
-      expect(calls).toContainEqual({ id: completedHike.id, value: false }),
-    );
+    await waitFor(() => expect(calls).toContainEqual({ id: completedHike.id, value: false }));
   });
   it('shows the toggle before the server answers (optimistic)', async () => {
     let release: () => void = () => {};
@@ -350,9 +342,11 @@ describe('userCompleted', () => {
         },
       });
       applyCompletionMirror(['new'], ['flip']);
-      expect(
-        Object.fromEntries((cachedList() ?? []).map((e) => [e.id, e.completed])),
-      ).toEqual({ keep: true, flip: false, new: true });
+      expect(Object.fromEntries((cachedList() ?? []).map((e) => [e.id, e.completed]))).toEqual({
+        keep: true,
+        flip: false,
+        new: true,
+      });
     });
 
     it('writes no partial list when nothing is cached yet', () => {

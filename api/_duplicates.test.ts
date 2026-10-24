@@ -73,29 +73,36 @@ describe('findDuplicates (#17)', () => {
   });
 
   it('rates the same name farther away as possible, at any distance', () => {
-    expect(findDuplicates({ name: 'Castle Rock', ...north(501) }, [place('cr', 'Castle Rock')])[0]
-      .confidence).toBe('possible');
-    expect(findDuplicates({ name: 'Castle Rock', lat: 45, lng: -122 }, [place('cr', 'Castle Rock')])[0]
-      .confidence).toBe('possible');
+    expect(
+      findDuplicates({ name: 'Castle Rock', ...north(501) }, [place('cr', 'Castle Rock')])[0]
+        .confidence,
+    ).toBe('possible');
+    expect(
+      findDuplicates({ name: 'Castle Rock', lat: 45, lng: -122 }, [place('cr', 'Castle Rock')])[0]
+        .confidence,
+    ).toBe('possible');
   });
 
   it('rates 60% shared words within 2 km as possible, and not beyond', () => {
     const catalog = [place('cr', 'Castle Rock State Park')];
-    expect(findDuplicates({ name: 'Castle Rock Park', ...north(1999) }, catalog)[0].confidence).toBe(
-      'possible',
-    );
+    expect(
+      findDuplicates({ name: 'Castle Rock Park', ...north(1999) }, catalog)[0].confidence,
+    ).toBe('possible');
     expect(findDuplicates({ name: 'Castle Rock Park', ...north(2001) }, catalog)).toEqual([]);
     // Exactly 60%: three of five words.
     expect(
-      findDuplicates({ name: 'Castle Rock Lake', ...CASTLE }, [place('v', 'Castle Rock Lake View Peak')])[0]
-        .confidence,
+      findDuplicates({ name: 'Castle Rock Lake', ...CASTLE }, [
+        place('v', 'Castle Rock Lake View Peak'),
+      ])[0].confidence,
     ).toBe('possible');
     // Under 60%: "castle rock falls trail" shares 2 of 6 words.
     expect(findDuplicates({ name: 'Castle Rock Falls Trail', ...CASTLE }, catalog)).toEqual([]);
   });
 
   it('finds nothing for a different place nearby', () => {
-    expect(findDuplicates({ name: 'Big Basin', ...CASTLE }, [place('cr', 'Castle Rock')])).toEqual([]);
+    expect(findDuplicates({ name: 'Big Basin', ...CASTLE }, [place('cr', 'Castle Rock')])).toEqual(
+      [],
+    );
   });
 
   it('never matches an empty name to another empty name', () => {

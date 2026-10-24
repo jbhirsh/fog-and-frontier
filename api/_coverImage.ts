@@ -42,8 +42,7 @@ const WIKIPEDIA_API = 'https://en.wikipedia.org/w/api.php';
 // and a contact URL (https://meta.wikimedia.org/wiki/User-Agent_policy).
 // Api-User-Agent is the header their docs give for clients that can't set
 // User-Agent; we send both.
-export const USER_AGENT =
-  'FogAndFrontier/1.0 (https://github.com/jbhirsh/fog-and-frontier)';
+export const USER_AGENT = 'FogAndFrontier/1.0 (https://github.com/jbhirsh/fog-and-frontier)';
 export const WIKIMEDIA_HEADERS = {
   'User-Agent': USER_AGENT,
   'Api-User-Agent': USER_AGENT,
@@ -98,18 +97,55 @@ const RASTER_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 
 // Title words that mark a file as something other than a photo of the place.
 const UNWANTED_WORDS = new Set([
-  'map', 'maps', 'logo', 'logos', 'icon', 'icons', 'diagram', 'svg',
-  'signature', 'flag', 'locator', 'chart', 'emblem',
+  'map',
+  'maps',
+  'logo',
+  'logos',
+  'icon',
+  'icons',
+  'diagram',
+  'svg',
+  'signature',
+  'flag',
+  'locator',
+  'chart',
+  'emblem',
 ]);
 const UNWANTED_PHRASES = ['coat of arms', 'floor plan'];
 
 // Words that carry no identity: matching "park" or "state" alone says nothing
 // about whether a photo shows *this* park.
 const GENERIC_WORDS = new Set([
-  'a', 'an', 'and', 'at', 'by', 'de', 'del', 'for', 'in', 'of', 'on', 'or',
-  'the', 'to', 'area', 'county', 'hike', 'hiking', 'loop', 'national', 'open',
-  'park', 'preserve', 'regional', 'reserve', 'space', 'state', 'trail',
-  'trails', 'walk',
+  'a',
+  'an',
+  'and',
+  'at',
+  'by',
+  'de',
+  'del',
+  'for',
+  'in',
+  'of',
+  'on',
+  'or',
+  'the',
+  'to',
+  'area',
+  'county',
+  'hike',
+  'hiking',
+  'loop',
+  'national',
+  'open',
+  'park',
+  'preserve',
+  'regional',
+  'reserve',
+  'space',
+  'state',
+  'trail',
+  'trails',
+  'walk',
 ]);
 
 // --- pure helpers ----------------------------------------------------------
@@ -186,9 +222,9 @@ export function isUnwantedTitle(title: string): boolean {
   );
 }
 
-const OUTDOOR = new Set(Object.keys(RADIUS_BY_CATEGORY).filter(
-  (c) => RADIUS_BY_CATEGORY[c] === OUTDOOR_RADIUS_M,
-));
+const OUTDOOR = new Set(
+  Object.keys(RADIUS_BY_CATEGORY).filter((c) => RADIUS_BY_CATEGORY[c] === OUTDOOR_RADIUS_M),
+);
 
 // Filter and order Commons geosearch hits, best first. Score = name match
 // (0–1, weighted ×2 so any real match beats a merely close photo) plus
@@ -218,13 +254,18 @@ export function haversineMeters(
   const dLat = rad(b.lat - a.lat);
   const dLng = rad(b.lng - a.lng);
   const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
 const ENTITIES: Record<string, string> = {
-  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', '#39': "'",
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  '#39': "'",
 };
 
 // extmetadata values are HTML ("<a href=…>Jane Doe</a>"); keep the text.
@@ -244,8 +285,7 @@ const MAX_ARTIST_CHARS = 80;
 export function formatCredit(artist: unknown, license: unknown): string {
   const who = typeof artist === 'string' ? stripHtml(artist) : '';
   const lic = typeof license === 'string' ? stripHtml(license) : '';
-  const author =
-    who.length > MAX_ARTIST_CHARS ? `${who.slice(0, MAX_ARTIST_CHARS - 1)}…` : who;
+  const author = who.length > MAX_ARTIST_CHARS ? `${who.slice(0, MAX_ARTIST_CHARS - 1)}…` : who;
   const parts = [author, lic, 'via Wikimedia Commons'].filter(Boolean);
   return `Photo: ${parts.join(', ')}`;
 }
@@ -298,10 +338,7 @@ async function getJson(
 
 type QueryResponse<T> = { query?: T };
 
-async function commonsGeosearch(
-  place: CoverPlace,
-  signal: AbortSignal,
-): Promise<GeoCandidate[]> {
+async function commonsGeosearch(place: CoverPlace, signal: AbortSignal): Promise<GeoCandidate[]> {
   const data = (await getJson(
     COMMONS_API,
     {
@@ -325,10 +362,16 @@ type CommonsPage = { title?: unknown; imageinfo?: ImageInfo[]; categories?: { ti
 
 // The titles, those filed under a category naming the place first, each
 // group in the order given.
-export function placeFilesFirst(place: Pick<CoverPlace, 'name'>, titles: string[], pages: CommonsPage[]): string[] {
+export function placeFilesFirst(
+  place: Pick<CoverPlace, 'name'>,
+  titles: string[],
+  pages: CommonsPage[],
+): string[] {
   const named = new Set(
     pages.flatMap((p) =>
-      (p.categories ?? []).some((c) => typeof c.title === 'string' && namesPlace(place.name, c.title))
+      (p.categories ?? []).some(
+        (c) => typeof c.title === 'string' && namesPlace(place.name, c.title),
+      )
         ? [p.title]
         : [],
     ),
@@ -361,7 +404,9 @@ async function firstUsableImage(
     signal,
   )) as QueryResponse<{ pages?: CommonsPage[] }>;
   const pages = data.query?.pages ?? [];
-  const byTitle = new Map<unknown, ImageInfo | undefined>(pages.map((p) => [p.title, p.imageinfo?.[0]]));
+  const byTitle = new Map<unknown, ImageInfo | undefined>(
+    pages.map((p) => [p.title, p.imageinfo?.[0]]),
+  );
   for (const title of place ? placeFilesFirst(place, titles, pages) : titles) {
     const image = pickImage(byTitle.get(title));
     if (image) return image;
@@ -428,10 +473,7 @@ export async function findCoverImage(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const ranked = rankCommonsCandidates(
-      place,
-      await commonsGeosearch(place, controller.signal),
-    );
+    const ranked = rankCommonsCandidates(place, await commonsGeosearch(place, controller.signal));
     const titles = ranked.slice(0, MAX_CANDIDATES).map((c) => c.title);
     return (
       (await firstUsableImage(titles, controller.signal, place)) ??

@@ -52,9 +52,7 @@ export function gqlError(
   appCode?: AppCode,
 ): GraphQLError {
   return new GraphQLError(message, {
-    extensions: appCode
-      ? { code: category, appCode }
-      : { code: category },
+    extensions: appCode ? { code: category, appCode } : { code: category },
   });
 }
 
@@ -64,10 +62,7 @@ export function unauthenticated(message = 'unauthorized'): GraphQLError {
 }
 
 // 403 — authenticated but not permitted (non-owner, non-creator, not the adder).
-export function forbidden(
-  message = 'forbidden',
-  appCode?: AppCode,
-): GraphQLError {
+export function forbidden(message = 'forbidden', appCode?: AppCode): GraphQLError {
   return gqlError(message, 'FORBIDDEN', appCode);
 }
 

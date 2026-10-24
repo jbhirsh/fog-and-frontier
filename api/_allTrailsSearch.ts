@@ -83,7 +83,9 @@ export function trailPage(value: unknown): string | null {
 export async function findAllTrailsUrl(hike: DraftedHike, ask: AskGemini): Promise<string | null> {
   try {
     // No answer, or one that isn't an object, throws here too.
-    const answer = JSON.parse((await ask(trailQuestion(hike))) as string) as { allTrailsUrl?: unknown };
+    const answer = JSON.parse((await ask(trailQuestion(hike))) as string) as {
+      allTrailsUrl?: unknown;
+    };
     return trailPage(answer.allTrailsUrl);
   } catch {
     return null;

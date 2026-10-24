@@ -84,7 +84,12 @@ describe('extractText', () => {
       candidates: [
         {
           content: {
-            parts: [{ text: 'thinking…', thought: true }, { text: '{"pass":' }, {}, { text: 'true}' }],
+            parts: [
+              { text: 'thinking…', thought: true },
+              { text: '{"pass":' },
+              {},
+              { text: 'true}' },
+            ],
           },
         },
       ],

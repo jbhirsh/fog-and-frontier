@@ -1,12 +1,7 @@
 import { db } from '../_db.js';
 import { badInput, conflict } from '../_gqlError.js';
 import { findDuplicates, freeId, type CatalogPlace } from '../_duplicates.js';
-import {
-  COST_TIERS,
-  dateToIso,
-  mapCatalogActivity,
-  parseCatalogActivity,
-} from '../_gqlMap.js';
+import { COST_TIERS, dateToIso, mapCatalogActivity, parseCatalogActivity } from '../_gqlMap.js';
 import { isSavableUrl } from '../_links.js';
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
@@ -109,9 +104,7 @@ const MAX_CONTRIBUTORS = 10;
 function storedContributors(j: unknown): string[] {
   try {
     const list = (JSON.parse(String(j)) as { contributors?: unknown }).contributors;
-    return Array.isArray(list)
-      ? list.filter((e): e is string => typeof e === 'string')
-      : [];
+    return Array.isArray(list) ? list.filter((e): e is string => typeof e === 'string') : [];
   } catch {
     return [];
   }
@@ -135,9 +128,7 @@ async function resolveContributors(
     if (!row) return [callerEmail];
     return stored.length > 0 ? stored : undefined;
   }
-  const emails = [...new Set(given.map((e) => e.trim().toLowerCase()))].filter(
-    (e) => e !== '',
-  );
+  const emails = [...new Set(given.map((e) => e.trim().toLowerCase()))].filter((e) => e !== '');
   if (emails.length === 0) throw badInput('contributors must name at least one person');
   if (emails.length > MAX_CONTRIBUTORS) {
     throw badInput(`at most ${MAX_CONTRIBUTORS} contributors`);
@@ -170,10 +161,7 @@ export async function catalogPlaces(): Promise<CatalogPlace[]> {
 
 // Public, like the catalog it reads: it says only which saved activities
 // look like the given name and pin.
-async function checkDuplicate(
-  _parent: unknown,
-  args: { name: string; lat: number; lng: number },
-) {
+async function checkDuplicate(_parent: unknown, args: { name: string; lat: number; lng: number }) {
   if (args.name.length > 200) throw badInput('name too long');
   return findDuplicates(args, await catalogPlaces());
 }
@@ -233,7 +221,11 @@ async function saveActivity(
     // backstop. Then it takes a free id: a slug can be taken by a place
     // whose name no longer matches, and saving there would replace it.
     if (!input.allowDuplicate) await refuseDuplicate(input.activity);
-    const contributors = await resolveContributors(undefined, input.activity.contributors, caller.email);
+    const contributors = await resolveContributors(
+      undefined,
+      input.activity.contributors,
+      caller.email,
+    );
     // The free-id check and the write aren't one step, so two creates of the
     // same name at once could both find the same id free. The insert never
     // replaces a row: if another create got there first, take the next id.

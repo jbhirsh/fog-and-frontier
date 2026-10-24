@@ -44,8 +44,7 @@ export function readActivityState(state: unknown): ActivityRouteState | null {
   ) {
     return null;
   }
-  const ids =
-    Array.isArray(list) && list.every((id) => typeof id === 'string') ? { list } : {};
+  const ids = Array.isArray(list) && list.every((id) => typeof id === 'string') ? { list } : {};
   return { backgroundLocation, depth, cold: cold === true, ...ids };
 }
 

@@ -32,7 +32,9 @@ describe('ContributorsField (#9)', () => {
   it('pads a lone chip evenly, and keeps room for the remove button when there are more', () => {
     // A lone chip has no remove button, so it pads both sides alike; with one,
     // the button's own box supplies the room on the right.
-    const { rerender } = render(<ContributorsField value={[TARUN]} users={[]} onChange={() => {}} />);
+    const { rerender } = render(
+      <ContributorsField value={[TARUN]} users={[]} onChange={() => {}} />,
+    );
     const chip = () => screen.getByText('Tarun', { selector: 'span' });
     expect(chip()).toHaveClass('pl-sm', 'pr-sm');
     expect(chip()).not.toHaveClass('pr-xs');

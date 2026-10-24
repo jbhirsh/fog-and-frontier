@@ -9,19 +9,58 @@
 // separate embedded all-nullable type (resolver null-coerces a nonconforming snapshot).
 
 export const typeDefs = /* GraphQL */ `
-  scalar DateTimeISO   # ISO-8601 datetime string; DB epoch-ms -> ISO
-  scalar Date          # 'YYYY-MM-DD'
-  scalar LocalTime     # 'HH:MM' 24h, no tz
+  scalar DateTimeISO # ISO-8601 datetime string; DB epoch-ms -> ISO
+  scalar Date # 'YYYY-MM-DD'
+  scalar LocalTime # 'HH:MM' 24h, no tz
+  enum Category {
+    hiking
+    cycling
+    water
+    food
+    culture
+    scenic
+    climbing
+    camping
+    other
+  }
+  enum Difficulty {
+    easy
+    moderate
+    advanced
+  }
+  enum ParkType {
+    national
+    state
+    regional
+    county
+    city
+    private
+    none
+  }
+  enum TripStatus {
+    voting
+    planning
+    past
+  }
+  enum UserRole {
+    owner
+    editor
+  }
+  enum DiscoverRange {
+    today
+    tomorrow
+    week
+    weekend
+  }
 
-  enum Category { hiking cycling water food culture scenic climbing camping other }
-  enum Difficulty { easy moderate advanced }
-  enum ParkType { national state regional county city private none }
-  enum TripStatus { voting planning past }
-  enum UserRole { owner editor }
-  enum DiscoverRange { today tomorrow week weekend }
-
-  type Coords { lat: Float!  lng: Float! }
-  type Location { city: String!  coords: Coords! }
+  type Coords {
+    lat: Float!
+    lng: Float!
+  }
+  type Location {
+    city: String!
+    coords: Coords!
+  }
 
   "Catalog activity — strict non-null; normalized by id."
   type Activity {
@@ -101,7 +140,10 @@ export const typeDefs = /* GraphQL */ `
     contributors: [String!]
   }
 
-  type CompletedEntry { id: ID!  completed: Boolean! }
+  type CompletedEntry {
+    id: ID!
+    completed: Boolean!
+  }
 
   "An owner's review of an activity (#184). One per owner per activity; rating and note are each optional but a review must carry at least one of them."
   type ActivityReview {
@@ -187,10 +229,16 @@ export const typeDefs = /* GraphQL */ `
     value: Int!
   }
 
-  type User { email: String!  displayName: String }
+  type User {
+    email: String!
+    displayName: String
+  }
 
   "Road miles from a point to one catalog activity (#66)."
-  type DrivingDistance { id: ID!  miles: Float! }
+  type DrivingDistance {
+    id: ID!
+    miles: Float!
+  }
 
   type DiscoverResult {
     range: DiscoverRange!
@@ -207,7 +255,10 @@ export const typeDefs = /* GraphQL */ `
     blurb: String
     sourceUrl: String
   }
-  type DiscoverSource { uri: String  title: String }
+  type DiscoverSource {
+    uri: String
+    title: String
+  }
 
   type AllTrailsLookup {
     allTrailsRating: Float
@@ -246,8 +297,14 @@ export const typeDefs = /* GraphQL */ `
     coverCredit: String
   }
 
-  input CoordsInput { lat: Float!  lng: Float! }
-  input LocationInput { city: String!  coords: CoordsInput! }
+  input CoordsInput {
+    lat: Float!
+    lng: Float!
+  }
+  input LocationInput {
+    city: String!
+    coords: CoordsInput!
+  }
   input ActivityInput {
     name: String!
     shortDescription: String!
@@ -285,17 +342,31 @@ export const typeDefs = /* GraphQL */ `
     contributors: [String!]
   }
   "allowDuplicate: suggest it even when it looks like one already saved (#17)."
-  input SuggestActivityInput { activity: ActivityInput!  allowDuplicate: Boolean }
+  input SuggestActivityInput {
+    activity: ActivityInput!
+    allowDuplicate: Boolean
+  }
   "prompt: what the trip is for, 1–2000 characters. excludeActivityIds: up to 50 already chosen."
-  input SuggestTripActivitiesInput { prompt: String!  excludeActivityIds: [ID!] }
+  input SuggestTripActivitiesInput {
+    prompt: String!
+    excludeActivityIds: [ID!]
+  }
   """
   create: a new activity (#17). It's matched against the catalog for duplicates, and saved under
   the first free id from \`id\` (\`id-2\`, \`id-3\`, …), never over another; the payload has the id used.
   Without it the save is an edit that upserts \`id\`. allowDuplicate: create even when it looks saved.
   """
-  input SaveActivityInput { id: ID!  activity: ActivityInput!  create: Boolean  allowDuplicate: Boolean }
+  input SaveActivityInput {
+    id: ID!
+    activity: ActivityInput!
+    create: Boolean
+    allowDuplicate: Boolean
+  }
 
-  enum DuplicateConfidence { high possible }
+  enum DuplicateConfidence {
+    high
+    possible
+  }
   "A saved activity that looks like the one being added (#17)."
   type DuplicateMatch {
     id: ID!
@@ -306,7 +377,14 @@ export const typeDefs = /* GraphQL */ `
   }
 
   "Where in a shared post a place was found (#6): its caption, text on screen, speech in the video, its geotag, its picture, or the user's hint."
-  enum SharedPlaceSource { caption on_screen spoken geotag picture hint }
+  enum SharedPlaceSource {
+    caption
+    on_screen
+    spoken
+    geotag
+    picture
+    hint
+  }
   type SharedPlace {
     name: String!
     city: String!
@@ -327,18 +405,49 @@ export const typeDefs = /* GraphQL */ `
     isVideo: Boolean
   }
   "What could be read of the post, for the page to say what it couldn't see."
-  type SharedRead { caption: Boolean!  video: Boolean!  geotag: Boolean! }
-  type SharedPlacesPayload { post: SharedPost!  places: [SharedPlace!]!  read: SharedRead! }
+  type SharedRead {
+    caption: Boolean!
+    video: Boolean!
+    geotag: Boolean!
+  }
+  type SharedPlacesPayload {
+    post: SharedPost!
+    places: [SharedPlace!]!
+    read: SharedRead!
+  }
   "Author is always the authenticated caller — never taken from input (#184)."
-  input SaveActivityReviewInput { activityId: ID!  rating: Int  note: String }
-  input DeleteActivityReviewInput { activityId: ID! }
-  input PhotoUploadInput { activityId: ID! }
-  input AddActivityPhotoInput { activityId: ID!  pathname: String! }
-  input RemoveActivityPhotoInput { id: ID! }
-  input DeleteActivityInput { id: ID! }
-  input SetCompletedInput { id: ID!  value: Boolean }
-  input GenerateActivityInput { title: String!  notes: String }
-  input AlltrailsLookupInput { url: String! }
+  input SaveActivityReviewInput {
+    activityId: ID!
+    rating: Int
+    note: String
+  }
+  input DeleteActivityReviewInput {
+    activityId: ID!
+  }
+  input PhotoUploadInput {
+    activityId: ID!
+  }
+  input AddActivityPhotoInput {
+    activityId: ID!
+    pathname: String!
+  }
+  input RemoveActivityPhotoInput {
+    id: ID!
+  }
+  input DeleteActivityInput {
+    id: ID!
+  }
+  input SetCompletedInput {
+    id: ID!
+    value: Boolean
+  }
+  input GenerateActivityInput {
+    title: String!
+    notes: String
+  }
+  input AlltrailsLookupInput {
+    url: String!
+  }
   input CreateTripInput {
     title: String!
     startDate: Date!
@@ -355,34 +464,88 @@ export const typeDefs = /* GraphQL */ `
     endDate: Date
     coverImageUrl: String
   }
-  input PatchTripInput { id: ID!  patch: PatchTripFieldsInput! }
-  input DeleteTripInput { id: ID! }
-  input AddTripActivityInput { tripId: ID!  activityId: ID! }
-  input AssignSlotInput { taId: ID!  dayIndex: Int  startTime: LocalTime  displayOrder: Int }
-  input SetDisplayOrderInput { taId: ID!  displayOrder: Int! }
-  input RemoveTripActivityInput { taId: ID! }
-  input CastVoteInput { tripId: ID!  tripActivityId: ID!  value: Int! }
+  input PatchTripInput {
+    id: ID!
+    patch: PatchTripFieldsInput!
+  }
+  input DeleteTripInput {
+    id: ID!
+  }
+  input AddTripActivityInput {
+    tripId: ID!
+    activityId: ID!
+  }
+  input AssignSlotInput {
+    taId: ID!
+    dayIndex: Int
+    startTime: LocalTime
+    displayOrder: Int
+  }
+  input SetDisplayOrderInput {
+    taId: ID!
+    displayOrder: Int!
+  }
+  input RemoveTripActivityInput {
+    taId: ID!
+  }
+  input CastVoteInput {
+    tripId: ID!
+    tripActivityId: ID!
+    value: Int!
+  }
   input TransitionTripInput {
     id: ID!
     to: TripStatus!
     keptActivityIds: [ID!]
     completedActivityIds: [ID!]
   }
-  input InviteMemberInput { tripId: ID!  email: String! }
-  input RemoveMemberInput { tripId: ID!  email: String! }
-  input RevokeInviteInput { tripId: ID!  token: String! }
-  input ClaimInviteInput { inviteToken: String! }
+  input InviteMemberInput {
+    tripId: ID!
+    email: String!
+  }
+  input RemoveMemberInput {
+    tripId: ID!
+    email: String!
+  }
+  input RevokeInviteInput {
+    tripId: ID!
+    token: String!
+  }
+  input ClaimInviteInput {
+    inviteToken: String!
+  }
 
-  type SaveActivityPayload { activity: Activity! }
-  type DeleteActivityPayload { deletedId: ID! }
-  type SetCompletedPayload { id: ID!  completed: Boolean }
-  type SaveActivityReviewPayload { review: ActivityReview! }
-  type DeleteActivityReviewPayload { activityId: ID!  authorEmail: String! }
+  type SaveActivityPayload {
+    activity: Activity!
+  }
+  type DeleteActivityPayload {
+    deletedId: ID!
+  }
+  type SetCompletedPayload {
+    id: ID!
+    completed: Boolean
+  }
+  type SaveActivityReviewPayload {
+    review: ActivityReview!
+  }
+  type DeleteActivityReviewPayload {
+    activityId: ID!
+    authorEmail: String!
+  }
   "Where to upload one photo, and a short-lived client token that can write only there."
-  type PhotoUploadPayload { pathname: String!  clientToken: String! }
-  type AddActivityPhotoPayload { photo: ActivityPhoto! }
-  type RemoveActivityPhotoPayload { removedId: ID! }
-  type GenerateActivityPayload { activity: GeneratedActivity! }
+  type PhotoUploadPayload {
+    pathname: String!
+    clientToken: String!
+  }
+  type AddActivityPhotoPayload {
+    photo: ActivityPhoto!
+  }
+  type RemoveActivityPhotoPayload {
+    removedId: ID!
+  }
+  type GenerateActivityPayload {
+    activity: GeneratedActivity!
+  }
   "An activity a signed-in account suggested (#73), waiting for an owner."
   type ActivitySuggestion {
     id: ID!
@@ -391,22 +554,54 @@ export const typeDefs = /* GraphQL */ `
     suggestedAt: DateTimeISO!
     activity: Activity!
   }
-  type SuggestActivityPayload { suggestion: SuggestionRef! }
-  type SuggestionRef { id: ID! }
-  type AcceptSuggestionPayload { activity: Activity! }
-  type RejectSuggestionPayload { id: ID! }
+  type SuggestActivityPayload {
+    suggestion: SuggestionRef!
+  }
+  type SuggestionRef {
+    id: ID!
+  }
+  type AcceptSuggestionPayload {
+    activity: Activity!
+  }
+  type RejectSuggestionPayload {
+    id: ID!
+  }
   "An activity Gemini picked from the catalog for a new trip (#78), with why."
-  type TripSuggestion { activityId: ID!  reason: String!  activity: Activity! }
-  type SuggestTripActivitiesPayload { suggestions: [TripSuggestion!]! }
-  type AlltrailsLookupPayload { lookup: AllTrailsLookup! }
-  type CreateTripPayload { trip: Trip! }
-  type PatchTripPayload { trip: Trip! }
-  type DeleteTripPayload { deletedId: ID! }
-  type AddTripActivityPayload { tripActivity: TripActivity! }
-  type AssignSlotPayload { tripActivity: TripActivity! }
-  type SetDisplayOrderPayload { tripActivity: TripActivity! }
-  type RemoveTripActivityPayload { deletedId: ID! }
-  type CastVotePayload { vote: TripVote }
+  type TripSuggestion {
+    activityId: ID!
+    reason: String!
+    activity: Activity!
+  }
+  type SuggestTripActivitiesPayload {
+    suggestions: [TripSuggestion!]!
+  }
+  type AlltrailsLookupPayload {
+    lookup: AllTrailsLookup!
+  }
+  type CreateTripPayload {
+    trip: Trip!
+  }
+  type PatchTripPayload {
+    trip: Trip!
+  }
+  type DeleteTripPayload {
+    deletedId: ID!
+  }
+  type AddTripActivityPayload {
+    tripActivity: TripActivity!
+  }
+  type AssignSlotPayload {
+    tripActivity: TripActivity!
+  }
+  type SetDisplayOrderPayload {
+    tripActivity: TripActivity!
+  }
+  type RemoveTripActivityPayload {
+    deletedId: ID!
+  }
+  type CastVotePayload {
+    vote: TripVote
+  }
   type TripTransitionPayload {
     ok: Boolean!
     status: TripStatus
@@ -415,10 +610,18 @@ export const typeDefs = /* GraphQL */ `
     completedActivityIds: [ID!]
     uncompletedActivityIds: [ID!]
   }
-  type InviteMemberPayload { invite: TripInvite! }
-  type RemoveMemberPayload { removedEmail: String! }
-  type RevokeInvitePayload { revokedToken: String! }
-  type ClaimInvitePayload { tripId: ID }
+  type InviteMemberPayload {
+    invite: TripInvite!
+  }
+  type RemoveMemberPayload {
+    removedEmail: String!
+  }
+  type RevokeInvitePayload {
+    revokedToken: String!
+  }
+  type ClaimInvitePayload {
+    tripId: ID
+  }
 
   type Query {
     activities: [Activity!]!

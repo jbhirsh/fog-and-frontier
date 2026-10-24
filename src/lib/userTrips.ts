@@ -173,10 +173,7 @@ export function useTripsList() {
     fetchPolicy: 'cache-and-network',
     skip: !isLoaded,
   });
-  const trips = useMemo(
-    () => (data?.trips ?? []).map(rowToTripListItem),
-    [data],
-  );
+  const trips = useMemo(() => (data?.trips ?? []).map(rowToTripListItem), [data]);
   const reload = useCallback(async () => {
     await refetch();
   }, [refetch]);
@@ -196,10 +193,7 @@ export function useTrip(id: string | undefined) {
     skip: !id || !isLoaded,
     fetchPolicy: 'cache-and-network',
   });
-  const trip = useMemo(
-    () => (data?.trip ? rowToTrip(data.trip) : null),
-    [data],
-  );
+  const trip = useMemo(() => (data?.trip ? rowToTrip(data.trip) : null), [data]);
   // `trip(id)` returns null (not an error) for missing/non-member trips; an
   // anon caller gets UNAUTHENTICATED. Map both into the load-error channel.
   const loadError: TripLoadError | null = error
@@ -234,9 +228,7 @@ export type CreateTripInput = {
 
 // Returns the new trip's id (the list query is a different type — TripListItem —
 // so we refetch `trips` rather than relying on cache merge).
-export async function createTrip(
-  body: CreateTripInput,
-): Promise<{ id: string }> {
+export async function createTrip(body: CreateTripInput): Promise<{ id: string }> {
   const { data } = await apolloClient.mutate({
     mutation: CREATE_TRIP,
     variables: {
@@ -266,10 +258,7 @@ export type PatchTripInput = {
   cover_image_url?: string | null;
 };
 
-export async function patchTrip(
-  id: string,
-  body: PatchTripInput,
-): Promise<void> {
+export async function patchTrip(id: string, body: PatchTripInput): Promise<void> {
   // Build the patch with only the keys actually present so a displayOrder-only
   // or cover-only edit doesn't trip status guards (absent vs null matters).
   const patch: {
@@ -347,10 +336,7 @@ export async function removeTripActivity(taId: string): Promise<void> {
 // display_order-only update for drag-reordering candidate cards during voting.
 // Sends NO day_index/start_time, so it isn't blocked by the voting-phase slot
 // lock (#51 c8).
-export async function setDisplayOrder(
-  taId: string,
-  displayOrder: number,
-): Promise<void> {
+export async function setDisplayOrder(taId: string, displayOrder: number): Promise<void> {
   await apolloClient.mutate({
     mutation: SET_DISPLAY_ORDER,
     variables: { input: { taId, displayOrder } },
@@ -376,9 +362,7 @@ export async function markTripPast(
   // (and the "Completed only" filter) update without a hard refresh.
   applyCompletionMirror(completed, uncompleted);
   return {
-    marked_past_at: result?.markedPastAt
-      ? Date.parse(result.markedPastAt)
-      : Date.now(),
+    marked_past_at: result?.markedPastAt ? Date.parse(result.markedPastAt) : Date.now(),
     completed_activity_ids: completed,
     uncompleted_activity_ids: uncompleted,
   };
@@ -400,29 +384,19 @@ export async function castVote(
     variables: { input: { tripId, tripActivityId, value } },
     optimisticResponse: {
       castVote: {
-        vote:
-          value === 0
-            ? null
-            : { __typename: 'TripVote', tripActivityId, memberEmail, value },
+        vote: value === 0 ? null : { __typename: 'TripVote', tripActivityId, memberEmail, value },
       },
     },
     update(cache, { data }) {
       const newVote = data?.castVote.vote ?? null;
-      cache.updateQuery(
-        { query: TRIP_QUERY, variables: { id: tripId } },
-        (prev) => {
-          if (!prev?.trip) return prev;
-          const others = prev.trip.votes.filter(
-            (v) =>
-              !(
-                v.tripActivityId === tripActivityId &&
-                v.memberEmail.toLowerCase() === lower
-              ),
-          );
-          const votes = newVote ? [...others, newVote] : others;
-          return { ...prev, trip: { ...prev.trip, votes } };
-        },
-      );
+      cache.updateQuery({ query: TRIP_QUERY, variables: { id: tripId } }, (prev) => {
+        if (!prev?.trip) return prev;
+        const others = prev.trip.votes.filter(
+          (v) => !(v.tripActivityId === tripActivityId && v.memberEmail.toLowerCase() === lower),
+        );
+        const votes = newVote ? [...others, newVote] : others;
+        return { ...prev, trip: { ...prev.trip, votes } };
+      });
     },
   });
 }
@@ -457,10 +431,7 @@ export async function fetchUsers(): Promise<UserSummary[]> {
   }));
 }
 
-export async function inviteMember(
-  tripId: string,
-  email: string,
-): Promise<TripInvite> {
+export async function inviteMember(tripId: string, email: string): Promise<TripInvite> {
   const { data } = await apolloClient.mutate({
     mutation: INVITE_MEMBER,
     variables: { input: { tripId, email } },
@@ -474,29 +445,21 @@ export async function inviteMember(
   };
 }
 
-export async function removeMember(
-  tripId: string,
-  email: string,
-): Promise<void> {
+export async function removeMember(tripId: string, email: string): Promise<void> {
   await apolloClient.mutate({
     mutation: REMOVE_MEMBER,
     variables: { input: { tripId, email } },
   });
 }
 
-export async function revokeInvite(
-  tripId: string,
-  inviteToken: string,
-): Promise<void> {
+export async function revokeInvite(tripId: string, inviteToken: string): Promise<void> {
   await apolloClient.mutate({
     mutation: REVOKE_INVITE,
     variables: { input: { tripId, token: inviteToken } },
   });
 }
 
-export async function claimInvite(
-  inviteToken: string,
-): Promise<{ trip_id: string } | null> {
+export async function claimInvite(inviteToken: string): Promise<{ trip_id: string } | null> {
   const { data } = await apolloClient.mutate({
     mutation: CLAIM_INVITE,
     variables: { input: { inviteToken } },
@@ -576,9 +539,7 @@ export function derivedEndTime(activity: TripActivity): string | null {
 // We compute end-of-day without wrapping past midnight (unlike derivedEndTime,
 // which is for display). A 23:00 + Full-Day combo should NOT roll over to
 // 07:30 the next morning — clamp to the same-day cap.
-export function defaultStartTimeForDay(
-  existingOnDay: TripActivity[],
-): string {
+export function defaultStartTimeForDay(existingOnDay: TripActivity[]): string {
   const scheduled = existingOnDay.filter((a) => a.start_time);
   if (scheduled.length === 0) return '09:00';
   let latestEndMinutes = 0;
@@ -690,10 +651,7 @@ export function memberVoteBreakdown(
   return result;
 }
 
-export function sortByNetScore<T extends { id: string }>(
-  activities: T[],
-  votes: TripVote[],
-): T[] {
+export function sortByNetScore<T extends { id: string }>(activities: T[], votes: TripVote[]): T[] {
   // Pre-compute tallies once per activity to avoid O(n²) inner loops.
   const tallies = new Map<string, VoteTally>();
   for (const a of activities) {

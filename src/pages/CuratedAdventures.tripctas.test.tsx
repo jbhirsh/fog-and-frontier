@@ -39,9 +39,7 @@ function renderAs(auth: AuthState, entry: InitialEntry = '/') {
 // The per-card control lives in the card's action slot; scope to the card so
 // the selection bar's own "Add to trip" button isn't counted.
 function cardAddToTrip(container: HTMLElement) {
-  const card = container.querySelector<HTMLElement>(
-    `[data-activity-id="${muirWoods.id}"]`,
-  );
+  const card = container.querySelector<HTMLElement>(`[data-activity-id="${muirWoods.id}"]`);
   if (!card) throw new Error('card not rendered');
   return within(card).queryByRole('button', { name: 'Add to trip' });
 }
@@ -49,9 +47,7 @@ function cardAddToTrip(container: HTMLElement) {
 describe('Curated Adventures — trip CTAs (#112)', () => {
   it('shows neither trip CTA to a signed-out visitor', () => {
     const { container } = renderAs(SIGNED_OUT);
-    expect(
-      screen.queryByRole('button', { name: /Select for trip/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Select for trip/ })).not.toBeInTheDocument();
     expect(cardAddToTrip(container)).not.toBeInTheDocument();
     // No disabled "Sign in to…" variant is left behind.
     expect(screen.queryByTitle(/Sign in to/)).not.toBeInTheDocument();
@@ -65,22 +61,16 @@ describe('Curated Adventures — trip CTAs (#112)', () => {
 
   it('offers "Select for trip" but no per-card control while browsing', () => {
     const { container } = renderAs(SIGNED_IN);
-    expect(
-      screen.getByRole('button', { name: /Select for trip/ }),
-    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Select for trip/ })).toBeEnabled();
     expect(cardAddToTrip(container)).not.toBeInTheDocument();
   });
 
   it('shows the per-card control in selection mode, and hides it on cancel', async () => {
     const { container } = renderAs(SIGNED_IN);
-    await userEvent.click(
-      screen.getByRole('button', { name: /Select for trip/ }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: /Select for trip/ }));
     expect(cardAddToTrip(container)).toBeInTheDocument();
 
-    await userEvent.click(
-      screen.getByRole('button', { name: /Cancel select/ }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: /Cancel select/ }));
     expect(cardAddToTrip(container)).not.toBeInTheDocument();
   });
 
@@ -99,17 +89,13 @@ describe('Curated Adventures — trip CTAs (#112)', () => {
       );
     }
     const { container } = render(<Harness />, { activities: [muirWoods] });
-    await userEvent.click(
-      screen.getByRole('button', { name: /Select for trip/ }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: /Select for trip/ }));
     expect(screen.getByText(/0 selected/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'test sign out' }));
     expect(screen.queryByText(/0 selected/)).not.toBeInTheDocument();
     expect(cardAddToTrip(container)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /Cancel select/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Cancel select/ })).not.toBeInTheDocument();
   });
 
   it('applies a trip target once auth finishes loading', () => {
@@ -153,16 +139,12 @@ describe('Curated Adventures — trip CTAs (#112)', () => {
       );
     }
     const { container } = render(<Harness />, { activities: [muirWoods] });
-    await userEvent.click(
-      screen.getByRole('button', { name: /Select for trip/ }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: /Select for trip/ }));
     await userEvent.click(screen.getByRole('button', { name: 'test sign out' }));
     await userEvent.click(screen.getByRole('button', { name: 'test sign in' }));
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
     expect(cardAddToTrip(container)).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Select for trip/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Select for trip/ })).toBeInTheDocument();
   });
 
   it('shows the per-card control when arriving with a trip target', () => {

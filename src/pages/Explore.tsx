@@ -145,15 +145,11 @@ export function Explore() {
   const [range, setRange] = useState<Range>(initial?.range ?? 'weekend');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<DiscoverEvent[] | null>(
-    initial?.events ?? null,
+  const [events, setEvents] = useState<DiscoverEvent[] | null>(initial?.events ?? null);
+  const [sources, setSources] = useState<DiscoverSource[]>(initial?.sources ?? []);
+  const [lastFetched, setLastFetched] = useState<{ range: Range; at: number } | null>(
+    initial?.lastFetched ?? null,
   );
-  const [sources, setSources] = useState<DiscoverSource[]>(
-    initial?.sources ?? [],
-  );
-  const [lastFetched, setLastFetched] = useState<
-    { range: Range; at: number } | null
-  >(initial?.lastFetched ?? null);
 
   // One-time cache GC on mount: prune past-dated entries from localStorage so
   // hydrateFromCache (above) and future reads don't have to re-filter them.
@@ -213,8 +209,8 @@ export function Explore() {
         <div className="max-w-4xl mx-auto text-center space-y-md">
           <h1 className="font-display text-headline-lg md:text-display text-primary">Explore</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
-            What's happening around {HOME_LOCATION.label} right now? Pick a
-            window and let Gemini search for things to do.
+            What's happening around {HOME_LOCATION.label} right now? Pick a window and let Gemini
+            search for things to do.
           </p>
           <div className="flex flex-wrap justify-center gap-sm pt-sm">
             {RANGES.map((r) => (
@@ -292,8 +288,7 @@ export function Explore() {
               </div>
             )}
             <p className="mt-md font-body-sm text-on-surface-variant text-center">
-              AI-generated suggestions — verify dates and details with the
-              source before you go.
+              AI-generated suggestions — verify dates and details with the source before you go.
             </p>
           </>
         )}
@@ -313,21 +308,15 @@ function EventCard({ event }: { event: DiscoverEvent }) {
       <div className="font-body-sm text-secondary uppercase tracking-wide font-bold">
         {event.dateText}
       </div>
-      <h3 className="font-display text-headline-md text-primary mt-xs">
-        {event.name}
-      </h3>
+      <h3 className="font-display text-headline-md text-primary mt-xs">{event.name}</h3>
       <div className="font-body-md text-on-surface-variant mt-xs flex items-center gap-xs">
-        <span className="material-symbols-outlined text-icon-md">
-          location_on
-        </span>
+        <span className="material-symbols-outlined text-icon-md">location_on</span>
         {event.location}
       </div>
       <p className="font-body-md text-on-surface mt-sm">{event.blurb}</p>
       <div className="mt-md font-body-sm text-primary flex items-center gap-xs">
         View source
-        <span className="material-symbols-outlined text-icon-sm">
-          open_in_new
-        </span>
+        <span className="material-symbols-outlined text-icon-sm">open_in_new</span>
       </div>
     </a>
   );
@@ -341,26 +330,17 @@ function LoadingState() {
         Searching the web for upcoming events…
       </p>
       <p className="font-body-md text-body-md text-on-surface-variant">
-        This can take 10–20 seconds while Gemini cross-references multiple
-        sources.
+        This can take 10–20 seconds while Gemini cross-references multiple sources.
       </p>
     </div>
   );
 }
 
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="text-center px-md py-lg md:py-xl space-y-md">
       <p className="font-body-lg text-error">Something went wrong.</p>
-      <p className="font-body-md text-on-surface-variant max-w-xl mx-auto">
-        {message}
-      </p>
+      <p className="font-body-md text-on-surface-variant max-w-xl mx-auto">{message}</p>
       <button
         type="button"
         onClick={onRetry}
@@ -384,8 +364,7 @@ function EmptyHero({ isOwner }: { isOwner: boolean }) {
       <p className="font-body-lg text-body-lg">
         {isOwner ? (
           <>
-            Pick a window above and tap <strong>Discover events</strong> to see
-            what's happening.
+            Pick a window above and tap <strong>Discover events</strong> to see what's happening.
           </>
         ) : (
           <>No events have been discovered for this window yet — check back soon.</>

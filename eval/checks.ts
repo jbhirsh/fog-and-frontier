@@ -69,9 +69,7 @@ export function haversineKm(
   const dLng = toRad(b.lng - a.lng);
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
@@ -200,20 +198,14 @@ function checkValueExpectation(
 ): CheckResult {
   const v = activity[field];
   if (typeof v !== 'string') {
-    return fail(
-      name,
-      `${field} missing or non-string; expected one of [${accept.join(', ')}]`,
-    );
+    return fail(name, `${field} missing or non-string; expected one of [${accept.join(', ')}]`);
   }
   return accept.includes(v)
     ? pass(name, `${field}=${v}`)
     : fail(name, `${field}=${v}, expected one of [${accept.join(', ')}]`);
 }
 
-function checkCity(
-  activity: Record<string, unknown>,
-  accept: string[],
-): CheckResult {
+function checkCity(activity: Record<string, unknown>, accept: string[]): CheckResult {
   const v = activity.city;
   if (typeof v !== 'string') {
     return fail(
@@ -249,10 +241,7 @@ function checkGeo(
   const km = haversineKm({ lat, lng }, { lat: geo.lat, lng: geo.lng });
   return km <= geo.toleranceKm
     ? pass(name, `${round2(km)} km from expected (≤ ${geo.toleranceKm} km)`)
-    : fail(
-        name,
-        `${round2(km)} km from expected, exceeds tolerance ${geo.toleranceKm} km`,
-      );
+    : fail(name, `${round2(km)} km from expected, exceeds tolerance ${geo.toleranceKm} km`);
 }
 
 function checkRestaurantFields(activity: Record<string, unknown>): CheckResult {
@@ -292,43 +281,28 @@ function checkAllTrailsUrl(activity: Record<string, unknown>, accept: string[]):
 
 // --- generateActivity: happy path ------------------------------------------
 
-export function checkGenerateHappy(
-  value: unknown,
-  expect: GenerateHappyExpect,
-): CheckResult[] {
+export function checkGenerateHappy(value: unknown, expect: GenerateHappyExpect): CheckResult[] {
   const activity = asActivity(value);
   if (!activity) {
-    return [
-      fail('schema:required', 'resolver output was not shaped { activity: object }'),
-    ];
+    return [fail('schema:required', 'resolver output was not shaped { activity: object }')];
   }
 
   const results: CheckResult[] = [checkRequired(activity), checkEnums(activity)];
 
   if (expect.category) {
-    results.push(
-      checkValueExpectation('expect:category', activity, 'category', expect.category),
-    );
+    results.push(checkValueExpectation('expect:category', activity, 'category', expect.category));
   }
   if (expect.region) {
-    results.push(
-      checkValueExpectation('expect:region', activity, 'region', expect.region),
-    );
+    results.push(checkValueExpectation('expect:region', activity, 'region', expect.region));
   }
   if (expect.parkType) {
-    results.push(
-      checkValueExpectation('expect:parkType', activity, 'parkType', expect.parkType),
-    );
+    results.push(checkValueExpectation('expect:parkType', activity, 'parkType', expect.parkType));
   }
   if (expect.costTier) {
-    results.push(
-      checkValueExpectation('expect:costTier', activity, 'costTier', expect.costTier),
-    );
+    results.push(checkValueExpectation('expect:costTier', activity, 'costTier', expect.costTier));
   }
   if (expect.duration) {
-    results.push(
-      checkValueExpectation('expect:duration', activity, 'duration', expect.duration),
-    );
+    results.push(checkValueExpectation('expect:duration', activity, 'duration', expect.duration));
   }
   if (expect.city) results.push(checkCity(activity, expect.city));
   if (expect.geo) results.push(checkGeo('expect:geo', activity, expect.geo));
@@ -351,12 +325,7 @@ export function checkGenerateGraceful(
     // Transport failure: not the model's behavior — hand the runner an 'error'
     // so the case is excluded from the denominator rather than scored a pass.
     if (cls.infra) {
-      return [
-        errored(
-          'graceful:error',
-          `infrastructure failure, not gradeable: ${cls.message}`,
-        ),
-      ];
+      return [errored('graceful:error', `infrastructure failure, not gradeable: ${cls.message}`)];
     }
     if (cls.code !== 'OTHER' && allowedErrors.includes(cls.code)) {
       return [pass('graceful:error', `rejected with ${cls.code}: ${cls.message}`)];
@@ -381,9 +350,7 @@ export function checkGenerateGraceful(
 
   const activity = asActivity(outcome.value);
   if (!activity) {
-    return [
-      fail('graceful:shape', 'resolver output was not shaped { activity: object }'),
-    ];
+    return [fail('graceful:shape', 'resolver output was not shaped { activity: object }')];
   }
 
   // Mechanical parts only. judgeRealPlace cases get their judge check appended
@@ -397,11 +364,7 @@ export function checkGenerateGraceful(
 
 // --- alltrailsLookup --------------------------------------------------------
 
-const ALLTRAILS_FIELDS = [
-  'allTrailsRating',
-  'hikeDistanceMiles',
-  'hikeElevationFeet',
-] as const;
+const ALLTRAILS_FIELDS = ['allTrailsRating', 'hikeDistanceMiles', 'hikeElevationFeet'] as const;
 
 function asLookup(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object') return null;
@@ -416,11 +379,7 @@ function rangeStr(range: NumericRange): string {
   return `[${lo}, ${hi}]`;
 }
 
-function checkNumericRange(
-  name: string,
-  v: unknown,
-  range: NumericRange,
-): CheckResult {
+function checkNumericRange(name: string, v: unknown, range: NumericRange): CheckResult {
   if (v === null || v === undefined) {
     return range.nullable
       ? pass(name, 'null (allowed)')
@@ -456,12 +415,7 @@ function checkAlltrailsRanges(
   if (!outcome.ok) {
     const cls = classifyGeminiError(outcome.error);
     if (cls.infra) {
-      return [
-        errored(
-          'alltrails:ranges',
-          `infrastructure failure, not gradeable: ${cls.message}`,
-        ),
-      ];
+      return [errored('alltrails:ranges', `infrastructure failure, not gradeable: ${cls.message}`)];
     }
     return [
       fail(
@@ -473,9 +427,7 @@ function checkAlltrailsRanges(
 
   const lookup = asLookup(outcome.value);
   if (!lookup) {
-    return [
-      fail('alltrails:ranges', 'resolver output was not shaped { lookup: object }'),
-    ];
+    return [fail('alltrails:ranges', 'resolver output was not shaped { lookup: object }')];
   }
 
   const results: CheckResult[] = [];
@@ -497,25 +449,16 @@ function checkAlltrailsGraceful(
     const cls = classifyGeminiError(outcome.error);
     if (cls.infra) {
       return [
-        errored(
-          'alltrails:graceful',
-          `infrastructure failure, not gradeable: ${cls.message}`,
-        ),
+        errored('alltrails:graceful', `infrastructure failure, not gradeable: ${cls.message}`),
       ];
     }
     if (cls.code === 'OTHER') {
-      return [
-        fail('alltrails:graceful', `unexpected non-graceful error: ${cls.message}`),
-      ];
+      return [fail('alltrails:graceful', `unexpected non-graceful error: ${cls.message}`)];
     }
     // A graceful throw. If allowedErrors constrains the set, require membership
     // regardless of allNull — allNull describes the acceptable *success* shape,
     // not a license for arbitrary error codes on the throw path.
-    if (
-      allowedErrors &&
-      allowedErrors.length > 0 &&
-      !allowedErrors.includes(cls.code)
-    ) {
+    if (allowedErrors && allowedErrors.length > 0 && !allowedErrors.includes(cls.code)) {
       return [
         fail(
           'alltrails:graceful',
@@ -523,32 +466,22 @@ function checkAlltrailsGraceful(
         ),
       ];
     }
-    return [
-      pass('alltrails:graceful', `rejected gracefully with ${cls.code}: ${cls.message}`),
-    ];
+    return [pass('alltrails:graceful', `rejected gracefully with ${cls.code}: ${cls.message}`)];
   }
 
   // Success path.
   const lookup = asLookup(outcome.value);
   if (!lookup) {
-    return [
-      fail('alltrails:graceful', 'resolver output was not shaped { lookup: object }'),
-    ];
+    return [fail('alltrails:graceful', 'resolver output was not shaped { lookup: object }')];
   }
   if (allNull) return [checkAllNull(lookup)];
   // allowedErrors-only variant expected a throw; a returned lookup is a failure.
   return [
-    fail(
-      'alltrails:graceful',
-      'expected a graceful error, but the resolver returned a lookup',
-    ),
+    fail('alltrails:graceful', 'expected a graceful error, but the resolver returned a lookup'),
   ];
 }
 
-export function checkAlltrails(
-  outcome: ResolverOutcome,
-  expect: AlltrailsExpect,
-): CheckResult[] {
+export function checkAlltrails(outcome: ResolverOutcome, expect: AlltrailsExpect): CheckResult[] {
   if ('lookup' in expect) return checkAlltrailsRanges(outcome, expect);
   return checkAlltrailsGraceful(outcome, expect);
 }
@@ -559,9 +492,7 @@ function asEvents(value: unknown): Record<string, unknown>[] | null {
   if (!value || typeof value !== 'object') return null;
   const events = (value as Record<string, unknown>).events;
   if (!Array.isArray(events)) return null;
-  return events.map((e) =>
-    e && typeof e === 'object' ? (e as Record<string, unknown>) : {},
-  );
+  return events.map((e) => (e && typeof e === 'object' ? (e as Record<string, unknown>) : {}));
 }
 
 function eventStr(e: Record<string, unknown>, key: string): string | null {
@@ -592,11 +523,7 @@ function parseIsoDate(s: string): { y: number; m: number; d: number } | null {
   const m = Number(match[2]);
   const d = Number(match[3]);
   const dt = new Date(Date.UTC(y, m - 1, d));
-  if (
-    dt.getUTCFullYear() !== y ||
-    dt.getUTCMonth() !== m - 1 ||
-    dt.getUTCDate() !== d
-  ) {
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
     return null;
   }
   return { y, m: m - 1, d };
@@ -617,14 +544,14 @@ function classifyUrl(u: string): 'ok' | 'redirect' | 'bad' {
 }
 
 function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return name
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
 }
 
 // Local-time window for the requested range, as inclusive day-index bounds.
-function windowFor(
-  range: DiscoverRange,
-  now: Date,
-): { start: number; end: number } {
+function windowFor(range: DiscoverRange, now: Date): { start: number; end: number } {
   const today = dayNumber(now.getFullYear(), now.getMonth(), now.getDate());
   switch (range) {
     case 'today':
@@ -645,10 +572,7 @@ function windowFor(
   }
 }
 
-function checkCount(
-  events: Record<string, unknown>[],
-  expect: DiscoverExpect,
-): CheckResult {
+function checkCount(events: Record<string, unknown>[], expect: DiscoverExpect): CheckResult {
   const n = events.length;
   const { minEvents, maxEvents } = expect.structural;
   return n >= minEvents && n <= maxEvents
@@ -740,10 +664,7 @@ function checkSourceUrls(events: Record<string, unknown>[]): CheckResult {
     ? ` (${redirects.length} grounding-redirect host(s): ${redirects.join(', ')})`
     : '';
   if (bad.length > 0) {
-    return fail(
-      'structural:source-urls',
-      `invalid url(s): ${bad.join('; ')}${note}`,
-    );
+    return fail('structural:source-urls', `invalid url(s): ${bad.join('; ')}${note}`);
   }
   return pass('structural:source-urls', `all present sourceUrls are http(s)${note}`);
 }
@@ -773,9 +694,7 @@ export function checkDiscoverStructural(
 ): CheckResult[] {
   const events = asEvents(value);
   if (!events) {
-    return [
-      fail('structural:shape', 'resolver output was not shaped { events: [...] }'),
-    ];
+    return [fail('structural:shape', 'resolver output was not shaped { events: [...] }')];
   }
 
   const results: CheckResult[] = [
@@ -807,10 +726,7 @@ export function checkDiscoverStructural(
  * A trip-suggestion answer: the picks are within bounds, include at least
  * one activity that clearly fits, and none that breaks a hard constraint.
  */
-export function checkTripSuggestions(
-  value: unknown,
-  expect: TripSuggestionsExpect,
-): CheckResult[] {
+export function checkTripSuggestions(value: unknown, expect: TripSuggestionsExpect): CheckResult[] {
   const picks = Array.isArray(value)
     ? (value as { activityId?: unknown }[]).map((p) => String(p.activityId))
     : null;

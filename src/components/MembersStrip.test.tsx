@@ -51,7 +51,9 @@ describe('MembersStrip', () => {
   it("pulls the remove and revoke ✕ out by the glyph's empty side, so the chips' insets match", () => {
     render(<MembersStrip {...defaultProps()} />);
     for (const name of ['Remove bob@example.com', 'Revoke invite for carol@example.com']) {
-      const icon = screen.getByRole('button', { name }).querySelector<HTMLElement>('.material-symbols-outlined');
+      const icon = screen
+        .getByRole('button', { name })
+        .querySelector<HTMLElement>('.material-symbols-outlined');
       expect(icon).toHaveTextContent('close');
       expect(icon?.style.marginRight).toBe('-0.194em');
     }
@@ -62,7 +64,7 @@ describe('MembersStrip', () => {
     expect(screen.getByText('Creator')).toBeInTheDocument();
   });
 
-  it('renders the You hint on the current user\'s chip', () => {
+  it("renders the You hint on the current user's chip", () => {
     render(<MembersStrip {...defaultProps({ currentEmail: 'alice@example.com' })} />);
     expect(screen.getByText(/· You/)).toBeInTheDocument();
   });
@@ -80,11 +82,7 @@ describe('MembersStrip', () => {
 
   it('remove ✕ on non-creator member is ENABLED when isCreator=true', async () => {
     const onRemoveMember = vi.fn();
-    render(
-      <MembersStrip
-        {...defaultProps({ isCreator: true, onRemoveMember })}
-      />,
-    );
+    render(<MembersStrip {...defaultProps({ isCreator: true, onRemoveMember })} />);
     const removeBtn = screen.getByRole('button', { name: 'Remove bob@example.com' });
     expect(removeBtn).not.toBeDisabled();
     await userEvent.click(removeBtn);
@@ -104,10 +102,7 @@ describe('MembersStrip', () => {
     );
     const removeBtn = screen.getByRole('button', { name: 'Remove bob@example.com' });
     expect(removeBtn).toBeDisabled();
-    expect(removeBtn).toHaveAttribute(
-      'title',
-      'Only the trip creator can remove members',
-    );
+    expect(removeBtn).toHaveAttribute('title', 'Only the trip creator can remove members');
     await userEvent.click(removeBtn);
     expect(onRemoveMember).not.toHaveBeenCalled();
   });
@@ -141,9 +136,7 @@ describe('MembersStrip', () => {
 
   it('does NOT show Leave trip button for the creator', () => {
     render(
-      <MembersStrip
-        {...defaultProps({ currentEmail: 'alice@example.com', isCreator: true })}
-      />,
+      <MembersStrip {...defaultProps({ currentEmail: 'alice@example.com', isCreator: true })} />,
     );
     expect(screen.queryByRole('button', { name: 'Leave trip' })).not.toBeInTheDocument();
   });
@@ -155,11 +148,9 @@ describe('MembersStrip', () => {
     expect(onInvite).toHaveBeenCalledTimes(1);
   });
 
-  it('does not show a remove ✕ on the current user\'s own chip', () => {
+  it("does not show a remove ✕ on the current user's own chip", () => {
     render(
-      <MembersStrip
-        {...defaultProps({ currentEmail: 'bob@example.com', isCreator: true })}
-      />,
+      <MembersStrip {...defaultProps({ currentEmail: 'bob@example.com', isCreator: true })} />,
     );
     // Bob's chip should not have a remove button
     expect(
@@ -190,9 +181,7 @@ describe('MembersStrip', () => {
 
   it('matches the current user’s chip case-insensitively', () => {
     render(
-      <MembersStrip
-        {...defaultProps({ currentEmail: 'Bob@Example.com', isCreator: false })}
-      />,
+      <MembersStrip {...defaultProps({ currentEmail: 'Bob@Example.com', isCreator: false })} />,
     );
     expect(screen.getAllByText('· You')[0].parentElement).toHaveTextContent(/^Bob/);
     expect(screen.getByRole('button', { name: 'Leave trip' })).toBeInTheDocument();

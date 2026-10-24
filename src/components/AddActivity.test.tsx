@@ -44,9 +44,7 @@ vi.mock('../lib/useOwner', () => ({
 const saveSpy = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock('../lib/userActivities', async () => {
   const actual =
-    await vi.importActual<typeof import('../lib/userActivities')>(
-      '../lib/userActivities',
-    );
+    await vi.importActual<typeof import('../lib/userActivities')>('../lib/userActivities');
   return { ...actual, saveUserActivity: saveSpy };
 });
 
@@ -66,8 +64,7 @@ vi.mock('../lib/userTrips', () => ({ fetchUsers: usersSpy }));
 // Look-alikes in the catalog (#17); freshId stays real.
 const dupSpy = vi.hoisted(() => vi.fn());
 vi.mock('../lib/duplicates', async () => {
-  const actual =
-    await vi.importActual<typeof import('../lib/duplicates')>('../lib/duplicates');
+  const actual = await vi.importActual<typeof import('../lib/duplicates')>('../lib/duplicates');
   return { ...actual, checkDuplicates: dupSpy };
 });
 
@@ -121,31 +118,17 @@ beforeEach(() => {
 
 describe('AddActivity — edit mode', () => {
   it('opens straight to the review step with the "Edit activity" header', () => {
-    render(
-      <AddActivity onClose={() => {}} editActivity={baseActivity} />,
-    );
-    expect(
-      screen.getByRole('heading', { name: 'Edit activity' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /Generate/ }),
-    ).not.toBeInTheDocument();
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    expect(screen.getByRole('heading', { name: 'Edit activity' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Generate/ })).not.toBeInTheDocument();
   });
 
   it('seeds the editable fields from the activity', () => {
-    render(
-      <AddActivity onClose={() => {}} editActivity={baseActivity} />,
-    );
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     expect(screen.getByLabelText('Name')).toHaveValue('Original Name');
-    expect(screen.getByLabelText('Short description')).toHaveValue(
-      'Original short description.',
-    );
-    expect(screen.getByLabelText('Long description')).toHaveValue(
-      'Original long description.',
-    );
-    expect(screen.getByLabelText('Cover image URL')).toHaveValue(
-      'https://example.com/orig.jpg',
-    );
+    expect(screen.getByLabelText('Short description')).toHaveValue('Original short description.');
+    expect(screen.getByLabelText('Long description')).toHaveValue('Original long description.');
+    expect(screen.getByLabelText('Cover image URL')).toHaveValue('https://example.com/orig.jpg');
     expect(screen.getByLabelText('Category')).toHaveValue('hiking');
     expect(screen.getByLabelText('City')).toHaveValue('Mill Valley, CA');
     expect(screen.getByLabelText('AllTrails URL')).toHaveValue(
@@ -171,28 +154,48 @@ describe('AddActivity — edit mode', () => {
   });
 
   it('does not expose AllTrails rating / distance / elevation as inputs', () => {
-    render(
-      <AddActivity onClose={() => {}} editActivity={baseActivity} />,
-    );
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     expect(screen.queryByLabelText('AllTrails rating')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Distance (mi)')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Elevation gain/)).not.toBeInTheDocument();
   });
 
-  it('names the review form\'s options in words, not slugs or CSS capitals', () => {
+  it("names the review form's options in words, not slugs or CSS capitals", () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     const options = (label: string | RegExp) =>
       [...screen.getByLabelText<HTMLSelectElement>(label).options].map((o) => o.textContent);
     expect(options('Category')).toEqual([
-      'Hiking', 'Cycling', 'Water', 'Food', 'Culture', 'Scenic', 'Climbing', 'Camping', 'Other',
+      'Hiking',
+      'Cycling',
+      'Water',
+      'Food',
+      'Culture',
+      'Scenic',
+      'Climbing',
+      'Camping',
+      'Other',
     ]);
     expect(options('Region')).toEqual([
-      'San Francisco', 'North Bay', 'East Bay', 'South Bay', 'Peninsula',
-      'Central Coast', 'NorCal', 'SoCal', 'Oregon', 'Washington',
+      'San Francisco',
+      'North Bay',
+      'East Bay',
+      'South Bay',
+      'Peninsula',
+      'Central Coast',
+      'NorCal',
+      'SoCal',
+      'Oregon',
+      'Washington',
     ]);
     expect(options('Difficulty')).toEqual(['—', 'Easy', 'Moderate', 'Advanced']);
     expect(options(/^Park type/)).toEqual([
-      '— Not in a park —', 'National', 'State', 'Regional', 'County', 'City', 'Private',
+      '— Not in a park —',
+      'National',
+      'State',
+      'Regional',
+      'County',
+      'City',
+      'Private',
     ]);
     // Nothing is left to CSS capitalize, which capitalises every word.
     for (const label of ['Category', 'Region', 'Difficulty', /^Park type/]) {
@@ -200,18 +203,24 @@ describe('AddActivity — edit mode', () => {
     }
   });
 
-  it('draws every select in the review form like the inputs, with the pills\' caret', () => {
+  it("draws every select in the review form like the inputs, with the pills' caret", () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     const selects = screen.getAllByRole('combobox').filter((el) => el.tagName === 'SELECT');
     expect(selects.map((el) => el.closest('label')?.firstChild?.textContent)).toEqual([
-      'Category', 'Region', 'Duration', 'Difficulty', 'Park type (optional)', 'Dog friendly', 'Cost per person',
+      'Category',
+      'Region',
+      'Duration',
+      'Difficulty',
+      'Park type (optional)',
+      'Dog friendly',
+      'Cost per person',
     ]);
     for (const select of selects) {
       expect(select).toHaveClass('appearance-none', 'select-caret');
     }
   });
 
-  it('draws the edge buttons\' focus rings inside, where the panel can\'t clip them', () => {
+  it("draws the edge buttons' focus rings inside, where the panel can't clip them", () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     for (const name of ['Cancel', 'Close']) {
       expect(screen.getByRole('button', { name })).toHaveClass(
@@ -257,9 +266,7 @@ describe('AddActivity — edit mode', () => {
     await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
 
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
-    expect(lookupSpy).toHaveBeenCalledWith(
-      'https://www.alltrails.com/trail/new',
-    );
+    expect(lookupSpy).toHaveBeenCalledWith('https://www.alltrails.com/trail/new');
     const saved = (saveSpy.mock.calls[0] as [Activity])[0];
     expect(saved).toMatchObject({
       allTrailsUrl: 'https://www.alltrails.com/trail/new',
@@ -288,13 +295,7 @@ describe('AddActivity — edit mode', () => {
     lookupSpy.mockRejectedValue(new Error('lookup failed'));
     const onClose = vi.fn();
     const onSaved = vi.fn();
-    render(
-      <AddActivity
-        onClose={onClose}
-        editActivity={baseActivity}
-        onSaved={onSaved}
-      />,
-    );
+    render(<AddActivity onClose={onClose} editActivity={baseActivity} onSaved={onSaved} />);
     const url = screen.getByLabelText('AllTrails URL');
     await userEvent.clear(url);
     await userEvent.type(url, 'https://www.alltrails.com/trail/broken');
@@ -310,9 +311,7 @@ describe('AddActivity — edit mode', () => {
   });
 
   it('hides the Notes field in edit mode (owned by the completion log)', () => {
-    render(
-      <AddActivity onClose={() => {}} editActivity={baseActivity} />,
-    );
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     expect(screen.queryByLabelText('Notes')).not.toBeInTheDocument();
   });
 
@@ -337,13 +336,7 @@ describe('AddActivity — edit mode', () => {
 
     const onClose = vi.fn();
     const onSaved = vi.fn();
-    render(
-      <AddActivity
-        onClose={onClose}
-        editActivity={withExtras}
-        onSaved={onSaved}
-      />,
-    );
+    render(<AddActivity onClose={onClose} editActivity={withExtras} onSaved={onSaved} />);
 
     const nameInput = screen.getByLabelText('Name');
     await userEvent.clear(nameInput);
@@ -472,14 +465,15 @@ describe('AddActivity — contributors (#9)', () => {
     await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
     const picker = await screen.findByRole('combobox', { name: 'Add contributor' });
     expect(screen.getByRole('group', { name: 'Contributors' })).toHaveTextContent('Owner');
-    expect(
-      [...picker.querySelectorAll('option')].map((o) => o.textContent),
-    ).toEqual(['+ Add contributor', 'Tarun']);
+    expect([...picker.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      '+ Add contributor',
+      'Tarun',
+    ]);
     await userEvent.selectOptions(picker, 'tarun@example.com');
     expect((await saved()).contributors).toEqual(['owner@example.com', 'tarun@example.com']);
   });
 
-  it('keeps an edited activity\'s contributors as they were', async () => {
+  it("keeps an edited activity's contributors as they were", async () => {
     render(
       <AddActivity
         onClose={() => {}}
@@ -650,7 +644,9 @@ describe('AddActivity — duplicates (#17)', () => {
     await review();
     await userEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
     expect(
-      await screen.findByText('Another saved activity looks like this one too. Check it before saving.'),
+      await screen.findByText(
+        'Another saved activity looks like this one too. Check it before saving.',
+      ),
     ).toBeInTheDocument();
     expect(saveSpy).not.toHaveBeenCalled();
   });
@@ -682,7 +678,10 @@ describe('AddActivity — duplicates (#17)', () => {
   });
 
   it("shows the look-alike when the server refuses one the check didn't see", async () => {
-    dupSpy.mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValue([match('high')]);
+    dupSpy
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([match('high')]);
     saveSpy.mockRejectedValueOnce(
       new CombinedGraphQLErrors({
         errors: [
@@ -695,7 +694,9 @@ describe('AddActivity — duplicates (#17)', () => {
     );
     await review();
     await userEvent.click(saveButton());
-    expect(await screen.findByRole('alert')).toHaveTextContent('This looks like a duplicate of Castle Rock');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This looks like a duplicate of Castle Rock',
+    );
     expect(screen.getByText('looks like a duplicate of Castle Rock')).toBeInTheDocument();
   });
 
@@ -788,7 +789,13 @@ describe('AddActivity — suggest mode (#73)', () => {
 
   it('holds a high look-alike, then sends anyway', async () => {
     dupSpy.mockResolvedValue([
-      { id: 'castle-rock', name: 'Castle Rock', city: 'Los Gatos', distanceMeters: 30, confidence: 'high' },
+      {
+        id: 'castle-rock',
+        name: 'Castle Rock',
+        city: 'Los Gatos',
+        distanceMeters: 30,
+        confidence: 'high',
+      },
     ]);
     await review();
     await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
@@ -849,7 +856,7 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     act(() => mapEvents.click?.({ latlng: { lat, lng } }));
   }
 
-  it('is offered to a friend from the start, but not in the owners\' Add', () => {
+  it("is offered to a friend from the start, but not in the owners' Add", () => {
     openSuggest();
     expect(screen.getByText(/or you can fill it in yourself/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Fill them in yourself' })).toBeInTheDocument();
@@ -909,7 +916,9 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
     await choose();
     // The message follows the fields, without another Send.
-    expect(screen.getByText('Add a name, a city and a pin on the map before sending.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Add a name, a city and a pin on the map before sending.'),
+    ).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Name'), 'Castle Rock');
     await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
     expect(screen.getByText('Add a pin on the map before sending.')).toBeInTheDocument();
@@ -937,7 +946,9 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
     dropPin(37.23, -122.1);
     await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
-    expect(screen.getByText('Add a category, a region and a duration before sending.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Add a category, a region and a duration before sending.'),
+    ).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('Region'), 'oregon');
     expect(screen.getByText('Add a category and a duration before sending.')).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('Duration'), 'Weekend');
@@ -984,7 +995,10 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     // The look-alike check runs on send, as for a draft; the server's own
     // checks (the pending cap, links, size) are the same mutation's.
     expect(dupSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Castle Rock', location: { city: 'Los Gatos', coords: { lat: 37.23, lng: -122.1 } } }),
+      expect.objectContaining({
+        name: 'Castle Rock',
+        location: { city: 'Los Gatos', coords: { lat: 37.23, lng: -122.1 } },
+      }),
     );
     expect(suggestSpy).toHaveBeenCalledTimes(1);
     const [sent, options] = suggestSpy.mock.calls[0] as [Activity, { allowDuplicate: boolean }];
@@ -1003,7 +1017,13 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
 
   it('holds a look-alike found once the pin is down', async () => {
     dupSpy.mockResolvedValue([
-      { id: 'castle-rock', name: 'Castle Rock', city: 'Los Gatos', distanceMeters: 30, confidence: 'high' },
+      {
+        id: 'castle-rock',
+        name: 'Castle Rock',
+        city: 'Los Gatos',
+        distanceMeters: 30,
+        confidence: 'high',
+      },
     ]);
     await byHand();
     await choose();
@@ -1102,7 +1122,10 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
     lng: -122.62,
     duration: 'Half Day',
   };
-  const seed = { title: 'Carson Falls, Fairfax', notes: 'From an Instagram reel: https://www.instagram.com/reel/x/' };
+  const seed = {
+    title: 'Carson Falls, Fairfax',
+    notes: 'From an Instagram reel: https://www.instagram.com/reel/x/',
+  };
 
   it('drafts the place as it opens, once, from the seeded title and notes', async () => {
     generateSpy.mockResolvedValue(generated);
@@ -1128,14 +1151,26 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
   it('keeps it for a place added by hand from a post too', async () => {
     ownerState.isOwner = false;
     const reel = 'https://www.instagram.com/reel/x/';
-    render(<AddActivity onClose={() => {}} suggest seed={{ title: '', notes: seed.notes }} source={reel} />);
+    render(
+      <AddActivity
+        onClose={() => {}}
+        suggest
+        seed={{ title: '', notes: seed.notes }}
+        source={reel}
+      />,
+    );
     await userEvent.type(screen.getByLabelText('Title'), 'Carson Falls');
     await userEvent.click(screen.getByRole('button', { name: 'Fill them in yourself' }));
     expect(await screen.findByLabelText('Where you found it (optional)')).toHaveValue(reel);
   });
 
   it('lets where it was found be changed, or cleared', async () => {
-    render(<AddActivity onClose={() => {}} editActivity={{ ...baseActivity, sourceUrl: 'https://example.com/a' }} />);
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{ ...baseActivity, sourceUrl: 'https://example.com/a' }}
+      />,
+    );
     const field = screen.getByLabelText('Where you found it (optional)');
     expect(field).toHaveValue('https://example.com/a');
     await userEvent.clear(field);
@@ -1146,7 +1181,12 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
   });
 
   it('saves no source once it’s cleared', async () => {
-    render(<AddActivity onClose={() => {}} editActivity={{ ...baseActivity, sourceUrl: 'https://example.com/a' }} />);
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{ ...baseActivity, sourceUrl: 'https://example.com/a' }}
+      />,
+    );
     await userEvent.clear(screen.getByLabelText('Where you found it (optional)'));
     await userEvent.click(screen.getByRole('button', { name: /Save/ }));
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));

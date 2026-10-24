@@ -3,13 +3,7 @@ import { createElement, type ReactNode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { ApolloProvider } from '@apollo/client/react';
 import { apolloClient } from './apolloClient';
-import {
-  addActivityToTrip,
-  castVote,
-  createTrip,
-  markTripPast,
-  useTrip,
-} from './userTrips';
+import { addActivityToTrip, castVote, createTrip, markTripPast, useTrip } from './userTrips';
 import { ACTIVITIES_QUERY, COMPLETED_QUERY, TRIP_QUERY } from './gqlDocs';
 import { toActivityRow } from '../test/render';
 import { completedHike, muirWoods } from '../test/fixtures';
@@ -29,16 +23,11 @@ function jsonResponse(obj: unknown): Response {
 
 // GraphQL transport: resolver errors return HTTP 200 + `errors[]`; Apollo
 // surfaces them as CombinedGraphQLErrors (which `appCodeOf` reads).
-function gqlErrorResponse(
-  message: string,
-  extensions: Record<string, unknown>,
-): Response {
+function gqlErrorResponse(message: string, extensions: Record<string, unknown>): Response {
   return jsonResponse({ errors: [{ message, extensions }] });
 }
 
-type Responder = (
-  vars: Record<string, unknown>,
-) => Response | Promise<Response>;
+type Responder = (vars: Record<string, unknown>) => Response | Promise<Response>;
 
 // Routes the stubbed fetch by GraphQL operationName so a single test can answer
 // the seed read, the mutation, and any awaited refetch.
@@ -50,9 +39,7 @@ function installFetch(routes: Record<string, Responder>): void {
         operationName?: string;
         variables?: Record<string, unknown>;
       };
-      const responder = body.operationName
-        ? routes[body.operationName]
-        : undefined;
+      const responder = body.operationName ? routes[body.operationName] : undefined;
       if (!responder) return Promise.resolve(jsonResponse({ data: {} }));
       return Promise.resolve(responder(body.variables ?? {}));
     }),
@@ -297,9 +284,7 @@ describe('castVote (optimistic + cache rewrite)', () => {
     const inFlight = castVote('trip1', 'ta1', 1, 'carol@x.com');
 
     // The optimistic layer reflects the vote while the request is in flight.
-    await waitFor(() =>
-      expect(readVotes(true)).toContainEqual(voteJson('ta1', 'carol@x.com', 1)),
-    );
+    await waitFor(() => expect(readVotes(true)).toContainEqual(voteJson('ta1', 'carol@x.com', 1)));
     // The non-optimistic store stays empty until the server responds.
     expect(readVotes(false)).toEqual([]);
 
@@ -315,9 +300,7 @@ describe('castVote (optimistic + cache rewrite)', () => {
     );
     await inFlight;
 
-    await waitFor(() =>
-      expect(readVotes(false)).toContainEqual(voteJson('ta1', 'carol@x.com', 1)),
-    );
+    await waitFor(() => expect(readVotes(false)).toContainEqual(voteJson('ta1', 'carol@x.com', 1)));
   });
 });
 
@@ -357,8 +340,7 @@ describe('markTripPast completion write-through', () => {
 
     // COMPLETED_QUERY cache gets both write-through rows (eligible-but-unchecked
     // gets an explicit false to override a stale baseline).
-    const completed =
-      apolloClient.cache.readQuery({ query: COMPLETED_QUERY })?.completed ?? [];
+    const completed = apolloClient.cache.readQuery({ query: COMPLETED_QUERY })?.completed ?? [];
     expect(completed).toContainEqual({
       __typename: 'CompletedEntry',
       id: muirWoods.id,
@@ -371,8 +353,7 @@ describe('markTripPast completion write-through', () => {
     });
 
     // Activity.completed baseline is mirrored too, so badges update w/o refetch.
-    const activities =
-      apolloClient.cache.readQuery({ query: ACTIVITIES_QUERY })?.activities ?? [];
+    const activities = apolloClient.cache.readQuery({ query: ACTIVITIES_QUERY })?.activities ?? [];
     expect(activities.find((a) => a.id === muirWoods.id)?.completed).toBe(true);
     expect(activities.find((a) => a.id === completedHike.id)?.completed).toBe(false);
   });

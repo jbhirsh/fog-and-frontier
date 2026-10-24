@@ -117,9 +117,9 @@ describe('listPosition (#64)', () => {
 
 describe('backgroundFor', () => {
   it('is the page an activity was opened over', () => {
-    expect(
-      backgroundFor(loc('/activity/muir', { backgroundLocation: TRIPS, depth: 1 })),
-    ).toBe(TRIPS);
+    expect(backgroundFor(loc('/activity/muir', { backgroundLocation: TRIPS, depth: 1 }))).toBe(
+      TRIPS,
+    );
   });
 
   it('is the catalog for an activity opened from a link', () => {

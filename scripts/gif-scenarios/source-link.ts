@@ -31,7 +31,11 @@ const scenario: Scenario = {
     await page.waitForTimeout(600);
     // Down to the links, where the source sits after the notes.
     const link = page.getByRole('link', { name: /Seen on Instagram/ });
-    for (let i = 0; i < 6 && !(await link.isVisible() && (await link.boundingBox())!.y < 600); i++) {
+    for (
+      let i = 0;
+      i < 6 && !((await link.isVisible()) && (await link.boundingBox())!.y < 600);
+      i++
+    ) {
       await scroll(page, 300);
       await page.waitForTimeout(250);
     }

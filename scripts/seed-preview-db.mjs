@@ -27,7 +27,9 @@ const PREVIEW_ENV_FILE = '.env.preview';
 
 function loadEnvFile(path) {
   if (!existsSync(path)) {
-    console.error(`Missing ${path}. Run: vercel env pull ${path} --environment=${path.replace('.env.', '')}`);
+    console.error(
+      `Missing ${path}. Run: vercel env pull ${path} --environment=${path.replace('.env.', '')}`,
+    );
     process.exit(2);
   }
   const out = {};
@@ -59,7 +61,9 @@ for (const [name, val] of [
 }
 
 if (PROD_URL === PREVIEW_URL) {
-  console.error('PROD and PREVIEW TURSO_DATABASE_URL are identical — they already share a database, no seed needed.');
+  console.error(
+    'PROD and PREVIEW TURSO_DATABASE_URL are identical — they already share a database, no seed needed.',
+  );
   console.error(`URL: ${PROD_URL}`);
   process.exit(2);
 }
@@ -87,7 +91,9 @@ if (ans !== 'y') {
   process.exit(0);
 }
 
-await preview.execute('CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)');
+await preview.execute(
+  'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
+);
 await preview.execute('CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)');
 
 let aCount = 0;

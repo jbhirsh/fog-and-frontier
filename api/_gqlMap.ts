@@ -23,13 +23,18 @@ import type {
 // serialization (which an out-of-range enum or malformed nested object would).
 
 const CATEGORIES = new Set([
-  'hiking', 'cycling', 'water', 'food', 'culture',
-  'scenic', 'climbing', 'camping', 'other',
+  'hiking',
+  'cycling',
+  'water',
+  'food',
+  'culture',
+  'scenic',
+  'climbing',
+  'camping',
+  'other',
 ]);
 const DIFFICULTIES = new Set(['easy', 'moderate', 'advanced']);
-const PARK_TYPES = new Set([
-  'national', 'state', 'regional', 'county', 'city', 'private', 'none',
-]);
+const PARK_TYPES = new Set(['national', 'state', 'regional', 'county', 'city', 'private', 'none']);
 // What an activity costs (#85); `costTier` is a String the client narrows.
 export const COST_TIERS: ReadonlySet<string> = new Set(['free', '$', '$$', '$$$']);
 
@@ -49,9 +54,7 @@ function enumVal(v: unknown, set: ReadonlySet<string>): string | null {
   return typeof v === 'string' && set.has(v) ? v : null;
 }
 function strArray(v: unknown): string[] | null {
-  return Array.isArray(v)
-    ? v.filter((x): x is string => typeof x === 'string')
-    : null;
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null;
 }
 
 type LocationShape = { city: string; coords: { lat: number; lng: number } };
@@ -192,8 +195,7 @@ const REQUIRED_CATALOG_FIELDS = [
 ] as const;
 
 export type CatalogParseResult =
-  | { ok: true; activity: Record<string, unknown> }
-  | { ok: false; invalid: string[] };
+  { ok: true; activity: Record<string, unknown> } | { ok: false; invalid: string[] };
 
 // Read-side guard for a stored catalog row. Rows can be written outside
 // saveActivity's input checks (the scripts/ backfills write `a` directly), and
@@ -202,10 +204,7 @@ export type CatalogParseResult =
 // declares (via the same helpers as coerceSnapshot): a bad optional field
 // becomes null, and a row missing or mangling a required one is rejected,
 // naming the offending fields so the caller can skip and log it.
-export function parseCatalogActivity(
-  raw: unknown,
-  rowId: string,
-): CatalogParseResult {
+export function parseCatalogActivity(raw: unknown, rowId: string): CatalogParseResult {
   if (Array.isArray(raw)) return { ok: false, invalid: ['(not an object)'] };
   const coerced = coerceSnapshot(raw);
   if (!coerced) return { ok: false, invalid: ['(not an object)'] };

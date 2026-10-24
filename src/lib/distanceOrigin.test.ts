@@ -27,12 +27,10 @@ function memoryStore(initial: 'granted' | 'denied' | null = null) {
 // A geolocation stand-in that answers with a position or an error code.
 function geolocation(result: { coords: typeof HERE } | { code: number }) {
   return {
-    getCurrentPosition: vi.fn(
-      (ok: PositionCallback, fail?: PositionErrorCallback | null) => {
-        if ('coords' in result) ok({ coords: result.coords } as GeolocationPosition);
-        else fail?.({ code: result.code } as GeolocationPositionError);
-      },
-    ),
+    getCurrentPosition: vi.fn((ok: PositionCallback, fail?: PositionErrorCallback | null) => {
+      if ('coords' in result) ok({ coords: result.coords } as GeolocationPosition);
+      else fail?.({ code: result.code } as GeolocationPositionError);
+    }),
   };
 }
 

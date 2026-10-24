@@ -46,8 +46,7 @@ test.describe('visual regression — desktop', () => {
     // Explore is owner-only (#111): a non-owner is redirected home, so flip
     // the dev/test-only override before boot to snapshot the owner view.
     await page.addInitScript(() => {
-      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ =
-        true;
+      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ = true;
     });
     await page.goto('/explore');
     await waitForVisualReady(page);
@@ -66,8 +65,7 @@ test.describe('visual regression — desktop', () => {
   test('add activity — the map scrolls under the dialog title', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 560 });
     await page.addInitScript(() => {
-      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ =
-        true;
+      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ = true;
     });
     await stubGenerateActivity(page);
     await page.goto('/');
@@ -95,9 +93,7 @@ test.describe('visual regression — desktop', () => {
       const under = document.elementFromPoint(x, y);
       title.style.visibility = '';
       return {
-        mapLayerUnder: !!under?.closest(
-          '.leaflet-tile, .leaflet-marker-icon, .leaflet-control',
-        ),
+        mapLayerUnder: !!under?.closest('.leaflet-tile, .leaflet-marker-icon, .leaflet-control'),
         titleOnTop: title.contains(hit),
       };
     });

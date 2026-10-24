@@ -43,9 +43,7 @@ const INVITE: TripInvite = {
 
 describe('accessibility smoke test', () => {
   it('ViewModeToggle has no axe violations', async () => {
-    const { container } = render(
-      <ViewModeToggle value="split" onChange={() => {}} />,
-    );
+    const { container } = render(<ViewModeToggle value="split" onChange={() => {}} />);
     const results = await axe(container);
     expect(results.violations).toEqual([]);
   });

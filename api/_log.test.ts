@@ -95,9 +95,7 @@ describe('logServerError', () => {
     };
     expect(parsed.err.message).toBe('fetch failed');
     expect(parsed.err.cause?.name).toBe('TypeError');
-    expect(parsed.err.cause?.message).toBe(
-      'getaddrinfo ENOTFOUND turso.example.invalid',
-    );
+    expect(parsed.err.cause?.message).toBe('getaddrinfo ENOTFOUND turso.example.invalid');
   });
 
   it('omits cause when it is not an Error (e.g. plain object)', () => {

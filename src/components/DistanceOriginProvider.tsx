@@ -16,12 +16,7 @@ export function DistanceOriginProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Geolocation is absent in some browsers (and jsdom); locateVisitor then
     // does nothing. A position landing after unmount is a no-op setState.
-    locateVisitor(
-      navigator.geolocation,
-      localAnswerStore,
-      setOrigin,
-      navigator.permissions,
-    );
+    locateVisitor(navigator.geolocation, localAnswerStore, setOrigin, navigator.permissions);
   }, []);
   return <DistanceOriginCtx.Provider value={origin}>{children}</DistanceOriginCtx.Provider>;
 }

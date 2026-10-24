@@ -46,7 +46,14 @@ export const MEDIA_BUDGET_MS = 20_000;
  */
 const PLACES_TOOLS = [{ googleSearch: {} }];
 
-export const PLACE_SOURCES = ['caption', 'on_screen', 'spoken', 'geotag', 'picture', 'hint'] as const;
+export const PLACE_SOURCES = [
+  'caption',
+  'on_screen',
+  'spoken',
+  'geotag',
+  'picture',
+  'hint',
+] as const;
 export type PlaceSource = (typeof PLACE_SOURCES)[number];
 
 export interface SharedPlace {
@@ -110,7 +117,9 @@ export function placesPrompt(
     lines.push(`Instagram's description of the picture: ${post.imageDescription}`);
   }
   if (post.geotag) {
-    lines.push(`Geotag (may be imprecise): ${post.geotag.name} (${post.geotag.lat}, ${post.geotag.lng})`);
+    lines.push(
+      `Geotag (may be imprecise): ${post.geotag.name} (${post.geotag.lat}, ${post.geotag.lng})`,
+    );
   }
   if (hint) lines.push(`The user's hint: ${hint}`);
   const media = [attached.video && 'the video', attached.image && 'the picture'].filter(Boolean);
@@ -215,7 +224,13 @@ async function findSharedPlaces(
   const deadline = Date.now() + MEDIA_BUDGET_MS;
   const media = post.videoUrls ? await firstMedia(post.videoUrls, MAX_VIDEO_BYTES, deadline) : null;
   let video: Record<string, unknown> | null = null;
-  let videoNote = media ? 'ok' : post.videoUrls ? 'failed or too big' : post.isVideo ? 'not given' : 'none';
+  let videoNote = media
+    ? 'ok'
+    : post.videoUrls
+      ? 'failed or too big'
+      : post.isVideo
+        ? 'not given'
+        : 'none';
   let uploaded: string | null = null;
   if (media && media.data.length <= INLINE_VIDEO_BYTES) {
     video = inline(media);

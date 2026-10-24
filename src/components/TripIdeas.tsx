@@ -95,9 +95,7 @@ export function TripIdeas({ seeded, picked, onChange, max }: Props) {
             No new ideas beyond the ones ticked. Try rephrasing.
           </p>
         )}
-        {ideas && ideas.length > 0 && (
-          <p className="sr-only">{ideas.length} ideas</p>
-        )}
+        {ideas && ideas.length > 0 && <p className="sr-only">{ideas.length} ideas</p>}
       </div>
       {ideas && (
         <ul className="space-y-xs" aria-busy={loading}>

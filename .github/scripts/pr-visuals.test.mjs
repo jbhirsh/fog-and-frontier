@@ -10,9 +10,7 @@ describe('uiFiles', () => {
   });
 
   it('drops tests and test scaffolding', () => {
-    expect(
-      uiFiles(['src/pages/Trips.test.tsx', 'src/test/render.tsx', 'README.md']),
-    ).toEqual([]);
+    expect(uiFiles(['src/pages/Trips.test.tsx', 'src/test/render.tsx', 'README.md'])).toEqual([]);
   });
 });
 
@@ -44,7 +42,9 @@ describe('checkPrVisuals', () => {
 
   it('passes a UI change ticked "No visible UI change"', () => {
     expect(checkPrVisuals({ files: ui, body: '- [x] No visible UI change' }).ok).toBe(true);
-    expect(checkPrVisuals({ files: ui, body: '* [X] No visible UI change (refactor)' }).ok).toBe(true);
+    expect(checkPrVisuals({ files: ui, body: '* [X] No visible UI change (refactor)' }).ok).toBe(
+      true,
+    );
   });
 
   it('fails the untouched template, whose example sits in a comment', () => {
@@ -65,9 +65,7 @@ describe('checkPrVisuals', () => {
     expect(checkPrVisuals({ files: ui, body: `<!-- note\n${img}` }).ok).toBe(false);
     // Text after a closed comment still counts.
     expect(checkPrVisuals({ files: ui, body: `<!-- note -->\n${img}` }).ok).toBe(true);
-    expect(
-      checkPrVisuals({ files: ui, body: `<!-- a --><!-- b -->${img}` }).ok,
-    ).toBe(true);
+    expect(checkPrVisuals({ files: ui, body: `<!-- a --><!-- b -->${img}` }).ok).toBe(true);
   });
 
   it('treats a comment opener quoted in code as text, not a comment', () => {
@@ -77,9 +75,7 @@ describe('checkPrVisuals', () => {
 
   it('ignores pictures quoted in code', () => {
     expect(checkPrVisuals({ files: ui, body: 'Use `<img src="a.png">` here' }).ok).toBe(false);
-    expect(
-      checkPrVisuals({ files: ui, body: '```html\n<img src="a.png">\n```' }).ok,
-    ).toBe(false);
+    expect(checkPrVisuals({ files: ui, body: '```html\n<img src="a.png">\n```' }).ok).toBe(false);
   });
 
   it('does not count an unticked box or a mention of an image', () => {

@@ -56,9 +56,7 @@ const ORDER: readonly SheetSnap[] = ['peek', 'half', 'full'];
  */
 export function nearestSnap(height: number, heights: SnapHeights): SheetSnap {
   return ORDER.reduce((best, snap) =>
-    Math.abs(heights[snap] - height) < Math.abs(heights[best] - height)
-      ? snap
-      : best,
+    Math.abs(heights[snap] - height) < Math.abs(heights[best] - height) ? snap : best,
   );
 }
 
@@ -72,10 +70,7 @@ export function cycleSnap(snap: SheetSnap): SheetSnap {
  * the ends instead of wrapping.
  */
 export function stepSnap(snap: SheetSnap, direction: 1 | -1): SheetSnap {
-  const index = Math.min(
-    Math.max(ORDER.indexOf(snap) + direction, 0),
-    ORDER.length - 1,
-  );
+  const index = Math.min(Math.max(ORDER.indexOf(snap) + direction, 0), ORDER.length - 1);
   return ORDER[index];
 }
 

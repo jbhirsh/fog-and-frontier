@@ -12,13 +12,10 @@ vi.mock('@clerk/clerk-react', () => ({
     isSignedIn: false,
     getToken: () => Promise.resolve(null),
   }),
-  ClerkProvider: ({ children }: { children: ReactNode }) =>
-    createElement(Fragment, null, children),
+  ClerkProvider: ({ children }: { children: ReactNode }) => createElement(Fragment, null, children),
   SignedIn: () => null,
-  SignedOut: ({ children }: { children: ReactNode }) =>
-    createElement(Fragment, null, children),
-  SignInButton: ({ children }: { children: ReactNode }) =>
-    createElement(Fragment, null, children),
+  SignedOut: ({ children }: { children: ReactNode }) => createElement(Fragment, null, children),
+  SignInButton: ({ children }: { children: ReactNode }) => createElement(Fragment, null, children),
   UserButton: () => null,
   AuthenticateWithRedirectCallback: () => null,
 }));

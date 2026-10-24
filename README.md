@@ -50,37 +50,38 @@ map, filter, and plan trips around.
 
   It opens Safari, so sign in there once. Without the Shortcut, copy the
   post's link and paste it at `/share`.
+
 - **Owner-gated editing** — add / edit / delete / mark-complete are gated to
   owners, **enforced server-side** (the client gate is a UI hint only).
 
 ## Screenshots
 
-| Full-screen map | Activity detail |
-| --- | --- |
+| Full-screen map                                                                         | Activity detail                                                                                           |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | ![Full map view with category glyph pins across the Bay Area](docs/screenshots/map.png) | ![Activity detail modal with AllTrails rating and completion badge](docs/screenshots/activity-detail.png) |
 
 **AI-assisted "Explore" — pick a date window and let Gemini find local events:**
 
 ![Explore — Gemini-powered event discovery by date window](docs/screenshots/explore.png)
 
-| Mobile list | Mobile map |
-| --- | --- |
+| Mobile list                                                                     | Mobile map                                                                    |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | <img src="docs/screenshots/mobile-list.png" alt="Mobile list view" width="270"> | <img src="docs/screenshots/mobile-map.png" alt="Mobile map view" width="270"> |
 
 ## Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| **Front end** | React 19, Vite 8, TypeScript, React Router 7, Tailwind CSS v4 |
-| **Maps** | Leaflet + react-leaflet, CARTO Positron basemap |
-| **Data layer** | Apollo Client 4, GraphQL, `graphql-codegen` (typed operations) |
-| **API** | Apollo Server 5 on Express 5, one Vercel serverless function |
-| **Database** | Turso / libSQL edge database (`@libsql/client`) |
-| **Auth** | Clerk (`@clerk/clerk-react` + `@clerk/backend`) |
-| **AI** | Google Gemini (event discovery, activity generation, trip ideas) |
+| Layer             | Technology                                                                     |
+| ----------------- | ------------------------------------------------------------------------------ |
+| **Front end**     | React 19, Vite 8, TypeScript, React Router 7, Tailwind CSS v4                  |
+| **Maps**          | Leaflet + react-leaflet, CARTO Positron basemap                                |
+| **Data layer**    | Apollo Client 4, GraphQL, `graphql-codegen` (typed operations)                 |
+| **API**           | Apollo Server 5 on Express 5, one Vercel serverless function                   |
+| **Database**      | Turso / libSQL edge database (`@libsql/client`)                                |
+| **Auth**          | Clerk (`@clerk/clerk-react` + `@clerk/backend`)                                |
+| **AI**            | Google Gemini (event discovery, activity generation, trip ideas)               |
 | **Observability** | Sentry (`@sentry/react`) with source-map upload; structured serverless logging |
-| **Testing / CI** | Vitest (unit), Playwright (visual regression), GitHub Actions |
-| **Hosting** | Vercel |
+| **Testing / CI**  | Vitest (unit), Playwright (visual regression), GitHub Actions                  |
+| **Hosting**       | Vercel                                                                         |
 
 ## Engineering highlights
 
@@ -94,7 +95,7 @@ A few things in here worth a closer look:
   with `requireMemberCtx` / `requireCreatorCtx` for trips) gates every owner
   mutation and paid AI call server-side; the one exception is a signed-in
   account's suggestion and its capped Gemini draft (#73, `requireUserCtx`).
-  The client `useOwner()` hook only decides what to *render*.
+  The client `useOwner()` hook only decides what to _render_.
 - **A production safety net born from an outage.** Earlier work shipped a bug that
   404'd the API and blanked the CSS in prod. The response — a **smoke gate**
   (canary checks against the real Vercel deployment, including detection of
@@ -155,7 +156,7 @@ Most of the grading is **mechanical and deterministic**: schema and enum
 legality, expected-enum membership (category / region / park type / duration),
 coordinate tolerance against a cited source, and the right graceful-failure
 codes on adversarial input. On top of that sits a **narrow, search-grounded
-LLM judge** used *only* for the things a check can't assert — the plausibility of a
+LLM judge** used _only_ for the things a check can't assert — the plausibility of a
 generated description or a discovered event. Nothing else is judged by a model.
 
 **Model and generation settings.** The resolvers call `gemini-3.8-flash` with
@@ -219,7 +220,7 @@ case cites the provenance of its expected coordinates/data and an as-of date.
 
 **Known limitations.** The plausibility judge is Gemini grading Gemini (both
 3.8 Flash). Its rubric was calibrated during owner review (2026-07-10) after
-three consecutive runs each failed a *different* true-but-unlisted fact (Big
+three consecutive runs each failed a _different_ true-but-unlisted fact (Big
 Basin's reservation system, Duarte's cioppino/1930s restaurant era, Castle
 Rock's world-class climbing reputation): the judge passes widely-documented
 famous attributes even when a case's notes omit them and fails anything
@@ -250,7 +251,7 @@ place or thing inside the activity only when a source the model found names
 it there, and that case passed on the next run.
 
 Because the resolvers are evaluated at their production settings (see above),
-*which* case fails rotates run-to-run — the ≥90% threshold is the contract,
+_which_ case fails rotates run-to-run — the ≥90% threshold is the contract,
 not any single case's verdict. The last 2.5 Flash score was 95.5% (21/22, run
 29061551986, 2026-07-10). Findings from the 2.5 runs, reported as-is per issue
 #122 ("failures are real signal"):

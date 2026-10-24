@@ -173,9 +173,7 @@ export interface CheckResult {
 }
 
 /** Outcome of one resolver call, before grading. */
-export type ResolverOutcome =
-  | { ok: true; value: unknown }
-  | { ok: false; error: unknown };
+export type ResolverOutcome = { ok: true; value: unknown } | { ok: false; error: unknown };
 
 /**
  * error           — infrastructure failure (transport 5xx, judge died after
@@ -185,12 +183,7 @@ export type ResolverOutcome =
  * known-failure   — failed as predicted by expectedFailure (scores as pass).
  * unexpected-pass — passed despite expectedFailure (scores as fail).
  */
-export type CaseStatus =
-  | 'pass'
-  | 'fail'
-  | 'error'
-  | 'known-failure'
-  | 'unexpected-pass';
+export type CaseStatus = 'pass' | 'fail' | 'error' | 'known-failure' | 'unexpected-pass';
 
 export interface CaseResult {
   id: string;

@@ -30,9 +30,7 @@ const hookState = vi.hoisted(() => ({ loading: false }));
 
 vi.mock('../lib/activityReviews', async () => {
   const actual =
-    await vi.importActual<typeof import('../lib/activityReviews')>(
-      '../lib/activityReviews',
-    );
+    await vi.importActual<typeof import('../lib/activityReviews')>('../lib/activityReviews');
   return {
     ...actual,
     saveActivityReview: saveSpy,
@@ -131,9 +129,9 @@ describe('reading reviews', () => {
   it('renders the note as its own paragraph', async () => {
     renderReviews([TARUN]);
     const article = (await screen.findByText('Tarun')).closest('article');
-    expect(
-      within(article as HTMLElement).getByRole('paragraph'),
-    ).toHaveTextContent('Too windy for me.');
+    expect(within(article as HTMLElement).getByRole('paragraph')).toHaveTextContent(
+      'Too windy for me.',
+    );
   });
 
   it('drops the empty-state line once there is a review', async () => {
@@ -141,9 +139,7 @@ describe('reading reviews', () => {
     // so there are reviews, and "no reviews yet" would be wrong.
     renderReviews([TARUN]);
     await screen.findByText('Tarun');
-    expect(
-      screen.getByRole('button', { name: /write a review/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /write a review/i })).toBeInTheDocument();
     expect(screen.queryByText(/no reviews yet/i)).not.toBeInTheDocument();
   });
 
@@ -164,9 +160,7 @@ describe('reading reviews', () => {
 
   it('prompts an owner to write the first review', async () => {
     renderReviews([]);
-    expect(
-      await screen.findByRole('button', { name: /write a review/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /write a review/i })).toBeInTheDocument();
     expect(screen.getByText(/no reviews yet/i)).toBeInTheDocument();
   });
 });
@@ -198,26 +192,20 @@ describe('role gate', () => {
     expect(
       within(own as HTMLElement).getByRole('button', { name: /edit review/i }),
     ).toBeInTheDocument();
-    expect(
-      within(theirs as HTMLElement).queryByRole('button'),
-    ).not.toBeInTheDocument();
+    expect(within(theirs as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('does not offer "write a review" when the owner already has one', async () => {
     renderReviews([seed()]);
     await screen.findByText('Jess');
-    expect(
-      screen.queryByRole('button', { name: /write a review/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /write a review/i })).not.toBeInTheDocument();
   });
 });
 
 describe('writing a review', () => {
   it('saves a new rating and note', async () => {
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     await userEvent.click(screen.getByRole('button', { name: '4 stars' }));
     await userEvent.type(screen.getByRole('textbox'), 'Go back in spring.');
     await userEvent.click(screen.getByRole('button', { name: /save review/i }));
@@ -230,22 +218,16 @@ describe('writing a review', () => {
 
   it('names the one-star choice in the singular', async () => {
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     expect(screen.getByRole('button', { name: '1 star' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '2 stars' })).toBeInTheDocument();
   });
 
   it('fills every star up to the chosen rating', async () => {
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     await userEvent.click(screen.getByRole('button', { name: '4 stars' }));
-    const stars = within(screen.getByRole('group', { name: 'Rating' })).getAllByRole(
-      'button',
-    );
+    const stars = within(screen.getByRole('group', { name: 'Rating' })).getAllByRole('button');
     expect(stars.map((b) => b.getAttribute('aria-pressed'))).toEqual([
       'true',
       'true',
@@ -253,28 +235,25 @@ describe('writing a review', () => {
       'true',
       'false',
     ]);
-    expect(
-      stars.map((b) => isFilled(b.firstElementChild as Element)),
-    ).toEqual([true, true, true, true, false]);
+    expect(stars.map((b) => isFilled(b.firstElementChild as Element))).toEqual([
+      true,
+      true,
+      true,
+      true,
+      false,
+    ]);
   });
 
   it('pre-fills the editor from the existing review', async () => {
     renderReviews([seed()]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /edit review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /edit review/i }));
     expect(screen.getByRole('textbox')).toHaveValue('Worth the early start.');
-    expect(screen.getByRole('button', { name: '5 stars' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(screen.getByRole('button', { name: '5 stars' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('clears the rating when the active star is clicked again', async () => {
     renderReviews([seed()]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /edit review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /edit review/i }));
     await userEvent.click(screen.getByRole('button', { name: '5 stars' }));
     expect(screen.getByRole('button', { name: '5 stars' })).toHaveAttribute(
       'aria-pressed',
@@ -284,39 +263,29 @@ describe('writing a review', () => {
 
   it('refuses to save an empty review without calling the server', async () => {
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     await userEvent.click(screen.getByRole('button', { name: /save review/i }));
     expect(saveSpy).not.toHaveBeenCalled();
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /rating or a note/i,
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/rating or a note/i);
   });
 
   it('locks the editor while a save is in flight, then closes it', async () => {
     const save = deferred();
     saveSpy.mockReturnValueOnce(save.promise);
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     await userEvent.click(screen.getByRole('button', { name: '3 stars' }));
     await userEvent.click(screen.getByRole('button', { name: /save review/i }));
     expect(screen.getByRole('button', { name: /save review/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
     save.resolve();
-    await waitFor(() =>
-      expect(screen.queryByRole('textbox')).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
   });
 
   it('unlocks the editor after a failed save so it can be retried', async () => {
     saveSpy.mockRejectedValueOnce(new Error('network'));
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     await userEvent.click(screen.getByRole('button', { name: '3 stars' }));
     await userEvent.click(screen.getByRole('button', { name: /save review/i }));
     await screen.findByRole('alert');
@@ -327,22 +296,16 @@ describe('writing a review', () => {
   it('surfaces a failed save and keeps the draft open', async () => {
     saveSpy.mockRejectedValueOnce(new Error('network'));
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     await userEvent.click(screen.getByRole('button', { name: '3 stars' }));
     await userEvent.click(screen.getByRole('button', { name: /save review/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /couldn't save your review/i,
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't save your review/i);
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
   it('dismisses the error banner', async () => {
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
     await userEvent.click(screen.getByRole('button', { name: /save review/i }));
     await userEvent.click(screen.getByRole('button', { name: /dismiss error/i }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -350,9 +313,7 @@ describe('writing a review', () => {
 
   it('cancels back to the card without saving', async () => {
     renderReviews([seed()]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /edit review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /edit review/i }));
     await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
     expect(saveSpy).not.toHaveBeenCalled();
     expect(screen.getByText('Worth the early start.')).toBeInTheDocument();
@@ -360,50 +321,36 @@ describe('writing a review', () => {
 
   it('deletes an existing review', async () => {
     renderReviews([seed()]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /edit review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /edit review/i }));
     await userEvent.click(screen.getByRole('button', { name: /delete review/i }));
     expect(deleteSpy).toHaveBeenCalledWith('a1');
-    await waitFor(() =>
-      expect(screen.queryByRole('textbox')).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
   });
 
   it('surfaces a failed delete', async () => {
     deleteSpy.mockRejectedValueOnce(new Error('network'));
     renderReviews([seed()]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /edit review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /edit review/i }));
     await userEvent.click(screen.getByRole('button', { name: /delete review/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /couldn't delete your review/i,
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't delete your review/i);
   });
 
   it('locks the editor while a delete is in flight', async () => {
     const del = deferred();
     deleteSpy.mockReturnValueOnce(del.promise);
     renderReviews([seed()]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /edit review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /edit review/i }));
     await userEvent.click(screen.getByRole('button', { name: /delete review/i }));
     expect(screen.getByRole('button', { name: /delete review/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /save review/i })).toBeDisabled();
     del.resolve();
-    await waitFor(() =>
-      expect(screen.queryByRole('textbox')).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
   });
 
   it('unlocks the editor after a failed delete so it can be retried', async () => {
     deleteSpy.mockRejectedValueOnce(new Error('network'));
     renderReviews([seed()]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /edit review/i }),
-    );
+    await userEvent.click(await screen.findByRole('button', { name: /edit review/i }));
     await userEvent.click(screen.getByRole('button', { name: /delete review/i }));
     await screen.findByRole('alert');
     expect(screen.getByRole('button', { name: /delete review/i })).toBeEnabled();
@@ -412,11 +359,7 @@ describe('writing a review', () => {
 
   it('offers no delete control when writing a first review', async () => {
     renderReviews([]);
-    await userEvent.click(
-      await screen.findByRole('button', { name: /write a review/i }),
-    );
-    expect(
-      screen.queryByRole('button', { name: /delete review/i }),
-    ).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: /write a review/i }));
+    expect(screen.queryByRole('button', { name: /delete review/i })).not.toBeInTheDocument();
   });
 });

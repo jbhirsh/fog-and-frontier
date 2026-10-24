@@ -46,7 +46,12 @@ const DRAFT = {
 };
 
 async function stubDraft(page: Page) {
-  const cover = await findCoverImage({ name: DRAFT.name, lat: DRAFT.lat, lng: DRAFT.lng, category: DRAFT.category });
+  const cover = await findCoverImage({
+    name: DRAFT.name,
+    lat: DRAFT.lat,
+    lng: DRAFT.lng,
+    category: DRAFT.category,
+  });
   const activity = { ...DRAFT, coverImage: cover?.url ?? null, coverCredit: cover?.credit ?? null };
   await page.route('**/api/graphql', async (route) => {
     const op = (route.request().postDataJSON() as { operationName?: string } | null)?.operationName;

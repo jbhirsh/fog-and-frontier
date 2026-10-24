@@ -35,10 +35,7 @@ async function run(
   variables: Record<string, unknown> = {},
   caller: Caller = null,
 ): Promise<SingleResult> {
-  const res = await server.executeOperation(
-    { query, variables },
-    { contextValue: { caller } },
-  );
+  const res = await server.executeOperation({ query, variables }, { contextValue: { caller } });
   if (res.body.kind !== 'single') throw new Error('expected single result');
   return res.body.singleResult as SingleResult;
 }
@@ -66,11 +63,15 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-03-01T00:00:00Z'));
   execute.mockImplementation((q: unknown) => {
     const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
-    const args: unknown[] =
-      typeof q === 'string' ? [] : ((q as { args?: unknown[] }).args ?? []);
+    const args: unknown[] = typeof q === 'string' ? [] : ((q as { args?: unknown[] }).args ?? []);
     if (/^INSERT INTO activity_reviews/.test(sql)) {
       const [activityId, email, rating, note, createdAt, updatedAt] = args as [
-        string, string, number | null, string | null, number, number,
+        string,
+        string,
+        number | null,
+        string | null,
+        number,
+        number,
       ];
       const existing = table.get(key(activityId, email));
       table.set(key(activityId, email), {
@@ -107,18 +108,35 @@ afterEach(() => {
 const SAVE = /* GraphQL */ `
   mutation Save($input: SaveActivityReviewInput!) {
     saveActivityReview(input: $input) {
-      review { activityId authorEmail rating note createdAt updatedAt }
+      review {
+        activityId
+        authorEmail
+        rating
+        note
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
 const DELETE = /* GraphQL */ `
   mutation Del($input: DeleteActivityReviewInput!) {
-    deleteActivityReview(input: $input) { activityId authorEmail }
+    deleteActivityReview(input: $input) {
+      activityId
+      authorEmail
+    }
   }
 `;
 const LIST = /* GraphQL */ `
   query Reviews {
-    activityReviews { activityId authorEmail rating note createdAt updatedAt }
+    activityReviews {
+      activityId
+      authorEmail
+      rating
+      note
+      createdAt
+      updatedAt
+    }
   }
 `;
 
@@ -165,13 +183,18 @@ describe('Query.activityReviews (public)', () => {
         { activity_id: 'a1', author_email: 'jess@example.com', created_at: 1, updated_at: null },
         { activity_id: 7, author_email: 'jess@example.com', created_at: 1, updated_at: 1 },
         { activity_id: 'a1', author_email: 7, created_at: 1, updated_at: 1 },
-        { activity_id: 'a2', author_email: 'jess@example.com', rating: null, note: 42, created_at: 7, updated_at: 8 },
+        {
+          activity_id: 'a2',
+          author_email: 'jess@example.com',
+          rating: null,
+          note: 42,
+          created_at: 7,
+          updated_at: 8,
+        },
       ],
     });
     const rows = list(await run(LIST));
-    expect(rows).toEqual([
-      expect.objectContaining({ activityId: 'a2', rating: null, note: null }),
-    ]);
+    expect(rows).toEqual([expect.objectContaining({ activityId: 'a2', rating: null, note: null })]);
   });
 });
 
@@ -213,7 +236,11 @@ describe('Mutation.saveActivityReview', () => {
   it('upserts an edit in place, preserving createdAt and moving updatedAt', async () => {
     await run(SAVE, { input: { activityId: 'a1', rating: 5 } }, JESS);
     vi.setSystemTime(new Date('2026-03-02T00:00:00Z'));
-    const res = await run(SAVE, { input: { activityId: 'a1', rating: 2, note: 'Downgraded' } }, JESS);
+    const res = await run(
+      SAVE,
+      { input: { activityId: 'a1', rating: 2, note: 'Downgraded' } },
+      JESS,
+    );
     const review = (res.data?.saveActivityReview as { review: ReviewRow }).review;
     expect(review.createdAt).toBe('2026-03-01T00:00:00.000Z');
     expect(review.updatedAt).toBe('2026-03-02T00:00:00.000Z');
@@ -274,21 +301,15 @@ describe('Mutation.saveActivityReview', () => {
 
 describe('Mutation.deleteActivityReview', () => {
   it('rejects an anonymous caller', async () => {
-    expect(code(await run(DELETE, { input: { activityId: 'a1' } }, null))).toBe(
-      'UNAUTHENTICATED',
-    );
+    expect(code(await run(DELETE, { input: { activityId: 'a1' } }, null))).toBe('UNAUTHENTICATED');
   });
 
   it('rejects a signed-in non-owner', async () => {
-    expect(code(await run(DELETE, { input: { activityId: 'a1' } }, EDITOR))).toBe(
-      'FORBIDDEN',
-    );
+    expect(code(await run(DELETE, { input: { activityId: 'a1' } }, EDITOR))).toBe('FORBIDDEN');
   });
 
   it('rejects an empty activityId', async () => {
-    expect(code(await run(DELETE, { input: { activityId: '' } }, JESS))).toBe(
-      'BAD_USER_INPUT',
-    );
+    expect(code(await run(DELETE, { input: { activityId: '' } }, JESS))).toBe('BAD_USER_INPUT');
   });
 
   it("removes only the caller's own review", async () => {

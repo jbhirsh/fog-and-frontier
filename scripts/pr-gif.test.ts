@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -516,16 +524,24 @@ describe('offFrame', () => {
   });
 
   it('counts each edge: the clip runs up to, not including, x + width and y + height', () => {
-    expect(offFrame([0, 1000], [{ x: 0, y: 100 }, { x: 399, y: 299 }], clip, 0)).toEqual([]);
+    expect(
+      offFrame(
+        [0, 1000],
+        [
+          { x: 0, y: 100 },
+          { x: 399, y: 299 },
+        ],
+        clip,
+        0,
+      ),
+    ).toEqual([]);
     for (const p of [
       { x: -1, y: 150 },
       { x: 400, y: 150 },
       { x: 10, y: 99 },
       { x: 10, y: 300 },
     ]) {
-      expect(offFrame([0, 1000, 2000], [p, p, inside], clip, 0)).toEqual([
-        { from: 0, to: 2000 },
-      ]);
+      expect(offFrame([0, 1000, 2000], [p, p, inside], clip, 0)).toEqual([{ from: 0, to: 2000 }]);
     }
   });
 
@@ -555,7 +571,12 @@ describe('cropOf', () => {
       width: 2200,
       height: 1120,
     });
-    expect(cropOf({ x: 1, y: 1, width: 3, height: 3 }, 1.5)).toEqual({ x: 2, y: 2, width: 5, height: 5 });
+    expect(cropOf({ x: 1, y: 1, width: 3, height: 3 }, 1.5)).toEqual({
+      x: 2,
+      y: 2,
+      width: 5,
+      height: 5,
+    });
   });
 });
 
@@ -617,9 +638,17 @@ describe('recordFrames', () => {
         Promise.resolve(arg === undefined && at ? at() : null),
       ),
     };
-    return { page, cdp, sent: () => n, recordable: page as unknown as Parameters<typeof recordFrames>[0] };
+    return {
+      page,
+      cdp,
+      sent: () => n,
+      recordable: page as unknown as Parameters<typeof recordFrames>[0],
+    };
   }
-  const frameText = (dir: string, i: number) => readFileSync(join(dir, frameName(i))).subarray(24).toString();
+  const frameText = (dir: string, i: number) =>
+    readFileSync(join(dir, frameName(i)))
+      .subarray(24)
+      .toString();
 
   it('saves every frame painted until stopped, in order, noting each one’s time', async () => {
     const dir = join(temp(), 'frames');
@@ -640,7 +669,10 @@ describe('recordFrames', () => {
     expect(frameText(dir, 0)).toBe('frame 0');
     expect(frameText(dir, frames - 1)).toBe(`frame ${frames - 1}`);
     // Every frame, as PNG, each acknowledged so the next comes.
-    expect(cdp.send.mock.calls[0]).toEqual(['Page.startScreencast', { format: 'png', everyNthFrame: 1 }]);
+    expect(cdp.send.mock.calls[0]).toEqual([
+      'Page.startScreencast',
+      { format: 'png', everyNthFrame: 1 },
+    ]);
     const acks = cdp.send.mock.calls.filter(([method]) => method === 'Page.screencastFrameAck');
     expect(acks.map(([, params]) => params)).toEqual(
       Array.from({ length: frames }, (_, i) => ({ sessionId: i })),
@@ -992,10 +1024,14 @@ describe('framesToGif', () => {
       "file 'f0004.png'",
       "file 'f0004.png'",
     ]);
-    expect(readFileSync(list, 'utf8')).toBe(concatList(shownFrames(FAKE_TIMES, 5000, [2, 5], FAKE_HASHES)));
+    expect(readFileSync(list, 'utf8')).toBe(
+      concatList(shownFrames(FAKE_TIMES, 5000, [2, 5], FAKE_HASHES)),
+    );
     // Cut to the clip, in the frames' pixels.
     const crop = { x: 0, y: 0, width: 20, height: 20 };
-    expect(execSpy).toHaveBeenCalledWith('ffmpeg', gifArgs(list, out, 480, crop), { stdio: 'inherit' });
+    expect(execSpy).toHaveBeenCalledWith('ffmpeg', gifArgs(list, out, 480, crop), {
+      stdio: 'inherit',
+    });
     framesToGif(dir, out);
     expect(execSpy).toHaveBeenLastCalledWith('ffmpeg', gifArgs(list, out, 600, crop), {
       stdio: 'inherit',
@@ -1026,20 +1062,32 @@ describe('sideBySide', () => {
     sideBySide(before, after, out, { width: 812 });
     const lists = [join(before, 'side.ffconcat'), join(after, 'side.ffconcat')];
     for (const list of lists) {
-      expect(readFileSync(list, 'utf8')).toBe(concatList(shownFrames(FAKE_TIMES, 5000, [2, 5], FAKE_HASHES)));
+      expect(readFileSync(list, 'utf8')).toBe(
+        concatList(shownFrames(FAKE_TIMES, 5000, [2, 5], FAKE_HASHES)),
+      );
     }
     // Frames 2 to 4 show from 2000 ms; the last, merged with frame 5, holds
     // the 1800 ms it lasted: 100 + 100 + 1800.
     const crop = { x: 0, y: 0, width: 20, height: 20 };
     expect(execSpy).toHaveBeenCalledWith(
       'ffmpeg',
-      sideBySideArgs({ list: lists[0], ms: 2000, crop }, { list: lists[1], ms: 2000, crop }, out, 812),
+      sideBySideArgs(
+        { list: lists[0], ms: 2000, crop },
+        { list: lists[1], ms: 2000, crop },
+        out,
+        812,
+      ),
       { stdio: 'inherit' },
     );
     sideBySide(before, after, out);
     expect(execSpy).toHaveBeenLastCalledWith(
       'ffmpeg',
-      sideBySideArgs({ list: lists[0], ms: 2000, crop }, { list: lists[1], ms: 2000, crop }, out, 1000),
+      sideBySideArgs(
+        { list: lists[0], ms: 2000, crop },
+        { list: lists[1], ms: 2000, crop },
+        out,
+        1000,
+      ),
       { stdio: 'inherit' },
     );
   });
@@ -1060,7 +1108,9 @@ describe('osmTile', () => {
     expect(osmTile('https://a.basemaps.cartocdn.com/light_all/8/40/98.png')).toBe(
       'https://tile.openstreetmap.org/8/40/98.png',
     );
-    expect(osmTile('https://d.basemaps.cartocdn.com/rastertiles/voyager/12/655/1582@2x.png?api_key=k')).toBeNull();
+    expect(
+      osmTile('https://d.basemaps.cartocdn.com/rastertiles/voyager/12/655/1582@2x.png?api_key=k'),
+    ).toBeNull();
     expect(osmTile('https://c.basemaps.cartocdn.com/light_all/12/655/1582@2x.png?api_key=k')).toBe(
       'https://tile.openstreetmap.org/12/655/1582.png',
     );
@@ -1084,13 +1134,18 @@ describe('liveSite', () => {
   function readRoute(body: { query?: string; operationName?: string } | null, response?: unknown) {
     return {
       request: () => ({ postDataJSON: () => body }),
-      fetch: vi.fn(() => (response instanceof Error ? Promise.reject(response) : Promise.resolve(response))),
+      fetch: vi.fn(() =>
+        response instanceof Error ? Promise.reject(response) : Promise.resolve(response),
+      ),
       fulfill: vi.fn(() => Promise.resolve()),
       fallback: vi.fn(() => Promise.resolve()),
       continue: vi.fn(() => Promise.resolve()),
     };
   }
-  const answer = (json: unknown, ok = true) => ({ ok: () => ok, json: () => Promise.resolve(json) });
+  const answer = (json: unknown, ok = true) => ({
+    ok: () => ok,
+    json: () => Promise.resolve(json),
+  });
   const read = (name: string) => ({ operationName: name, query: `query ${name} { a }` });
 
   it('routes the API, then the fonts', async () => {
@@ -1103,7 +1158,10 @@ describe('liveSite', () => {
   it('answers every read from production', async () => {
     const [[, reads]] = await routes();
     const response = answer({ data: { activities: [] } });
-    const r = readRoute({ operationName: 'Activities', query: 'query Activities { activities { id } }' }, response);
+    const r = readRoute(
+      { operationName: 'Activities', query: 'query Activities { activities { id } }' },
+      response,
+    );
     await reads(r);
     expect(r.fetch).toHaveBeenCalledWith({ url: LIVE_GRAPHQL });
     expect(r.fulfill).toHaveBeenCalledWith({ response, json: { data: { activities: [] } } });
@@ -1112,14 +1170,22 @@ describe('liveSite', () => {
     expect(LIVE_GRAPHQL).toBe('https://fog-and-frontier.vercel.app/api/graphql');
     // Any other production, and a read with space before it.
     const [[, other]] = await routes('https://example.com/api/graphql');
-    const r2 = readRoute({ query: '  query DrivingMiles { drivingMiles { id } }' }, answer({ data: {} }));
+    const r2 = readRoute(
+      { query: '  query DrivingMiles { drivingMiles { id } }' },
+      answer({ data: {} }),
+    );
     await other(r2);
     expect(r2.fetch).toHaveBeenCalledWith({ url: 'https://example.com/api/graphql' });
   });
 
   it('leaves writes, and anything that isn’t a read, to the stub', async () => {
     const [[, reads]] = await routes();
-    for (const body of [{ query: 'mutation SaveActivity { saveActivity { id } }' }, { query: 'queryless' }, {}, null]) {
+    for (const body of [
+      { query: 'mutation SaveActivity { saveActivity { id } }' },
+      { query: 'queryless' },
+      {},
+      null,
+    ]) {
       const r = readRoute(body);
       await reads(r);
       expect(r.fetch).not.toHaveBeenCalled();
@@ -1142,11 +1208,15 @@ describe('liveSite', () => {
         expect(r.fulfill).not.toHaveBeenCalled();
       }
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith(`pr-gif: ${LIVE_GRAPHQL} couldn't answer TripsList, so the stub did`);
+      expect(warn).toHaveBeenCalledWith(
+        `pr-gif: ${LIVE_GRAPHQL} couldn't answer TripsList, so the stub did`,
+      );
       // Another read gets its own note; one with no name is "a read".
       await reads(readRoute(read('TripDetail'), new Error('offline')));
       await reads(readRoute({ query: 'query { a }' }, new Error('offline')));
-      expect(warn).toHaveBeenLastCalledWith(`pr-gif: ${LIVE_GRAPHQL} couldn't answer a read, so the stub did`);
+      expect(warn).toHaveBeenLastCalledWith(
+        `pr-gif: ${LIVE_GRAPHQL} couldn't answer a read, so the stub did`,
+      );
       expect(warn).toHaveBeenCalledTimes(3);
       // An empty errors list is still an answer.
       const r = readRoute(read('A'), answer({ data: {}, errors: [] }));
@@ -1177,15 +1247,21 @@ describe('pictureSource', () => {
       direct: 'http://img.example/a.png',
     });
     // At the CDN's largest width and its one quality, as vercel.json lists them.
-    const images = (JSON.parse(readFileSync('vercel.json', 'utf8')) as { images: { sizes: number[]; qualities: number[] } })
-      .images;
+    const images = (
+      JSON.parse(readFileSync('vercel.json', 'utf8')) as {
+        images: { sizes: number[]; qualities: number[] };
+      }
+    ).images;
     expect(CDN_WIDTH).toBe(Math.max(...images.sizes));
     expect(images.qualities).toEqual([CDN_QUALITY]);
   });
 
   it('sends the build’s own image CDN requests to production’s', () => {
     const asked = `/_vercel/image?url=${encodeURIComponent(PHOTO)}&w=384&q=75`;
-    expect(pictureSource(`http://localhost:4173${asked}`)).toEqual({ url: `${PRODUCTION}${asked}`, direct: PHOTO });
+    expect(pictureSource(`http://localhost:4173${asked}`)).toEqual({
+      url: `${PRODUCTION}${asked}`,
+      direct: PHOTO,
+    });
     expect(pictureSource('http://localhost:4173/_vercel/image?w=384', 'https://x.app')).toEqual({
       url: 'https://x.app/_vercel/image?w=384',
       direct: undefined,
@@ -1215,8 +1291,15 @@ describe('pictureSource', () => {
 describe('waitForPhotos', () => {
   it('waits for the photos in view to load', async () => {
     const waitForFunction = vi.fn(() => Promise.resolve());
-    expect(await waitForPhotos({ waitForFunction } as unknown as Parameters<typeof waitForPhotos>[0], 5000)).toBe(true);
-    expect(waitForFunction).toHaveBeenCalledWith(expect.any(Function), undefined, { timeout: 5000 });
+    expect(
+      await waitForPhotos(
+        { waitForFunction } as unknown as Parameters<typeof waitForPhotos>[0],
+        5000,
+      ),
+    ).toBe(true);
+    expect(waitForFunction).toHaveBeenCalledWith(expect.any(Function), undefined, {
+      timeout: 5000,
+    });
   });
 
   it('gives up with a warning, not an error, after 20 s by default', async () => {
@@ -1224,7 +1307,9 @@ describe('waitForPhotos', () => {
     try {
       const waitForFunction = vi.fn(() => Promise.reject(new Error('Timeout')));
       expect(await waitForPhotos({ waitForFunction })).toBe(false);
-      expect(waitForFunction).toHaveBeenCalledWith(expect.any(Function), undefined, { timeout: 20_000 });
+      expect(waitForFunction).toHaveBeenCalledWith(expect.any(Function), undefined, {
+        timeout: 20_000,
+      });
       expect(warn).toHaveBeenCalledWith("pr-gif: some photos in view hadn't loaded after 20 s");
     } finally {
       warn.mockRestore();
@@ -1242,7 +1327,9 @@ describe('waitForPhotos', () => {
     const img = document.createElement('img');
     document.body.append(img);
     const box = (top: number, width = 100) =>
-      vi.spyOn(img, 'getBoundingClientRect').mockReturnValue({ top, bottom: top + 50, width } as DOMRect);
+      vi
+        .spyOn(img, 'getBoundingClientRect')
+        .mockReturnValue({ top, bottom: top + 50, width } as DOMRect);
     const complete = (value: boolean) =>
       Object.defineProperty(img, 'complete', { value, configurable: true });
     try {
@@ -1283,7 +1370,10 @@ describe('cachePhotos', () => {
         return Promise.resolve();
       }),
     };
-    const { failed } = await cachePhotos(page as unknown as Parameters<typeof cachePhotos>[0], { cache, production });
+    const { failed } = await cachePhotos(page as unknown as Parameters<typeof cachePhotos>[0], {
+      cache,
+      production,
+    });
     return { handler: added![1], match: (url: string) => added![0](new URL(url)), failed };
   }
   // A route whose fetches answer, in turn, with `responses` (an Error throws).
@@ -1306,7 +1396,11 @@ describe('cachePhotos', () => {
     body: () => Promise.resolve(Buffer.from(body)),
     headers: () => (type ? { 'content-type': type } : {}),
   });
-  const refused = (status: number) => ({ ok: () => false, status: () => status, headers: () => ({}) });
+  const refused = (status: number) => ({
+    ok: () => false,
+    status: () => status,
+    headers: () => ({}),
+  });
   const URL_A = 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Library.jpg';
   const CDN_A = pictureSource(URL_A)!.url;
 
@@ -1341,7 +1435,10 @@ describe('cachePhotos', () => {
     const second = photoRoute(URL_A);
     await again.handler(second);
     expect(second.fetch).not.toHaveBeenCalled();
-    expect(second.fulfill).toHaveBeenCalledWith({ body: Buffer.from('avif bytes'), contentType: 'image/avif' });
+    expect(second.fulfill).toHaveBeenCalledWith({
+      body: Buffer.from('avif bytes'),
+      contentType: 'image/avif',
+    });
     expect(failed.size).toBe(0);
   });
 
@@ -1408,7 +1505,11 @@ describe('cachePhotos', () => {
 
   it('notes a photo it couldn’t reach at all, and aborts it', async () => {
     const { handler, failed } = await setUp(temp());
-    const r = photoRoute(URL_A, new Error('offline'), new Error('net::ERR_CONNECTION_RESET\nmore detail'));
+    const r = photoRoute(
+      URL_A,
+      new Error('offline'),
+      new Error('net::ERR_CONNECTION_RESET\nmore detail'),
+    );
     await handler(r);
     expect(r.abort).toHaveBeenCalledTimes(1);
     expect(failed.get(URL_A)).toBe('net::ERR_CONNECTION_RESET');

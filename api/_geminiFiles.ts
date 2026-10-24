@@ -47,7 +47,8 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 function fileOf(resource: FileResource | undefined): (GeminiFile & { state: unknown }) | null {
   if (!resource) return null;
   const { name, uri, mimeType, state } = resource;
-  if (typeof name !== 'string' || typeof uri !== 'string' || typeof mimeType !== 'string') return null;
+  if (typeof name !== 'string' || typeof uri !== 'string' || typeof mimeType !== 'string')
+    return null;
   return { name, uri, mimeType, state };
 }
 
@@ -134,7 +135,11 @@ async function uploadAndWait(
 }
 
 /** Deletes an uploaded file. Never throws: an undeleted file expires anyway. */
-export async function deleteFile(name: string, apiKey: string, fetchImpl: Fetch = fetch): Promise<boolean> {
+export async function deleteFile(
+  name: string,
+  apiKey: string,
+  fetchImpl: Fetch = fetch,
+): Promise<boolean> {
   try {
     const r = await fetchImpl(`${FILES_URL}/${name}`, {
       method: 'DELETE',

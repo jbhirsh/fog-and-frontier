@@ -53,9 +53,7 @@ export function TripMap({ trip }: Props) {
   const safeActiveDay = Math.min(activeDay, total - 1);
 
   const activitiesToShow = showAll
-    ? buckets.flatMap((b) =>
-        b.activities.map((a) => ({ activity: a, dayIndex: b.dayIndex })),
-      )
+    ? buckets.flatMap((b) => b.activities.map((a) => ({ activity: a, dayIndex: b.dayIndex })))
     : (buckets[safeActiveDay]?.activities ?? []).map((a) => ({
         activity: a,
         dayIndex: safeActiveDay,
@@ -64,11 +62,7 @@ export function TripMap({ trip }: Props) {
   return (
     <div className="space-y-md">
       <div className="flex items-center gap-md flex-wrap">
-        <div
-          className="flex gap-xs overflow-x-auto"
-          role="tablist"
-          aria-label="Itinerary day"
-        >
+        <div className="flex gap-xs overflow-x-auto" role="tablist" aria-label="Itinerary day">
           {buckets.map((b) => {
             const selected = !showAll && b.dayIndex === safeActiveDay;
             return (
@@ -132,9 +126,7 @@ export function TripMap({ trip }: Props) {
                     <div className="font-bold">{activity.snapshot?.name}</div>
                     <div className="text-on-surface-variant text-sm">
                       {dayLabel(trip, dayIndex)} ·{' '}
-                      {activity.start_time
-                        ? formatHHMM(activity.start_time)
-                        : 'unscheduled'}
+                      {activity.start_time ? formatHHMM(activity.start_time) : 'unscheduled'}
                     </div>
                   </div>
                 </Popup>

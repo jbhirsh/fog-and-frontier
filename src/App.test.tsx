@@ -33,27 +33,24 @@ describe('App', () => {
     expect(await screen.findByText('Curated Adventures')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
     expect(window.location.search).toBe('?completed=1');
-    expect(
-      screen.getByRole('switch', { name: 'Completed only' }),
-    ).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Completed only' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   // Activity permalinks (#86).
   it('opens a linked activity over the catalog', () => {
     window.history.replaceState(null, '', `/activity/${muirWoods.id}`);
     render(<App />, { activities: [muirWoods, dogFriendlyTidepools] });
-    expect(
-      screen.getByRole('dialog', { name: 'Test Muir Woods' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Test Muir Woods' })).toBeInTheDocument();
     expect(screen.getByText('Curated Adventures')).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/activity/${muirWoods.id}`);
   });
 
   it('puts an opened card in the URL, and Back closes it', async () => {
     render(<App />, { activities: [muirWoods, dogFriendlyTidepools] });
-    await userEvent.click(
-      screen.getByRole('button', { name: /Test Tide Pools/ }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: /Test Tide Pools/ }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Test Tide Pools')).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/activity/${dogFriendlyTidepools.id}`);

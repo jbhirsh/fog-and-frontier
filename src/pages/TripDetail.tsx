@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { TripActivityCard } from '../components/TripActivityCard';
 import { TripMap } from '../components/TripMap';
 import { VotingCandidateCard } from '../components/VotingCandidateCard';
@@ -78,11 +73,7 @@ export function TripDetail() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [detail, setDetail] = useState<Activity | null>(null);
-  const {
-    activities: catalog,
-    loading: catalogLoading,
-    error: catalogError,
-  } = useUserActivities();
+  const { activities: catalog, loading: catalogLoading, error: catalogError } = useUserActivities();
   const openActivity = useOpenActivity();
 
   const isPast = trip?.status === 'past';
@@ -144,9 +135,7 @@ export function TripDetail() {
         console.error(err);
         // Resync on failure so a stale view corrects itself — e.g. an action
         // that conflicts because the creator just changed the trip under us.
-        setActionError(
-          "That didn't go through — the trip may have changed. We've refreshed it.",
-        );
+        setActionError("That didn't go through — the trip may have changed. We've refreshed it.");
         await reload();
         return false;
       } finally {
@@ -170,9 +159,7 @@ export function TripDetail() {
     if (!trip || !isVoting || !email) return;
     void castVote(trip.id, taId, value, email).catch((err: unknown) => {
       console.error(err);
-      setActionError(
-        "Your vote didn't save — the trip may have changed. We've refreshed it.",
-      );
+      setActionError("Your vote didn't save — the trip may have changed. We've refreshed it.");
       void reload();
     });
   }
@@ -273,9 +260,7 @@ export function TripDetail() {
         (a) => a.day_index === dayIndex && a.id !== taId && a.start_time,
       );
       const start_time = defaultStartTimeForDay(onDay);
-      void runAction(() =>
-        assignSlot(taId, { day_index: dayIndex, start_time }),
-      );
+      void runAction(() => assignSlot(taId, { day_index: dayIndex, start_time }));
     };
   }
 
@@ -284,9 +269,7 @@ export function TripDetail() {
     const taId = e.dataTransfer.getData(DRAG_MIME);
     if (!taId) return;
     e.preventDefault();
-    void runAction(() =>
-      assignSlot(taId, { day_index: null, start_time: null }),
-    );
+    void runAction(() => assignSlot(taId, { day_index: null, start_time: null }));
   }
 
   function handleAssignOrEdit(activity: TripActivity) {
@@ -295,11 +278,11 @@ export function TripDetail() {
       taId: activity.id,
       activityName: activity.snapshot?.name ?? '(activity)',
       dayIndex: activity.day_index ?? 0,
-      startTime: activity.start_time ?? defaultStartTimeForDay(
-        trip.activities.filter(
-          (a) => a.day_index === 0 && a.id !== activity.id && a.start_time,
+      startTime:
+        activity.start_time ??
+        defaultStartTimeForDay(
+          trip.activities.filter((a) => a.day_index === 0 && a.id !== activity.id && a.start_time),
         ),
-      ),
     });
   }
 
@@ -307,15 +290,11 @@ export function TripDetail() {
     if (!slotDialog) return;
     const taId = slotDialog.taId;
     setSlotDialog(null);
-    void runAction(() =>
-      assignSlot(taId, { day_index: dayIndex, start_time: startTime }),
-    );
+    void runAction(() => assignSlot(taId, { day_index: dayIndex, start_time: startTime }));
   }
 
   function handleMoveToUnscheduled(activity: TripActivity) {
-    void runAction(() =>
-      assignSlot(activity.id, { day_index: null, start_time: null }),
-    );
+    void runAction(() => assignSlot(activity.id, { day_index: null, start_time: null }));
   }
 
   function handleRemove(activity: TripActivity) {
@@ -362,9 +341,7 @@ export function TripDetail() {
 
   if (!ownerLoaded || isLoading || claimInProgress) {
     return (
-      <section className="px-margin py-xl text-center text-on-surface-variant">
-        Loading…
-      </section>
+      <section className="px-margin py-xl text-center text-on-surface-variant">Loading…</section>
     );
   }
 
@@ -374,9 +351,7 @@ export function TripDetail() {
   if (inviteToken && !email) {
     return (
       <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
-        <h1 className="font-display text-headline-lg text-primary">
-          You&apos;re invited
-        </h1>
+        <h1 className="font-display text-headline-lg text-primary">You&apos;re invited</h1>
         <p className="font-body-lg text-on-surface-variant">
           Sign in to accept your invitation and join this trip.
         </p>
@@ -405,9 +380,7 @@ export function TripDetail() {
     return (
       <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
         <h1 className="font-display text-headline-lg text-primary">Trip</h1>
-        <p className="font-body-lg text-on-surface-variant">
-          Sign in to view this trip.
-        </p>
+        <p className="font-body-lg text-on-surface-variant">Sign in to view this trip.</p>
         <Link to="/trips" className="text-primary underline">
           Back to trips
         </Link>
@@ -419,9 +392,7 @@ export function TripDetail() {
     return (
       <section className="px-margin py-xl max-w-2xl mx-auto text-center space-y-md">
         <p className="font-body-lg text-on-surface-variant">
-          {error === 'not-found'
-            ? "We couldn't find that trip."
-            : "Couldn't load this trip."}
+          {error === 'not-found' ? "We couldn't find that trip." : "Couldn't load this trip."}
         </p>
         <Link to="/trips" className="text-primary underline">
           Back to trips
@@ -448,10 +419,7 @@ export function TripDetail() {
 
       {actionError && (
         <div className="px-margin pt-md max-w-screen-2xl mx-auto">
-          <InlineError
-            message={actionError}
-            onDismiss={() => setActionError(null)}
-          />
+          <InlineError message={actionError} onDismiss={() => setActionError(null)} />
         </div>
       )}
 
@@ -480,9 +448,7 @@ export function TripDetail() {
           onReorder={handleReorderCandidate}
           onFinalize={() => setPromoteOpen(true)}
           suggestions={suggestions}
-          onAddSuggestion={(a) =>
-            runAction(() => addActivityToTrip(trip.id, a.id))
-          }
+          onAddSuggestion={(a) => runAction(() => addActivityToTrip(trip.id, a.id))}
           onOpenSuggestion={(a) => openActivity(a.id)}
           onAddFromCurated={() =>
             void navigate('/', {
@@ -495,9 +461,7 @@ export function TripDetail() {
           <TripMap trip={trip} />
 
           <div className="flex items-center justify-between gap-md flex-wrap">
-            <h2 className="font-headline-md text-headline-md text-on-surface">
-              Itinerary
-            </h2>
+            <h2 className="font-headline-md text-headline-md text-on-surface">Itinerary</h2>
             <button
               type="button"
               onClick={() => {
@@ -513,7 +477,10 @@ export function TripDetail() {
               title={isPast ? PAST_TOOLTIP : undefined}
               className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+              <span
+                className="material-symbols-outlined text-icon-md"
+                style={{ marginLeft: glyphBleed('add') }}
+              >
                 add
               </span>
               Add activity
@@ -620,15 +587,11 @@ export function TripDetail() {
           ].filter(Boolean)}
           onClose={() => setInviteOpen(false)}
           onCreateInvite={handleCreateInvite}
-          buildLink={(token) =>
-            `${window.location.origin}${inviteLinkPath(trip.id, token)}`
-          }
+          buildLink={(token) => `${window.location.origin}${inviteLinkPath(trip.id, token)}`}
         />
       )}
 
-      {detail && (
-        <ActivityDetail activity={detail} onClose={() => setDetail(null)} />
-      )}
+      {detail && <ActivityDetail activity={detail} onClose={() => setDetail(null)} />}
     </>
   );
 }
@@ -669,21 +632,22 @@ function VotingView({
   return (
     <section className="px-margin py-lg max-w-screen-2xl mx-auto space-y-lg">
       <div className="rounded-xl bg-tertiary-container/40 border border-outline-variant/20 px-md py-sm font-body-md text-on-surface-variant">
-        Voting is open — react to each candidate. Scheduling unlocks once the
-        trip creator finalizes voting.
+        Voting is open — react to each candidate. Scheduling unlocks once the trip creator finalizes
+        voting.
       </div>
 
       <div className="flex items-center justify-between gap-md flex-wrap">
-        <h2 className="font-headline-md text-headline-md text-on-surface">
-          Candidates
-        </h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Candidates</h2>
         <div className="flex items-center gap-sm">
           <button
             type="button"
             onClick={onAddFromCurated}
             className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 text-on-surface-variant px-md py-sm font-body-md hover:bg-surface-variant"
           >
-            <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+            <span
+              className="material-symbols-outlined text-icon-md"
+              style={{ marginLeft: glyphBleed('add') }}
+            >
               add
             </span>
             Add candidate
@@ -701,9 +665,7 @@ function VotingView({
             }
             className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined text-icon-md">
-              how_to_vote
-            </span>
+            <span className="material-symbols-outlined text-icon-md">how_to_vote</span>
             Finalize voting
           </button>
         </div>
@@ -712,11 +674,7 @@ function VotingView({
       {candidates.length === 0 ? (
         <p className="font-body-md text-on-surface-variant">
           No candidates yet.{' '}
-          <button
-            type="button"
-            onClick={onAddFromCurated}
-            className="text-primary underline"
-          >
+          <button type="button" onClick={onAddFromCurated} className="text-primary underline">
             Add some from the curated catalog
           </button>{' '}
           to start voting.
@@ -768,13 +726,7 @@ function VotingView({
 
 // Per-candidate by-member breakdown (#51 c5). A member who voted then left the
 // trip still appears here, labeled "(left trip)" — their vote keeps counting.
-function VoteBreakdown({
-  trip,
-  tripActivityId,
-}: {
-  trip: Trip;
-  tripActivityId: string;
-}) {
+function VoteBreakdown({ trip, tripActivityId }: { trip: Trip; tripActivityId: string }) {
   const rows = memberVoteBreakdown(trip.votes, trip.members, tripActivityId);
   if (rows.length === 0) return null;
   return (
@@ -793,9 +745,7 @@ function VoteBreakdown({
             {r.value === 1 ? 'thumb_up' : 'thumb_down'}
           </span>
           {r.display_name ?? r.email}
-          {r.leftTrip && (
-            <span className="italic opacity-70">&nbsp;(left trip)</span>
-          )}
+          {r.leftTrip && <span className="italic opacity-70">&nbsp;(left trip)</span>}
         </span>
       ))}
     </div>
@@ -803,20 +753,12 @@ function VoteBreakdown({
 }
 
 // Read-only final tallies shown under the itinerary once voting has closed.
-function VotingResults({
-  trip,
-  onOpen,
-}: {
-  trip: Trip;
-  onOpen: (a: TripActivity) => void;
-}) {
+function VotingResults({ trip, onOpen }: { trip: Trip; onOpen: (a: TripActivity) => void }) {
   if (trip.votes.length === 0) return null;
   const ranked = sortByNetScore(trip.activities, trip.votes);
   return (
     <div className="space-y-md pt-md border-t border-outline-variant/20">
-      <h2 className="font-headline-md text-headline-md text-on-surface">
-        Voting results
-      </h2>
+      <h2 className="font-headline-md text-headline-md text-on-surface">Voting results</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
         {ranked.map((a) => (
           <div key={a.id} className="space-y-xs">
@@ -939,9 +881,7 @@ function TripHeader({
             <input
               type="date"
               value={draft.start_date}
-              onChange={(e) =>
-                setDraft({ ...draft, start_date: e.target.value })
-              }
+              onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
               disabled={isPast}
               title={isPast ? 'This trip is past' : undefined}
               className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm disabled:opacity-60"
@@ -949,9 +889,7 @@ function TripHeader({
             <input
               type="date"
               value={draft.end_date}
-              onChange={(e) =>
-                setDraft({ ...draft, end_date: e.target.value })
-              }
+              onChange={(e) => setDraft({ ...draft, end_date: e.target.value })}
               min={draft.start_date || undefined}
               disabled={isPast}
               title={isPast ? 'This trip is past' : undefined}
@@ -960,9 +898,7 @@ function TripHeader({
           </div>
           <textarea
             value={draft.description}
-            onChange={(e) =>
-              setDraft({ ...draft, description: e.target.value })
-            }
+            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             rows={2}
             placeholder="Description (optional)"
             className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
@@ -970,9 +906,7 @@ function TripHeader({
           <input
             type="url"
             value={draft.cover_image_url}
-            onChange={(e) =>
-              setDraft({ ...draft, cover_image_url: e.target.value })
-            }
+            onChange={(e) => setDraft({ ...draft, cover_image_url: e.target.value })}
             placeholder="Cover image URL (optional)"
             className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm"
           />
@@ -1003,10 +937,7 @@ function TripHeader({
     <section className="px-margin py-lg bg-surface-container-low border-b border-outline-variant/20">
       <div className="max-w-screen-2xl mx-auto flex flex-wrap items-start justify-between gap-md">
         <div className="space-y-xs">
-          <Link
-            to="/trips"
-            className="text-body-sm text-on-surface-variant underline"
-          >
+          <Link to="/trips" className="text-body-sm text-on-surface-variant underline">
             ← Trips
           </Link>
           <h1 className="font-display text-headline-lg md:text-display text-primary">
@@ -1014,9 +945,7 @@ function TripHeader({
           </h1>
           <p className="font-body-md text-on-surface-variant">{dateRange}</p>
           {trip.description && (
-            <p className="font-body-md text-on-surface max-w-2xl">
-              {trip.description}
-            </p>
+            <p className="font-body-md text-on-surface max-w-2xl">{trip.description}</p>
           )}
         </div>
 
@@ -1024,10 +953,10 @@ function TripHeader({
           {isPast ? (
             <span className="font-label-caps text-label-caps text-on-surface-variant bg-surface-variant px-sm py-xs rounded-full">
               {trip.marked_past_at
-                ? `Past · ended ${new Date(trip.marked_past_at).toLocaleDateString(
-                    'en-US',
-                    { month: 'short', day: 'numeric' },
-                  )}`
+                ? `Past · ended ${new Date(trip.marked_past_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}`
                 : 'Past'}
             </span>
           ) : isVoting ? (
@@ -1061,9 +990,7 @@ function TripHeader({
               <span className="material-symbols-outlined">more_horiz</span>
             </button>
             {menuOpen && (
-              <div
-                className="absolute right-0 mt-xs w-56 bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-lg z-10 overflow-hidden"
-              >
+              <div className="absolute right-0 mt-xs w-56 bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-lg z-10 overflow-hidden">
                 {!isPast && !isVoting && (
                   <MenuItem
                     onClick={() => {
@@ -1071,11 +998,7 @@ function TripHeader({
                       onRevert();
                     }}
                     disabled={!isCreator}
-                    tooltip={
-                      !isCreator
-                        ? 'Only the trip creator can reopen voting'
-                        : undefined
-                    }
+                    tooltip={!isCreator ? 'Only the trip creator can reopen voting' : undefined}
                   >
                     Reopen voting…
                   </MenuItem>
@@ -1102,11 +1025,7 @@ function TripHeader({
                     onDelete();
                   }}
                   disabled={!isCreator}
-                  tooltip={
-                    !isCreator
-                      ? 'Only the trip creator can delete this trip'
-                      : undefined
-                  }
+                  tooltip={!isCreator ? 'Only the trip creator can delete this trip' : undefined}
                   destructive
                 >
                   Delete trip…
@@ -1256,9 +1175,7 @@ function UnscheduledPanel({
       }`}
     >
       <div className="flex items-center justify-between gap-sm">
-        <h2 className="font-headline-md text-headline-md text-on-surface">
-          Unscheduled
-        </h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Unscheduled</h2>
         <button
           type="button"
           onClick={onAddFromCurated}
@@ -1353,11 +1270,7 @@ function SlotDialog({
           />
         </label>
         <div className="flex items-center justify-end gap-md">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="font-body-md text-on-surface-variant"
-          >
+          <button type="button" onClick={onCancel} className="font-body-md text-on-surface-variant">
             Cancel
           </button>
           <button
@@ -1385,15 +1298,9 @@ function MarkPastModal({
   const scheduled = useMemo(
     () =>
       trip.activities
-        .filter(
-          (a) =>
-            a.day_index !== null &&
-            a.activity_id !== null &&
-            a.start_time !== null,
-        )
+        .filter((a) => a.day_index !== null && a.activity_id !== null && a.start_time !== null)
         .sort((a, b) => {
-          if (a.day_index !== b.day_index)
-            return (a.day_index ?? 0) - (b.day_index ?? 0);
+          if (a.day_index !== b.day_index) return (a.day_index ?? 0) - (b.day_index ?? 0);
           return (a.start_time ?? '').localeCompare(b.start_time ?? '');
         }),
     [trip],
@@ -1408,21 +1315,16 @@ function MarkPastModal({
   }
 
   function submit() {
-    const ids = scheduled
-      .map((a) => a.activity_id ?? '')
-      .filter((id) => id && checked[id]);
+    const ids = scheduled.map((a) => a.activity_id ?? '').filter((id) => id && checked[id]);
     onSubmit(ids);
   }
 
   return (
-    <ModalShell
-      onCancel={onCancel}
-      title="Which scheduled activities did we actually do?"
-    >
+    <ModalShell onCancel={onCancel} title="Which scheduled activities did we actually do?">
       {scheduled.length === 0 ? (
         <p className="font-body-md text-on-surface-variant">
-          Nothing was scheduled, so there&apos;s nothing to mark completed.
-          Marking past anyway is fine.
+          Nothing was scheduled, so there&apos;s nothing to mark completed. Marking past anyway is
+          fine.
         </p>
       ) : (
         <div className="space-y-xs max-h-96 overflow-y-auto">
@@ -1441,21 +1343,15 @@ function MarkPastModal({
                   onChange={() => toggle(aid)}
                   className="mt-1 accent-primary"
                 />
-                <label
-                  htmlFor={inputId}
-                  className="flex-1 space-y-xs cursor-pointer"
-                >
+                <label htmlFor={inputId} className="flex-1 space-y-xs cursor-pointer">
                   <span className="block font-body-md text-on-surface">
                     {a.snapshot?.name ?? '(activity)'}
                   </span>
                   <span className="block font-body-md text-sm text-on-surface-variant">
-                    {dayLabel(trip, a.day_index ?? 0)} ·{' '}
-                    {formatHHMM(a.start_time)}
+                    {dayLabel(trip, a.day_index ?? 0)} · {formatHHMM(a.start_time)}
                     {(() => {
                       const t = tallyFor(trip.votes, a.id);
-                      return t.up + t.down > 0
-                        ? ` · Voted ${t.up} to ${t.down}`
-                        : '';
+                      return t.up + t.down > 0 ? ` · Voted ${t.up} to ${t.down}` : '';
                     })()}
                   </span>
                 </label>
@@ -1465,11 +1361,7 @@ function MarkPastModal({
         </div>
       )}
       <div className="flex items-center justify-end gap-md pt-md">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="font-body-md text-on-surface-variant"
-        >
+        <button type="button" onClick={onCancel} className="font-body-md text-on-surface-variant">
           Cancel
         </button>
         <button
@@ -1503,20 +1395,14 @@ function ConfirmDialog({
     <ModalShell onCancel={onCancel} title={title}>
       <p className="font-body-md text-on-surface-variant">{message}</p>
       <div className="flex items-center justify-end gap-md pt-md">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="font-body-md text-on-surface-variant"
-        >
+        <button type="button" onClick={onCancel} className="font-body-md text-on-surface-variant">
           Cancel
         </button>
         <button
           type="button"
           onClick={onConfirm}
           className={`px-md py-sm rounded-full font-body-md hover:opacity-90 ${
-            destructive
-              ? 'bg-error text-on-error'
-              : 'bg-primary text-on-primary'
+            destructive ? 'bg-error text-on-error' : 'bg-primary text-on-primary'
           }`}
         >
           {confirmLabel}
@@ -1549,9 +1435,7 @@ function ModalShell({
         aria-label={title}
         className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
       >
-        <h2 className="font-headline-md text-headline-md text-on-surface">
-          {title}
-        </h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
         {children}
       </div>
     </div>

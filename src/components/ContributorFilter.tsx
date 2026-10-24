@@ -76,7 +76,10 @@ export function ContributorFilter({ options, selected, onChange }: Props) {
         </button>
       ))}
       {rest.length > 0 && (
-        <FilterPill icon="person" label={selected.length > 0 ? 'Add contributor' : 'Any contributor'}>
+        <FilterPill
+          icon="person"
+          label={selected.length > 0 ? 'Add contributor' : 'Any contributor'}
+        >
           <select
             ref={pickerRef}
             aria-label="Contributed by"

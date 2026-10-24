@@ -50,7 +50,13 @@ export function SharePage() {
   return <SharedPost key={link} link={link} />;
 }
 
-function PasteLink({ notInstagram, onLink }: { notInstagram: boolean; onLink: (url: string) => void }) {
+function PasteLink({
+  notInstagram,
+  onLink,
+}: {
+  notInstagram: boolean;
+  onLink: (url: string) => void;
+}) {
   const [pasted, setPasted] = useState('');
   const [error, setError] = useState<string | null>(
     notInstagram ? "That isn't a link to an Instagram post or reel" : null,
@@ -76,7 +82,9 @@ function PasteLink({ notInstagram, onLink }: { notInstagram: boolean; onLink: (u
         Share a reel or post to Fog and Frontier, or paste its link here.
       </p>
       <label className="block space-y-xs">
-        <span className="font-label-caps text-label-caps text-on-surface-variant">Link to a post or reel</span>
+        <span className="font-label-caps text-label-caps text-on-surface-variant">
+          Link to a post or reel
+        </span>
         <input
           type="url"
           value={pasted}
@@ -96,7 +104,11 @@ function PasteLink({ notInstagram, onLink }: { notInstagram: boolean; onLink: (u
           Find places
         </button>
       </div>
-      {error && <p role="alert" className="font-body-md text-error">{error}</p>}
+      {error && (
+        <p role="alert" className="font-body-md text-error">
+          {error}
+        </p>
+      )}
     </Page>
   );
 }
@@ -183,7 +195,9 @@ function SharedPost({ link }: { link: string }) {
             {post.isVideo ? 'Reel' : 'Post'}
             {post.author ? ` · @${post.author}` : ''}
           </p>
-          {post.caption && <p className="font-body-md text-on-surface line-clamp-3">{post.caption}</p>}
+          {post.caption && (
+            <p className="font-body-md text-on-surface line-clamp-3">{post.caption}</p>
+          )}
           <PostLink url={post.url} />
         </div>
       </div>
@@ -217,8 +231,8 @@ function SharedPost({ link }: { link: string }) {
           </h1>
           {post.isVideo && !found.read.video && (
             <p className="font-body-md text-on-surface-variant">
-              The video couldn't be watched this time, so a place shown only on screen may be missing.
-              Name it below.
+              The video couldn't be watched this time, so a place shown only on screen may be
+              missing. Name it below.
             </p>
           )}
           <ul className="space-y-sm">
@@ -234,7 +248,9 @@ function SharedPost({ link }: { link: string }) {
                     <p className="font-body-sm text-on-surface-variant">
                       {place.city} · {SOURCE_LABEL[place.source]}
                     </p>
-                    {place.detail && <p className="font-body-sm text-on-surface-variant">{place.detail}</p>}
+                    {place.detail && (
+                      <p className="font-body-sm text-on-surface-variant">{place.detail}</p>
+                    )}
                   </div>
                   {added[key] ? (
                     <span className="inline-flex items-center gap-xs font-body-md text-primary-container">
@@ -244,14 +260,16 @@ function SharedPost({ link }: { link: string }) {
                       Added
                     </span>
                   ) : place.saved ? (
-                    <button type="button" onClick={() => openActivity(place.saved!.id)} className={SECONDARY}>
-                      Open{' '}
-                      <span className="sr-only">{place.saved.name}, already saved</span>
+                    <button
+                      type="button"
+                      onClick={() => openActivity(place.saved!.id)}
+                      className={SECONDARY}
+                    >
+                      Open <span className="sr-only">{place.saved.name}, already saved</span>
                     </button>
                   ) : (
                     <button type="button" onClick={() => setPicked(place)} className={PRIMARY}>
-                      Add{' '}
-                      <span className="sr-only">{place.name}</span>
+                      Add <span className="sr-only">{place.name}</span>
                     </button>
                   )}
                 </li>
@@ -304,7 +322,11 @@ function SharedPost({ link }: { link: string }) {
         />
       )}
 
-      <button type="button" onClick={() => void navigate('/')} className="font-body-md text-primary-container underline">
+      <button
+        type="button"
+        onClick={() => void navigate('/')}
+        className="font-body-md text-primary-container underline"
+      >
         Back to the catalog
       </button>
     </Page>
@@ -317,7 +339,12 @@ function Page({ children }: { children: React.ReactNode }) {
 
 function PostLink({ url }: { url: string }) {
   return (
-    <a href={url} target="_blank" rel="noreferrer" className="font-body-sm text-primary-container underline break-all">
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="font-body-sm text-primary-container underline break-all"
+    >
       Open on Instagram
     </a>
   );

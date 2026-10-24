@@ -1,22 +1,20 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { ClerkProvider } from '@clerk/clerk-react'
-import { ApolloProvider } from '@apollo/client/react'
-import './index.css'
-import App from './App.tsx'
-import { ClerkAuthProvider } from './lib/authShimClerk'
-import { apolloClient } from './lib/apolloClient'
-import { Sentry, initSentry } from './lib/sentry'
-import { dropLegacyPhotos } from './lib/userPhotos'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ClerkProvider } from '@clerk/clerk-react';
+import { ApolloProvider } from '@apollo/client/react';
+import './index.css';
+import App from './App.tsx';
+import { ClerkAuthProvider } from './lib/authShimClerk';
+import { apolloClient } from './lib/apolloClient';
+import { Sentry, initSentry } from './lib/sentry';
+import { dropLegacyPhotos } from './lib/userPhotos';
 
-initSentry()
+initSentry();
 // Photos moved to private Blob storage (#19); free what the old per-device
 // copies took.
-dropLegacyPhotos()
+dropLegacyPhotos();
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
-  | string
-  | undefined
+const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
 // ApolloProvider wraps App in both paths so the data layer works whether or
 // not Clerk is configured. It sits *inside* the Clerk providers so the auth
@@ -26,7 +24,7 @@ const app = (
   <ApolloProvider client={apolloClient}>
     <App />
   </ApolloProvider>
-)
+);
 
 const tree = publishableKey ? (
   <ClerkProvider publishableKey={publishableKey}>
@@ -34,12 +32,12 @@ const tree = publishableKey ? (
   </ClerkProvider>
 ) : (
   app
-)
+);
 
 if (!publishableKey) {
   console.warn(
     '[auth] VITE_CLERK_PUBLISHABLE_KEY is not set — running in public-only mode. Owner-gated actions are disabled until Clerk is configured.',
-  )
+  );
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -55,4 +53,4 @@ createRoot(document.getElementById('root')!).render(
       {tree}
     </Sentry.ErrorBoundary>
   </StrictMode>,
-)
+);

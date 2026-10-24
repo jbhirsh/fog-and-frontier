@@ -23,9 +23,7 @@ vi.mock('./_db.js', () => ({ db: () => ({ execute, batch: vi.fn() }) }));
 process.env.CLERK_SECRET_KEY = 'sk_test_dummy';
 process.env.OWNER_EMAILS = 'owner@example.com,owner2@example.com';
 
-const { getCallerStatusFromToken, getCurrentUserFromToken } = await import(
-  './_auth.js'
-);
+const { getCallerStatusFromToken, getCurrentUserFromToken } = await import('./_auth.js');
 
 describe('getCallerStatusFromToken', () => {
   afterEach(() => {

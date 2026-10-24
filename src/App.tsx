@@ -34,10 +34,7 @@ export default function App() {
                 to Clerk. This route lets Clerk finish the handshake and then
                 navigate the user back to where they started. Must be outside
                 Layout so the chrome doesn't flash. */}
-            <Route
-              path="/sso-callback"
-              element={<AuthenticateWithRedirectCallback />}
-            />
+            <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
             <Route element={<Layout />}>
               <Route path="/" element={<CuratedAdventures />} />
               {/* Explore is owner-only (#111): Discover is a paid owner call, so a
@@ -52,10 +49,7 @@ export default function App() {
               />
               {/* The Adventures tab is retired (#5): completed activities are now
                   the catalog's "Completed only" filter. Keep old links working. */}
-              <Route
-                path="/adventures"
-                element={<Navigate to="/?completed=1" replace />}
-              />
+              <Route path="/adventures" element={<Navigate to="/?completed=1" replace />} />
               {/* The standalone Map page is superseded by the combined split view
                   (#4 / #93). Keep the old URL working by aliasing it to Map mode. */}
               <Route path="/map" element={<Navigate to="/?view=map" replace />} />

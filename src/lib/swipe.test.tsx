@@ -129,7 +129,11 @@ function Harness({
 const panel = () => screen.getByTestId('panel');
 const scrim = () => screen.getByTestId('scrim');
 
-function touch(target: Element, type: 'start' | 'move' | 'end' | 'cancel', points: [number, number][]) {
+function touch(
+  target: Element,
+  type: 'start' | 'move' | 'end' | 'cancel',
+  points: [number, number][],
+) {
   const touches = points.map(([clientX, clientY]) => ({ clientX, clientY }));
   const init = { touches, changedTouches: touches };
   if (type === 'start') return fireEvent.touchStart(target, init);
@@ -323,7 +327,7 @@ describe('useSwipe', () => {
     expect(panel().style.transform).toBe('');
   });
 
-  it("leaves fields and maps alone", () => {
+  it('leaves fields and maps alone', () => {
     render(<Harness {...handlers} />);
     drag(-300, 0, screen.getByRole('textbox', { name: 'Note' }));
     drag(0, 400, screen.getByTestId('map'));

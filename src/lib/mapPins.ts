@@ -17,8 +17,7 @@ import { isWithinBounds, type MapBounds } from './mapBounds';
 // URL), so it lives in a `VITE_` env var. Request one at
 // https://carto.com/basemaps/apikey and restrict it to the app's domains in
 // the CARTO dashboard.
-const CARTO_TILE_BASE =
-  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+const CARTO_TILE_BASE = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
 export function cartoTileUrl(apiKey: string | undefined): string {
   const key = apiKey?.trim();
@@ -75,9 +74,7 @@ export function hasNearPinInView(
   bounds: MapBounds | null,
 ): boolean {
   return pins.some(
-    (p) =>
-      p.miles <= MINOR_PIN_MILES &&
-      (bounds === null || isWithinBounds(p.lat, p.lng, bounds)),
+    (p) => p.miles <= MINOR_PIN_MILES && (bounds === null || isWithinBounds(p.lat, p.lng, bounds)),
   );
 }
 
@@ -117,11 +114,7 @@ const PIN_SIZE_HIGHLIGHTED = 40;
 // still carries meaning (completion status / trip-day hue); only the shape and
 // treatment changed. Stays an `L.divIcon` so it's the same mechanism the maps
 // already use.
-export function glyphPin(
-  color: string,
-  glyph: PinGlyph,
-  opts: PinOptions = {},
-): L.DivIcon {
+export function glyphPin(color: string, glyph: PinGlyph, opts: PinOptions = {}): L.DivIcon {
   const { highlighted = false } = opts;
   const size = highlighted ? PIN_SIZE_HIGHLIGHTED : PIN_SIZE;
   const iconFontSize = highlighted ? 22 : 17;

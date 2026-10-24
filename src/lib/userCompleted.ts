@@ -8,10 +8,7 @@ import { COMPLETED_QUERY, SET_COMPLETED } from './gqlDocs';
 // `completed` flag; absence falls back to the baseline.
 export type Overrides = Record<string, boolean>;
 
-export function isEffectivelyCompleted(
-  activity: Activity,
-  overrides: Overrides,
-): boolean {
+export function isEffectivelyCompleted(activity: Activity, overrides: Overrides): boolean {
   return overrides[activity.id] ?? !!activity.completed;
 }
 
@@ -35,10 +32,7 @@ function writeCompletedEntry(
   return true;
 }
 
-export async function setCompleted(
-  id: string,
-  value: boolean | null,
-): Promise<void> {
+export async function setCompleted(id: string, value: boolean | null): Promise<void> {
   // Whether the confirmed result made it into the cached list (the update
   // callback below runs last for the server's response).
   const written = { current: false };
@@ -94,17 +88,12 @@ export async function setCompleted(
 // Unchecked-but-eligible activities get false to override stale baselines. The list is only merged
 // into when it's cached: a list built from these ids alone would stand in for
 // the whole set until the first read lands (see writeCompletedEntry).
-export function applyCompletionMirror(
-  completed: string[],
-  uncompleted: string[],
-): void {
+export function applyCompletionMirror(completed: string[], uncompleted: string[]): void {
   if (completed.length === 0 && uncompleted.length === 0) return;
   const cache = apolloClient.cache;
   const existing = cache.readQuery({ query: COMPLETED_QUERY })?.completed;
   if (existing) {
-    const map = new Map<string, boolean>(
-      existing.map((e) => [e.id, e.completed]),
-    );
+    const map = new Map<string, boolean>(existing.map((e) => [e.id, e.completed]));
     for (const id of completed) map.set(id, true);
     for (const id of uncompleted) map.set(id, false);
     cache.writeQuery({

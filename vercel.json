@@ -6,21 +6,9 @@
     }
   ],
   "images": {
-    "sizes": [
-      96,
-      192,
-      384,
-      640,
-      960,
-      1280
-    ],
-    "qualities": [
-      75
-    ],
-    "formats": [
-      "image/avif",
-      "image/webp"
-    ],
+    "sizes": [96, 192, 384, 640, 960, 1280],
+    "qualities": [75],
+    "formats": ["image/avif", "image/webp"],
     "minimumCacheTTL": 2678400,
     "remotePatterns": [
       {

@@ -60,7 +60,10 @@ describe('suggestTripActivities (#78)', () => {
   });
 
   it('reads an empty answer as no ideas', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(reply({ data: null }))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(reply({ data: null }))),
+    );
     expect(await suggestTripActivities('dogs', [])).toEqual([]);
   });
 });

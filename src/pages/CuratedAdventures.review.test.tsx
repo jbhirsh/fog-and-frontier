@@ -158,7 +158,9 @@ describe('Curated Adventures — the review count (#259)', () => {
     it('unfolds a queue that was folded away', async () => {
       renderAt('/');
       await userEvent.click(await screen.findByRole('button', { name: 'Waiting for review 1' }));
-      expect(within(queue()!).queryByRole('heading', { name: 'Fort Funston' })).not.toBeInTheDocument();
+      expect(
+        within(queue()!).queryByRole('heading', { name: 'Fort Funston' }),
+      ).not.toBeInTheDocument();
       await userEvent.click(await review(1));
       expect(within(queue()!).getByRole('heading', { name: 'Fort Funston' })).toBeInTheDocument();
     });

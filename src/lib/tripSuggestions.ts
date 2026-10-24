@@ -83,13 +83,10 @@ export function suggestForTrip(
     byCategory.set(activity.category, list);
   }
 
-  const groups = [...byCategory.values()].map((items) =>
-    items.sort((x, y) => x.miles - y.miles),
-  );
+  const groups = [...byCategory.values()].map((items) => items.sort((x, y) => x.miles - y.miles));
   groups.sort((x, y) => {
     const gap =
-      (tripCount.get(x[0].activity.category) ?? 0) -
-      (tripCount.get(y[0].activity.category) ?? 0);
+      (tripCount.get(x[0].activity.category) ?? 0) - (tripCount.get(y[0].activity.category) ?? 0);
     return gap !== 0 ? gap : x[0].miles - y[0].miles;
   });
 

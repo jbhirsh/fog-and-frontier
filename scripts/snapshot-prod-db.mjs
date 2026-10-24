@@ -55,9 +55,7 @@ const target = createClient({ url: `file:${targetPath}` });
 await target.execute(
   'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
 );
-await target.execute(
-  'CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)',
-);
+await target.execute('CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)');
 
 async function copyTable(name, columns, valueFor) {
   const rs = await source.execute(`SELECT ${columns.join(', ')} FROM ${name}`);

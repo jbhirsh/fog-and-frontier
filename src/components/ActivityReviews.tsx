@@ -43,10 +43,7 @@ export function ActivityReviews({ activityId }: { activityId: string }) {
   return (
     <section className="space-y-sm" aria-labelledby={`reviews-${activityId}`}>
       <div className="flex flex-wrap items-center justify-between gap-sm">
-        <h3
-          id={`reviews-${activityId}`}
-          className="font-headline-md text-headline-md text-primary"
-        >
+        <h3 id={`reviews-${activityId}`} className="font-headline-md text-headline-md text-primary">
           Reviews
         </h3>
         {isOwner && !own && !editing && (
@@ -64,15 +61,9 @@ export function ActivityReviews({ activityId }: { activityId: string }) {
       </div>
 
       {editing ? (
-        <ReviewEditor
-          activityId={activityId}
-          existing={own}
-          onDone={() => setEditing(false)}
-        />
+        <ReviewEditor activityId={activityId} existing={own} onDone={() => setEditing(false)} />
       ) : (
-        own && (
-          <ReviewCard review={own} isOwn onEdit={() => setEditing(true)} />
-        )
+        own && <ReviewCard review={own} isOwn onEdit={() => setEditing(true)} />
       )}
 
       {others.map((review) => (
@@ -103,9 +94,7 @@ function ReviewCard({
         <div className="flex items-center gap-sm">
           <span className="font-body-md font-bold text-on-surface">
             {authorLabel(review.authorEmail)}
-            {isOwn && (
-              <span className="font-body-sm text-on-surface-variant"> (you)</span>
-            )}
+            {isOwn && <span className="font-body-sm text-on-surface-variant"> (you)</span>}
           </span>
           {review.rating != null && <StarDisplay rating={review.rating} />}
         </div>
@@ -243,9 +232,7 @@ function ReviewEditor({
       <InlineError message={error} onDismiss={() => setError(null)} />
       <StarPicker rating={rating} onChange={setRating} />
       <label className="block space-y-xs">
-        <span className="font-label-caps text-label-caps text-on-surface-variant">
-          YOUR NOTES
-        </span>
+        <span className="font-label-caps text-label-caps text-on-surface-variant">YOUR NOTES</span>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}

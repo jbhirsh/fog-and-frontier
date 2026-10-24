@@ -27,30 +27,30 @@ afterEach(() => {
 
 const pendingAnswer = vi.fn(() => ({
   data: {
-      pendingSuggestions: [
-        {
-          __typename: 'ActivitySuggestion',
+    pendingSuggestions: [
+      {
+        __typename: 'ActivitySuggestion',
+        id: 's1',
+        suggestedBy: 'friend@example.com',
+        suggestedAt: '2026-03-01T00:00:00.000Z',
+        activity: {
+          __typename: 'Activity',
           id: 's1',
-          suggestedBy: 'friend@example.com',
-          suggestedAt: '2026-03-01T00:00:00.000Z',
-          activity: {
-            __typename: 'Activity',
-            id: 's1',
-            name: 'Fort Funston',
-            shortDescription: 'Bluffs',
-            longDescription: null,
-            category: 'scenic',
-            location: { __typename: 'Location', city: 'San Francisco' },
-            duration: 'Half Day',
-            costTier: null,
-            coverImage: '',
-            allTrailsUrl: null,
-            reservationUrl: null,
-            menuUrl: null,
-            notes: null,
-          },
+          name: 'Fort Funston',
+          shortDescription: 'Bluffs',
+          longDescription: null,
+          category: 'scenic',
+          location: { __typename: 'Location', city: 'San Francisco' },
+          duration: 'Half Day',
+          costTier: null,
+          coverImage: '',
+          allTrailsUrl: null,
+          reservationUrl: null,
+          menuUrl: null,
+          notes: null,
         },
-      ],
+      },
+    ],
   },
 }));
 const PENDING = {

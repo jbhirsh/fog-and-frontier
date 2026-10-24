@@ -14,11 +14,7 @@ type Props = {
   onConfirm: (keptActivityIds: string[]) => void;
 };
 
-export function PromoteToPlanningModal({
-  candidates,
-  onCancel,
-  onConfirm,
-}: Props) {
+export function PromoteToPlanningModal({ candidates, onCancel, onConfirm }: Props) {
   // Initialize: pre-check candidates with net > 0
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(candidates.filter((c) => c.tally.net > 0).map((c) => c.activity.id)),
@@ -38,9 +34,7 @@ export function PromoteToPlanningModal({
 
   function handleConfirm() {
     // Preserve candidates order, return only checked ids
-    const keptIds = candidates
-      .filter((c) => checked.has(c.activity.id))
-      .map((c) => c.activity.id);
+    const keptIds = candidates.filter((c) => checked.has(c.activity.id)).map((c) => c.activity.id);
     onConfirm(keptIds);
   }
 
@@ -63,13 +57,11 @@ export function PromoteToPlanningModal({
         aria-label={title}
         className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
       >
-        <h2 className="font-headline-md text-headline-md text-on-surface">
-          {title}
-        </h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
 
         <p className="font-body-md text-sm text-on-surface-variant">
-          Select the activities to carry into the planning phase. Any unchecked
-          candidates will be permanently removed from the trip.
+          Select the activities to carry into the planning phase. Any unchecked candidates will be
+          permanently removed from the trip.
         </p>
 
         {/* Candidate checklist */}

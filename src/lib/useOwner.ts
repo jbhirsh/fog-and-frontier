@@ -23,8 +23,7 @@ export function useOwner(): {
   // prod can never flip owner status by setting window.__TEST_FORCE_OWNER__.
   const forceOwner =
     (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
-    (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ ===
-      true;
+    (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ === true;
   return {
     isLoaded,
     email: lower,

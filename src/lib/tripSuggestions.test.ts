@@ -118,16 +118,18 @@ describe('suggestForTrip', () => {
     expect(ids(suggestForTrip([onTrip(hike)], [hike, nowhere]))).toEqual([]);
   });
 
-  it("puts the categories the trip lacks first", () => {
+  it('puts the categories the trip lacks first', () => {
     const hikes = [at('h1', 'hiking', 0), at('h2', 'hiking', 1)];
     const scenic = at('view', 'scenic', 2);
     // Nearer hike, farther food: the missing category still leads.
     const moreHiking = at('h3', 'hiking', 3);
     const food = at('food', 'food', 20);
-    const result = suggestForTrip(
-      [...hikes, scenic].map(onTrip),
-      [...hikes, scenic, moreHiking, food],
-    );
+    const result = suggestForTrip([...hikes, scenic].map(onTrip), [
+      ...hikes,
+      scenic,
+      moreHiking,
+      food,
+    ]);
     expect(ids(result)).toEqual(['food', 'h3']);
   });
 

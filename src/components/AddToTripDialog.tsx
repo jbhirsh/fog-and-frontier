@@ -1,10 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  addActivityToTrip,
-  useTripsList,
-  type TripListItem,
-} from '../lib/userTrips';
+import { addActivityToTrip, useTripsList, type TripListItem } from '../lib/userTrips';
 
 type Props = {
   activityIds: string[];
@@ -39,14 +35,9 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
       let added = 0;
       let skipped = 0;
       for (const activityId of activityIds) {
-        const { alreadyOnTrip, tripPast } = await addActivityToTrip(
-          trip.id,
-          activityId,
-        );
+        const { alreadyOnTrip, tripPast } = await addActivityToTrip(trip.id, activityId);
         if (tripPast) {
-          setError(
-            `"${trip.title}" was just marked past — refresh and pick a different trip.`,
-          );
+          setError(`"${trip.title}" was just marked past — refresh and pick a different trip.`);
           return;
         }
         if (alreadyOnTrip) skipped++;
@@ -85,9 +76,7 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
           disabled={busy}
           className="w-full text-left bg-primary-fixed text-primary px-md py-md rounded-lg hover:bg-primary-container/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <span className="font-headline-md text-body-lg block">
-            New trip from selection
-          </span>
+          <span className="font-headline-md text-body-lg block">New trip from selection</span>
           <span className="font-body-md text-sm">
             Create a trip and pre-load these activities in Unscheduled.
           </span>
@@ -98,13 +87,9 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
             Or add to an existing trip
           </h3>
           {isLoading ? (
-            <p className="font-body-md text-sm text-on-surface-variant">
-              Loading trips…
-            </p>
+            <p className="font-body-md text-sm text-on-surface-variant">Loading trips…</p>
           ) : activeTrips.length === 0 ? (
-            <p className="font-body-md text-sm text-on-surface-variant">
-              No active trips yet.
-            </p>
+            <p className="font-body-md text-sm text-on-surface-variant">No active trips yet.</p>
           ) : (
             <ul className="space-y-xs">
               {activeTrips.map((trip) => (
@@ -115,9 +100,7 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
                     disabled={busy}
                     className="w-full text-left bg-surface-container-low border border-outline-variant/30 px-md py-sm rounded-lg hover:bg-surface-variant transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <span className="block font-body-md text-on-surface">
-                      {trip.title}
-                    </span>
+                    <span className="block font-body-md text-on-surface">{trip.title}</span>
                     <span className="block font-body-md text-sm text-on-surface-variant">
                       {trip.start_date} – {trip.end_date}
                     </span>
@@ -135,11 +118,7 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
         )}
 
         <div className="flex items-center justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-body-md text-on-surface-variant"
-          >
+          <button type="button" onClick={onClose} className="font-body-md text-on-surface-variant">
             Cancel
           </button>
         </div>

@@ -9,11 +9,7 @@ import {
   withContributors,
   type CatalogFilterState,
 } from './useCatalogFilters';
-import {
-  completedHike,
-  dogFriendlyTidepools,
-  muirWoods,
-} from '../test/fixtures';
+import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
 
 const ALL = [muirWoods, completedHike, dogFriendlyTidepools];
@@ -25,9 +21,7 @@ function filters(overrides: Partial<CatalogFilterState>): CatalogFilterState {
 describe('applyCatalogFilters', () => {
   it('returns every activity with the default (no-op) filters', () => {
     const result = applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS);
-    expect(result.map((a) => a.id).sort()).toEqual(
-      ALL.map((a) => a.id).sort(),
-    );
+    expect(result.map((a) => a.id).sort()).toEqual(ALL.map((a) => a.id).sort());
   });
 
   it('sorts by distance from home (nearest first)', () => {
@@ -108,7 +102,13 @@ describe('applyCatalogFilters', () => {
       [muirWoods.id, 20],
       [dogFriendlyTidepools.id, 40],
     ]);
-    const sorted = applyCatalogFilters(ALL, INITIAL_CATALOG_FILTERS, {}, HOME_LOCATION.coords, driving);
+    const sorted = applyCatalogFilters(
+      ALL,
+      INITIAL_CATALOG_FILTERS,
+      {},
+      HOME_LOCATION.coords,
+      driving,
+    );
     expect(sorted[0].id).toBe(muirWoods.id);
     // The radius uses road miles too; completedHike has none, so it is
     // measured straight-line (> 25 mi from San Jose) and drops out.
@@ -129,14 +129,8 @@ describe('applyCatalogFilters', () => {
   });
 
   it('keeps an activity exactly at the max distance ("Within N mi")', () => {
-    const miles = distanceMiles(
-      HOME_LOCATION.coords,
-      dogFriendlyTidepools.location.coords,
-    );
-    const result = applyCatalogFilters(
-      [dogFriendlyTidepools],
-      filters({ maxDistance: miles }),
-    );
+    const miles = distanceMiles(HOME_LOCATION.coords, dogFriendlyTidepools.location.coords);
+    const result = applyCatalogFilters([dogFriendlyTidepools], filters({ maxDistance: miles }));
     expect(result).toEqual([dogFriendlyTidepools]);
   });
 
@@ -152,7 +146,8 @@ describe('applyCatalogFilters', () => {
   it('treats a missing parkType as "none"', () => {
     // None of the fixtures set parkType, so they default to "none".
     expect(
-      applyCatalogFilters(ALL, filters({ parkType: 'none' })).map((a) => a.id)
+      applyCatalogFilters(ALL, filters({ parkType: 'none' }))
+        .map((a) => a.id)
         .sort(),
     ).toEqual(ALL.map((a) => a.id).sort());
     expect(applyCatalogFilters(ALL, filters({ parkType: 'state' }))).toEqual([]);
@@ -217,9 +212,7 @@ describe('completed-only URL param', () => {
   it('reads a missing or other value as off', () => {
     expect(readCompletedOnly(new URLSearchParams(''))).toBe(false);
     expect(readCompletedOnly(new URLSearchParams('completed=0'))).toBe(false);
-    expect(readCompletedOnly(new URLSearchParams('completed=true'))).toBe(
-      false,
-    );
+    expect(readCompletedOnly(new URLSearchParams('completed=true'))).toBe(false);
   });
 
   it('sets ?completed=1 and keeps the other params', () => {
@@ -228,10 +221,7 @@ describe('completed-only URL param', () => {
   });
 
   it('removes the param when turned off', () => {
-    const next = withCompletedOnly(
-      new URLSearchParams('completed=1&q=tide'),
-      false,
-    );
+    const next = withCompletedOnly(new URLSearchParams('completed=1&q=tide'), false);
     expect(next.toString()).toBe('q=tide');
   });
 
@@ -261,15 +251,13 @@ describe('applyCatalogFilters — contributors (#9)', () => {
     expect(ids(applyCatalogFilters(credited, filters({ contributors: [TARUN] })))).toEqual(
       ids([muirWoods, completedHike]),
     );
-    expect(
-      ids(applyCatalogFilters(credited, filters({ contributors: [JESS, TARUN] }))),
-    ).toEqual(ids(credited));
+    expect(ids(applyCatalogFilters(credited, filters({ contributors: [JESS, TARUN] })))).toEqual(
+      ids(credited),
+    );
   });
 
   it('drops uncredited activities while someone is chosen', () => {
-    expect(
-      applyCatalogFilters([muirWoods], filters({ contributors: [TARUN] })),
-    ).toEqual([]);
+    expect(applyCatalogFilters([muirWoods], filters({ contributors: [TARUN] }))).toEqual([]);
   });
 });
 
@@ -325,8 +313,8 @@ describe('applyCatalogFilters — free only (#85)', () => {
   });
 
   it('keeps only the activities known to be free', () => {
-    expect(
-      applyCatalogFilters(priced, filters({ freeOnly: true })).map((a) => a.id),
-    ).toEqual([muirWoods.id]);
+    expect(applyCatalogFilters(priced, filters({ freeOnly: true })).map((a) => a.id)).toEqual([
+      muirWoods.id,
+    ]);
   });
 });

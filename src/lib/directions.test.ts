@@ -24,9 +24,7 @@ describe('isApplePlatform', () => {
   });
 
   it('detects Apple from the client-hints platform alone', () => {
-    expect(isApplePlatform({ userAgentData: { platform: 'macOS' } })).toBe(
-      true,
-    );
+    expect(isApplePlatform({ userAgentData: { platform: 'macOS' } })).toBe(true);
   });
 
   it('reports non-Apple platforms as such', () => {
@@ -48,9 +46,7 @@ describe('isApplePlatform', () => {
   });
 
   it('reads the real navigator by default', () => {
-    const ua = vi
-      .spyOn(navigator, 'userAgent', 'get')
-      .mockReturnValue(IPHONE_UA);
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE_UA);
     onTestFinished(() => ua.mockRestore());
     expect(isApplePlatform()).toBe(true);
     ua.mockReturnValue(WINDOWS_UA);
@@ -62,9 +58,7 @@ describe('directionsUrl', () => {
   const coords = { lat: 37.8917, lng: -122.5719 };
 
   it('builds an Apple Maps directions URL on Apple platforms', () => {
-    expect(directionsUrl(coords, true)).toBe(
-      'https://maps.apple.com/?daddr=37.8917%2C-122.5719',
-    );
+    expect(directionsUrl(coords, true)).toBe('https://maps.apple.com/?daddr=37.8917%2C-122.5719');
   });
 
   it('builds a Google Maps directions URL everywhere else', () => {
@@ -76,19 +70,13 @@ describe('directionsUrl', () => {
   it('encodes the destination so it decodes back to "lat,lng"', () => {
     for (const apple of [true, false]) {
       const url = new URL(directionsUrl(coords, apple) ?? '');
-      expect(url.searchParams.get(apple ? 'daddr' : 'destination')).toBe(
-        '37.8917,-122.5719',
-      );
+      expect(url.searchParams.get(apple ? 'daddr' : 'destination')).toBe('37.8917,-122.5719');
     }
   });
 
   it('accepts the edges of the latitude and longitude ranges', () => {
-    expect(directionsUrl({ lat: 90, lng: 180 }, false)).toContain(
-      'destination=90%2C180',
-    );
-    expect(directionsUrl({ lat: -90, lng: -180 }, false)).toContain(
-      'destination=-90%2C-180',
-    );
+    expect(directionsUrl({ lat: 90, lng: 180 }, false)).toContain('destination=90%2C180');
+    expect(directionsUrl({ lat: -90, lng: -180 }, false)).toContain('destination=-90%2C-180');
     expect(directionsUrl({ lat: 0, lng: 0 }, true)).toContain('daddr=0%2C0');
   });
 

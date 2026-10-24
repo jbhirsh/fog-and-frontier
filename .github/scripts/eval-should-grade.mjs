@@ -43,7 +43,10 @@ export function decide({ event, action, draft, prChanges, last }) {
   if (!last) return { grade: true, reason: 'push: no earlier finished run to compare with' };
   if (!last.passed) return { grade: true, reason: 'push: the last finished run did not pass' };
   if (last.prChanges == null) {
-    return { grade: true, reason: 'push: the last run’s head is gone, so the PR is graded as a whole' };
+    return {
+      grade: true,
+      reason: 'push: the last run’s head is gone, so the PR is graded as a whole',
+    };
   }
   return prChanges === last.prChanges
     ? { grade: false, reason: 'push: the AI code is unchanged since the last run, which passed' }
@@ -88,7 +91,10 @@ export function prChangesAt(cwd, sha, baseRef, paths) {
  * `{ sha, passed }`, or null if there is none. Throws if GitHub can't be
  * read; the caller grades then.
  */
-export async function lastRun({ api, repo, token, workflow, branch, pr, runId }, fetchImpl = fetch) {
+export async function lastRun(
+  { api, repo, token, workflow, branch, pr, runId },
+  fetchImpl = fetch,
+) {
   const url =
     `${api}/repos/${repo}/actions/workflows/${encodeURIComponent(workflow)}/runs` +
     `?branch=${encodeURIComponent(branch)}&event=pull_request&per_page=50`;
@@ -103,7 +109,9 @@ export async function lastRun({ api, repo, token, workflow, branch, pr, runId },
     (x) =>
       String(x.id) !== String(runId) &&
       x.status === 'completed' &&
-      (x.pull_requests?.length ? x.pull_requests.some((p) => String(p.number) === String(pr)) : true),
+      (x.pull_requests?.length
+        ? x.pull_requests.some((p) => String(p.number) === String(pr))
+        : true),
   );
   return run ? { sha: run.head_sha, passed: run.conclusion === 'success' } : null;
 }

@@ -49,9 +49,7 @@ function withoutComments(text) {
 // as in GitHub's renderer: a `<!--` quoted in backticks is text, not the start
 // of a comment that would hide the rest of the description.
 export function visibleText(body) {
-  return withoutComments(
-    (body ?? '').replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, ''),
-  );
+  return withoutComments((body ?? '').replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, ''));
 }
 
 export function checkPrVisuals({ files, body }) {
@@ -59,7 +57,8 @@ export function checkPrVisuals({ files, body }) {
   if (ui.length === 0) return { ok: true, reason: 'no UI files changed' };
   const text = visibleText(body);
   if (OPT_OUT.test(text)) return { ok: true, reason: 'marked "No visible UI change"' };
-  if (VISUAL.some((re) => re.test(text))) return { ok: true, reason: 'description shows the change' };
+  if (VISUAL.some((re) => re.test(text)))
+    return { ok: true, reason: 'description shows the change' };
   return { ok: false, ui };
 }
 
@@ -70,7 +69,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   let input = '';
   process.stdin.setEncoding('utf8');
   for await (const chunk of process.stdin) input += chunk;
-  const files = input.split('\n').map((l) => l.trim()).filter(Boolean);
+  const files = input
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   const result = checkPrVisuals({ files, body: process.env.PR_BODY });
   if (result.ok) {
     console.log(`PR visuals: ok (${result.reason}).`);

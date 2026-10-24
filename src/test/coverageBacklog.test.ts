@@ -44,9 +44,9 @@ const PINNED_BACKLOG = [
 // Every source file the coverage gate could measure, as repo-relative paths.
 // Lazy globs: only the keys are read, nothing is imported.
 const sourceFiles = new Set(
-  Object.keys(
-    import.meta.glob(['/src/**/*.{ts,tsx}', '/api/**/*.ts']),
-  ).map((path) => path.slice(1)),
+  Object.keys(import.meta.glob(['/src/**/*.{ts,tsx}', '/api/**/*.ts'])).map((path) =>
+    path.slice(1),
+  ),
 );
 
 describe('coverage backlog', () => {

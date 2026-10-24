@@ -25,8 +25,7 @@ export default defineConfig({
     // src/lib/useOwner.ts and the signed-in email in src/lib/authShim.ts — on
     // (DEV || MODE === 'test'); production deployments use the default
     // (`production`) mode and the override branches are dead-code-eliminated.
-    command:
-      'npx vite build --mode test && npm run preview -- --port 4173 --strictPort',
+    command: 'npx vite build --mode test && npm run preview -- --port 4173 --strictPort',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

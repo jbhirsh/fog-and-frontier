@@ -73,18 +73,44 @@ export function responseText(data: {
 // of a drifting copy; referencing them below serializes identically to the
 // previous inline arrays.
 export const CATEGORY_VALUES = [
-  'hiking', 'cycling', 'water', 'food', 'culture',
-  'scenic', 'climbing', 'camping', 'other',
+  'hiking',
+  'cycling',
+  'water',
+  'food',
+  'culture',
+  'scenic',
+  'climbing',
+  'camping',
+  'other',
 ] as const;
 export const REGION_VALUES = [
-  'sf', 'north-bay', 'east-bay', 'south-bay', 'peninsula',
-  'central-coast', 'norcal', 'socal', 'oregon', 'washington',
+  'sf',
+  'north-bay',
+  'east-bay',
+  'south-bay',
+  'peninsula',
+  'central-coast',
+  'norcal',
+  'socal',
+  'oregon',
+  'washington',
 ] as const;
 export const PARK_TYPE_VALUES = [
-  'national', 'state', 'regional', 'county', 'city', 'private', 'none',
+  'national',
+  'state',
+  'regional',
+  'county',
+  'city',
+  'private',
+  'none',
 ] as const;
 export const DURATION_VALUES = [
-  '1-2 Hours', '2-3 Hours', 'Half Day', 'Full Day', 'Weekend', 'Multi-Day',
+  '1-2 Hours',
+  '2-3 Hours',
+  'Half Day',
+  'Full Day',
+  'Weekend',
+  'Multi-Day',
 ] as const;
 export const DIFFICULTY_VALUES = ['easy', 'moderate', 'advanced'] as const;
 export const PRICE_RANGE_VALUES = ['$', '$$', '$$$', '$$$$'] as const;
@@ -95,8 +121,17 @@ export const COST_TIER_VALUES = ['free', '$', '$$', '$$$'] as const;
 // enum arrays above: the eval harness grades required-field presence and must
 // not drift from what the schema actually demands of the model.
 export const ACTIVITY_REQUIRED_FIELDS = [
-  'name', 'shortDescription', 'longDescription', 'category', 'region',
-  'city', 'lat', 'lng', 'duration', 'difficulty', 'dogFriendly',
+  'name',
+  'shortDescription',
+  'longDescription',
+  'category',
+  'region',
+  'city',
+  'lat',
+  'lng',
+  'duration',
+  'difficulty',
+  'dogFriendly',
 ] as const;
 
 const ACTIVITY_SCHEMA = {
@@ -109,8 +144,7 @@ const ACTIVITY_SCHEMA = {
     },
     longDescription: {
       type: 'string',
-      description:
-        'A 2-4 sentence paragraph with concrete details, history, or what to expect',
+      description: 'A 2-4 sentence paragraph with concrete details, history, or what to expect',
     },
     category: {
       type: 'string',
@@ -183,8 +217,7 @@ const ACTIVITY_SCHEMA = {
     },
     notes: {
       type: 'string',
-      description:
-        'Practical tips: parking, fees, dog rules, best season — keep terse',
+      description: 'Practical tips: parking, fees, dog rules, best season — keep terse',
     },
   },
   required: ACTIVITY_REQUIRED_FIELDS,
@@ -268,7 +301,9 @@ function askForTrail(apiKey: string): AskGemini {
       }
       return responseText((await r.json()) as Parameters<typeof responseText>[0]);
     } catch (err) {
-      logEvent('draft.trail_search_failed', { error: (err as { name?: unknown } | null)?.name ?? 'Error' });
+      logEvent('draft.trail_search_failed', {
+        error: (err as { name?: unknown } | null)?.name ?? 'Error',
+      });
       return undefined;
     }
   };
@@ -316,9 +351,7 @@ async function generateActivity(
     });
   };
 
-  const userPrompt = notes
-    ? `Title: ${title}\n\nUser notes/links:\n${notes}`
-    : `Title: ${title}`;
+  const userPrompt = notes ? `Title: ${title}\n\nUser notes/links:\n${notes}` : `Title: ${title}`;
 
   let r: Response;
   try {
@@ -536,11 +569,7 @@ async function alltrailsLookup(
     hikeDistanceMiles: null,
     hikeElevationFeet: null,
   };
-  for (const key of [
-    'allTrailsRating',
-    'hikeDistanceMiles',
-    'hikeElevationFeet',
-  ] as const) {
+  for (const key of ['allTrailsRating', 'hikeDistanceMiles', 'hikeElevationFeet'] as const) {
     const v = parsed[key];
     if (typeof v === 'number' && Number.isFinite(v)) lookup[key] = v;
   }
@@ -628,11 +657,7 @@ function mapEvents(raw: unknown) {
     }));
 }
 
-async function discover(
-  _parent: unknown,
-  { range }: { range?: string | null },
-  ctx: GqlContext,
-) {
+async function discover(_parent: unknown, { range }: { range?: string | null }, ctx: GqlContext) {
   requireOwnerCtx(ctx);
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
@@ -721,7 +746,10 @@ const SUGGEST_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          activityId: { type: 'string', description: 'The chosen activity\'s "id", exactly as given' },
+          activityId: {
+            type: 'string',
+            description: 'The chosen activity\'s "id", exactly as given',
+          },
           reason: { type: 'string', description: 'One line on why it fits the request' },
         },
         required: ['activityId', 'reason'],
@@ -771,7 +799,12 @@ export async function rankTripCandidates(
   try {
     parsed = JSON.parse(stripJsonFence(text ?? ''));
   } catch (err) {
-    logServerError(err, { route: ROUTE, method: 'POST', status: 502, detail: (text ?? '').slice(0, 500) });
+    logServerError(err, {
+      route: ROUTE,
+      method: 'POST',
+      status: 502,
+      detail: (text ?? '').slice(0, 500),
+    });
     throw badGateway('gemini returned non-JSON');
   }
   return keepTripPicks(parsed, candidates);

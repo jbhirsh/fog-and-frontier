@@ -6,10 +6,7 @@ describe('isViewMode', () => {
     expect(isViewMode(value)).toBe(true);
   });
 
-  it.each([null, undefined, '', 'grid', 'List', ' map'])(
-    'rejects %j',
-    (value) => {
-      expect(isViewMode(value)).toBe(false);
-    },
-  );
+  it.each([null, undefined, '', 'grid', 'List', ' map'])('rejects %j', (value) => {
+    expect(isViewMode(value)).toBe(false);
+  });
 });

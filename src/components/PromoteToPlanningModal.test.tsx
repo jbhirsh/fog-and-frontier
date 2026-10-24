@@ -45,44 +45,24 @@ const candidates = [positiveA, positiveB, neutralC, negativeD];
 describe('PromoteToPlanningModal', () => {
   it('positive-net candidates are pre-checked', () => {
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={vi.fn()} />,
     );
-    expect(
-      screen.getByRole('checkbox', { name: /Muir Woods/i }),
-    ).toBeChecked();
-    expect(
-      screen.getByRole('checkbox', { name: /Stinson Beach/i }),
-    ).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Muir Woods/i })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Stinson Beach/i })).toBeChecked();
   });
 
   it('zero-net and negative-net candidates are NOT pre-checked', () => {
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={vi.fn()} />,
     );
-    expect(
-      screen.getByRole('checkbox', { name: /Alcatraz/i }),
-    ).not.toBeChecked();
-    expect(
-      screen.getByRole('checkbox', { name: /Candlestick Park/i }),
-    ).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Alcatraz/i })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Candlestick Park/i })).not.toBeChecked();
   });
 
   it('confirming with defaults calls onConfirm with only positive-net ids in order', async () => {
     const onConfirm = vi.fn();
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={onConfirm}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={onConfirm} />,
     );
     await userEvent.click(screen.getByRole('button', { name: /Move to planning/i }));
     expect(onConfirm).toHaveBeenCalledWith(['a1', 'b2']);
@@ -91,15 +71,9 @@ describe('PromoteToPlanningModal', () => {
   it('toggling a negative candidate then confirming includes it in the result', async () => {
     const onConfirm = vi.fn();
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={onConfirm}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={onConfirm} />,
     );
-    await userEvent.click(
-      screen.getByRole('checkbox', { name: /Candlestick Park/i }),
-    );
+    await userEvent.click(screen.getByRole('checkbox', { name: /Candlestick Park/i }));
     await userEvent.click(screen.getByRole('button', { name: /Move to planning/i }));
     expect(onConfirm).toHaveBeenCalledWith(['a1', 'b2', 'd4']);
   });
@@ -107,15 +81,9 @@ describe('PromoteToPlanningModal', () => {
   it('toggling a positive candidate off excludes it from the result', async () => {
     const onConfirm = vi.fn();
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={onConfirm}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={onConfirm} />,
     );
-    await userEvent.click(
-      screen.getByRole('checkbox', { name: /Muir Woods/i }),
-    );
+    await userEvent.click(screen.getByRole('checkbox', { name: /Muir Woods/i }));
     await userEvent.click(screen.getByRole('button', { name: /Move to planning/i }));
     expect(onConfirm).toHaveBeenCalledWith(['b2']);
   });
@@ -123,11 +91,7 @@ describe('PromoteToPlanningModal', () => {
   it('Cancel calls onCancel', async () => {
     const onCancel = vi.fn();
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={onCancel}
-        onConfirm={vi.fn()}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={onCancel} onConfirm={vi.fn()} />,
     );
     await userEvent.click(screen.getByRole('button', { name: /Cancel/i }));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -136,11 +100,7 @@ describe('PromoteToPlanningModal', () => {
   it('backdrop click calls onCancel', async () => {
     const onCancel = vi.fn();
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={onCancel}
-        onConfirm={vi.fn()}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={onCancel} onConfirm={vi.fn()} />,
     );
     await userEvent.click(screen.getByRole('button', { name: /Close dialog/i }));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -149,22 +109,12 @@ describe('PromoteToPlanningModal', () => {
   it('result ids are in candidates order, not toggle order', async () => {
     const onConfirm = vi.fn();
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={onConfirm}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={onConfirm} />,
     );
     // Toggle neutral and negative on first, then toggle off positiveB
-    await userEvent.click(
-      screen.getByRole('checkbox', { name: /Alcatraz/i }),
-    );
-    await userEvent.click(
-      screen.getByRole('checkbox', { name: /Candlestick Park/i }),
-    );
-    await userEvent.click(
-      screen.getByRole('checkbox', { name: /Stinson Beach/i }),
-    );
+    await userEvent.click(screen.getByRole('checkbox', { name: /Alcatraz/i }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Candlestick Park/i }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Stinson Beach/i }));
     await userEvent.click(screen.getByRole('button', { name: /Move to planning/i }));
     // Order should be: a1, c3, d4 (candidates array order, b2 excluded)
     expect(onConfirm).toHaveBeenCalledWith(['a1', 'c3', 'd4']);
@@ -172,11 +122,7 @@ describe('PromoteToPlanningModal', () => {
 
   it('shows each candidate’s net score, signed, with its up/down votes', () => {
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={vi.fn()} />,
     );
     expect(screen.getByText('net +3 · 4 up / 1 down')).toBeInTheDocument();
     expect(screen.getByText('net 0 · 2 up / 2 down')).toBeInTheDocument();
@@ -185,11 +131,7 @@ describe('PromoteToPlanningModal', () => {
 
   it('tints the net score by sentiment: positive, neutral, negative', () => {
     render(
-      <PromoteToPlanningModal
-        candidates={candidates}
-        onCancel={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
+      <PromoteToPlanningModal candidates={candidates} onCancel={vi.fn()} onConfirm={vi.fn()} />,
     );
     const positive = screen.getByText('net +3 · 4 up / 1 down');
     const neutral = screen.getByText('net 0 · 2 up / 2 down');
@@ -206,14 +148,8 @@ describe('PromoteToPlanningModal', () => {
     const deleted = makeCandidate('e5', 'Gone', 1, 1, 0);
     deleted.activity.snapshot = null;
     render(
-      <PromoteToPlanningModal
-        candidates={[deleted]}
-        onCancel={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
+      <PromoteToPlanningModal candidates={[deleted]} onCancel={vi.fn()} onConfirm={vi.fn()} />,
     );
-    expect(
-      screen.getByRole('checkbox', { name: /\(deleted activity\)/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /\(deleted activity\)/ })).toBeInTheDocument();
   });
 });

@@ -31,12 +31,7 @@ vi.mock('react-leaflet', () => ({
   },
 }));
 
-import {
-  BoundsWatcher,
-  FitToActivities,
-  ViewportWatcher,
-  type FitPadding,
-} from './MapViewport';
+import { BoundsWatcher, FitToActivities, ViewportWatcher, type FitPadding } from './MapViewport';
 
 // A viewport one world copy west of the Bay Area: the reported bounds come
 // back normalized.
@@ -87,9 +82,7 @@ afterEach(() => {
 describe('BoundsWatcher', () => {
   function renderWatcher(gate: MoveGate = createMoveGate()) {
     const onBoundsChange = vi.fn<(b: MapBounds) => void>();
-    const utils = render(
-      <BoundsWatcher onBoundsChange={onBoundsChange} gate={gate} />,
-    );
+    const utils = render(<BoundsWatcher onBoundsChange={onBoundsChange} gate={gate} />);
     return { onBoundsChange, gate, ...utils };
   }
 
@@ -200,8 +193,7 @@ describe('FitToActivities', () => {
     const utils = render(ui(signal, list));
     return {
       gate,
-      rerender: (s: number, l: readonly Activity[] = list) =>
-        utils.rerender(ui(s, l)),
+      rerender: (s: number, l: readonly Activity[] = list) => utils.rerender(ui(s, l)),
     };
   }
 
@@ -286,11 +278,9 @@ describe('FitToActivities', () => {
   it('flies home when there is nothing to fit', () => {
     const { gate, rerender } = renderFit(0, []);
     rerender(1);
-    expect(fake.map.flyTo).toHaveBeenCalledExactlyOnceWith(
-      [37.3382, -121.8863],
-      8,
-      { animate: true },
-    );
+    expect(fake.map.flyTo).toHaveBeenCalledExactlyOnceWith([37.3382, -121.8863], 8, {
+      animate: true,
+    });
     expect(fake.map.flyToBounds).not.toHaveBeenCalled();
     expect(gate.swallow('moveend')).toBe(true);
   });
@@ -319,12 +309,7 @@ describe('a re-fit with the bounds watcher', () => {
     const ui = (signal: number) => (
       <>
         <BoundsWatcher onBoundsChange={onBoundsChange} gate={gate} />
-        <FitToActivities
-          signal={signal}
-          activities={[muirWoods]}
-          padding={PADDING}
-          gate={gate}
-        />
+        <FitToActivities signal={signal} activities={[muirWoods]} padding={PADDING} gate={gate} />
       </>
     );
     const { rerender } = render(ui(0));

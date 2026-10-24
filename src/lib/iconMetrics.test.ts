@@ -3,7 +3,7 @@ import { ICON_SIDE_BEARING, glyphBleed } from './iconMetrics';
 import { CATEGORY_ICON } from './mapPins';
 
 describe('glyphBleed', () => {
-  it("pulls an icon out by its measured side bearing, in em", () => {
+  it('pulls an icon out by its measured side bearing, in em', () => {
     expect(glyphBleed('expand_more')).toBe('-0.25em');
     expect(glyphBleed('add')).toBe('-0.194em');
   });

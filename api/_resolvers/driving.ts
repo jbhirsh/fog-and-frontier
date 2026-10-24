@@ -16,8 +16,7 @@ import { logServerError } from '../_log.js';
 // the visitor's exact position is never sent on.
 
 // api.heigit.org replaced the deprecated api.openrouteservice.org host.
-export const ORS_MATRIX_URL =
-  'https://api.heigit.org/openrouteservice/v2/matrix/driving-car';
+export const ORS_MATRIX_URL = 'https://api.heigit.org/openrouteservice/v2/matrix/driving-car';
 
 /** Destinations per matrix request, within the free plan's per-request cap. */
 export const ORS_BATCH = 1000;
@@ -73,10 +72,7 @@ export async function fetchDrivingMiles(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        locations: [
-          [origin.lng, origin.lat],
-          ...batch.map((d) => [d.coords.lng, d.coords.lat]),
-        ],
+        locations: [[origin.lng, origin.lat], ...batch.map((d) => [d.coords.lng, d.coords.lat])],
         sources: [0],
         destinations: batch.map((_, i) => i + 1),
         metrics: ['distance'],

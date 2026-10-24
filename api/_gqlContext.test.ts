@@ -99,9 +99,7 @@ describe('requireOwnerCtx', () => {
   });
 
   it('signed-in non-owner → FORBIDDEN (not UNAUTHENTICATED)', () => {
-    expect(() => requireOwnerCtx({ caller: EDITOR })).toThrow(
-      expect.objectContaining(FORBIDDEN),
-    );
+    expect(() => requireOwnerCtx({ caller: EDITOR })).toThrow(expect.objectContaining(FORBIDDEN));
   });
 
   it('returns the caller when it is the owner', () => {
@@ -144,17 +142,13 @@ describe('requireMemberCtx', () => {
   it('signed-in non-member → NOT_FOUND (existence hidden), not FORBIDDEN', async () => {
     getTripRow.mockResolvedValue(TRIP_BY_OWNER);
     isTripMember.mockResolvedValue(false);
-    await expect(requireMemberCtx({ caller: EDITOR }, TRIP_ID)).rejects.toMatchObject(
-      NOT_FOUND,
-    );
+    await expect(requireMemberCtx({ caller: EDITOR }, TRIP_ID)).rejects.toMatchObject(NOT_FOUND);
   });
 
   it('missing trip → NOT_FOUND even if a membership row exists', async () => {
     getTripRow.mockResolvedValue(null);
     isTripMember.mockResolvedValue(true);
-    await expect(requireMemberCtx({ caller: OWNER }, TRIP_ID)).rejects.toMatchObject(
-      NOT_FOUND,
-    );
+    await expect(requireMemberCtx({ caller: OWNER }, TRIP_ID)).rejects.toMatchObject(NOT_FOUND);
   });
 });
 
@@ -168,17 +162,13 @@ describe('requireCreatorCtx', () => {
   it('signed-in non-member → NOT_FOUND (propagated from requireMemberCtx)', async () => {
     getTripRow.mockResolvedValue(TRIP_BY_OWNER);
     isTripMember.mockResolvedValue(false);
-    await expect(requireCreatorCtx({ caller: EDITOR }, TRIP_ID)).rejects.toMatchObject(
-      NOT_FOUND,
-    );
+    await expect(requireCreatorCtx({ caller: EDITOR }, TRIP_ID)).rejects.toMatchObject(NOT_FOUND);
   });
 
   it('member who is not the creator → FORBIDDEN', async () => {
     getTripRow.mockResolvedValue(TRIP_BY_OWNER);
     isTripMember.mockResolvedValue(true);
-    await expect(requireCreatorCtx({ caller: EDITOR }, TRIP_ID)).rejects.toMatchObject(
-      FORBIDDEN,
-    );
+    await expect(requireCreatorCtx({ caller: EDITOR }, TRIP_ID)).rejects.toMatchObject(FORBIDDEN);
   });
 
   it('returns the member context when the caller is the creator', async () => {
@@ -194,9 +184,9 @@ describe('requireCreatorCtx', () => {
 
 describe('loadTripForMemberOrNull', () => {
   it('anon → UNAUTHENTICATED without reading the trip', async () => {
-    await expect(
-      loadTripForMemberOrNull({ caller: null }, TRIP_ID),
-    ).rejects.toMatchObject(UNAUTHENTICATED);
+    await expect(loadTripForMemberOrNull({ caller: null }, TRIP_ID)).rejects.toMatchObject(
+      UNAUTHENTICATED,
+    );
     expect(isTripMember).not.toHaveBeenCalled();
     expect(getTripDetail).not.toHaveBeenCalled();
   });

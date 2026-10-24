@@ -83,7 +83,14 @@ export function useActivityPhotos(activityId: string, enabled: boolean) {
   });
   const photos = data?.activityPhotos ?? [];
   // A failed refresh shows as loadError; it isn't the caller's to handle.
-  const refresh = useCallback(() => refetch().then(() => undefined, () => undefined), [refetch]);
+  const refresh = useCallback(
+    () =>
+      refetch().then(
+        () => undefined,
+        () => undefined,
+      ),
+    [refetch],
+  );
 
   // Both tagged with their activity, so when the detail swaps in place a late
   // failure, or an upload still finishing, for the previous activity never
@@ -150,7 +157,11 @@ export function useActivityPhotos(activityId: string, enabled: boolean) {
         setUploadingFor(null);
       }
       message ??=
-        batch.length < list.length ? PHOTO_LIMIT : unreadable > 0 ? unreadableMessage(unreadable) : null;
+        batch.length < list.length
+          ? PHOTO_LIMIT
+          : unreadable > 0
+            ? unreadableMessage(unreadable)
+            : null;
       setFailure(message ? { id: activityId, message } : null);
       await refresh();
     },

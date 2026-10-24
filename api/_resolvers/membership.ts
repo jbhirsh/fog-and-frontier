@@ -1,16 +1,6 @@
 import { mapTripInvite } from '../_gqlMap.js';
-import {
-  claimInvite,
-  getAllUsers,
-  inviteMember,
-  removeMember,
-  revokeInvite,
-} from '../_trips.js';
-import {
-  requireMemberCtx,
-  requireUserCtx,
-  type GqlContext,
-} from '../_gqlContext.js';
+import { claimInvite, getAllUsers, inviteMember, removeMember, revokeInvite } from '../_trips.js';
+import { requireMemberCtx, requireUserCtx, type GqlContext } from '../_gqlContext.js';
 
 // Account list + membership/invite mutations. `users` is any authed (the
 // invite-picker autocomplete). inviteMember/revokeInvite/removeMember are

@@ -131,10 +131,15 @@ export const SOURCE_LABEL: Record<SharedPlaceSource, string> = {
  * the draft's limits (#73): the post's link is the notes' only link.
  */
 export function draftSeed(place: SharedPlace, post: SharedPost): { title: string; notes: string } {
-  const lines = [`From an Instagram ${post.isVideo ? 'reel' : 'post'}${post.author ? ` by @${post.author}` : ''}: ${post.url}`];
+  const lines = [
+    `From an Instagram ${post.isVideo ? 'reel' : 'post'}${post.author ? ` by @${post.author}` : ''}: ${post.url}`,
+  ];
   if (place.detail) lines.push(`What it says about ${place.name}: ${place.detail}`);
   if (post.caption) {
-    const caption = post.caption.replace(/https?:\/\/\S+/gi, '').trim().slice(0, 1200);
+    const caption = post.caption
+      .replace(/https?:\/\/\S+/gi, '')
+      .trim()
+      .slice(0, 1200);
     if (caption) lines.push(`Caption: ${caption}`);
   }
   return { title: `${place.name}, ${place.city}`.slice(0, 200), notes: lines.join('\n\n') };

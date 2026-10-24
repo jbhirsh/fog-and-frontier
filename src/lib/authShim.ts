@@ -7,9 +7,7 @@ import { createContext, useContext } from 'react';
 // the site stays viewable, owner-gated UI is hidden (#67), and the
 // sign-in button is hidden until Clerk is configured.
 
-export const CLERK_ENABLED = Boolean(
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+export const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
 export type AuthState = {
   isLoaded: boolean;

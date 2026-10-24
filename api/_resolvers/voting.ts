@@ -8,20 +8,14 @@ import {
   transitionToVoting,
   type TripStatus,
 } from '../_trips.js';
-import {
-  requireCreatorCtx,
-  requireMemberCtx,
-  type GqlContext,
-} from '../_gqlContext.js';
+import { requireCreatorCtx, requireMemberCtx, type GqlContext } from '../_gqlContext.js';
 
 // Voting + lifecycle. castVote is member-gated and open only during `voting`;
 // transitionTrip is creator-gated and dispatches on `to`.
 
 async function castVoteResolver(
   _parent: unknown,
-  {
-    input,
-  }: { input: { tripId: string; tripActivityId: string; value: number } },
+  { input }: { input: { tripId: string; tripActivityId: string; value: number } },
   ctx: GqlContext,
 ) {
   if (input.value !== -1 && input.value !== 0 && input.value !== 1) {
@@ -30,12 +24,7 @@ async function castVoteResolver(
   const member = await requireMemberCtx(ctx, input.tripId);
   const trip = await getTripRow(input.tripId);
   if (!trip) throw notFound('not found');
-  const vote = await castVote(
-    trip,
-    input.tripActivityId,
-    input.value,
-    member.email,
-  );
+  const vote = await castVote(trip, input.tripActivityId, input.value, member.email);
   return { vote: vote ? mapTripVote(vote) : null };
 }
 

@@ -14,12 +14,7 @@ import {
 
 // Minimal Activity at the given coords; only id, category and coords matter to
 // the selector, the rest is filler for the type.
-function make(
-  id: string,
-  category: Category,
-  lat: number,
-  lng: number,
-): Activity {
+function make(id: string, category: Category, lat: number, lng: number): Activity {
   return {
     id,
     name: id,
@@ -158,11 +153,7 @@ describe('groupNearby', () => {
       ],
       'scenic',
     );
-    expect(ids(groups.find((g) => g.category === 'hiking')!.items)).toEqual([
-      'h1',
-      'h2',
-      'h3',
-    ]);
+    expect(ids(groups.find((g) => g.category === 'hiking')!.items)).toEqual(['h1', 'h2', 'h3']);
     // The cap is per category: food still makes it in behind four hikes.
     expect(ids(groups.find((g) => g.category === 'food')!.items)).toEqual(['f1']);
   });
@@ -178,20 +169,10 @@ describe('groupNearby', () => {
 
   it('puts food first when the origin is not food, then orders by nearest member', () => {
     const groups = groupNearby(
-      [
-        at('s1', 'scenic', 1),
-        at('c1', 'culture', 2),
-        at('f1', 'food', 3),
-        at('w1', 'water', 4),
-      ],
+      [at('s1', 'scenic', 1), at('c1', 'culture', 2), at('f1', 'food', 3), at('w1', 'water', 4)],
       'hiking',
     );
-    expect(groups.map((g) => g.category)).toEqual([
-      'food',
-      'scenic',
-      'culture',
-      'water',
-    ]);
+    expect(groups.map((g) => g.category)).toEqual(['food', 'scenic', 'culture', 'water']);
   });
 
   it('orders purely by nearest member when the origin is food', () => {
@@ -226,27 +207,18 @@ describe('nearbyByCategory', () => {
   });
 
   it('passes the radius and per-category options through', () => {
-    const catalog = [
-      north('h1', 'hiking', 1),
-      north('h2', 'hiking', 2),
-      north('f5', 'food', 5),
-    ];
+    const catalog = [north('h1', 'hiking', 1), north('h2', 'hiking', 2), north('f5', 'food', 5)];
     const groups = nearbyByCategory(origin, catalog, {
       radiusMiles: 2,
       perCategory: 1,
     });
-    expect(groups.map((g) => [g.category, ids(g.items)])).toEqual([
-      ['hiking', ['h1']],
-    ]);
+    expect(groups.map((g) => [g.category, ids(g.items)])).toEqual([['hiking', ['h1']]]);
   });
 
   it("uses the origin's own category to decide whether food leads", () => {
     const food = north('origin-food', 'food', 0);
     const catalog = [north('h1', 'hiking', 1), north('f2', 'food', 2)];
-    expect(nearbyByCategory(food, catalog).map((g) => g.category)).toEqual([
-      'hiking',
-      'food',
-    ]);
+    expect(nearbyByCategory(food, catalog).map((g) => g.category)).toEqual(['hiking', 'food']);
   });
 });
 

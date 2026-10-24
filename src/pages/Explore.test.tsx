@@ -46,18 +46,14 @@ describe('Explore page: cached suggestions', () => {
   ])('treats a cache with %s as no cache and drops it', (_label, cached) => {
     localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
     render(<Explore />);
-    expect(
-      screen.getByText(/No events have been discovered/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/No events have been discovered/)).toBeInTheDocument();
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
   });
 
   it('drops a cache that is not JSON', () => {
     localStorage.setItem(CACHE_KEY, '{not json');
     render(<Explore />);
-    expect(
-      screen.getByText(/No events have been discovered/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/No events have been discovered/)).toBeInTheDocument();
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
   });
 });

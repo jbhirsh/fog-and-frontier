@@ -16,9 +16,7 @@ function jsonResponse(obj: unknown): Response {
   });
 }
 
-type Responder = (
-  vars: Record<string, unknown>,
-) => Response | Promise<Response>;
+type Responder = (vars: Record<string, unknown>) => Response | Promise<Response>;
 
 function installFetch(routes: Record<string, Responder>): void {
   vi.stubGlobal(
@@ -28,9 +26,7 @@ function installFetch(routes: Record<string, Responder>): void {
         operationName?: string;
         variables?: Record<string, unknown>;
       };
-      const responder = body.operationName
-        ? routes[body.operationName]
-        : undefined;
+      const responder = body.operationName ? routes[body.operationName] : undefined;
       if (!responder) return Promise.resolve(jsonResponse({ data: {} }));
       return Promise.resolve(responder(body.variables ?? {}));
     }),
@@ -85,14 +81,11 @@ describe('rowToActivity ↔ activityToInput round-trip', () => {
   });
 
   it('domain → ActivityInput emits camelCase values incl. parkType + restaurant fields', async () => {
-    let capturedInput:
-      | { id: string; activity: Record<string, unknown> }
-      | undefined;
+    let capturedInput: { id: string; activity: Record<string, unknown> } | undefined;
     installFetch({
       SaveActivity: (vars) => {
-        capturedInput = (
-          vars as { input: { id: string; activity: Record<string, unknown> } }
-        ).input;
+        capturedInput = (vars as { input: { id: string; activity: Record<string, unknown> } })
+          .input;
         return jsonResponse({
           data: {
             saveActivity: {

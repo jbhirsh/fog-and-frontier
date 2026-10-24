@@ -98,8 +98,8 @@ jobs:
       - uses: actions/setup-node@v7
         if: steps.pr.outputs.skip == 'false'
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: package-lock.json
 
       # Red checks on a Dependabot PR have no one else to fix them:

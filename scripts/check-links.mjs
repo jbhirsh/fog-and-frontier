@@ -25,7 +25,8 @@ import {
   retryDelayMs,
 } from './link-check.mjs';
 
-const baseUrl = process.argv[2] ?? process.env.LINKS_BASE_URL ?? 'https://fog-and-frontier.vercel.app';
+const baseUrl =
+  process.argv[2] ?? process.env.LINKS_BASE_URL ?? 'https://fog-and-frontier.vercel.app';
 const TIMEOUT_MS = 15_000;
 // Says who's asking, as Wikimedia's policy for automated clients requires
 // (it rate-limits anonymous scripts hard), in the browser-compatible form
@@ -78,7 +79,9 @@ async function probeInstagram(embedUrl) {
     };
   } catch (err) {
     if (err?.name === 'TimeoutError') return { error: 'timeout' };
-    return { error: err?.cause?.code ?? err?.cause?.message ?? err?.code ?? err?.message ?? 'fetch failed' };
+    return {
+      error: err?.cause?.code ?? err?.cause?.message ?? err?.code ?? err?.message ?? 'fetch failed',
+    };
   }
 }
 
@@ -108,7 +111,9 @@ async function probe(url) {
   } catch (err) {
     if (err?.name === 'TimeoutError') return { error: 'timeout' };
     // undici hangs the specific reason (ENOTFOUND, a redirect loop) on cause.
-    return { error: err?.cause?.code ?? err?.cause?.message ?? err?.code ?? err?.message ?? 'fetch failed' };
+    return {
+      error: err?.cause?.code ?? err?.cause?.message ?? err?.code ?? err?.message ?? 'fetch failed',
+    };
   }
 }
 
