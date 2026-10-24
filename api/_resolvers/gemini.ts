@@ -1,8 +1,9 @@
+import { findAllTrailsUrl, type AskGemini } from '../_allTrailsSearch.js';
 import { findCoverImage } from '../_coverImage.js';
 import { badGateway, badInput, forbidden } from '../_gqlError.js';
 import { claimAssist, releaseAssist } from '../_assistBudget.js';
 import { isSavableUrl, LINK_HOSTS } from '../_links.js';
-import { logServerError } from '../_log.js';
+import { logEvent, logServerError } from '../_log.js';
 import { requireOwnerCtx, requireUserCtx, type GqlContext } from '../_gqlContext.js';
 import { HOME_BASE } from '../_home.js';
 import { catalogActivities } from './catalog.js';
@@ -238,6 +239,41 @@ Rules:
 - When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.
 - "costTier" is what one person pays to do it, from the fees you found: "free" when you find no entry, parking or ticket fee (most trails, beaches and city parks), "$" under $25 (e.g. a state park day-use fee, or a national park's per-vehicle fee split between two people), "$$" $25-75, "$$$" over $75. Omit it for restaurants, which use "priceRange" instead, and otherwise only when there's clearly a charge you can't price.`;
 
+// How long the follow-up AllTrails search may take before the draft goes
+// without the link.
+const TRAIL_SEARCH_TIMEOUT_MS = 30_000;
+
+// The follow-up AllTrails search (#6, api/_allTrailsSearch.ts): Google
+// Search alone (AllTrails' own pages don't answer a fetch) at low effort.
+// A search that fails is logged as an event, not an error, since the draft
+// still succeeds: it just goes without the link.
+function askForTrail(apiKey: string): AskGemini {
+  return async ({ system, user, schema }) => {
+    try {
+      const r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: user }] }],
+          tools: [{ googleSearch: {} }],
+          generationConfig: jsonConfig(schema, 'low'),
+        }),
+        signal: AbortSignal.timeout(TRAIL_SEARCH_TIMEOUT_MS),
+      });
+      if (!r.ok) {
+        await r.body?.cancel();
+        logEvent('draft.trail_search_failed', { status: r.status });
+        return undefined;
+      }
+      return responseText((await r.json()) as Parameters<typeof responseText>[0]);
+    } catch (err) {
+      logEvent('draft.trail_search_failed', { error: (err as { name?: unknown } | null)?.name ?? 'Error' });
+      return undefined;
+    }
+  };
+}
+
 // What a non-owner's draft may ask about (#73).
 export const MAX_ASSIST_TITLE = 200;
 export const MAX_ASSIST_NOTES = 2000;
@@ -391,13 +427,29 @@ async function generateActivity(
 
   // Location-aware Wikimedia Commons lookup (#36). The required-field guard
   // above means name/category/lat/lng are present and typed. No match leaves
-  // the cover unset so the UI shows the category placeholder.
-  const cover = await findCoverImage({
+  // the cover unset so the UI shows the category placeholder. Alongside it, a
+  // hike drafted without its AllTrails link gets one more search for it,
+  // part of the same draft (it isn't counted again).
+  const place = {
     name: parsed.name as string,
-    category: parsed.category as string,
     lat: parsed.lat as number,
     lng: parsed.lng as number,
-  });
+  };
+  const [cover, trail] = await Promise.all([
+    findCoverImage({ ...place, category: parsed.category as string }),
+    parsed.category === 'hiking' && parsed.allTrailsUrl == null
+      ? findAllTrailsUrl(
+          {
+            ...place,
+            city: parsed.city,
+            shortDescription: parsed.shortDescription,
+            longDescription: parsed.longDescription,
+          },
+          askForTrail(apiKey),
+        )
+      : null,
+  ]);
+  if (trail) parsed.allTrailsUrl = trail;
   if (cover) {
     parsed.coverImage = cover.url;
     parsed.coverCredit = cover.credit;
