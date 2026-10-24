@@ -13,6 +13,13 @@ describe('ActivityCard', () => {
     expect(screen.getByText('HIKING')).toBeInTheDocument();
   });
 
+  it('shows the whole short description, wrapped, under a 3:2 photo (#269)', () => {
+    render(<ActivityCard activity={muirWoods} />);
+    const description = screen.getByText('Short redwoods description.');
+    expect(description.className).not.toMatch(/line-clamp|truncate/);
+    expect(document.querySelector('.aspect-3\\/2')).not.toBeNull();
+  });
+
   it('does not render difficulty (it lives in the detail view, not the card)', () => {
     render(<ActivityCard activity={muirWoods} />);
     expect(screen.queryByText('moderate')).not.toBeInTheDocument();

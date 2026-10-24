@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import type { Activity } from '../data/types';
@@ -212,6 +212,7 @@ describe('AddActivity — edit mode', () => {
       'Duration',
       'Difficulty',
       'Park type (optional)',
+      'Part of (optional)',
       'Dog friendly',
       'Cost per person',
     ]);
@@ -1206,5 +1207,50 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
     render(<AddActivity onClose={() => {}} seed={seed} />);
     expect(await screen.findByText('Gemini is down')).toBeInTheDocument();
     expect(screen.getByLabelText('Title')).toHaveValue(seed.title);
+  });
+});
+
+describe('AddActivity — the park it’s part of (#269)', () => {
+  const PARK: Activity = {
+    ...baseActivity,
+    id: 'test-park',
+    name: 'Test Seashore',
+    completed: false,
+  };
+  const generated: GeneratedFields = {
+    name: 'Test Lighthouse',
+    shortDescription: 'An 1870 lighthouse',
+    category: 'scenic',
+    region: 'north-bay',
+    city: 'Inverness',
+    lat: 37.9956,
+    lng: -123.0224,
+    duration: 'Full Day',
+    parentId: PARK.id,
+  };
+
+  it('starts a draft in the park Gemini placed it in, for the owner to keep or change', async () => {
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} />, { activities: [PARK] });
+    await userEvent.type(screen.getByLabelText('Title'), 'Point Reyes Lighthouse');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    const partOf = await screen.findByLabelText('Part of (optional)');
+    expect(partOf).toHaveValue(PARK.id);
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].parentId).toBe(PARK.id);
+  });
+
+  it('leaves it to the owners on a suggestion', async () => {
+    ownerState.isOwner = false;
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} suggest />, { activities: [PARK] });
+    await userEvent.type(screen.getByLabelText('Title'), 'Point Reyes Lighthouse');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: 'Send suggestion' });
+    expect(screen.queryByLabelText('Part of (optional)')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    await waitFor(() => expect(suggestSpy).toHaveBeenCalledTimes(1));
+    expect((suggestSpy.mock.calls[0] as [Activity])[0].parentId).toBeUndefined();
   });
 });

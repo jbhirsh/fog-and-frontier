@@ -18,16 +18,21 @@ export function useRevealedCount(total: number, pageSize: number) {
     setRevealed((r) => Math.max(r, pageSize) + pageSize);
   }, [pageSize]);
 
-  /** Make sure the item at `index` is rendered, rounding up to whole pages. */
-  const revealTo = useCallback(
-    (index: number) => {
-      setRevealed((r) => Math.max(r, Math.ceil((index + 1) / pageSize) * pageSize));
-    },
-    [pageSize],
-  );
-
   // Never less than a page: a larger page (Split to List) fills its grid.
   const count = Math.min(total, Math.max(revealed, pageSize));
+
+  /**
+   * Make sure the item at `index` is rendered, rounding up to whole pages.
+   * Returns how many will be, for laying out what's about to show.
+   */
+  const revealTo = useCallback(
+    (index: number) => {
+      const through = Math.ceil((index + 1) / pageSize) * pageSize;
+      setRevealed((r) => Math.max(r, through));
+      return Math.min(total, Math.max(count, through));
+    },
+    [count, pageSize, total],
+  );
   return { count, remaining: total - count, showMore, revealTo };
 }
 

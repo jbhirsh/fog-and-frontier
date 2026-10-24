@@ -11,6 +11,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { ContributorFilter } from '../components/ContributorFilter';
 import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
+import { ParkBar, ParkSection } from '../components/ParkSection';
 import { PendingSuggestions } from '../components/PendingSuggestions';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
@@ -36,6 +37,14 @@ import { useOwner } from '../lib/useOwner';
 import { usePendingSuggestions } from '../lib/suggestions';
 import { addActivityToTrip } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
+import { nestUnderParks, parkBarId, type Nested } from '../lib/parks';
+
+/** The park whose hikes and stops are open below its row (#269). */
+interface OpenPark {
+  id: string;
+  held: Activity[];
+}
+import { rowEnd, useGridColumns } from '../lib/useGridColumns';
 import { categoryOptionLabel } from '../lib/activityLabels';
 
 type TargetTrip = { id: string; title: string };
@@ -334,7 +343,7 @@ export function CuratedAdventures() {
   // Bounds filter (#95): when the user pans/zooms an interactive map, narrow the
   // list to the activities inside the current viewport, on top of the catalog
   // filters. `null` = inactive (never moved, or "Clear bounds"). The map keeps
-  // plotting every `results` pin; only the list narrows.
+  // plotting `results` (as parks, #269, below); only the list narrows.
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   // Linked card↔pin state (#94), lifted here since both the list and the map are
   // rendered in this component.
@@ -356,12 +365,26 @@ export function CuratedAdventures() {
     () => (bounds ? filterByBounds(results, bounds) : results),
     [bounds, results],
   );
-  // The list as shown, which an activity opened from here steps through (#64).
-  const visibleIds = useMemo(() => visibleResults.map((a) => a.id), [visibleResults]);
-  const openFromList = useCallback(
-    (id: string) => openActivity(id, visibleIds),
-    [openActivity, visibleIds],
+  // A park's hikes and stops (#269) sit under its card, and open below its
+  // row. Which park holds what is decided from the filtered catalog, not the
+  // map's viewport, so panning can't unfold a park. Not while selecting for a
+  // trip: every activity must be pickable.
+  const nested = useMemo(
+    (): Nested => (selectionMode ? { top: results, subItems: new Map() } : nestUnderParks(results)),
+    [results, selectionMode],
   );
+  // The viewport (#95) narrows the list: a card stays while it, or one of
+  // its park's own, is in view.
+  const visibleTop = useMemo(() => {
+    if (!bounds) return nested.top;
+    const inView = new Set(visibleResults.map((a) => a.id));
+    return nested.top.filter(
+      (a) => inView.has(a.id) || nested.subItems.get(a.id)?.some((s) => inView.has(s.id)),
+    );
+  }, [bounds, nested, visibleResults]);
+  const topIds = useMemo(() => visibleTop.map((a) => a.id), [visibleTop]);
+  // Desktop Map mode shows no list, so there's no card to reveal or scroll to.
+  const listShown = !(view === 'map' && isLg);
   // Render the list a page at a time (#102): a screenful to start, more as
   // its end comes into view. Desktop List's three-column grid gets a bigger
   // page; everything else is one or two columns. Prev/next and filtering still
@@ -371,14 +394,56 @@ export function CuratedAdventures() {
     remaining,
     showMore,
     revealTo,
-  } = useRevealedCount(visibleResults.length, view === 'list' && isLg ? 12 : 6);
+  } = useRevealedCount(visibleTop.length, view === 'list' && isLg ? 12 : 6);
   const endOfListRef = useWhenVisible<HTMLDivElement>(
     showMore,
-    `${revealedCount}/${visibleResults.length}`,
+    `${revealedCount}/${visibleTop.length}`,
   );
-  // Desktop Map mode shows no list, so there's no card to reveal or scroll to.
-  const listShown = !(view === 'map' && isLg);
-  const visibleKey = useMemo(() => visibleIds.join('|'), [visibleIds]);
+  const [gridRef, columns] = useGridColumns<HTMLDivElement>();
+  const [openPark, setOpenPark] = useState<string | null>(null);
+  // Open only while its card is on screen with something to hold: a filter,
+  // a search, the viewport or Map mode closes it for good, rather than it
+  // reopening unasked when they change back.
+  const opened = useMemo((): OpenPark | null => {
+    const held = nested.subItems.get(openPark ?? '');
+    return held && listShown && topIds.slice(0, revealedCount).includes(openPark ?? '')
+      ? { id: openPark ?? '', held }
+      : null;
+  }, [listShown, nested, openPark, revealedCount, topIds]);
+  if (openPark !== null && !opened) setOpenPark(null);
+  // The map plots the parks rather than everything in them, plus the open
+  // park's own pins. Desktop Map mode has no list to open a park from, so
+  // there it plots every pin.
+  const mapActivities = useMemo(() => {
+    if (!listShown) return results;
+    return opened ? [...nested.top, ...opened.held] : nested.top;
+  }, [listShown, nested, results, opened]);
+  // The list as shown, which an activity opened from here steps through
+  // (#64): the cards in order, with an open park's own after the last card
+  // of its row, where its section sits, `shownCount` cards being rendered.
+  // Desktop Map mode has no list: there it's every pin in view.
+  const idsShowing = useCallback(
+    (park: OpenPark | null, shownCount: number) => {
+      if (!park) return topIds;
+      const after = rowEnd(topIds.indexOf(park.id), columns, shownCount);
+      return [
+        ...topIds.slice(0, after + 1),
+        ...park.held.map((a) => a.id),
+        ...topIds.slice(after + 1),
+      ];
+    },
+    [columns, topIds],
+  );
+  const visibleIds = useMemo(
+    () => (listShown ? idsShowing(opened, revealedCount) : visibleResults.map((a) => a.id)),
+    [idsShowing, listShown, revealedCount, opened, visibleResults],
+  );
+  const openFromList = useCallback(
+    (id: string) => openActivity(id, visibleIds),
+    [openActivity, visibleIds],
+  );
+  // Which cards the list holds, for a scroll asked of it to still apply.
+  const visibleKey = useMemo(() => topIds.join('|'), [topIds]);
 
   // A pin's card to scroll to once it's rendered (#94, #102). Each click is a
   // new request for the list as it stood; the ref marks the one served, so a
@@ -393,14 +458,14 @@ export function CuratedAdventures() {
     if (!card) return; // Not rendered yet: the reveal re-runs this.
     card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     servedScroll.current = scrollRequest;
-  }, [scrollRequest, revealedCount, visibleKey]);
+  }, [scrollRequest, revealedCount, visibleKey, opened]);
 
   // "Show more" moves focus to the first card it added, so keyboard users
   // land on the new cards instead of tabbing past them, and focus isn't lost
   // when the last page removes the button.
   const focusAfterShowMore = useRef<string | null>(null);
   function handleShowMore() {
-    focusAfterShowMore.current = visibleIds[revealedCount] ?? null;
+    focusAfterShowMore.current = topIds[revealedCount] ?? null;
     showMore();
   }
   useEffect(() => {
@@ -413,13 +478,31 @@ export function CuratedAdventures() {
   // Pin click (#94): open detail and scroll the matching card into view,
   // first rendering the list down to it (#102). The card exists in Split and
   // in the mobile map's sheet; desktop Map mode has no list.
+  // A park's hike opens its park's section, below the park's row (#269).
   function handlePinActivate(activity: Activity) {
-    openFromList(activity.id);
-    const index = visibleIds.indexOf(activity.id);
-    if (!listShown || index === -1) return;
-    revealTo(index);
+    const held = nested.subItems.get(activity.parentId ?? '');
+    const park = held?.includes(activity) ? { id: activity.parentId ?? '', held } : null;
+    const index = topIds.indexOf(park ? park.id : activity.id);
+    if (!listShown || index === -1) {
+      openFromList(activity.id);
+      return;
+    }
+    const shownCount = revealTo(index);
+    // Stepped through as the list will show it, with its park open.
+    openActivity(activity.id, park ? idsShowing(park, shownCount) : visibleIds);
+    if (park) setOpenPark(park.id);
     setScrollRequest({ id: activity.id, list: visibleKey });
   }
+
+  // Closing a park's section puts focus back on its bar, rather than losing
+  // it with the button that closed it.
+  const focusBarAfterClose = useRef<string | null>(null);
+  useEffect(() => {
+    const id = focusBarAfterClose.current;
+    if (id === null || opened) return;
+    focusBarAfterClose.current = null;
+    document.getElementById(parkBarId(id))?.focus();
+  }, [opened]);
 
   // Narrower grid in Split (the list shares the row with the map) and in the
   // mobile map's sheet (two cards a row only once there's room for them) than
@@ -430,6 +513,88 @@ export function CuratedAdventures() {
       : view === 'map'
         ? 'grid-cols-1 sm:grid-cols-2'
         : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+  // An open park's hikes and stops sit smaller, one more to a row. (The
+  // mobile map's sheet is never wide enough for Split's third column.)
+  const parkGridClass =
+    view === 'list'
+      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+      : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3';
+
+  function card(a: Activity) {
+    return (
+      <ActivityCard
+        key={a.id}
+        activity={a}
+        selectionMode={selectionMode}
+        selected={selectedForTrip.has(a.id)}
+        highlighted={a.id === pinHoveredId}
+        onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
+        onClick={() => {
+          if (selectionMode) {
+            toggleSelected(a.id);
+          } else {
+            openFromList(a.id);
+          }
+        }}
+        actionSlot={
+          // Per-card "Add to trip" shows only while building a trip
+          // (#112), keeping the default browse view uncluttered. An
+          // active trip target (location.state) always opens selection
+          // mode, so selectionMode covers both cases.
+          isSignedIn && selectionMode ? (
+            <AddToTripDropdown
+              activityId={a.id}
+              onAdded={(msg) => {
+                setTripAddedToast(msg);
+                window.setTimeout(() => setTripAddedToast(null), 3000);
+              }}
+            />
+          ) : undefined
+        }
+      />
+    );
+  }
+
+  // The cards shown, each park's with its bar, and the open park's section
+  // after the last card of its row (#269), so it reads in place.
+  const shown = visibleTop.slice(0, revealedCount);
+  const openIndex = opened ? shown.findIndex((a) => a.id === opened.id) : -1;
+  const section = opened && (
+    <ParkSection
+      key={`park-${opened.id}`}
+      park={shown[openIndex]}
+      gridClass={parkGridClass}
+      onViewPark={() => openFromList(opened.id)}
+      onClose={() => {
+        focusBarAfterClose.current = opened.id;
+        setOpenPark(null);
+      }}
+    >
+      {opened.held.map(card)}
+    </ParkSection>
+  );
+  const sectionAfter = rowEnd(openIndex, columns, shown.length);
+  const gridItems = shown.flatMap((a, i) => {
+    const held = nested.subItems.get(a.id);
+    const item = held ? (
+      <div key={a.id} className="flex flex-col gap-sm">
+        {card(a)}
+        <ParkBar
+          park={a}
+          count={held.length}
+          open={a.id === opened?.id}
+          onToggle={() => {
+            // Revealed for good, so a smaller page (List to Split) keeps it.
+            revealTo(i);
+            setOpenPark((open) => (open === a.id ? null : a.id));
+          }}
+        />
+      </div>
+    ) : (
+      card(a)
+    );
+    return i === sectionAfter && section ? [item, section] : [item];
+  });
 
   const listContent =
     visibleResults.length === 0 ? (
@@ -440,39 +605,8 @@ export function CuratedAdventures() {
       </div>
     ) : (
       <>
-        <div className={`grid gap-gutter ${gridColsClass}`}>
-          {visibleResults.slice(0, revealedCount).map((a) => (
-            <ActivityCard
-              key={a.id}
-              activity={a}
-              selectionMode={selectionMode}
-              selected={selectedForTrip.has(a.id)}
-              highlighted={a.id === pinHoveredId}
-              onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
-              onClick={() => {
-                if (selectionMode) {
-                  toggleSelected(a.id);
-                } else {
-                  openFromList(a.id);
-                }
-              }}
-              actionSlot={
-                // Per-card "Add to trip" shows only while building a trip
-                // (#112), keeping the default browse view uncluttered. An
-                // active trip target (location.state) always opens selection
-                // mode, so selectionMode covers both cases.
-                isSignedIn && selectionMode ? (
-                  <AddToTripDropdown
-                    activityId={a.id}
-                    onAdded={(msg) => {
-                      setTripAddedToast(msg);
-                      window.setTimeout(() => setTripAddedToast(null), 3000);
-                    }}
-                  />
-                ) : undefined
-              }
-            />
-          ))}
+        <div ref={gridRef} className={`grid gap-gutter ${gridColsClass}`}>
+          {gridItems}
         </div>
         {remaining > 0 && (
           // The end of the list: coming into view adds the next page. The
@@ -885,7 +1019,7 @@ export function CuratedAdventures() {
           <div className="fixed inset-0 z-0">
             <ActivityMap
               fullBleed
-              activities={results}
+              activities={mapActivities}
               onSelect={(a) => openFromList(a.id)}
               onActivate={handlePinActivate}
               highlightedId={hoveredId}
@@ -925,7 +1059,7 @@ export function CuratedAdventures() {
             <h1 className="sr-only">Curated Adventures — map</h1>
             <div className="size-full">
               <ActivityMap
-                activities={results}
+                activities={mapActivities}
                 onSelect={(a) => openFromList(a.id)}
                 onActivate={handlePinActivate}
                 highlightedId={hoveredId}
@@ -955,7 +1089,7 @@ export function CuratedAdventures() {
             {splitMapVisible && (
               <div className="hidden p-md lg:sticky lg:top-20 lg:block lg:h-[calc(100vh-80px)]">
                 <ActivityMap
-                  activities={results}
+                  activities={mapActivities}
                   onSelect={(a) => openFromList(a.id)}
                   onActivate={handlePinActivate}
                   highlightedId={hoveredId}

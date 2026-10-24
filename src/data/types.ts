@@ -65,6 +65,8 @@ export interface Activity {
   dietary?: string[];
   // Where it was found (#6): the Instagram post it was added from, say.
   sourceUrl?: string;
+  // The activity it's part of (#269): a park, for one of its hikes or stops.
+  parentId?: string;
   completed?: boolean;
   completedDate?: string;
   notes?: string;

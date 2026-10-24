@@ -51,6 +51,7 @@ export const ACTIVITIES_QUERY = graphql(`
       completedDate
       notes
       contributors
+      parentId
     }
   }
 `);
@@ -397,6 +398,7 @@ export const GENERATE_ACTIVITY = graphql(`
         notes
         coverImage
         coverCredit
+        parentId
       }
     }
   }
@@ -623,7 +625,8 @@ export type TripActivityRow = TripRow['activities'][number];
 // All-nullable snapshot shape; an Activity row (non-null fields, different
 // __typename) is structurally assignable to this, so one mapper covers both.
 export type SnapshotRow = NonNullable<TripActivityRow['snapshot']>;
-export type ActivityLike = Omit<SnapshotRow, '__typename'>;
+// A catalog row also says which park it's part of (#269); a snapshot doesn't.
+export type ActivityLike = Omit<SnapshotRow, '__typename'> & { parentId?: string | null };
 export type PendingSuggestionRow = DocumentType<
   typeof PENDING_SUGGESTIONS
 >['pendingSuggestions'][number];

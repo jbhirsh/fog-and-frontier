@@ -21,11 +21,13 @@ import {
   nearbyByCategory,
 } from '../lib/nearbyActivities';
 import { ActivityReviews } from './ActivityReviews';
+import { ActivityTile } from './ActivityTile';
+import { ParkActivities, PartOfPark } from './ParkLinks';
 import { AddActivity } from './AddActivity';
-import { CdnImage } from './CdnImage';
 import { CoverImage } from './CoverImage';
 import { InlineError } from './InlineError';
 import { sourceLabel } from '../lib/sharedPlaces';
+import { parkOf, subItemsOf } from '../lib/parks';
 
 interface Props {
   activity: Activity;
@@ -133,10 +135,21 @@ export function ActivityDetail({
   } = useActivityPhotos(activity.id, isOwner && (completed || !!showUploads));
   const [editing, setEditing] = useState(false);
 
-  const nearbyGroups = useMemo(
-    () => nearbyByCategory(activity, allActivities),
-    [allActivities, activity],
+  // Its park, the park's other hikes and stops, or its own (#269). They
+  // aren't offered again under Nearby.
+  const park = useMemo(() => parkOf(activity, allActivities), [allActivities, activity]);
+  const subItems = useMemo(() => subItemsOf(activity, allActivities), [allActivities, activity]);
+  const siblings = useMemo(
+    () => (park ? subItemsOf(park, allActivities).filter((a) => a.id !== activity.id) : []),
+    [allActivities, activity, park],
   );
+  const nearbyGroups = useMemo(() => {
+    const listed = new Set([park, ...subItems, ...siblings].map((a) => a?.id));
+    return nearbyByCategory(
+      activity,
+      allActivities.filter((a) => !listed.has(a.id)),
+    );
+  }, [allActivities, activity, park, siblings, subItems]);
   const nearbyIdPrefix = useId();
 
   function selectNearby(a: Activity) {
@@ -341,6 +354,8 @@ export function ActivityDetail({
           <div className="space-y-md p-md md:p-lg">
             <TitleRow activity={activity} />
 
+            {park && <PartOfPark park={park} onSelect={selectNearby} />}
+
             <Facts activity={activity} onShowContributor={onShowContributor} />
 
             {(activity.allTrailsUrl ||
@@ -488,6 +503,21 @@ export function ActivityDetail({
               <ActivityReviews key={activity.id} activityId={activity.id} />
             )}
 
+            {subItems.length > 0 && (
+              <ParkActivities
+                heading="Hikes & stops here"
+                activities={subItems}
+                onSelect={selectNearby}
+              />
+            )}
+            {park && siblings.length > 0 && (
+              <ParkActivities
+                heading={`Also in ${park.name}`}
+                activities={siblings}
+                onSelect={selectNearby}
+              />
+            )}
+
             {/* Nearby, grouped by category (#65). Hidden entirely when nothing
                 is within range: an empty "nothing nearby" panel on most remote
                 activities would be noise, not information. */}
@@ -518,32 +548,12 @@ export function ActivityDetail({
                       </h4>
                       <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
                         {items.map(({ activity: a, miles: m }) => (
-                          <button
+                          <ActivityTile
                             key={a.id}
-                            type="button"
-                            onClick={() => selectNearby(a)}
-                            className="flex items-stretch gap-sm overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-low text-left transition-colors hover:bg-surface-container"
-                          >
-                            <div className="w-24 shrink-0 bg-surface-variant">
-                              <CdnImage
-                                src={a.coverImage}
-                                alt={a.name}
-                                sizes="96px"
-                                className="size-full object-cover"
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1 py-xs pr-sm">
-                              <div className="truncate font-body-md font-bold text-on-surface">
-                                {a.name}
-                              </div>
-                              <div className="truncate font-body-sm text-on-surface-variant">
-                                {a.location.city} · {m.toFixed(1)} mi away
-                              </div>
-                              <div className="truncate font-body-sm text-on-surface-variant">
-                                {a.duration}
-                              </div>
-                            </div>
-                          </button>
+                            activity={a}
+                            lines={[`${a.location.city} · ${m.toFixed(1)} mi away`, a.duration]}
+                            onSelect={selectNearby}
+                          />
                         ))}
                       </div>
                     </section>

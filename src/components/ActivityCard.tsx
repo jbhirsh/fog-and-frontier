@@ -119,7 +119,7 @@ export function ActivityCard({
         {/* Image-led cover. Selected/focus states live on the image, not a
             card border — there is no card chrome around the whole thing. */}
         <div
-          className={`relative aspect-4/3 overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-hover:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 motion-reduce:transition-none ${
+          className={`relative aspect-3/2 overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-hover:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 motion-reduce:transition-none ${
             selected || highlighted
               ? 'shadow-[0_10px_30px_rgba(0,30,55,0.18)] outline-2'
               : 'outline-0'
@@ -186,9 +186,7 @@ export function ActivityCard({
               </span>
             )}
           </div>
-          <p className="mt-xs line-clamp-1 text-body-sm text-on-surface-variant">
-            {activity.shortDescription}
-          </p>
+          <p className="mt-xs text-body-sm text-on-surface-variant">{activity.shortDescription}</p>
           <div className="mt-auto flex flex-wrap items-center gap-sm pt-sm text-body-sm text-on-surface-variant">
             <span className="flex items-center gap-xs">
               <span
