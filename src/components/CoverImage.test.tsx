@@ -23,9 +23,7 @@ describe('CoverImage', () => {
   });
 
   it('swaps to the category glyph when the image fails to load', () => {
-    render(
-      <CoverImage src="https://img.test/dead.jpg" alt="Muir Woods" category="hiking" />,
-    );
+    render(<CoverImage src="https://img.test/dead.jpg" alt="Muir Woods" category="hiking" />);
     fireEvent.error(screen.getByRole('img', { name: 'Muir Woods' }));
 
     const fallback = screen.getByRole('img', { name: 'Muir Woods' });
@@ -42,9 +40,7 @@ describe('CoverImage', () => {
   });
 
   it('falls back immediately when there is no cover', () => {
-    const { container } = render(
-      <CoverImage src={undefined} alt="Muir Woods" category="hiking" />,
-    );
+    const { container } = render(<CoverImage src={undefined} alt="Muir Woods" category="hiking" />);
     expect(container.querySelector('img')).toBeNull();
     expect(screen.getByRole('img', { name: 'Muir Woods' }).tagName).toBe('DIV');
     expect(screen.getByText('directions_walk')).toBeInTheDocument();
@@ -77,9 +73,7 @@ describe('CoverImage', () => {
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
     expect(container.querySelector('img')).toBeNull();
 
-    rerender(
-      <CoverImage src="https://img.test/b.jpg" alt="B" category="scenic" />,
-    );
+    rerender(<CoverImage src="https://img.test/b.jpg" alt="B" category="scenic" />);
     const img = container.querySelector('img');
     expect(img).toHaveAttribute('src', 'https://img.test/b.jpg');
     expect(screen.queryByText('landscape')).not.toBeInTheDocument();
@@ -90,9 +84,7 @@ describe('CoverImage', () => {
       <CoverImage src="https://img.test/dead.jpg" alt="A" category="scenic" />,
     );
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
-    rerender(
-      <CoverImage src="https://img.test/b.jpg" alt="B" category="scenic" />,
-    );
+    rerender(<CoverImage src="https://img.test/b.jpg" alt="B" category="scenic" />);
     // The new cover's own failure is tracked against the new URL.
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
     expect(screen.getByRole('img', { name: 'B' }).tagName).toBe('DIV');

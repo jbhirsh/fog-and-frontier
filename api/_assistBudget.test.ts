@@ -35,7 +35,9 @@ function runStatement(q: { sql: string; args: unknown[] }, previous: number) {
     return { rows: [], rowsAffected: 1 };
   }
   // The account's count: under its own cap, while the shared one has room.
-  expect(q.sql).toMatch(/^INSERT INTO gemini_assists \(day, who, n\)\s+SELECT \?, \?, 1 WHERE COALESCE/);
+  expect(q.sql).toMatch(
+    /^INSERT INTO gemini_assists \(day, who, n\)\s+SELECT \?, \?, 1 WHERE COALESCE/,
+  );
   const [day, who, , total, cap] = q.args as [string, string, string, number, number];
   if ((counts.get(`${day}|*`) ?? 0) >= total) return { rows: [], rowsAffected: 0 };
   const n = counts.get(`${day}|${who}`) ?? 0;

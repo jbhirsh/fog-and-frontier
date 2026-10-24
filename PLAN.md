@@ -6,6 +6,7 @@
 ## Context — what just happened
 
 PR #8 ("Foundation, baby" — Issue #1 lint foundation) was merged and broke production:
+
 - `/api/activities` returned 404 (build shipped without API functions)
 - CSS was missing/broken
 - The data on prod "appeared empty" because the API was 404'ing, not because the DB was actually wiped
@@ -95,15 +96,18 @@ Add CI job that runs after Vercel preview deploys and is required before merge. 
 Playwright `toHaveScreenshot()` against local Vite preview build.
 
 ### Pages
+
 - `/` — home/list
 - `/activity/[slug]` — detail (one stable slug from the fixture)
 - `/explore` — empty state only
 
 ### Viewports
+
 - Desktop: 1280×800
 - Mobile: 390×844 (iPhone 14/15)
 
 ### Failure mode
+
 `maxDiffPixelRatio: 0.01` (1% threshold to absorb font-aliasing flake)
 
 ### Data isolation — critical
@@ -115,11 +119,13 @@ Playwright `toHaveScreenshot()` against local Vite preview build.
 - Tests point `DEV_DB_PATH` at the fixture DB
 
 ### Stability
+
 - Wait for `document.fonts.ready`
 - Disable CSS transitions/animations in test mode
 - No live API/Gemini calls
 
 ### Acceptance
+
 - Removing Tailwind base styles produces a flagged diff
 - Intentional redesign requires explicit `--update-snapshots` + commit
 - Prod data changes have zero effect on visual tests

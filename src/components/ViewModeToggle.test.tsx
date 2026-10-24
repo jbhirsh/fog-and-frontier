@@ -17,47 +17,21 @@ describe('ViewModeToggle', () => {
   });
 
   it('aria-checked reflects the value prop', () => {
-    const { rerender } = render(
-      <ViewModeToggle value="list" onChange={() => {}} />,
-    );
-    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(screen.getByRole('radio', { name: 'Split' })).toHaveAttribute(
-      'aria-checked',
-      'false',
-    );
-    expect(screen.getByRole('radio', { name: 'Map' })).toHaveAttribute(
-      'aria-checked',
-      'false',
-    );
+    const { rerender } = render(<ViewModeToggle value="list" onChange={() => {}} />);
+    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Split' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Map' })).toHaveAttribute('aria-checked', 'false');
 
     rerender(<ViewModeToggle value="map" onChange={() => {}} />);
-    expect(screen.getByRole('radio', { name: 'Map' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute(
-      'aria-checked',
-      'false',
-    );
+    expect(screen.getByRole('radio', { name: 'Map' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('only the selected segment is in the tab order (roving tabindex)', () => {
     render(<ViewModeToggle value="split" onChange={() => {}} />);
-    expect(screen.getByRole('radio', { name: 'Split' })).toHaveAttribute(
-      'tabindex',
-      '0',
-    );
-    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute(
-      'tabindex',
-      '-1',
-    );
-    expect(screen.getByRole('radio', { name: 'Map' })).toHaveAttribute(
-      'tabindex',
-      '-1',
-    );
+    expect(screen.getByRole('radio', { name: 'Split' })).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('radio', { name: 'Map' })).toHaveAttribute('tabindex', '-1');
   });
 
   it('calls onChange with the clicked mode', async () => {
@@ -125,10 +99,7 @@ describe('ViewModeToggle', () => {
     expect(split).toHaveAttribute('aria-checked', 'true');
     expect(split).toHaveAttribute('tabindex', '0');
     expect(split).toHaveFocus();
-    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute(
-      'tabindex',
-      '-1',
-    );
+    expect(screen.getByRole('radio', { name: 'List' })).toHaveAttribute('tabindex', '-1');
   });
 
   it('prevents default on navigation keys (so the page does not scroll)', () => {

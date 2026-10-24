@@ -16,8 +16,7 @@ export function NewTrip() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isOwner, isLoaded } = useOwner();
-  const initialActivityIds =
-    (location.state as LocationState)?.initial_activity_ids ?? [];
+  const initialActivityIds = (location.state as LocationState)?.initial_activity_ids ?? [];
 
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -33,9 +32,7 @@ export function NewTrip() {
 
   if (!isLoaded) {
     return (
-      <section className="px-margin py-xl text-center text-on-surface-variant">
-        Loading…
-      </section>
+      <section className="px-margin py-xl text-center text-on-surface-variant">Loading…</section>
     );
   }
 
@@ -100,14 +97,12 @@ export function NewTrip() {
         <Link to="/trips" className="text-body-sm text-on-surface-variant underline">
           ← Trips
         </Link>
-        <h1 className="font-display text-headline-lg md:text-display text-primary">
-          New trip
-        </h1>
+        <h1 className="font-display text-headline-lg md:text-display text-primary">New trip</h1>
         {startCount > 0 && (
           <p className="font-body-md text-on-surface-variant">
             {startCount} activit
-            {startCount === 1 ? 'y' : 'ies'} will be added to the
-            Unscheduled list once the trip is created.
+            {startCount === 1 ? 'y' : 'ies'} will be added to the Unscheduled list once the trip is
+            created.
           </p>
         )}
       </div>
@@ -192,13 +187,10 @@ export function NewTrip() {
             className="mt-1 accent-primary"
           />
           <label htmlFor="trip-open-voting" className="space-y-xs cursor-pointer">
-            <span className="block font-body-md text-on-surface">
-              Open voting first
-            </span>
+            <span className="block font-body-md text-on-surface">Open voting first</span>
             <span className="block font-body-md text-sm text-on-surface-variant">
-              Collect up/down votes on candidates before scheduling. You can
-              finalize voting later to move into the itinerary. Leave off to skip
-              straight to planning.
+              Collect up/down votes on candidates before scheduling. You can finalize voting later
+              to move into the itinerary. Leave off to skip straight to planning.
             </span>
           </label>
         </div>
@@ -217,10 +209,7 @@ export function NewTrip() {
           >
             {submitting ? 'Creating…' : 'Create trip'}
           </button>
-          <Link
-            to="/trips"
-            className="font-body-md text-on-surface-variant hover:text-on-surface"
-          >
+          <Link to="/trips" className="font-body-md text-on-surface-variant hover:text-on-surface">
             Cancel
           </Link>
         </div>

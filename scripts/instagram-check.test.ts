@@ -20,10 +20,18 @@ const reel: InstagramPost = {
   caption: 'Waterfalls',
   imageUrl: 'https://scontent.cdninstagram.com/poster.jpg',
   isVideo: true,
-  videoUrls: ['https://scontent.cdninstagram.com/small.mp4', 'https://scontent.cdninstagram.com/big.mp4'],
+  videoUrls: [
+    'https://scontent.cdninstagram.com/small.mp4',
+    'https://scontent.cdninstagram.com/big.mp4',
+  ],
   geotag: { name: 'Cataract Falls', lat: 37.9, lng: -122.6 },
 };
-const photo: InstagramPost = { shortcode: 'Dc1X4T0mPon', url: PHOTO, caption: 'Flowers', isVideo: false };
+const photo: InstagramPost = {
+  shortcode: 'Dc1X4T0mPon',
+  url: PHOTO,
+  caption: 'Flowers',
+  isVideo: false,
+};
 
 describe('judge', () => {
   it('passes posts that read as findSharedPlaces reads them, in a table', () => {
@@ -50,7 +58,11 @@ describe('judge', () => {
   it('fails on an embed page with no caption, and on media not fetched', () => {
     const { failures, report } = judge([
       { url: REEL, post: { ...reel, caption: undefined }, steps: OK, image: false, video: false },
-      { url: PHOTO, post: { shortcode: 'Dc1X4T0mPon', url: PHOTO }, steps: { embed: 'HTTP 404', page: 'ok' } },
+      {
+        url: PHOTO,
+        post: { shortcode: 'Dc1X4T0mPon', url: PHOTO },
+        steps: { embed: 'HTTP 404', page: 'ok' },
+      },
     ]);
     expect(failures).toEqual([
       `${REEL}: the embed page gave no caption (ok)`,
@@ -91,7 +103,9 @@ describe('readAll', () => {
       Promise.resolve({ post: shortcode === 'Ddl9QKSv0D7' ? reel : photo, steps: OK }),
     );
     mocks.fetchMedia.mockImplementation((url: string) =>
-      Promise.resolve(url.endsWith('.jpg') ? { data: Buffer.from('x'), mimeType: 'image/jpeg' } : null),
+      Promise.resolve(
+        url.endsWith('.jpg') ? { data: Buffer.from('x'), mimeType: 'image/jpeg' } : null,
+      ),
     );
     const fetchImpl = vi.fn<typeof fetch>();
     const reads = await readAll([REEL, PHOTO], fetchImpl);
@@ -99,7 +113,10 @@ describe('readAll', () => {
       { url: REEL, post: reel, steps: OK, image: true, video: false },
       { url: PHOTO, post: photo, steps: OK },
     ]);
-    expect(mocks.readInstagramPost).toHaveBeenCalledWith({ shortcode: 'Ddl9QKSv0D7', url: REEL }, fetchImpl);
+    expect(mocks.readInstagramPost).toHaveBeenCalledWith(
+      { shortcode: 'Ddl9QKSv0D7', url: REEL },
+      fetchImpl,
+    );
     expect(mocks.fetchMedia.mock.calls).toEqual([
       [reel.imageUrl, MAX_IMAGE_BYTES, fetchImpl],
       [reel.videoUrls?.[0], MAX_VIDEO_BYTES, fetchImpl],
@@ -120,6 +137,7 @@ describe('readAll', () => {
 
   it('reads Instagram posts only', () => {
     expect(CANARY_POSTS).toHaveLength(4);
-    for (const url of CANARY_POSTS) expect(url).toMatch(/^https:\/\/www\.instagram\.com\/(p|reel)\/[\w-]+\/$/);
+    for (const url of CANARY_POSTS)
+      expect(url).toMatch(/^https:\/\/www\.instagram\.com\/(p|reel)\/[\w-]+\/$/);
   });
 });

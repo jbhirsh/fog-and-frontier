@@ -61,9 +61,7 @@ function activityIcon(
     return completed ? completedIcon : pendingIcon(a.category);
   }
   const color = completed ? COLORS.completed : COLORS.pending;
-  const glyph = completed
-    ? { icon: 'check' as const }
-    : { icon: CATEGORY_ICON[a.category] };
+  const glyph = completed ? { icon: 'check' as const } : { icon: CATEGORY_ICON[a.category] };
   return glyphPin(color, glyph, { highlighted });
 }
 
@@ -168,9 +166,7 @@ export function ActivityMap({
   return (
     <div
       className={`relative isolate h-full w-full overflow-hidden ${
-        fullBleed
-          ? 'leaflet-fullbleed'
-          : 'rounded-xl border border-outline-variant/30 shadow-sm'
+        fullBleed ? 'leaflet-fullbleed' : 'rounded-xl border border-outline-variant/30 shadow-sm'
       }`}
     >
       <MapContainer
@@ -185,18 +181,14 @@ export function ActivityMap({
             mobile form (about 60px) and its 80px md+ row. */}
         <MapZoomControls topInset={fullBleed ? 88 : 12} />
         <ViewportWatcher onChange={setView} />
-        {onBoundsChange && (
-          <BoundsWatcher onBoundsChange={onBoundsChange} gate={moveGate} />
-        )}
+        {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} gate={moveGate} />}
         <FitToActivities
           signal={fitSignal}
           activities={activities}
           // Keep fitted pins clear of the header and the zoom controls above
           // and of the legend below. Full bleed, the legend sits above the
           // peeking sheet and the attribution (bottom 152px, about 36px tall).
-          padding={
-            fullBleed ? { top: 100, bottom: 200 } : { top: 48, bottom: 56 }
-          }
+          padding={fullBleed ? { top: 100, bottom: 200 } : { top: 48, bottom: 56 }}
           gate={moveGate}
         />
         {/* Where distances are measured from (#66): the visitor, or home. */}
@@ -249,8 +241,8 @@ export function ActivityMap({
                   <div className="space-y-xs min-w-[200px]">
                     <div className="font-bold text-body-md">{a.name}</div>
                     <div className="text-body-sm text-on-surface-variant">
-                      {a.location.city} · {formatMiles(distance)} mi from{' '}
-                      {origin.name} · {a.duration}
+                      {a.location.city} · {formatMiles(distance)} mi from {origin.name} ·{' '}
+                      {a.duration}
                     </div>
                     <button
                       type="button"

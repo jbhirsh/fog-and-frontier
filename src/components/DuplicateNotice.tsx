@@ -40,7 +40,10 @@ export function DuplicateNotice({
     );
   if (high) {
     return (
-      <div role="alert" className="rounded-lg border border-error bg-error-container/40 p-sm space-y-sm">
+      <div
+        role="alert"
+        className="rounded-lg border border-error bg-error-container/40 p-sm space-y-sm"
+      >
         <p id={sentenceId} className="font-body-md text-on-surface">
           This looks like a duplicate of <b>{high.name}</b> in {high.city}.
         </p>
@@ -60,7 +63,10 @@ export function DuplicateNotice({
     );
   }
   return (
-    <div role="status" className="flex flex-wrap items-center gap-sm rounded-lg bg-surface-container-low p-sm font-body-sm">
+    <div
+      role="status"
+      className="flex flex-wrap items-center gap-sm rounded-lg bg-surface-container-low p-sm font-body-sm"
+    >
       <span id={sentenceId}>
         You may already have <b>{near.name}</b> in {near.city} saved.
       </span>

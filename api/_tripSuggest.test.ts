@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_TRIP_SUGGESTIONS, keepTripPicks, toCandidate, type TripCandidate } from './_tripSuggest.js';
+import {
+  MAX_TRIP_SUGGESTIONS,
+  keepTripPicks,
+  toCandidate,
+  type TripCandidate,
+} from './_tripSuggest.js';
 
 const candidate = (id: string): TripCandidate => ({
   id,

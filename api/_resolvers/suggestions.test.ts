@@ -195,7 +195,8 @@ describe('suggestActivity', () => {
   });
 
   it('holds at most ten waiting per account', async () => {
-    for (let i = 0; i < 10; i += 1) expect(await suggest(FRIEND, { name: `Place ${i}` })).toBeTruthy();
+    for (let i = 0; i < 10; i += 1)
+      expect(await suggest(FRIEND, { name: `Place ${i}` })).toBeTruthy();
     const r = await run(SUGGEST, { i: { activity: activity({ name: 'One more' }) } }, FRIEND);
     expect(code(r)).toBe('FORBIDDEN');
     expect(r.errors?.[0]?.extensions?.appCode).toBe('suggestion_limit');
@@ -227,7 +228,7 @@ describe('suggestActivity', () => {
     expect(suggestions.size).toBe(0);
   });
 
-  it('stores up to the catalog\'s size cap, and refuses one past it', async () => {
+  it("stores up to the catalog's size cap, and refuses one past it", async () => {
     // Measure what a one-character description stores, then pad to the cap.
     const probe = await suggest(FRIEND, { longDescription: 'x' });
     const base = suggestions.get(probe ?? '')?.j.length ?? 0;
@@ -275,10 +276,18 @@ describe('pendingSuggestions', () => {
     const decided = await suggest(FRIEND, { name: 'Decided' });
     suggestions.get(decided ?? '')!.status = 'rejected';
     suggestions.set('broken', {
-      id: 'broken', j: 'not json', t: 1, suggested_by: FRIEND.email, status: 'pending',
+      id: 'broken',
+      j: 'not json',
+      t: 1,
+      suggested_by: FRIEND.email,
+      status: 'pending',
     });
     suggestions.set('partial', {
-      id: 'partial', j: '{"name":"No category"}', t: 2, suggested_by: FRIEND.email, status: 'pending',
+      id: 'partial',
+      j: '{"name":"No category"}',
+      t: 2,
+      suggested_by: FRIEND.email,
+      status: 'pending',
     });
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -299,7 +308,9 @@ describe('pendingSuggestions', () => {
       },
     ]);
     expect(errors).toHaveBeenCalledTimes(2);
-    const logged = errors.mock.calls.map(([line]) => JSON.parse(line as string) as Record<string, unknown>);
+    const logged = errors.mock.calls.map(
+      ([line]) => JSON.parse(line as string) as Record<string, unknown>,
+    );
     expect(logged.map((l) => l.detail).sort()).toEqual([
       'pendingSuggestions: broken',
       'pendingSuggestions: partial',
@@ -405,7 +416,11 @@ describe('acceptSuggestion', () => {
 
   it('refuses a stored row that is not a whole activity', async () => {
     suggestions.set('partial', {
-      id: 'partial', j: '{"name":"No category"}', t: 1, suggested_by: FRIEND.email, status: 'pending',
+      id: 'partial',
+      j: '{"name":"No category"}',
+      t: 1,
+      suggested_by: FRIEND.email,
+      status: 'pending',
     });
     const r = await run(ACCEPT, { id: 'partial' }, OWNER);
     expect(code(r)).toBe('BAD_USER_INPUT');
@@ -427,7 +442,9 @@ describe('acceptSuggestion', () => {
       'fort-funston-2',
     );
     expect(catalog.get('fort-funston')).toBe(theirs);
-    expect(JSON.parse(catalog.get('fort-funston-2') ?? '{}')).toMatchObject({ name: 'Fort Funston' });
+    expect(JSON.parse(catalog.get('fort-funston-2') ?? '{}')).toMatchObject({
+      name: 'Fort Funston',
+    });
     expect(suggestions.get(id ?? '')?.status).toBe('accepted');
     expect(batch).toHaveBeenCalledTimes(2);
   });

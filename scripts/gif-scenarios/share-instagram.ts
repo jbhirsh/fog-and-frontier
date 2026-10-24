@@ -86,7 +86,11 @@ const DRAFT = {
 };
 
 /** Answers the share's two Gemini calls, taking about as long as Gemini does. */
-async function stubGemini(page: Page, poster: string | null, cover: { url: string; credit: string } | null) {
+async function stubGemini(
+  page: Page,
+  poster: string | null,
+  cover: { url: string; credit: string } | null,
+) {
   await page.route('**/api/graphql', async (route) => {
     const op = (route.request().postDataJSON() as { operationName?: string } | null)?.operationName;
     if (op === 'FindSharedPlaces') {
@@ -101,7 +105,11 @@ async function stubGemini(page: Page, poster: string | null, cover: { url: strin
           data: {
             generateActivity: {
               __typename: 'GenerateActivityPayload',
-              activity: { ...DRAFT, coverImage: cover?.url ?? null, coverCredit: cover?.credit ?? null },
+              activity: {
+                ...DRAFT,
+                coverImage: cover?.url ?? null,
+                coverCredit: cover?.credit ?? null,
+              },
             },
           },
         },
@@ -122,7 +130,12 @@ const scenario: Scenario = {
     await signIn(page);
     // The reel's own poster, as the reader finds it (its link expires).
     const { post } = await readInstagramPost(parseInstagramUrl(REEL)!);
-    const cover = await findCoverImage({ name: DRAFT.name, lat: DRAFT.lat, lng: DRAFT.lng, category: 'food' });
+    const cover = await findCoverImage({
+      name: DRAFT.name,
+      lat: DRAFT.lat,
+      lng: DRAFT.lng,
+      category: 'food',
+    });
     await stubGemini(page, post.imageUrl ?? null, cover);
   },
   async ready(page) {
@@ -133,7 +146,9 @@ const scenario: Scenario = {
   async run(page) {
     await page.getByRole('heading', { name: '2 places in this post' }).waitFor({ timeout: 10_000 });
     await page.waitForTimeout(1200);
-    await click(page, page.getByRole('button', { name: 'Add Off the Grid: Treasure Island' }), { ms: 700 });
+    await click(page, page.getByRole('button', { name: 'Add Off the Grid: Treasure Island' }), {
+      ms: 700,
+    });
     await page.getByRole('button', { name: /Save activity/ }).waitFor({ timeout: 10_000 });
     await page.waitForTimeout(1800);
   },

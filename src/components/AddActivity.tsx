@@ -24,10 +24,7 @@ import { ContributorsField } from './ContributorsField';
 import { DuplicateNotice } from './DuplicateNotice';
 import { lookupAllTrails } from '../lib/alltrails';
 import { REGION_LABELS, sentenceCase } from '../lib/activityLabels';
-import {
-  generateActivity,
-  type GeneratedFields,
-} from '../lib/generateActivity';
+import { generateActivity, type GeneratedFields } from '../lib/generateActivity';
 
 interface Props {
   onClose: () => void;
@@ -135,8 +132,7 @@ function slugify(name: string): string {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 48) ||
-    `activity-${Math.random().toString(36).slice(2, 8)}`
+      .slice(0, 48) || `activity-${Math.random().toString(36).slice(2, 8)}`
   );
 }
 
@@ -210,10 +206,7 @@ export function AddActivity({
     setError(null);
     setStep('generating');
     try {
-      const g: GeneratedFields = await generateActivity(
-        title.trim(),
-        notes.trim(),
-      );
+      const g: GeneratedFields = await generateActivity(title.trim(), notes.trim());
       const activity: Activity = {
         id: slugify(g.name || title),
         name: g.name,
@@ -404,7 +397,9 @@ export function AddActivity({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={mode === 'edit' ? 'Edit activity' : suggest ? 'Suggest activity' : 'Add activity'}
+        aria-label={
+          mode === 'edit' ? 'Edit activity' : suggest ? 'Suggest activity' : 'Add activity'
+        }
         className="relative bg-surface-container-lowest w-full max-w-2xl max-h-[95dvh] overflow-y-auto md:rounded-xl shadow-2xl"
       >
         <div className="flex items-center justify-between px-md py-md border-b border-outline-variant/30 sticky top-0 bg-surface-container-lowest z-10">
@@ -465,9 +460,7 @@ export function AddActivity({
             onSave={() => void save()}
             matches={matches}
             onOpenActivity={onOpenActivity}
-            onSaveAnyway={() =>
-              void save(unacknowledgedHigh(matches, []).map((m) => m.id))
-            }
+            onSaveAnyway={() => void save(unacknowledgedHigh(matches, []).map((m) => m.id))}
           />
         )}
 
@@ -526,7 +519,10 @@ function SentStep({ onDone }: { onDone: () => void }) {
       <p id={sentId} className="font-body-lg text-on-surface">
         Sent to the owners for review.
       </p>
-      <p id={`${sentId}-next`} className="font-body-md text-on-surface-variant max-w-[28rem] mx-auto">
+      <p
+        id={`${sentId}-next`}
+        className="font-body-md text-on-surface-variant max-w-[28rem] mx-auto"
+      >
         If they add it, it joins the catalog with you credited for it.
       </p>
       <button
@@ -648,9 +644,7 @@ function FormStep({
             type="submit"
             className="flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
           >
-            <span className="material-symbols-outlined text-icon-md">
-              auto_awesome
-            </span>
+            <span className="material-symbols-outlined text-icon-md">auto_awesome</span>
             Generate
           </button>
         )}
@@ -681,8 +675,8 @@ function GeneratingStep({ title }: { title: string }) {
         Researching <span className="font-bold">{title}</span>…
       </div>
       <p className="font-body-md text-on-surface-variant max-w-[28rem] mx-auto">
-        Gemini is pulling together a description, location, duration, photo,
-        and trail details. This usually takes a few seconds.
+        Gemini is pulling together a description, location, duration, photo, and trail details. This
+        usually takes a few seconds.
       </p>
     </div>
   );
@@ -853,9 +847,7 @@ function ReviewStep({
             type="text"
             value={draft.durationDetail ?? ''}
             placeholder="e.g. ~1.5h drive each way; quick summit walk"
-            onChange={(e) =>
-              patch('durationDetail', e.target.value || undefined)
-            }
+            onChange={(e) => patch('durationDetail', e.target.value || undefined)}
             className={inputCls}
           />
         </Field>
@@ -863,10 +855,7 @@ function ReviewStep({
           <select
             value={draft.difficulty ?? ''}
             onChange={(e) =>
-              patch(
-                'difficulty',
-                (e.target.value || undefined) as Difficulty | undefined,
-              )
+              patch('difficulty', (e.target.value || undefined) as Difficulty | undefined)
             }
             className={selectCls}
           >
@@ -882,10 +871,7 @@ function ReviewStep({
           <select
             value={draft.parkType ?? ''}
             onChange={(e) =>
-              patch(
-                'parkType',
-                (e.target.value || undefined) as ParkType | undefined,
-              )
+              patch('parkType', (e.target.value || undefined) as ParkType | undefined)
             }
             className={selectCls}
           >
@@ -951,8 +937,8 @@ function ReviewStep({
             suggestion isn't saved, so there's no refresh to promise. */}
         {!suggest && (
           <p className="font-body-sm text-on-surface-variant">
-            On save, rating, distance, and elevation will be refreshed from
-            AllTrails when the URL changes.
+            On save, rating, distance, and elevation will be refreshed from AllTrails when the URL
+            changes.
           </p>
         )}
       </div>
@@ -978,10 +964,7 @@ function ReviewStep({
               <select
                 value={draft.priceRange ?? ''}
                 onChange={(e) =>
-                  patch(
-                    'priceRange',
-                    (e.target.value || undefined) as PriceRange | undefined,
-                  )
+                  patch('priceRange', (e.target.value || undefined) as PriceRange | undefined)
                 }
                 className={selectCls}
               >
@@ -1022,9 +1005,7 @@ function ReviewStep({
                 type="url"
                 value={draft.reservationUrl ?? ''}
                 placeholder="https://resy.com/…"
-                onChange={(e) =>
-                  patch('reservationUrl', e.target.value || undefined)
-                }
+                onChange={(e) => patch('reservationUrl', e.target.value || undefined)}
                 className={inputCls}
               />
             </Field>
@@ -1155,18 +1136,10 @@ const inputCls =
 // padding; so it's drawn without one, with the filter pills' caret instead.
 const selectCls = `${inputCls} appearance-none pr-10 select-caret`;
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block font-body-sm text-on-surface-variant mb-xs">
-        {label}
-      </span>
+      <span className="block font-body-sm text-on-surface-variant mb-xs">{label}</span>
       {children}
     </label>
   );
@@ -1195,8 +1168,7 @@ function LocationPicker({
   lng: number;
   onChange: (lat: number, lng: number) => void;
 }) {
-  const valid =
-    Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+  const valid = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
   const center: [number, number] = valid ? [lat, lng] : [37.2872, -121.95];
 
   return (
@@ -1264,11 +1236,7 @@ function RecenterOnChange({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
-function ClickToPlace({
-  onPlace,
-}: {
-  onPlace: (lat: number, lng: number) => void;
-}) {
+function ClickToPlace({ onPlace }: { onPlace: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
       onPlace(e.latlng.lat, e.latlng.lng);

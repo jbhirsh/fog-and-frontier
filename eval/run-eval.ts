@@ -8,7 +8,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { GqlContext } from '../api/_gqlContext.js';
-import { MODEL, geminiMutation, geminiQuery, rankTripCandidates } from '../api/_resolvers/gemini.js';
+import {
+  MODEL,
+  geminiMutation,
+  geminiQuery,
+  rankTripCandidates,
+} from '../api/_resolvers/gemini.js';
 import {
   checkAlltrails,
   checkDiscoverStructural,
@@ -57,7 +62,10 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === '--only') {
       const value = argv[++i];
       if (!value) exitConfig('--only requires a comma-separated list of case ids');
-      only = value.split(',').map((s) => s.trim()).filter(Boolean);
+      only = value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (only.length === 0) exitConfig('--only requires at least one case id');
     } else if (arg === '--feature') {
       const value = argv[++i];
@@ -73,7 +81,10 @@ function parseArgs(argv: string[]): CliOptions {
   if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) {
     exitConfig(`threshold must be a fraction in (0, 1], got: ${threshold}`);
   }
-  if (feature && !['generateActivity', 'alltrailsLookup', 'discover', 'tripSuggestions'].includes(feature)) {
+  if (
+    feature &&
+    !['generateActivity', 'alltrailsLookup', 'discover', 'tripSuggestions'].includes(feature)
+  ) {
     exitConfig(`unknown feature: ${feature}`);
   }
   return { only, feature, threshold };
@@ -126,7 +137,9 @@ function loadGoldenSet(): GoldenSet {
   const seen = new Set<string>();
   for (const c of set.cases) {
     if (!c.id || !c.feature || !c.input || !c.expect || !c.notes) {
-      exitConfig(`golden case is missing id/feature/input/expect/notes: ${JSON.stringify(c).slice(0, 120)}`);
+      exitConfig(
+        `golden case is missing id/feature/input/expect/notes: ${JSON.stringify(c).slice(0, 120)}`,
+      );
     }
     if (seen.has(c.id)) exitConfig(`duplicate golden case id: ${c.id}`);
     seen.add(c.id);
@@ -141,29 +154,41 @@ function validateCaseShape(c: GoldenCase): void {
   const bad = (why: string): never => exitConfig(`golden case ${c.id}: ${why}`);
   switch (c.feature) {
     case 'generateActivity': {
-      if (typeof c.input.title !== 'string' || !c.input.title) bad('input.title must be a non-empty string');
+      if (typeof c.input.title !== 'string' || !c.input.title)
+        bad('input.title must be a non-empty string');
       if ('graceful' in c.expect) {
-        if (!Array.isArray(c.expect.graceful?.allowedErrors)) bad('graceful.allowedErrors must be an array');
-        if (c.expect.graceful.ifReturned === undefined) bad('graceful.ifReturned must be null or an object');
+        if (!Array.isArray(c.expect.graceful?.allowedErrors))
+          bad('graceful.allowedErrors must be an array');
+        if (c.expect.graceful.ifReturned === undefined)
+          bad('graceful.ifReturned must be null or an object');
       }
       break;
     }
     case 'alltrailsLookup': {
-      if (typeof c.input.url !== 'string' || !c.input.url) bad('input.url must be a non-empty string');
-      if (!('lookup' in c.expect) && !('graceful' in c.expect)) bad('expect needs a lookup or graceful variant');
+      if (typeof c.input.url !== 'string' || !c.input.url)
+        bad('input.url must be a non-empty string');
+      if (!('lookup' in c.expect) && !('graceful' in c.expect))
+        bad('expect needs a lookup or graceful variant');
       break;
     }
     case 'discover': {
-      if (!['today', 'tomorrow', 'week', 'weekend'].includes(c.input.range)) bad('input.range invalid');
-      if (typeof c.expect.structural?.minEvents !== 'number') bad('expect.structural.minEvents missing');
-      if (typeof c.expect.judgeEvents?.minPlausibleFraction !== 'number') bad('expect.judgeEvents.minPlausibleFraction missing');
+      if (!['today', 'tomorrow', 'week', 'weekend'].includes(c.input.range))
+        bad('input.range invalid');
+      if (typeof c.expect.structural?.minEvents !== 'number')
+        bad('expect.structural.minEvents missing');
+      if (typeof c.expect.judgeEvents?.minPlausibleFraction !== 'number')
+        bad('expect.judgeEvents.minPlausibleFraction missing');
       break;
     }
     case 'tripSuggestions': {
-      if (typeof c.input.prompt !== 'string' || !c.input.prompt) bad('input.prompt must be a non-empty string');
-      if (!Array.isArray(c.input.catalog) || c.input.catalog.length === 0) bad('input.catalog must be a non-empty array');
-      if (!Array.isArray(c.expect.includeAny) || c.expect.includeAny.length === 0) bad('expect.includeAny must be a non-empty array');
-      if (!(c.expect.minPicks >= 0 && c.expect.maxPicks >= c.expect.minPicks)) bad('expect needs 0 <= minPicks <= maxPicks');
+      if (typeof c.input.prompt !== 'string' || !c.input.prompt)
+        bad('input.prompt must be a non-empty string');
+      if (!Array.isArray(c.input.catalog) || c.input.catalog.length === 0)
+        bad('input.catalog must be a non-empty array');
+      if (!Array.isArray(c.expect.includeAny) || c.expect.includeAny.length === 0)
+        bad('expect.includeAny must be a non-empty array');
+      if (!(c.expect.minPicks >= 0 && c.expect.maxPicks >= c.expect.minPicks))
+        bad('expect needs 0 <= minPicks <= maxPicks');
       const ids = new Set(c.input.catalog.map((a) => a.id));
       for (const id of [...c.expect.includeAny, ...(c.expect.excludeAll ?? [])]) {
         if (!ids.has(id)) bad(`expectation names ${id}, which isn't in the catalog`);
@@ -196,7 +221,10 @@ async function callResolver(goldenCase: GoldenCase): Promise<ResolverOutcome> {
     }
   };
   const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`case timed out after ${CASE_TIMEOUT_MS}ms`)), CASE_TIMEOUT_MS).unref();
+    setTimeout(
+      () => reject(new Error(`case timed out after ${CASE_TIMEOUT_MS}ms`)),
+      CASE_TIMEOUT_MS,
+    ).unref();
   });
   try {
     return { ok: true, value: await Promise.race([run(), timeout]) };
@@ -262,9 +290,21 @@ async function gradeCase(
       const gate = resolvedCheck(outcome);
       checks.push(gate);
       if (gate.status !== 'pass' || !outcome.ok) break;
-      checks.push(...checkDiscoverStructural(outcome.value, goldenCase.expect, goldenCase.input.range, new Date()));
+      checks.push(
+        ...checkDiscoverStructural(
+          outcome.value,
+          goldenCase.expect,
+          goldenCase.input.range,
+          new Date(),
+        ),
+      );
       if (noFailures(checks)) {
-        checks.push(await judgeDiscoverEvents(outcome.value, goldenCase.expect.judgeEvents.minPlausibleFraction));
+        checks.push(
+          await judgeDiscoverEvents(
+            outcome.value,
+            goldenCase.expect.judgeEvents.minPlausibleFraction,
+          ),
+        );
       }
       break;
     }
@@ -315,7 +355,9 @@ async function main(): Promise<void> {
   if (options.feature) cases = cases.filter((c) => c.feature === options.feature);
   if (cases.length === 0) exitConfig('no cases selected');
 
-  console.log(`Gemini output-quality eval — ${cases.length} case(s), threshold ${options.threshold * 100}%`);
+  console.log(
+    `Gemini output-quality eval — ${cases.length} case(s), threshold ${options.threshold * 100}%`,
+  );
   console.log(`Golden set: ${goldenSet._meta.status}\n`);
 
   const startedAt = new Date().toISOString();
@@ -352,8 +394,7 @@ async function main(): Promise<void> {
   writeResults(path.join(EVAL_DIR, 'results.json'), evalResults);
   console.log(`Results written to eval/results.json`);
 
-  const failed =
-    evalResults.summary.inconclusive || evalResults.summary.score < options.threshold;
+  const failed = evalResults.summary.inconclusive || evalResults.summary.score < options.threshold;
   process.exitCode = failed ? 1 : 0;
 
   // A timed-out case leaves its resolver fetch un-aborted (the production

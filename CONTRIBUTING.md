@@ -23,17 +23,17 @@ Turso. Copy `.env.local.example` to `.env.local` and fill in the keys you need.
 
 ## Lint, type-check, build, test
 
-| Command                  | What it does                                                          |
-| ------------------------ | -------------------------------------------------------------------- |
-| `npm run lint`           | `eslint .` + `stylelint src/**/*.css` (CI gate)                       |
-| `npm run lint:js`        | ESLint only                                                           |
-| `npm run lint:css`       | Stylelint only                                                        |
-| `npm run lint:fix`       | Auto-fixers for both (review the CSS diff before committing — see below) |
-| `npm run typecheck`      | `tsc -b` across the `app`, `node`, `api`, and `eval` projects         |
-| `npm run codegen`        | `graphql-codegen` → typed operations in `src/gql/`                    |
-| `npm run build`          | `lint` → `tsc -b` → `vite build`                                      |
-| `npm run test`           | Vitest unit tests                                                     |
-| `npm run test:visual`    | Playwright visual regression against a `--mode test` `vite preview`   |
+| Command               | What it does                                                             |
+| --------------------- | ------------------------------------------------------------------------ |
+| `npm run lint`        | `eslint .` + `stylelint src/**/*.css` (CI gate)                          |
+| `npm run lint:js`     | ESLint only                                                              |
+| `npm run lint:css`    | Stylelint only                                                           |
+| `npm run lint:fix`    | Auto-fixers for both (review the CSS diff before committing — see below) |
+| `npm run typecheck`   | `tsc -b` across the `app`, `node`, `api`, and `eval` projects            |
+| `npm run codegen`     | `graphql-codegen` → typed operations in `src/gql/`                       |
+| `npm run build`       | `lint` → `tsc -b` → `vite build`                                         |
+| `npm run test`        | Vitest unit tests                                                        |
+| `npm run test:visual` | Playwright visual regression against a `--mode test` `vite preview`      |
 
 ### Lint policy — no rule suppressions
 
@@ -55,9 +55,9 @@ so the type-aware ESLint rules get correct lib/DOM types per surface:
 - `tsconfig.eval.json` — `eval/**/*.ts` (Node; the Gemini output-quality harness)
 
 > Gotcha: a Vercel build can fail with `TS2550: Property 'cause' does not exist on
-> type 'Error'` even when a clean local `tsc -b` passes, because Vercel builds from
+type 'Error'` even when a clean local `tsc -b` passes, because Vercel builds from
 > a cache-free install. `tsconfig.api.json` therefore pins `"lib": ["ES2022",
-> "ES2023"]` explicitly. Don't trust a green local typecheck as proof Vercel will
+"ES2023"]` explicitly. Don't trust a green local typecheck as proof Vercel will
 > build.
 
 ### CSS caveat — don't blindly `--fix`
@@ -85,7 +85,7 @@ artifact excluded from the strict app typecheck roots).
   `@vercel/node` detects `.listen` and skips its own body parser.
 - libsql row values are typed as `InValue` (a union including binary/Date). When
   reading the `id` column, narrow with `typeof === 'string' | 'number' |
-  'bigint'` before stringifying — don't `String(row.id)`, which can drop rows or
+'bigint'` before stringifying — don't `String(row.id)`, which can drop rows or
   stringify Buffers to `"[object ArrayBuffer]"`. (This exact bug once shipped to
   prod — see `PLAN.md`.)
 
@@ -101,7 +101,7 @@ artifact excluded from the strict app typecheck roots).
 - Client-side, `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner
   emails come from `VITE_OWNER_EMAILS`; keep it in sync with the server's
   `OWNER_EMAILS`.
-- **Role-gated UI convention (issue #67):** owner-guarded *mutating* controls are
+- **Role-gated UI convention (issue #67):** owner-guarded _mutating_ controls are
   **hidden** from non-owners, not disabled/greyed. The full convention (and the
   exceptions — sign-in-gated and trip-creator-gated controls) is documented in
   [`CLAUDE.md`](./CLAUDE.md).
@@ -138,32 +138,32 @@ set:
 3. `filesToDeleteAfterUpload` removes the `.map` files from `dist/` before Vercel
    publishes — maps live on Sentry only, not the public CDN.
 
-Create the auth token at *Sentry → Settings → Auth Tokens* with scope
+Create the auth token at _Sentry → Settings → Auth Tokens_ with scope
 `project:releases`.
 
 #### GitHub ↔ Sentry source linking (one-time)
 
-1. *Sentry → Settings → Integrations → GitHub* — install the app on this repo.
-2. *Sentry GitHub integration → Configurations → Code Mappings* — add the project,
+1. _Sentry → Settings → Integrations → GitHub_ — install the app on this repo.
+2. _Sentry GitHub integration → Configurations → Code Mappings_ — add the project,
    branch `main`, source root `./`. Stack-trace root is typically `~/` for Vite
    browser builds. Once mapped, issue frames link to source on GitHub and the
    Sentry bot comments on PRs touching code with open issues.
 
 #### Alerts / weekly digest
 
-- **Vercel** — *Project → Observability → Alerts* to email on 5xx-rate spikes
+- **Vercel** — _Project → Observability → Alerts_ to email on 5xx-rate spikes
   from `/api/*`.
-- **Sentry** — *Project Settings → Alerts → Issue Owners* + the default weekly
+- **Sentry** — _Project Settings → Alerts → Issue Owners_ + the default weekly
   digest.
 
 ### Sentry env vars
 
-| Var                          | Where                            | Purpose                                                             |
-| ---------------------------- | -------------------------------- | ------------------------------------------------------------------ |
-| `VITE_SENTRY_DSN`            | Vercel (all envs)                | Enables browser Sentry. Omit to disable (local dev).               |
-| `SENTRY_AUTH_TOKEN`          | Vercel (build env, all)          | Lets `@sentry/vite-plugin` upload source maps (`project:releases`). |
-| `VITE_VERCEL_ENV`            | Vite-injected from `VERCEL_ENV`  | Sentry environment tag; on a deployment (`production` or `preview`), also turns on the image CDN for covers (`src/lib/imageCdn.ts`). Wired in `vite.config.ts` `define`. |
-| `VITE_VERCEL_GIT_COMMIT_SHA` | Vite-injected from build env     | Tagged as the Sentry release so frames symbolicate correctly.      |
+| Var                          | Where                           | Purpose                                                                                                                                                                  |
+| ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_SENTRY_DSN`            | Vercel (all envs)               | Enables browser Sentry. Omit to disable (local dev).                                                                                                                     |
+| `SENTRY_AUTH_TOKEN`          | Vercel (build env, all)         | Lets `@sentry/vite-plugin` upload source maps (`project:releases`).                                                                                                      |
+| `VITE_VERCEL_ENV`            | Vite-injected from `VERCEL_ENV` | Sentry environment tag; on a deployment (`production` or `preview`), also turns on the image CDN for covers (`src/lib/imageCdn.ts`). Wired in `vite.config.ts` `define`. |
+| `VITE_VERCEL_GIT_COMMIT_SHA` | Vite-injected from build env    | Tagged as the Sentry release so frames symbolicate correctly.                                                                                                            |
 
 ## CI
 
@@ -235,7 +235,7 @@ Delete the ignore once it does.
 Issues carry the full rationale — scope decisions, cross-feature coordination,
 acceptance criteria — and reference each other (e.g. "coordinates with #16",
 "supersedes #7"). Check `gh issue list` / `gh issue view <n>` before designing a
-feature; the codebase alone won't tell you *why* something was built a certain
+feature; the codebase alone won't tell you _why_ something was built a certain
 way. `PLAN.md` captures a multi-issue production-safety-net effort (#10–#12).
 
 ## Commit / PR conventions

@@ -86,7 +86,10 @@ export function judge(reads: CanaryRead[]): { failures: string[]; report: string
 }
 
 /** Reads each post, and fetches the first one's picture and smallest video. */
-export async function readAll(urls: string[], fetchImpl: typeof fetch = fetch): Promise<CanaryRead[]> {
+export async function readAll(
+  urls: string[],
+  fetchImpl: typeof fetch = fetch,
+): Promise<CanaryRead[]> {
   const reads: CanaryRead[] = [];
   for (const url of urls) {
     const link = parseInstagramUrl(url);
@@ -95,7 +98,8 @@ export async function readAll(urls: string[], fetchImpl: typeof fetch = fetch): 
     const read: CanaryRead = { url, post, steps };
     // Media once a run is enough to know Instagram's servers still answer.
     if (reads.length === 0) {
-      if (post.imageUrl) read.image = (await fetchMedia(post.imageUrl, MAX_IMAGE_BYTES, fetchImpl)) !== null;
+      if (post.imageUrl)
+        read.image = (await fetchMedia(post.imageUrl, MAX_IMAGE_BYTES, fetchImpl)) !== null;
       const smallest = post.videoUrls?.[0];
       if (smallest) read.video = (await fetchMedia(smallest, MAX_VIDEO_BYTES, fetchImpl)) !== null;
     }

@@ -1,8 +1,4 @@
-import {
-  DateResolver,
-  DateTimeISOResolver,
-  LocalTimeResolver,
-} from 'graphql-scalars';
+import { DateResolver, DateTimeISOResolver, LocalTimeResolver } from 'graphql-scalars';
 
 // Custom scalar implementations wired to the SDL `scalar` declarations
 // (api/_schema.ts). DateTimeISO serializes DB epoch-ms numbers straight to ISO;

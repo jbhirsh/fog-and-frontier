@@ -56,8 +56,7 @@ function asNumberOrNull(v: unknown): number | null {
 // DateTimeISO scalar serializes them to ISO at the boundary.
 export function mapReviewRow(row: Record<string, unknown>): ReviewShape | null {
   const activityId = typeof row.activity_id === 'string' ? row.activity_id : null;
-  const authorEmail =
-    typeof row.author_email === 'string' ? row.author_email : null;
+  const authorEmail = typeof row.author_email === 'string' ? row.author_email : null;
   if (!activityId || !authorEmail) return null;
   const createdAt = asNumberOrNull(row.created_at);
   const updatedAt = asNumberOrNull(row.updated_at);

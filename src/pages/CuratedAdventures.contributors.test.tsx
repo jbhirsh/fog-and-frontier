@@ -60,18 +60,13 @@ describe('Curated Adventures — contributors filter (#9)', () => {
 
   it('picks a contributor into the URL, and its chip takes them off again', async () => {
     renderAs(SIGNED_IN);
-    await userEvent.selectOptions(
-      screen.getByRole('combobox', { name: 'Contributed by' }),
-      TARUN,
-    );
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Contributed by' }), TARUN);
     expect(screen.getByTestId('search')).toHaveTextContent(
       `?contributors=${encodeURIComponent(TARUN)}`,
     );
     expect(shown()).toEqual(['Test Muir Woods', 'Test Tide Pools']);
 
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Remove contributor filter: Tarun' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Remove contributor filter: Tarun' }));
     expect(screen.getByTestId('search').textContent).toBe('');
     expect(shown()).toHaveLength(3);
   });

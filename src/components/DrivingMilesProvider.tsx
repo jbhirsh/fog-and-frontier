@@ -2,12 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { DRIVING_MILES_QUERY } from '../lib/gqlDocs';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
-import {
-  DrivingMilesCtx,
-  NO_DRIVING_MILES,
-  coarse,
-  toDrivingMiles,
-} from '../lib/drivingMiles';
+import { DrivingMilesCtx, NO_DRIVING_MILES, coarse, toDrivingMiles } from '../lib/drivingMiles';
 
 /**
  * Fetches road miles from the current distance origin (#66) and hands them to

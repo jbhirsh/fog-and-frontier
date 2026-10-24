@@ -8,10 +8,7 @@ type ForceFlagWindow = { __TEST_FORCE_OWNER__?: boolean };
 // The owner list is read from VITE_OWNER_EMAILS when the module loads, so each
 // test stubs the env first and then imports a fresh copy of the module graph
 // (useOwner and the AuthCtx it reads must come from the same load).
-async function renderOwner(
-  email: string | null,
-  ownerEmails = 'owner@example.com',
-) {
+async function renderOwner(email: string | null, ownerEmails = 'owner@example.com') {
   vi.stubEnv('VITE_OWNER_EMAILS', ownerEmails);
   vi.resetModules();
   const { AuthCtx } = await import('./authShim');

@@ -15,11 +15,7 @@ describe('contributorsLabel', () => {
   });
 
   it('names the first two and counts the rest', () => {
-    expect(
-      contributorsLabel(['a@example.com', 'b@example.com', 'c@example.com']),
-    ).toBe('A, B +1');
-    expect(
-      contributorsLabel(['a@x.com', 'b@x.com', 'c@x.com', 'd@x.com']),
-    ).toBe('A, B +2');
+    expect(contributorsLabel(['a@example.com', 'b@example.com', 'c@example.com'])).toBe('A, B +1');
+    expect(contributorsLabel(['a@x.com', 'b@x.com', 'c@x.com', 'd@x.com'])).toBe('A, B +2');
   });
 });

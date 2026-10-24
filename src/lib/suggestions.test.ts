@@ -44,7 +44,9 @@ function stubReply(body: unknown) {
   vi.stubGlobal(
     'fetch',
     vi.fn((_url: string, opts: { body: string }) => {
-      sent.push((JSON.parse(opts.body) as { variables: { input: Record<string, unknown> } }).variables);
+      sent.push(
+        (JSON.parse(opts.body) as { variables: { input: Record<string, unknown> } }).variables,
+      );
       return Promise.resolve(reply(body));
     }),
   );
@@ -93,7 +95,10 @@ function stubOps(answers: Record<string, unknown>) {
   vi.stubGlobal(
     'fetch',
     vi.fn((_url: string, opts: { body: string }) => {
-      const body = JSON.parse(opts.body) as { operationName: string; variables: Record<string, unknown> };
+      const body = JSON.parse(opts.body) as {
+        operationName: string;
+        variables: Record<string, unknown>;
+      };
       calls.push({ op: body.operationName, variables: body.variables });
       return Promise.resolve(reply(answers[body.operationName] ?? { data: null }));
     }),
@@ -148,9 +153,11 @@ describe('rejectSuggestion (#73)', () => {
 
 describe('refreshSuggestions (#73)', () => {
   it('refetches the queue and the catalog that are being watched', async () => {
-    const spy = vi.spyOn(apolloClient, 'refetchQueries').mockReturnValue(
-      Promise.resolve([]) as unknown as ReturnType<typeof apolloClient.refetchQueries>,
-    );
+    const spy = vi
+      .spyOn(apolloClient, 'refetchQueries')
+      .mockReturnValue(
+        Promise.resolve([]) as unknown as ReturnType<typeof apolloClient.refetchQueries>,
+      );
     await refreshSuggestions();
     expect(spy).toHaveBeenCalledWith({ include: [PENDING_SUGGESTIONS, ACTIVITIES_QUERY] });
     spy.mockRestore();

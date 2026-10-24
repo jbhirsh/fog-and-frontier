@@ -52,10 +52,7 @@ export function requireOwnerCtx(ctx: GqlContext): CurrentUser {
 
 // Trip member. Anon → UNAUTHENTICATED; non-member or missing trip → NOT_FOUND
 // (existence hidden, #51 privacy). Returns the member context.
-export async function requireMemberCtx(
-  ctx: GqlContext,
-  tripId: string,
-): Promise<MemberContext> {
+export async function requireMemberCtx(ctx: GqlContext, tripId: string): Promise<MemberContext> {
   if (!ctx.caller) throw unauthenticated();
   const trip = await getTripRow(tripId);
   const member = await isTripMember(tripId, ctx.caller.email);
@@ -70,10 +67,7 @@ export async function requireMemberCtx(
 // Trip creator (delete, lifecycle transitions, removing other members). A
 // non-creator member gets FORBIDDEN — they can see the trip, so 404 wouldn't
 // hide anything.
-export async function requireCreatorCtx(
-  ctx: GqlContext,
-  tripId: string,
-): Promise<MemberContext> {
+export async function requireCreatorCtx(ctx: GqlContext, tripId: string): Promise<MemberContext> {
   const member = await requireMemberCtx(ctx, tripId);
   if (!member.isCreator) throw forbidden();
   return member;

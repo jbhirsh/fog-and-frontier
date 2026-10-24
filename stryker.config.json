@@ -3,12 +3,7 @@
   "packageManager": "npm",
   "testRunner": "vitest",
   "coverageAnalysis": "perTest",
-  "reporters": [
-    "html",
-    "clear-text",
-    "progress",
-    "json"
-  ],
+  "reporters": ["html", "clear-text", "progress", "json"],
   "mutate": [
     "src/**/*.{ts,tsx}",
     "api/**/*.ts",
@@ -55,9 +50,7 @@
     "!src/pages/Trips.tsx"
   ],
   "mutator": {
-    "excludedMutations": [
-      "StringLiteral"
-    ]
+    "excludedMutations": ["StringLiteral"]
   },
   "thresholds": {
     "high": 95,

@@ -24,11 +24,7 @@ import { useMediaQuery } from '../lib/useMediaQuery';
  * pan or zoom, flights included. Unlike {@link BoundsWatcher} this drives how
  * pins draw (#109), not the list filter, so it neither waits nor skips.
  */
-export function ViewportWatcher({
-  onChange,
-}: {
-  onChange: (bounds: MapBounds) => void;
-}) {
+export function ViewportWatcher({ onChange }: { onChange: (bounds: MapBounds) => void }) {
   const map = useMap();
   const report = () => onChange(toMapBounds(map.getBounds()));
   useMapEvents({ moveend: report, zoomend: report });

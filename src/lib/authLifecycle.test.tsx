@@ -43,8 +43,7 @@ describe('auth-readiness gating (MAJOR-1)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((_url: string, opts: { body: string }) => {
-        const op = (JSON.parse(opts.body) as { operationName?: string })
-          .operationName;
+        const op = (JSON.parse(opts.body) as { operationName?: string }).operationName;
         if (op) ops.push(op);
         if (op === 'TripDetail') {
           return Promise.resolve(jsonResponse({ data: { trip: null } }));

@@ -14,17 +14,24 @@ export type NewFields = Record<string, (activity: { id: string }) => unknown>;
 export async function liveCatalog(page: Page, fields: NewFields): Promise<void> {
   const names = Object.keys(fields);
   await page.route('**/api/graphql', async (route) => {
-    const body = route.request().postDataJSON() as { operationName?: string; query?: string } | null;
+    const body = route.request().postDataJSON() as {
+      operationName?: string;
+      query?: string;
+    } | null;
     if (body?.operationName !== 'Activities' || !body.query) return route.fallback();
     // The query without the new fields: a selection is whitespace-separated words.
     const query = body.query
       .split(/(\s+)/)
       .filter((word) => !names.includes(word))
       .join('');
-    const response = await route.fetch({ url: LIVE_GRAPHQL, postData: JSON.stringify({ ...body, query }) });
+    const response = await route.fetch({
+      url: LIVE_GRAPHQL,
+      postData: JSON.stringify({ ...body, query }),
+    });
     const json = (await response.json()) as { data?: { activities?: { id: string }[] } };
     for (const activity of json.data?.activities ?? []) {
-      for (const name of names) (activity as Record<string, unknown>)[name] = fields[name](activity) ?? null;
+      for (const name of names)
+        (activity as Record<string, unknown>)[name] = fields[name](activity) ?? null;
     }
     return route.fulfill({ response, json });
   });

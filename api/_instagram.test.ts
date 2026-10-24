@@ -25,7 +25,10 @@ const VIDEO = (n: number) => `https://scontent-ord5-1.cdninstagram.com/o1/v/t16/
 // An embed page as Instagram serves it: the post is a JSON document held in a
 // JS string (contextJSON), inside a larger script.
 function embedPage(media: Record<string, unknown> | null): string {
-  const context = JSON.stringify({ context: { type: 'GraphVideo' }, gql_data: { shortcode_media: media } });
+  const context = JSON.stringify({
+    context: { type: 'GraphVideo' },
+    gql_data: { shortcode_media: media },
+  });
   return `<html><script>window.__x = {"contextJSON":${JSON.stringify(context)},"other":1};</script></html>`;
 }
 const EMBED_MEDIA = {
@@ -43,7 +46,9 @@ const EMBED_MEDIA = {
 // the post deep inside one of many JSON data blocks.
 function postPage(media: Record<string, unknown>, extraBlocks: string[] = []): string {
   const block = JSON.stringify({
-    require: [['ScheduledServerJS', 'handle', null, [{ __bbox: { result: { data: { items: [media] } } } }]]],
+    require: [
+      ['ScheduledServerJS', 'handle', null, [{ __bbox: { result: { data: { items: [media] } } } }]],
+    ],
   });
   return [
     '<html>',
@@ -57,7 +62,13 @@ const PAGE_MEDIA = {
   media_type: 2,
   caption: { text: 'Free weekend fair on Treasure Island' },
   user: { username: 'truly_athi' },
-  location: { __typename: 'XDTLocationDict', pk: 1, lat: 37.811, lng: -122.25, name: 'Treasure Island' },
+  location: {
+    __typename: 'XDTLocationDict',
+    pk: 1,
+    lat: 37.811,
+    lng: -122.25,
+    name: 'Treasure Island',
+  },
   image_versions2: { candidates: [{ url: IMAGE }] },
   video_versions: [
     { type: 101, url: VIDEO(1) },
@@ -131,9 +142,9 @@ describe('parseEmbedPage', () => {
   });
 
   it('keeps a video link when the embed page gives one', () => {
-    expect(parseEmbedPage(embedPage({ ...EMBED_MEDIA, video_url: VIDEO(9) }), REEL)?.videoUrls).toEqual([
-      VIDEO(9),
-    ]);
+    expect(
+      parseEmbedPage(embedPage({ ...EMBED_MEDIA, video_url: VIDEO(9) }), REEL)?.videoUrls,
+    ).toEqual([VIDEO(9)]);
   });
 
   it('leaves out what it lacks or can’t use', () => {
@@ -189,8 +200,16 @@ describe('parsePostPage', () => {
       postPage({ code: REEL.shortcode, media_type: 1, caption: null, location: null }),
       REEL,
     );
-    expect(photo).toMatchObject({ caption: undefined, isVideo: undefined, videoUrls: undefined, geotag: undefined });
-    const reel = parsePostPage(postPage({ code: REEL.shortcode, media_type: 2, caption: { text: 'x' } }), REEL);
+    expect(photo).toMatchObject({
+      caption: undefined,
+      isVideo: undefined,
+      videoUrls: undefined,
+      geotag: undefined,
+    });
+    const reel = parsePostPage(
+      postPage({ code: REEL.shortcode, media_type: 2, caption: { text: 'x' } }),
+      REEL,
+    );
     expect(reel?.isVideo).toBe(true);
     expect(reel?.videoUrls).toBeUndefined();
   });
@@ -206,9 +225,14 @@ describe('parsePostPage', () => {
   });
 
   it('skips video entries without a link', () => {
-    const page = postPage({ ...PAGE_MEDIA, video_versions: [{ url: VIDEO(1) }, { type: 2 }, { url: '' }] });
+    const page = postPage({
+      ...PAGE_MEDIA,
+      video_versions: [{ url: VIDEO(1) }, { type: 2 }, { url: '' }],
+    });
     expect(parsePostPage(page, REEL)?.videoUrls).toEqual([VIDEO(1)]);
-    expect(parsePostPage(postPage({ ...PAGE_MEDIA, video_versions: [] }), REEL)?.videoUrls).toBeUndefined();
+    expect(
+      parsePostPage(postPage({ ...PAGE_MEDIA, video_versions: [] }), REEL)?.videoUrls,
+    ).toBeUndefined();
   });
 
   it('finds nothing on a page without the post', () => {
@@ -267,7 +291,12 @@ function fakeFetch(routes: Record<string, (init?: RequestInit) => Response | Pro
   });
   return { impl: impl as unknown as typeof fetch, calls };
 }
-function html(body: string, url = '', status = 200, headers: Record<string, string> = {}): Response {
+function html(
+  body: string,
+  url = '',
+  status = 200,
+  headers: Record<string, string> = {},
+): Response {
   const r = new Response(body, { status, headers });
   if (url) Object.defineProperty(r, 'url', { value: url });
   return r;
@@ -289,7 +318,10 @@ describe('readInstagramPost', () => {
     const embedCall = calls.find((c) => c.url === EMBED_URL);
     expect(embedCall?.init?.headers).toEqual(EMBED_HEADERS);
     expect(calls.find((c) => c.url === HOME_URL)?.init?.headers).toEqual(PAGE_HEADERS);
-    expect(calls.find((c) => c.url === REEL.url)?.init?.headers).toEqual({ ...PAGE_HEADERS, cookie: 'csrftoken=abc' });
+    expect(calls.find((c) => c.url === REEL.url)?.init?.headers).toEqual({
+      ...PAGE_HEADERS,
+      cookie: 'csrftoken=abc',
+    });
     // Each on a time limit.
     for (const call of calls) expect(call.init?.signal).toBeInstanceOf(AbortSignal);
     expect(SOURCE_TIMEOUT_MS).toBe(8000);
@@ -309,7 +341,8 @@ describe('readInstagramPost', () => {
     const { impl } = fakeFetch({
       [EMBED_URL]: () => html('gone', '', 404),
       [HOME_URL]: () => html(''),
-      [REEL.url]: () => html('<html>Log in</html>', 'https://www.instagram.com/accounts/login/?next=x'),
+      [REEL.url]: () =>
+        html('<html>Log in</html>', 'https://www.instagram.com/accounts/login/?next=x'),
     });
     expect(await readInstagramPost(REEL, impl)).toEqual({
       post: REEL,
@@ -389,11 +422,14 @@ describe('responses left unread', () => {
 
     const failed = tracked(500);
     const again = tracked(200);
-    await readInstagramPost(REEL, fakeFetch({
-      [EMBED_URL]: () => html(embedPage(EMBED_MEDIA)),
-      [HOME_URL]: () => again.r,
-      [REEL.url]: () => failed.r,
-    }).impl);
+    await readInstagramPost(
+      REEL,
+      fakeFetch({
+        [EMBED_URL]: () => html(embedPage(EMBED_MEDIA)),
+        [HOME_URL]: () => again.r,
+        [REEL.url]: () => failed.r,
+      }).impl,
+    );
     expect([again.cancelled(), failed.cancelled()]).toEqual([true, true]);
   });
 
@@ -422,7 +458,9 @@ describe('fetchMedia', () => {
   }
 
   it('reads Instagram media up to its size limit', async () => {
-    const impl = vi.fn(() => Promise.resolve(stream([3, 4], 'video/mp4; codecs=avc1'))) as unknown as typeof fetch;
+    const impl = vi.fn(() =>
+      Promise.resolve(stream([3, 4], 'video/mp4; codecs=avc1')),
+    ) as unknown as typeof fetch;
     const media = await fetchMedia(VIDEO(1), 7, impl);
     expect(media?.mimeType).toBe('video/mp4');
     expect(media?.data.length).toBe(7);
@@ -430,7 +468,9 @@ describe('fetchMedia', () => {
   });
 
   it('drops a file over the limit, whether it says so or not', async () => {
-    const said = vi.fn(() => Promise.resolve(stream([1], 'video/mp4', { 'content-length': '100' })));
+    const said = vi.fn(() =>
+      Promise.resolve(stream([1], 'video/mp4', { 'content-length': '100' })),
+    );
     expect(await fetchMedia(VIDEO(1), 50, said as unknown as typeof fetch)).toBeNull();
     const unsaid = vi.fn(() => Promise.resolve(stream([30, 30])));
     expect(await fetchMedia(VIDEO(1), 50, unsaid as unknown as typeof fetch)).toBeNull();
@@ -438,7 +478,9 @@ describe('fetchMedia', () => {
 
   it('fetches nothing that isn’t Instagram media', async () => {
     const impl = vi.fn();
-    expect(await fetchMedia('https://example.com/a.mp4', 50, impl as unknown as typeof fetch)).toBeNull();
+    expect(
+      await fetchMedia('https://example.com/a.mp4', 50, impl as unknown as typeof fetch),
+    ).toBeNull();
     expect(impl).not.toHaveBeenCalled();
   });
 
@@ -453,18 +495,33 @@ describe('fetchMedia', () => {
     for (const answer of answers) {
       expect(await fetchMedia(VIDEO(1), 50, vi.fn(answer) as unknown as typeof fetch)).toBeNull();
     }
-    expect(await fetchMedia(IMAGE, 50, vi.fn(() => Promise.resolve(stream([2], 'image/jpeg'))) as unknown as typeof fetch)).toMatchObject({ mimeType: 'image/jpeg' });
+    expect(
+      await fetchMedia(
+        IMAGE,
+        50,
+        vi.fn(() => Promise.resolve(stream([2], 'image/jpeg'))) as unknown as typeof fetch,
+      ),
+    ).toMatchObject({ mimeType: 'image/jpeg' });
   });
 });
 
 // Edges each parser has to get right, which the tests above don't reach.
 describe('reading what’s missing or odd', () => {
   it('finds an http link in shared text too', () => {
-    expect(findInstagramUrl('see http://instagram.com/p/Ddl9QKSv0D7 now')?.shortcode).toBe('Ddl9QKSv0D7');
+    expect(findInstagramUrl('see http://instagram.com/p/Ddl9QKSv0D7 now')?.shortcode).toBe(
+      'Ddl9QKSv0D7',
+    );
   });
 
   it('reads an embed page whose data opens it, and a caption with quotes in it', () => {
-    const context = JSON.stringify({ gql_data: { shortcode_media: { display_url: IMAGE, edge_media_to_caption: { edges: [{ node: { text: 'Say "hi" \\ bye' } }] } } } });
+    const context = JSON.stringify({
+      gql_data: {
+        shortcode_media: {
+          display_url: IMAGE,
+          edge_media_to_caption: { edges: [{ node: { text: 'Say "hi" \\ bye' } }] },
+        },
+      },
+    });
     const html = `"contextJSON":${JSON.stringify(context)}`;
     expect(parseEmbedPage(html, REEL)?.caption).toBe('Say "hi" \\ bye');
     // A literal that never closes is no post.
@@ -479,11 +536,16 @@ describe('reading what’s missing or odd', () => {
 
   it('reads an embed post without a caption, or with an empty one', () => {
     for (const edge of [undefined, {}, { edges: [] }, { edges: [{}] }]) {
-      const post = parseEmbedPage(embedPage({ display_url: IMAGE, edge_media_to_caption: edge }), REEL);
+      const post = parseEmbedPage(
+        embedPage({ display_url: IMAGE, edge_media_to_caption: edge }),
+        REEL,
+      );
       expect(post?.imageUrl).toBe(IMAGE);
       expect(post?.caption).toBeUndefined();
     }
-    expect(parseEmbedPage(embedPage('gone' as unknown as Record<string, unknown>), REEL)).toBeNull();
+    expect(
+      parseEmbedPage(embedPage('gone' as unknown as Record<string, unknown>), REEL),
+    ).toBeNull();
   });
 
   it('keeps the first post with the shortcode on a page', () => {
@@ -493,13 +555,23 @@ describe('reading what’s missing or odd', () => {
       `<script type="application/json">${JSON.stringify({ items: [later] })}</script></html>`,
     );
     expect(parsePostPage(page, REEL)?.caption).toBe('the post');
-    const twice = postPage({ list: [{ ...PAGE_MEDIA, caption: { text: 'first' } }, { ...PAGE_MEDIA, caption: { text: 'second' } }] });
+    const twice = postPage({
+      list: [
+        { ...PAGE_MEDIA, caption: { text: 'first' } },
+        { ...PAGE_MEDIA, caption: { text: 'second' } },
+      ],
+    });
     expect(parsePostPage(twice, REEL)?.caption).toBe('first');
   });
 
   it('reads a page post without pictures, and a video it doesn’t type', () => {
     const post = parsePostPage(
-      postPage({ code: 'Ddl9QKSv0D7', caption: null, image_versions2: { candidates: [] }, video_versions: [{ url: 'https://scontent.cdninstagram.com/v.mp4' }] }),
+      postPage({
+        code: 'Ddl9QKSv0D7',
+        caption: null,
+        image_versions2: { candidates: [] },
+        video_versions: [{ url: 'https://scontent.cdninstagram.com/v.mp4' }],
+      }),
       REEL,
     );
     expect(post?.imageUrl).toBeUndefined();
@@ -516,7 +588,9 @@ describe('reading what’s missing or odd', () => {
   });
 
   it('sends each source the headers it answers to', () => {
-    expect(EMBED_HEADERS).toEqual({ 'user-agent': 'FogAndFrontier/1.0 (+https://fog-and-frontier.vercel.app)' });
+    expect(EMBED_HEADERS).toEqual({
+      'user-agent': 'FogAndFrontier/1.0 (+https://fog-and-frontier.vercel.app)',
+    });
     expect(PAGE_HEADERS).toEqual({
       'user-agent': 'curl/8.5.0',
       accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -563,14 +637,20 @@ describe('reading what’s missing or odd', () => {
     expect(cancelled).toBe(true);
     // A redirect that stays on Instagram's servers is fine.
     const stayed = new Response(new Uint8Array(5), { headers: { 'content-type': 'video/mp4' } });
-    Object.defineProperty(stayed, 'url', { value: 'https://scontent-lax3-1.cdninstagram.com/v.mp4' });
+    Object.defineProperty(stayed, 'url', {
+      value: 'https://scontent-lax3-1.cdninstagram.com/v.mp4',
+    });
     expect((await fetchMedia(VIDEO(1), 50, () => Promise.resolve(stayed)))?.data.length).toBe(5);
   });
 
   it('keeps media exactly at the limit, and refuses types that only contain image or video', async () => {
-    const exact = new Response(new Uint8Array(50), { headers: { 'content-type': 'image/jpeg', 'content-length': '50' } });
+    const exact = new Response(new Uint8Array(50), {
+      headers: { 'content-type': 'image/jpeg', 'content-length': '50' },
+    });
     expect((await fetchMedia(VIDEO(1), 50, () => Promise.resolve(exact)))?.data.length).toBe(50);
-    const odd = new Response(new Uint8Array(5), { headers: { 'content-type': 'application/x-video/mp4' } });
+    const odd = new Response(new Uint8Array(5), {
+      headers: { 'content-type': 'application/x-video/mp4' },
+    });
     expect(await fetchMedia(VIDEO(1), 50, () => Promise.resolve(odd))).toBeNull();
   });
 });

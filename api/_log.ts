@@ -61,6 +61,12 @@ export function logServerError(err: unknown, ctx: LogContext = {}): void {
  */
 export function logEvent(event: string, fields: Record<string, unknown> = {}): void {
   console.info(
-    JSON.stringify({ level: 'info', source: 'api', ts: new Date().toISOString(), event, ...fields }),
+    JSON.stringify({
+      level: 'info',
+      source: 'api',
+      ts: new Date().toISOString(),
+      event,
+      ...fields,
+    }),
   );
 }

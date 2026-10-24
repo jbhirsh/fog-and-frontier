@@ -37,7 +37,10 @@ describe('reviewsForActivity', () => {
   });
 
   it('orders most recently updated first', () => {
-    const older = review({ authorEmail: 'tarun@example.com', updatedAt: '2026-02-01T00:00:00.000Z' });
+    const older = review({
+      authorEmail: 'tarun@example.com',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
     const newer = review({ updatedAt: '2026-04-01T00:00:00.000Z' });
     expect(reviewsForActivity([older, newer], 'a1')).toEqual([newer, older]);
   });
@@ -125,9 +128,7 @@ describe('validateDraft', () => {
   });
 
   it('rejects an over-long note', () => {
-    expect(validateDraft(5, 'x'.repeat(MAX_NOTE_LENGTH + 1))).toMatch(
-      /2000 characters or fewer/i,
-    );
+    expect(validateDraft(5, 'x'.repeat(MAX_NOTE_LENGTH + 1))).toMatch(/2000 characters or fewer/i);
   });
 
   it('accepts a note exactly at the cap', () => {
@@ -215,10 +216,7 @@ describe('useActivityReviews / saveActivityReview / deleteActivityReview', () =>
   });
 
   it('exposes only the reviews for the requested activity', async () => {
-    listed = [
-      review(),
-      review({ activityId: 'a2', authorEmail: 'tarun@example.com' }),
-    ];
+    listed = [review(), review({ activityId: 'a2', authorEmail: 'tarun@example.com' })];
     const { result } = renderHook(() => useActivityReviews('a1'), { wrapper });
     await waitFor(() => expect(result.current.reviews).toHaveLength(1));
     expect(result.current.reviews[0].activityId).toBe('a1');
@@ -259,9 +257,7 @@ describe('useActivityReviews / saveActivityReview / deleteActivityReview', () =>
     await act(async () => {
       await saveActivityReview({ activityId: 'a1', rating: 5, note: '' });
     });
-    expect(
-      apolloClient.cache.readQuery({ query: ACTIVITY_REVIEWS_QUERY }),
-    ).toBeNull();
+    expect(apolloClient.cache.readQuery({ query: ACTIVITY_REVIEWS_QUERY })).toBeNull();
   });
 
   // [activityId, authorEmail, rating] for every review in the cached list.

@@ -173,9 +173,7 @@ export async function ensureTripsSchema(): Promise<void> {
       PRIMARY KEY (trip_id, member_email, trip_activity_id)
     )`,
   );
-  await db().execute(
-    `CREATE INDEX IF NOT EXISTS idx_trip_votes_trip ON trip_votes (trip_id)`,
-  );
+  await db().execute(`CREATE INDEX IF NOT EXISTS idx_trip_votes_trip ON trip_votes (trip_id)`);
 
   await backfillOwnersAndMembers();
 
@@ -200,9 +198,7 @@ export async function ensureActivitiesSchema(): Promise<void> {
 let completedInitialized = false;
 export async function ensureCompletedSchema(): Promise<void> {
   if (completedInitialized) return;
-  await db().execute(
-    'CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)',
-  );
+  await db().execute('CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)');
   completedInitialized = true;
 }
 
@@ -265,9 +261,7 @@ export async function ensureSuggestionsSchema(): Promise<void> {
       status TEXT NOT NULL DEFAULT 'pending'
     )`,
   );
-  await db().execute(
-    'CREATE INDEX IF NOT EXISTS suggestions_by_status ON suggestions (status, t)',
-  );
+  await db().execute('CREATE INDEX IF NOT EXISTS suggestions_by_status ON suggestions (status, t)');
   suggestionsInitialized = true;
 }
 
@@ -313,10 +307,7 @@ async function backfillOwnersAndMembers(): Promise<void> {
     const tripId = asString(row.id);
     const creator = asString(row.creator_email);
     const addedAt = asNumber(row.created_at);
-    const memberEmails = new Set<string>([
-      creator.trim().toLowerCase(),
-      ...owners,
-    ]);
+    const memberEmails = new Set<string>([creator.trim().toLowerCase(), ...owners]);
     for (const email of memberEmails) {
       await db().execute({
         sql: `INSERT OR IGNORE INTO trip_members
@@ -409,9 +400,7 @@ export function rowToTripActivity(row: Row): TripActivity {
 
 // Looks up an activity in the `a` table (where /api/activities stores them)
 // and returns its raw JSON string for snapshotting. Returns null if missing.
-export async function fetchActivitySnapshot(
-  activityId: string,
-): Promise<string | null> {
+export async function fetchActivitySnapshot(activityId: string): Promise<string | null> {
   const rs = await db().execute({
     sql: 'SELECT j FROM a WHERE id = ?',
     args: [activityId],
@@ -431,9 +420,7 @@ export async function getTripRow(tripId: string): Promise<TripRow | null> {
   return row ? rowToTrip(row) : null;
 }
 
-export async function getTripActivities(
-  tripId: string,
-): Promise<TripActivity[]> {
+export async function getTripActivities(tripId: string): Promise<TripActivity[]> {
   const rs = await db().execute({
     sql: `SELECT * FROM trip_activities
           WHERE trip_id = ?
@@ -448,10 +435,7 @@ export async function getTripActivities(
   return rs.rows.map((r) => rowToTripActivity(r as Row));
 }
 
-export async function getTripMembers(
-  tripId: string,
-  creatorEmail: string,
-): Promise<TripMember[]> {
+export async function getTripMembers(tripId: string, creatorEmail: string): Promise<TripMember[]> {
   const rs = await db().execute({
     sql: `SELECT m.member_email, m.added_by_email, m.added_at, u.display_name
           FROM trip_members m
@@ -503,10 +487,7 @@ export async function getTripVotes(tripId: string): Promise<TripVote[]> {
   }));
 }
 
-export async function isTripMember(
-  tripId: string,
-  email: string,
-): Promise<boolean> {
+export async function isTripMember(tripId: string, email: string): Promise<boolean> {
   const rs = await db().execute({
     sql: 'SELECT 1 FROM trip_members WHERE trip_id = ? AND member_email = ?',
     args: [tripId, email],
@@ -527,10 +508,7 @@ export async function addTripMember(
   });
 }
 
-export async function removeTripMember(
-  tripId: string,
-  email: string,
-): Promise<void> {
+export async function removeTripMember(tripId: string, email: string): Promise<void> {
   await db().execute({
     sql: 'DELETE FROM trip_members WHERE trip_id = ? AND member_email = ?',
     args: [tripId, email],
@@ -561,9 +539,7 @@ export type UserSummary = { email: string; display_name: string | null };
 // All known accounts, for the invite picker. The autocomplete is intentionally
 // global (#51 c4): anyone with a users row is suggestable to any inviter.
 export async function getAllUsers(): Promise<UserSummary[]> {
-  const rs = await db().execute(
-    'SELECT email, display_name FROM users ORDER BY email ASC',
-  );
+  const rs = await db().execute('SELECT email, display_name FROM users ORDER BY email ASC');
   return rs.rows.map((r) => ({
     email: asString(r.email),
     display_name: asOptionalString(r.display_name),
@@ -596,9 +572,7 @@ export async function createInvite(
 
 export type InviteRow = TripInvite & { trip_id: string };
 
-export async function getInviteByToken(
-  token: string,
-): Promise<InviteRow | null> {
+export async function getInviteByToken(token: string): Promise<InviteRow | null> {
   const rs = await db().execute({
     sql: `SELECT trip_id, invite_token, invited_email, invited_by_email, invited_at
           FROM trip_invites WHERE invite_token = ?`,
@@ -615,10 +589,7 @@ export async function getInviteByToken(
   };
 }
 
-export async function deleteInviteByToken(
-  tripId: string,
-  token: string,
-): Promise<void> {
+export async function deleteInviteByToken(tripId: string, token: string): Promise<void> {
   await db().execute({
     sql: 'DELETE FROM trip_invites WHERE trip_id = ? AND invite_token = ?',
     args: [tripId, token],
@@ -725,10 +696,7 @@ export type CreateTripArgs = {
   status?: TripStatus | null;
 };
 
-export async function createTrip(
-  args: CreateTripArgs,
-  creatorEmail: string,
-): Promise<Trip> {
+export async function createTrip(args: CreateTripArgs, creatorEmail: string): Promise<Trip> {
   const title = trimmedString(args.title, 200);
   if (!title) throw badInput('missing or invalid title');
 
@@ -741,8 +709,7 @@ export async function createTrip(
     throw badInput('endDate must be on or after startDate');
   }
 
-  const description =
-    args.description == null ? null : trimmedString(args.description, 2000);
+  const description = args.description == null ? null : trimmedString(args.description, 2000);
   if (args.description != null && description === null) {
     throw badInput('invalid description');
   }
@@ -834,10 +801,7 @@ export type PatchTripArgs = {
   coverImageUrl?: unknown;
 };
 
-export async function patchTrip(
-  tripId: string,
-  patch: PatchTripArgs,
-): Promise<TripRow> {
+export async function patchTrip(tripId: string, patch: PatchTripArgs): Promise<TripRow> {
   const existing = await getTripRow(tripId);
   if (!existing) throw notFound('not found');
   const isPast = existing.status === 'past';
@@ -861,8 +825,7 @@ export async function patchTrip(
     updateArgs.push(title);
   }
   if (patch.description !== undefined) {
-    const description =
-      patch.description === null ? null : trimmedString(patch.description, 2000);
+    const description = patch.description === null ? null : trimmedString(patch.description, 2000);
     if (patch.description !== null && description === null) {
       throw badInput('invalid description');
     }
@@ -885,10 +848,7 @@ export async function patchTrip(
     updateArgs.push(patch.endDate);
   }
   if (patch.coverImageUrl !== undefined) {
-    const cover =
-      patch.coverImageUrl === null
-        ? null
-        : trimmedString(patch.coverImageUrl, 2000);
+    const cover = patch.coverImageUrl === null ? null : trimmedString(patch.coverImageUrl, 2000);
     if (patch.coverImageUrl !== null && cover === null) {
       throw badInput('invalid coverImageUrl');
     }
@@ -917,13 +877,9 @@ export async function patchTrip(
   // If the date range changed, slide any now-out-of-range slot back to
   // Unscheduled so it still renders somewhere.
   const dateChanged =
-    proposed.start_date !== existing.start_date ||
-    proposed.end_date !== existing.end_date;
+    proposed.start_date !== existing.start_date || proposed.end_date !== existing.end_date;
   if (dateChanged) {
-    const newDayCount = tripDateRangeDayCount(
-      proposed.start_date,
-      proposed.end_date,
-    );
+    const newDayCount = tripDateRangeDayCount(proposed.start_date, proposed.end_date);
     stmts.push({
       sql: `UPDATE trip_activities
             SET day_index = NULL, start_time = NULL
@@ -955,9 +911,7 @@ export async function deleteTripById(tripId: string): Promise<void> {
 }
 
 // Single trip_activities row by id (used by assignSlot/setDisplayOrder/remove).
-export async function getTripActivityRow(
-  taId: string,
-): Promise<TripActivity | null> {
+export async function getTripActivityRow(taId: string): Promise<TripActivity | null> {
   const rs = await db().execute({
     sql: 'SELECT * FROM trip_activities WHERE id = ?',
     args: [taId],
@@ -1018,10 +972,7 @@ export async function patchTripActivity(
   const dayProvided = patch.dayIndex !== undefined;
   const timeProvided = patch.startTime !== undefined;
   if (trip.status === 'voting' && (dayProvided || timeProvided)) {
-    throw conflict(
-      'voting in progress — finalize to start scheduling',
-      'voting_locked',
-    );
+    throw conflict('voting in progress — finalize to start scheduling', 'voting_locked');
   }
 
   let day_index = ta.day_index;
@@ -1173,9 +1124,7 @@ export async function transitionToPlanning(
 export async function transitionToVoting(trip: TripRow): Promise<void> {
   if (trip.status !== 'planning') {
     throw conflict(
-      trip.status === 'past'
-        ? 'past trips cannot reopen voting'
-        : 'trip is already in voting',
+      trip.status === 'past' ? 'past trips cannot reopen voting' : 'trip is already in voting',
       'not_planning',
     );
   }
@@ -1283,20 +1232,14 @@ export async function removeMember(
   const isSelf = email === ctx.email;
   if (!isSelf && !ctx.isCreator) throw forbidden('forbidden');
   if (isSelf && ctx.isCreator) {
-    throw conflict(
-      'the creator cannot leave; delete the trip instead',
-      'creator_cannot_leave',
-    );
+    throw conflict('the creator cannot leave; delete the trip instead', 'creator_cannot_leave');
   }
   await removeTripMember(tripId, email);
   return email;
 }
 
 // Revoke a pending invite — any member. Idempotent. Returns the token.
-export async function revokeInvite(
-  tripId: string,
-  token: string,
-): Promise<string> {
+export async function revokeInvite(tripId: string, token: string): Promise<string> {
   await deleteInviteByToken(tripId, token);
   return token;
 }
@@ -1305,10 +1248,7 @@ export async function revokeInvite(
 // the claimer's account row (an editor account is born here), adds them, and
 // consumes the invite. Returns the trip id, or null when the token/trip is
 // gone (both map to null on the client).
-export async function claimInvite(
-  token: string,
-  user: CurrentUser,
-): Promise<string | null> {
+export async function claimInvite(token: string, user: CurrentUser): Promise<string | null> {
   const invite = await getInviteByToken(token);
   if (!invite) return null;
   const trip = await getTripRow(invite.trip_id);

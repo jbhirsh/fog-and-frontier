@@ -58,9 +58,7 @@ describe('Curated Adventures — distance origin (#66)', () => {
     renderAt(NEAR_SF);
     expect(screen.getByText(/sorted by\s+distance from you/)).toBeInTheDocument();
     for (const miles of [25, 50, 100, 250]) {
-      expect(
-        screen.getByRole('option', { name: `Within ${miles} mi of you` }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: `Within ${miles} mi of you` })).toBeInTheDocument();
     }
     expect(screen.getByText(badge(NEAR_SF))).toBeInTheDocument();
   });
@@ -68,10 +66,7 @@ describe('Curated Adventures — distance origin (#66)', () => {
   it('filters by distance from the visitor, not from home', async () => {
     // Muir Woods is ~10 mi from the visitor but ~55 from San Jose.
     const { unmount } = renderAt(NEAR_SF);
-    await userEvent.selectOptions(
-      screen.getByDisplayValue('Any distance'),
-      'Within 25 mi of you',
-    );
+    await userEvent.selectOptions(screen.getByDisplayValue('Any distance'), 'Within 25 mi of you');
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     unmount();
 

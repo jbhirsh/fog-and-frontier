@@ -30,11 +30,7 @@ interface TestEvent {
   endDate?: string;
 }
 
-function dateWindow(
-  events: TestEvent[],
-  range: DiscoverRange,
-  now: Date,
-): CheckResult {
+function dateWindow(events: TestEvent[], range: DiscoverRange, now: Date): CheckResult {
   const results = checkDiscoverStructural({ events }, DISCOVER_EXPECT, range, now);
   const check = results.find((c) => c.name === 'structural:date-window');
   if (!check) throw new Error('structural:date-window check missing');
@@ -48,9 +44,7 @@ function localNoon(y: number, m1: number, d: number): Date {
   return new Date(y, m1 - 1, d, 12, 0, 0);
 }
 
-function activityRecord(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+function activityRecord(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     name: 'Castle Rock Loop',
     shortDescription: 'short',
@@ -201,10 +195,7 @@ describe('schema:required (via checkGenerateHappy)', () => {
     expect(missingCheck.status).toBe('fail');
     expect(missingCheck.detail).toContain('dogFriendly missing');
 
-    const mistyped = checkGenerateHappy(
-      { activity: activityRecord({ lat: '37.23' }) },
-      {},
-    );
+    const mistyped = checkGenerateHappy({ activity: activityRecord({ lat: '37.23' }) }, {});
     const mistypedCheck = findCheck(mistyped, 'schema:required');
     expect(mistypedCheck.status).toBe('fail');
     expect(mistypedCheck.detail).toContain('lat expected number, got string');
@@ -281,9 +272,17 @@ describe('costTier (via checkGenerateHappy)', () => {
 // --- AllTrails link (#6: the Dragon Mountain share) -------------------------------
 
 describe('allTrailsUrl (via checkGenerateHappy)', () => {
-  const expect_ = { allTrailsTrails: ['us/california/dragon-mountain-stairs', 'us/california/dragon-mountain-trail-2'] };
+  const expect_ = {
+    allTrailsTrails: [
+      'us/california/dragon-mountain-stairs',
+      'us/california/dragon-mountain-trail-2',
+    ],
+  };
   const graded = (allTrailsUrl?: unknown) =>
-    findCheck(checkGenerateHappy({ activity: activityRecord({ allTrailsUrl }) }, expect_), 'expect:allTrailsUrl');
+    findCheck(
+      checkGenerateHappy({ activity: activityRecord({ allTrailsUrl }) }, expect_),
+      'expect:allTrailsUrl',
+    );
 
   it('passes a link to one of the expected trails, however it is dressed', () => {
     for (const url of [
@@ -298,15 +297,26 @@ describe('allTrailsUrl (via checkGenerateHappy)', () => {
   });
 
   it('fails a missing link, another trail, another site, or not a URL', () => {
-    const want = 'one of [us/california/dragon-mountain-stairs, us/california/dragon-mountain-trail-2]';
-    expect(graded()).toMatchObject({ status: 'fail', detail: `allTrailsUrl missing; expected ${want}` });
+    const want =
+      'one of [us/california/dragon-mountain-stairs, us/california/dragon-mountain-trail-2]';
+    expect(graded()).toMatchObject({
+      status: 'fail',
+      detail: `allTrailsUrl missing; expected ${want}`,
+    });
     expect(graded('  ').status).toBe('fail');
-    expect(graded('https://www.alltrails.com/trail/us/california/mission-peak-trail')).toMatchObject({
+    expect(
+      graded('https://www.alltrails.com/trail/us/california/mission-peak-trail'),
+    ).toMatchObject({
       status: 'fail',
       detail: `allTrailsUrl=https://www.alltrails.com/trail/us/california/mission-peak-trail, expected ${want}`,
     });
-    expect(graded('https://www.alltrails.com/parks/us/california/dragon-mountain-stairs').status).toBe('fail');
-    expect(graded('https://alltrails.com.evil.example/trail/us/california/dragon-mountain-stairs').status).toBe('fail');
+    expect(
+      graded('https://www.alltrails.com/parks/us/california/dragon-mountain-stairs').status,
+    ).toBe('fail');
+    expect(
+      graded('https://alltrails.com.evil.example/trail/us/california/dragon-mountain-stairs')
+        .status,
+    ).toBe('fail');
     expect(graded('dragon-mountain-stairs')).toMatchObject({
       status: 'fail',
       detail: `allTrailsUrl=dragon-mountain-stairs isn't a URL; expected ${want}`,
@@ -352,7 +362,11 @@ describe('checkTripSuggestions', () => {
   });
 
   it('skips the exclusion check when there is none, and fails a non-list', () => {
-    const results = checkTripSuggestions(picks('a'), { includeAny: ['a'], minPicks: 1, maxPicks: 3 });
+    const results = checkTripSuggestions(picks('a'), {
+      includeAny: ['a'],
+      minPicks: 1,
+      maxPicks: 3,
+    });
     expect(results.map((c) => c.name)).toEqual(['trip:count', 'trip:includes']);
     expect(checkTripSuggestions({ nope: 1 }, expect_)).toEqual([
       { name: 'trip:shape', status: 'fail', detail: 'expected an array of picks' },

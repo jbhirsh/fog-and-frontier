@@ -43,13 +43,7 @@ type Props = {
  * The height animates between rest positions unless the user prefers reduced
  * motion.
  */
-export function BottomSheet({
-  snap,
-  onSnapChange,
-  header,
-  children,
-  label,
-}: Props) {
+export function BottomSheet({ snap, onSnapChange, header, children, label }: Props) {
   const hintId = useId();
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   // Live pixel height while dragging; `null` at rest (the snap's CSS height).
@@ -127,8 +121,7 @@ export function BottomSheet({
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
-    const direction =
-      event.key === 'ArrowUp' ? 1 : event.key === 'ArrowDown' ? -1 : null;
+    const direction = event.key === 'ArrowUp' ? 1 : event.key === 'ArrowDown' ? -1 : null;
     if (direction === null) return;
     event.preventDefault();
     const next = stepSnap(snap, direction);
@@ -147,9 +140,7 @@ export function BottomSheet({
       style={{
         height: dragging ? `${liveHeight}px` : SNAP_CSS[snap],
         transition:
-          dragging || reduceMotion
-            ? 'none'
-            : 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+          dragging || reduceMotion ? 'none' : 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
       }}
     >
       {/* A full-width, 48px-tall grab bar (the minimum touch target): the pill
@@ -163,14 +154,10 @@ export function BottomSheet({
         onKeyDown={handleKeyDown}
         className="flex min-h-12 w-full shrink-0 cursor-grab touch-none flex-col items-center justify-center active:cursor-grabbing"
       >
-        <span
-          aria-hidden="true"
-          className="h-1.5 w-10 rounded-full bg-on-surface-variant/30"
-        />
+        <span aria-hidden="true" className="h-1.5 w-10 rounded-full bg-on-surface-variant/30" />
       </button>
       <span id={hintId} className="sr-only">
-        Press to cycle between peek, half and full height. Up and Down arrows
-        step the height.
+        Press to cycle between peek, half and full height. Up and Down arrows step the height.
       </span>
       <div
         onPointerDown={handleHeaderPointerDown}

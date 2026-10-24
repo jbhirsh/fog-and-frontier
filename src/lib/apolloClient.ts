@@ -11,9 +11,7 @@ const httpLink = new HttpLink({ uri: '/api/graphql' });
 // anonymous (no-token) getter so the public-only / no-Clerk path Just Works.
 let tokenGetter: () => Promise<string | null> = () => Promise.resolve(null);
 
-export function setAuthTokenGetter(
-  getter: () => Promise<string | null>,
-): void {
+export function setAuthTokenGetter(getter: () => Promise<string | null>): void {
   tokenGetter = getter;
 }
 

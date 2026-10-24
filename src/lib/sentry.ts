@@ -111,7 +111,10 @@ export function scrubEvent(event: Event): Event {
   // Defense in depth: if a `?key=...` ever appears inside an exception
   // message (e.g. a stack-trace-echoed URL), strip the query string.
   const values = next.exception?.values;
-  if (Array.isArray(values) && values.some((v) => typeof v.value === 'string' && v.value.includes('?'))) {
+  if (
+    Array.isArray(values) &&
+    values.some((v) => typeof v.value === 'string' && v.value.includes('?'))
+  ) {
     const scrubbed = values.map((v) =>
       typeof v.value === 'string' && v.value.includes('?')
         ? { ...v, value: scrubEmbeddedQueries(v.value) }
@@ -127,8 +130,7 @@ export function initSentry(): void {
   if (!dsn) return;
 
   const environment =
-    (import.meta.env.VITE_VERCEL_ENV as string | undefined) ??
-    import.meta.env.MODE;
+    (import.meta.env.VITE_VERCEL_ENV as string | undefined) ?? import.meta.env.MODE;
   // Production samples 10% of transactions to stay inside Sentry's free-tier
   // quota; preview/dev capture everything so a sneeze surfaces.
   const tracesSampleRate = environment === 'production' ? 0.1 : 1.0;

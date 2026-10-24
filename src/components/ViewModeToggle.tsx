@@ -39,10 +39,7 @@ export function ViewModeToggle({ value, onChange }: Props) {
     refs.current[index]?.focus();
   }
 
-  function handleKeyDown(
-    event: React.KeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ) {
+  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
     let nextIndex: number | null = null;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
       nextIndex = (index + 1) % OPTIONS.length;

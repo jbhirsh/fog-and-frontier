@@ -12,13 +12,7 @@ type Props = {
 // showing its own count. No separate aggregate/net pill — the per-thumb counts
 // are the whole story. The active vote is filled + colored; click it again to
 // clear to neutral.
-export function VoteControls({
-  tally,
-  myVote,
-  disabled = false,
-  disabledTooltip,
-  onVote,
-}: Props) {
+export function VoteControls({ tally, myVote, disabled = false, disabledTooltip, onVote }: Props) {
   function handleUp() {
     if (disabled || !onVote) return;
     onVote(myVote === 1 ? 0 : 1);

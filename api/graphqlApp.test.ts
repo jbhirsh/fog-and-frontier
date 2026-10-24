@@ -64,10 +64,7 @@ type GqlResponse = {
 
 // Use node:http directly — the shared jsdom setup stubs global fetch to reject
 // ("offline"), which would otherwise intercept this real in-process request.
-function post(
-  query: string,
-  auth?: string,
-): Promise<{ status: number; json: GqlResponse }> {
+function post(query: string, auth?: string): Promise<{ status: number; json: GqlResponse }> {
   const body = JSON.stringify({ query });
   const headers: Record<string, string | number> = {
     'content-type': 'application/json',

@@ -31,12 +31,31 @@ const POSSIBLE_OVERLAP = 0.6;
 
 // Words that say nothing about which place it is.
 const STOPWORDS = new Set([
-  'a', 'an', 'and', 'at', 'by', 'de', 'el', 'for', 'in', 'la', 'of', 'on', 'the', 'to',
+  'a',
+  'an',
+  'and',
+  'at',
+  'by',
+  'de',
+  'el',
+  'for',
+  'in',
+  'la',
+  'of',
+  'on',
+  'the',
+  'to',
 ]);
 
 // Letters NFKD doesn't split into a base letter and an accent.
 const FOLDED: Record<string, string> = {
-  ß: 'ss', æ: 'ae', œ: 'oe', ø: 'o', ł: 'l', đ: 'd', þ: 'th',
+  ß: 'ss',
+  æ: 'ae',
+  œ: 'oe',
+  ø: 'o',
+  ł: 'l',
+  đ: 'd',
+  þ: 'th',
 };
 
 /**

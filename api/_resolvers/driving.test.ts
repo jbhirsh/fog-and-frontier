@@ -1,4 +1,13 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from 'vitest';
 import { ApolloServer } from '@apollo/server';
 
 // Driving miles (#66). Exercised through the schema, mocking only the `db`
@@ -32,7 +41,8 @@ type Result = {
   errors?: { extensions?: Record<string, unknown> }[];
 };
 
-const QUERY = 'query ($lat: Float!, $lng: Float!) { drivingMiles(lat: $lat, lng: $lng) { id miles } }';
+const QUERY =
+  'query ($lat: Float!, $lng: Float!) { drivingMiles(lat: $lat, lng: $lng) { id miles } }';
 
 const SIGNED_IN = { email: 'jess@example.com', role: 'owner' as const };
 
@@ -236,13 +246,16 @@ describe('drivingMiles', () => {
     ['north', SERVICE_AREA.north + 0.01, -120],
     ['west', 40, SERVICE_AREA.west - 0.01],
     ['east', 40, SERVICE_AREA.east + 0.01],
-  ])('returns nothing, without calling out, for an origin %s of the West Coast', async (_, lat, lng) => {
-    catalog([row('a', at(37, -122))]);
-    const fetchMock = orsReplies([5]);
-    expect((await run(lat, lng)).data?.drivingMiles).toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(execute).not.toHaveBeenCalled();
-  });
+  ])(
+    'returns nothing, without calling out, for an origin %s of the West Coast',
+    async (_, lat, lng) => {
+      catalog([row('a', at(37, -122))]);
+      const fetchMock = orsReplies([5]);
+      expect((await run(lat, lng)).data?.drivingMiles).toEqual([]);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
 
   it('leaves out an origin beyond the West Coast, like Salt Lake City', async () => {
     catalog([row('a', at(37, -122))]);
@@ -458,9 +471,9 @@ describe('drivingMiles hourly budget', () => {
     expect((await run(...origin(ANON_HOURLY_BUDGET))).data?.drivingMiles).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(ANON_HOURLY_BUDGET);
     // Signed-in callers keep the rest of the hour.
-    expect(
-      (await run(...origin(ANON_HOURLY_BUDGET), SIGNED_IN)).data?.drivingMiles,
-    ).toEqual([{ id: 'a', miles: 1 }]);
+    expect((await run(...origin(ANON_HOURLY_BUDGET), SIGNED_IN)).data?.drivingMiles).toEqual([
+      { id: 'a', miles: 1 },
+    ]);
   });
 
   it('caps signed-in callers at the hourly budget', async () => {
@@ -520,8 +533,7 @@ describe('drivingMiles hourly budget', () => {
 
 describe('drivingMiles after a catalog write', () => {
   const OWNER = { email: 'jess@example.com', role: 'owner' as const };
-  const SAVE =
-    'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id } } }';
+  const SAVE = 'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id } } }';
   const DELETE = 'mutation($i: DeleteActivityInput!){ deleteActivity(input:$i){ deletedId } }';
 
   async function write(query: string, variables: Record<string, unknown>) {

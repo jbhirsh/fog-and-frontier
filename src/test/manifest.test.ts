@@ -69,7 +69,9 @@ describe('home-screen tags', () => {
   it('opens standalone, labeled with the short name, under the default status bar', () => {
     expect(html).toContain('<meta name="mobile-web-app-capable" content="yes" />');
     expect(html).toContain('<meta name="apple-mobile-web-app-capable" content="yes" />');
-    expect(html).toContain('<meta name="apple-mobile-web-app-title" content="Fog &amp; Frontier" />');
+    expect(html).toContain(
+      '<meta name="apple-mobile-web-app-title" content="Fog &amp; Frontier" />',
+    );
     expect(html).toContain(
       '<meta name="apple-mobile-web-app-status-bar-style" content="default" />',
     );

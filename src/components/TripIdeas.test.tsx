@@ -93,11 +93,15 @@ describe('TripIdeas (#78)', () => {
   });
 
   it('says so when the ideas cannot be fetched, and can try again', async () => {
-    suggestSpy.mockRejectedValueOnce(new Error('502')).mockResolvedValue([idea('ff', 'Fort Funston')]);
+    suggestSpy
+      .mockRejectedValueOnce(new Error('502'))
+      .mockResolvedValue([idea('ff', 'Fort Funston')]);
     render(<Harness />);
     await userEvent.type(prompt(), 'dogs');
     await userEvent.click(suggest());
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't get ideas. Try again in a moment.");
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't get ideas. Try again in a moment.",
+    );
     await userEvent.click(suggest());
     expect(await screen.findByText('Fort Funston fits')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -153,7 +157,9 @@ describe('TripIdeas (#78)', () => {
     await userEvent.type(prompt(), 'dogs');
     await userEvent.click(suggest());
     // The kind is spelled out ("Scenic"), so it's read as it's shown.
-    const box = await screen.findByRole('checkbox', { name: 'Fort Funston · San Francisco · Scenic' });
+    const box = await screen.findByRole('checkbox', {
+      name: 'Fort Funston · San Francisco · Scenic',
+    });
     expect(box).toHaveAccessibleDescription('Fort Funston fits');
     expect(screen.getByRole('status')).toHaveTextContent('2 ideas');
   });

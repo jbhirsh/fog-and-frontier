@@ -72,10 +72,7 @@ function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
   };
 }
 
-export async function generateActivity(
-  title: string,
-  notes: string,
-): Promise<GeneratedFields> {
+export async function generateActivity(title: string, notes: string): Promise<GeneratedFields> {
   const { data } = await apolloClient.mutate({
     mutation: GENERATE_ACTIVITY,
     variables: { input: { title, notes } },

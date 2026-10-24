@@ -32,7 +32,9 @@ vi.mock('../lib/authShim', () => ({
   },
 }));
 vi.mock('@clerk/clerk-react', () => ({
-  SignInButton: ({ children }: { children: React.ReactNode }) => <div data-testid="clerk-sign-in">{children}</div>,
+  SignInButton: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="clerk-sign-in">{children}</div>
+  ),
 }));
 
 const opened = vi.hoisted(() => ({ fn: vi.fn() }));
@@ -81,7 +83,13 @@ const CATARACT: SharedPlace = {
   name: 'Cataract Falls',
   detail: null,
   source: 'caption',
-  saved: { id: 'cataract-falls', name: 'Cataract Falls', city: 'Fairfax', distanceMeters: 10, confidence: 'high' },
+  saved: {
+    id: 'cataract-falls',
+    name: 'Cataract Falls',
+    city: 'Fairfax',
+    distanceMeters: 10,
+    confidence: 'high',
+  },
 };
 
 function answer(over: Partial<SharedPlaces> = {}): SharedPlaces {
@@ -152,9 +160,14 @@ describe('SharePage — no link yet', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Link to a post or reel' }), '   ');
     expect(find).toBeDisabled();
     await userEvent.clear(screen.getByRole('textbox', { name: 'Link to a post or reel' }));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Link to a post or reel' }), `look ${REEL} `);
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Link to a post or reel' }),
+      `look ${REEL} `,
+    );
     await userEvent.click(find);
-    expect(await screen.findByRole('heading', { name: '2 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '2 places in this post' }),
+    ).toBeInTheDocument();
     expect(found.fn).toHaveBeenCalledWith(REEL, '');
   });
 
@@ -185,7 +198,9 @@ describe('SharePage — no link yet', () => {
   it('says a shared link isn’t to a post, and reads nothing', async () => {
     renderAt('/share?url=https%3A%2F%2Fevil.example%2Fp%2FDdl9QKSv0D7%2F');
     expect(screen.getByRole('heading', { name: 'Add places from Instagram' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent("That isn't a link to an Instagram post or reel");
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "That isn't a link to an Instagram post or reel",
+    );
     expect(screen.queryByRole('link', { name: 'Open on Instagram' })).not.toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 10));
     expect(found.fn).not.toHaveBeenCalled();
@@ -194,17 +209,27 @@ describe('SharePage — no link yet', () => {
   it('asks again for a pasted link that isn’t to a post', async () => {
     renderAt('/share?text=%20');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    await userEvent.type(screen.getByRole('textbox', { name: 'Link to a post or reel' }), 'https://example.com/reel/Ddl9QKSv0D7/');
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Link to a post or reel' }),
+      'https://example.com/reel/Ddl9QKSv0D7/',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Find places' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Paste a link to an Instagram post or reel');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Paste a link to an Instagram post or reel',
+    );
     expect(found.fn).not.toHaveBeenCalled();
   });
 
   it('asks again for something that isn’t a link', async () => {
     renderAt('/share');
-    await userEvent.type(screen.getByRole('textbox', { name: 'Link to a post or reel' }), 'carson falls');
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Link to a post or reel' }),
+      'carson falls',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Find places' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Paste a link to an Instagram post or reel');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Paste a link to an Instagram post or reel',
+    );
     expect(found.fn).not.toHaveBeenCalled();
   });
 });
@@ -225,7 +250,9 @@ describe('SharePage — signed out', () => {
     clerk.enabled = true;
     Object.assign(ownerState, { email: null, isOwner: false });
     renderAt(shareUrl());
-    expect(within(screen.getByTestId('clerk-sign-in')).getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('clerk-sign-in')).getByRole('button', { name: 'Sign in' }),
+    ).toBeInTheDocument();
   });
 
   it('reads the post as soon as sign-in has loaded', async () => {
@@ -242,7 +269,9 @@ describe('SharePage — signed out', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(await screen.findByRole('heading', { name: '2 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '2 places in this post' }),
+    ).toBeInTheDocument();
     expect(found.fn).toHaveBeenCalledTimes(1);
   });
 
@@ -257,7 +286,9 @@ describe('SharePage — signed out', () => {
         </MemoryRouter>
       </StrictMode>,
     );
-    expect(await screen.findByRole('heading', { name: '2 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '2 places in this post' }),
+    ).toBeInTheDocument();
     expect(found.fn).toHaveBeenCalledTimes(1);
   });
 
@@ -266,7 +297,9 @@ describe('SharePage — signed out', () => {
     renderAt(shareUrl());
     await new Promise((r) => setTimeout(r, 10));
     expect(found.fn).not.toHaveBeenCalled();
-    expect(screen.queryByRole('heading', { name: 'Sign in to add places' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Sign in to add places' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
@@ -283,7 +316,9 @@ describe('SharePage — the places in a post', () => {
     expect(found.fn).toHaveBeenCalledWith(REEL, '');
     resolve(answer());
 
-    expect(await screen.findByRole('heading', { name: '2 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '2 places in this post' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.getByText('Reel · @bayareatrails')).toBeInTheDocument();
     expect(screen.getByText('Two waterfalls in one morning')).toBeInTheDocument();
@@ -300,7 +335,9 @@ describe('SharePage — the places in a post', () => {
     expect(document.querySelector('img')).toBeNull();
 
     // Already in the catalog: open it instead.
-    await userEvent.click(screen.getByRole('button', { name: 'Open Cataract Falls, already saved' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Open Cataract Falls, already saved' }),
+    );
     expect(opened.fn).toHaveBeenCalledWith('cataract-falls');
 
     // An owner adds the other, drafted from the place and the post.
@@ -310,7 +347,9 @@ describe('SharePage — the places in a post', () => {
     expect(screen.getByTestId('seed-title')).toHaveTextContent('Carson Falls, Fairfax');
     // The activity keeps the reel it came from.
     expect(screen.getByTestId('source')).toHaveTextContent(REEL);
-    expect(screen.getByTestId('seed-notes')).toHaveTextContent(`From an Instagram reel by @bayareatrails: ${REEL}`);
+    expect(screen.getByTestId('seed-notes')).toHaveTextContent(
+      `From an Instagram reel by @bayareatrails: ${REEL}`,
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Save it' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close it' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -341,7 +380,9 @@ describe('SharePage — the places in a post', () => {
     renderAt(shareUrl());
     await userEvent.click(await screen.findByRole('button', { name: 'Add one by hand' }));
     expect(screen.getByTestId('seed-title')).toBeEmptyDOMElement();
-    expect(screen.getByTestId('seed-notes')).toHaveTextContent(`From an Instagram reel by @bayareatrails: ${REEL}`);
+    expect(screen.getByTestId('seed-notes')).toHaveTextContent(
+      `From an Instagram reel by @bayareatrails: ${REEL}`,
+    );
     expect(screen.getByRole('dialog', { name: 'Add an activity' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Save it' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close it' }));
@@ -356,13 +397,19 @@ describe('SharePage — the places in a post', () => {
 
   it('says nothing of video for a photo post, and reads it as a post', async () => {
     let resolve!: (v: SharedPlaces) => void;
-    found.fn.mockReturnValueOnce(Promise.resolve(answer({
-      post: { url: REEL, author: null, caption: null, imageUrl: null, isVideo: false },
-      places: [],
-      read: { caption: false, video: false, geotag: false },
-    })));
+    found.fn.mockReturnValueOnce(
+      Promise.resolve(
+        answer({
+          post: { url: REEL, author: null, caption: null, imageUrl: null, isVideo: false },
+          places: [],
+          read: { caption: false, video: false, geotag: false },
+        }),
+      ),
+    );
     renderAt(shareUrl());
-    expect(await screen.findByRole('heading', { name: 'No places found in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'No places found in this post' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Post')).toBeInTheDocument();
     expect(screen.queryByText(/couldn't be watched/)).not.toBeInTheDocument();
     expect(document.querySelector('img')).toBeNull();
@@ -370,11 +417,16 @@ describe('SharePage — the places in a post', () => {
 
     // Looking again says it's reading a post, now that it knows.
     found.fn.mockReturnValueOnce(new Promise<SharedPlaces>((r) => (resolve = r)));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Name a place from it' }), 'the beach');
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Name a place from it' }),
+      'the beach',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Look again with this' }));
     expect(screen.getByRole('status')).toHaveTextContent('Reading the post for places…');
     resolve(answer());
-    expect(await screen.findByRole('heading', { name: '2 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '2 places in this post' }),
+    ).toBeInTheDocument();
   });
 
   it('looks again with a hint for a place it missed', async () => {
@@ -388,9 +440,13 @@ describe('SharePage — the places in a post', () => {
     await userEvent.type(field, '   ');
     expect(look).toBeDisabled();
     await userEvent.type(field, 'the bridge at the end');
-    found.fn.mockResolvedValue(answer({ places: [CARSON, CATARACT, { ...CARSON, name: 'Bon Tempe Dam', source: 'hint' }] }));
+    found.fn.mockResolvedValue(
+      answer({ places: [CARSON, CATARACT, { ...CARSON, name: 'Bon Tempe Dam', source: 'hint' }] }),
+    );
     await userEvent.click(look);
-    expect(await screen.findByRole('heading', { name: '3 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '3 places in this post' }),
+    ).toBeInTheDocument();
     expect(found.fn).toHaveBeenLastCalledWith(REEL, '   the bridge at the end');
     expect(screen.getByText('Fairfax · your hint')).toBeInTheDocument();
   });
@@ -398,7 +454,9 @@ describe('SharePage — the places in a post', () => {
   it('finds the link in shared text, as Android sends it', async () => {
     found.fn.mockResolvedValue(answer());
     renderAt(`/share?text=${encodeURIComponent(`Check this out ${REEL}`)}`);
-    expect(await screen.findByRole('heading', { name: '2 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '2 places in this post' }),
+    ).toBeInTheDocument();
     expect(found.fn).toHaveBeenCalledWith(REEL, '');
   });
 
@@ -418,7 +476,13 @@ describe('SharePage — another share', () => {
         ? new Promise<SharedPlaces>((r) => (answerFirst = r))
         : Promise.resolve(
             answer({
-              post: { url: OTHER, author: 'sfflowers', caption: 'Spring blooms', imageUrl: null, isVideo: false },
+              post: {
+                url: OTHER,
+                author: 'sfflowers',
+                caption: 'Spring blooms',
+                imageUrl: null,
+                isVideo: false,
+              },
               places: [{ ...CARSON, name: 'Conservatory of Flowers', city: 'San Francisco' }],
             }),
           ),
@@ -426,7 +490,9 @@ describe('SharePage — another share', () => {
     renderAt(shareUrl());
     await screen.findByRole('status');
     await userEvent.click(screen.getByRole('button', { name: 'Share another' }));
-    expect(await screen.findByRole('heading', { name: '1 place in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '1 place in this post' }),
+    ).toBeInTheDocument();
     expect(found.fn).toHaveBeenLastCalledWith(OTHER, '');
     // The first post's answer, arriving late, changes nothing.
     answerFirst(answer());
@@ -439,13 +505,18 @@ describe('SharePage — another share', () => {
   it('drops the hint and what was added with the last post', async () => {
     found.fn.mockResolvedValue(answer());
     renderAt(shareUrl());
-    await userEvent.type(await screen.findByRole('textbox', { name: 'Missing a place? Name it' }), 'the dam');
+    await userEvent.type(
+      await screen.findByRole('textbox', { name: 'Missing a place? Name it' }),
+      'the dam',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Add Carson Falls' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save it' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close it' }));
     expect(screen.getByText('Added')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Share another' }));
-    expect(await screen.findByRole('textbox', { name: 'Missing a place? Name it' })).toHaveValue('');
+    expect(await screen.findByRole('textbox', { name: 'Missing a place? Name it' })).toHaveValue(
+      '',
+    );
     expect(screen.queryByText('Added')).not.toBeInTheDocument();
   });
 });
@@ -458,7 +529,9 @@ describe('SharePage — when reading fails', () => {
     expect(screen.getByRole('link', { name: 'Open on Instagram' })).toHaveAttribute('href', REEL);
     found.fn.mockResolvedValueOnce(answer());
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('heading', { name: '2 places in this post' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '2 places in this post' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

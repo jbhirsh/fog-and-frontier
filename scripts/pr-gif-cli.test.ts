@@ -112,7 +112,10 @@ describe('parseArgs', () => {
     // The deployment mode's options are gone.
     [['a.ts', '--dir', '1', '--local'], 'unknown option --local'],
     [['a.ts', '--dir', '1', '--after-url', 'https://x.app'], 'unknown option --after-url'],
-    [['a.ts', '--dir', '1', '--after-only', '--side-by-side'], '--after-only has nothing to put beside it'],
+    [
+      ['a.ts', '--dir', '1', '--after-only', '--side-by-side'],
+      '--after-only has nothing to put beside it',
+    ],
   ])('refuses %j, saying why and how to call it', (argv, why) => {
     expect(() => parseArgs(argv)).toThrow(why);
     expect(() => parseArgs(argv)).toThrow(USAGE);

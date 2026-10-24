@@ -372,7 +372,9 @@ describe('useActivityPhotos', () => {
     server = [photo('a')];
     const gone = {
       request: { query: REMOVE_ACTIVITY_PHOTO, variables: { input: { id: 'a' } } },
-      result: { errors: [new GraphQLError('photo not found', { extensions: { code: 'NOT_FOUND' } })] },
+      result: {
+        errors: [new GraphQLError('photo not found', { extensions: { code: 'NOT_FOUND' } })],
+      },
     } satisfies MockedResponse;
     const { result } = renderHook(() => useActivityPhotos('muir', true), {
       wrapper: wrapperWith([listMock(), gone]),

@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       update_snapshots:
-        description: 'Update baseline screenshots and commit'
+        description: "Update baseline screenshots and commit"
         required: false
-        default: 'false'
+        default: "false"
 
 jobs:
   visual:
@@ -22,8 +22,8 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: package-lock.json
 
       - name: Install deps
@@ -74,8 +74,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.update_snapshots == 'true'
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: 'chore(visual): update baseline screenshots'
-          file_pattern: 'tests/visual/**/*-linux.png'
+          commit_message: "chore(visual): update baseline screenshots"
+          file_pattern: "tests/visual/**/*-linux.png"
 
       - uses: actions/upload-artifact@v7
         if: failure()

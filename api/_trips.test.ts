@@ -84,20 +84,14 @@ describe('transitionToPast', () => {
     expect(mode).toBe('write');
     expect(stmts).toHaveLength(3); // status UPDATE + 1 mark + 1 unmark
 
-    const statusStmt = stmts.find((s) =>
-      /UPDATE trips SET status = 'past'/.test(s.sql),
-    );
+    const statusStmt = stmts.find((s) => /UPDATE trips SET status = 'past'/.test(s.sql));
     expect(statusStmt).toBeDefined();
     expect(statusStmt?.args).toEqual([result.markedPastAt, TRIP_ID]);
 
-    const markStmt = stmts.find(
-      (s) => /VALUES \(\?, 1\)/.test(s.sql) && s.args[0] === 'act-1',
-    );
+    const markStmt = stmts.find((s) => /VALUES \(\?, 1\)/.test(s.sql) && s.args[0] === 'act-1');
     expect(markStmt).toBeDefined();
 
-    const unmarkStmt = stmts.find(
-      (s) => /VALUES \(\?, 0\)/.test(s.sql) && s.args[0] === 'act-2',
-    );
+    const unmarkStmt = stmts.find((s) => /VALUES \(\?, 0\)/.test(s.sql) && s.args[0] === 'act-2');
     expect(unmarkStmt).toBeDefined();
   });
 
@@ -165,9 +159,7 @@ describe('createTrip (atomic)', () => {
     const [stmts, mode] = batch.mock.calls[0] as [Stmt[], string];
     expect(mode).toBe('write');
     expect(stmts.some((s) => /INSERT INTO trips/.test(s.sql))).toBe(true);
-    expect(stmts.some((s) => /INSERT OR IGNORE INTO trip_members/.test(s.sql))).toBe(
-      true,
-    );
+    expect(stmts.some((s) => /INSERT OR IGNORE INTO trip_members/.test(s.sql))).toBe(true);
     const activityInserts = stmts.filter((s) =>
       /INSERT OR IGNORE INTO trip_activities/.test(s.sql),
     );
@@ -175,9 +167,7 @@ describe('createTrip (atomic)', () => {
     expect(activityInserts[0].args[2]).toBe('act-1'); // activity_id column
 
     // No write ever leaks out through execute() — those calls are reads only.
-    const writeExecs = execute.mock.calls.filter((c) =>
-      /INSERT|UPDATE|DELETE/.test(sqlOf(c)),
-    );
+    const writeExecs = execute.mock.calls.filter((c) => /INSERT|UPDATE|DELETE/.test(sqlOf(c)));
     expect(writeExecs).toHaveLength(0);
   });
 });
@@ -215,9 +205,7 @@ describe('patchTrip (atomic)', () => {
     expect(mode).toBe('write');
     expect(stmts).toHaveLength(1);
     expect(/UPDATE trips SET/.test(stmts[0].sql)).toBe(true);
-    const writeExecs = execute.mock.calls.filter((c) =>
-      /INSERT|UPDATE|DELETE/.test(sqlOf(c)),
-    );
+    const writeExecs = execute.mock.calls.filter((c) => /INSERT|UPDATE|DELETE/.test(sqlOf(c)));
     expect(writeExecs).toHaveLength(0);
   });
 

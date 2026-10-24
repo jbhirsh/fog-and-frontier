@@ -39,18 +39,23 @@ describe('toJpeg', () => {
     ctx = { fillStyle: '', imageSmoothingQuality: 'low', fillRect: vi.fn(), drawImage: vi.fn() };
     encoded = new Blob(['jpeg'], { type: 'image/jpeg' });
     canvases = [];
-    vi.stubGlobal('createImageBitmap', vi.fn(() => Promise.resolve(bitmap)));
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(() => Promise.resolve(bitmap)),
+    );
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (
       this: HTMLCanvasElement,
     ) {
       canvases.push(this);
       return ctx as unknown as CanvasRenderingContext2D;
     });
-    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (cb, type, quality) {
-      expect(type).toBe('image/jpeg');
-      expect(quality).toBe(JPEG_QUALITY);
-      cb(encoded);
-    });
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+      function (cb, type, quality) {
+        expect(type).toBe('image/jpeg');
+        expect(quality).toBe(JPEG_QUALITY);
+        cb(encoded);
+      },
+    );
   });
 
   afterEach(() => {

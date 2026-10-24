@@ -35,8 +35,7 @@ test.describe('visual regression — mobile', () => {
     // Explore is owner-only (#111): a non-owner is redirected home, so flip
     // the dev/test-only override before boot to snapshot the owner view.
     await page.addInitScript(() => {
-      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ =
-        true;
+      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ = true;
     });
     await page.goto('/explore');
     await waitForVisualReady(page);
@@ -46,9 +45,7 @@ test.describe('visual regression — mobile', () => {
     });
   });
 
-  test('map page (full-screen map + list sheet at peek, #96)', async ({
-    page,
-  }) => {
+  test('map page (full-screen map + list sheet at peek, #96)', async ({ page }) => {
     await page.goto('/map');
     await waitForVisualReady(page);
     // Leaflet renders its tile layer asynchronously — wait for the container
@@ -108,9 +105,7 @@ test.describe('visual regression — mobile', () => {
     await waitForVisualReady(page);
     // Open the first card (the long-name fixture). Clicking its button-shaped
     // card opens the ActivityDetail dialog.
-    await page
-      .getByRole('button', { name: /Deliberately Long Activity Name/ })
-      .click();
+    await page.getByRole('button', { name: /Deliberately Long Activity Name/ }).click();
     await page.getByRole('dialog').waitFor();
     await waitForVisualReady(page);
     await expect(page).toHaveScreenshot('activity-detail-mobile.png', {
@@ -147,18 +142,14 @@ test.describe('visual regression — mobile', () => {
     // "Completed only" filter.
     await page.goto('/?completed=1');
     await waitForVisualReady(page);
-    await page
-      .getByRole('button', { name: /Completed Scenic Drive/ })
-      .click();
+    await page.getByRole('button', { name: /Completed Scenic Drive/ }).click();
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
     await waitForVisualReady(page);
     // Scroll the photos heading into view so the snapshot frames it, once the
     // photos have loaded.
     await page.getByAltText('Completed Scenic Drive 2').waitFor();
-    await page
-      .getByRole('heading', { name: 'Your Photos' })
-      .scrollIntoViewIfNeeded();
+    await page.getByRole('heading', { name: 'Your Photos' }).scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
     await expect(page).toHaveScreenshot('activity-detail-photos-mobile.png', {
       fullPage: false,
@@ -169,8 +160,7 @@ test.describe('visual regression — mobile', () => {
     // The Add button is owner-gated. Flip the dev/test-only override before
     // the page boots so useOwner() returns isOwner=true under Playwright.
     await page.addInitScript(() => {
-      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ =
-        true;
+      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ = true;
     });
     await page.goto('/');
     await waitForVisualReady(page);
@@ -185,8 +175,7 @@ test.describe('visual regression — mobile', () => {
 
   test('add activity — review step', async ({ page }) => {
     await page.addInitScript(() => {
-      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ =
-        true;
+      (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__ = true;
     });
     await stubGenerateActivity(page);
     await page.goto('/');
@@ -196,9 +185,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByLabel('Title').fill('Test Adventure');
     await page.getByRole('button', { name: /Generate/ }).click();
     // Header changes to "Review & save" once the stub resolves.
-    await page
-      .getByRole('heading', { name: 'Review & save' })
-      .waitFor();
+    await page.getByRole('heading', { name: 'Review & save' }).waitFor();
     await page.locator('.leaflet-container').waitFor();
     await page.waitForTimeout(500);
     await expect(page).toHaveScreenshot('add-activity-review-mobile.png', {

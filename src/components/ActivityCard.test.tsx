@@ -2,11 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { ActivityCard } from './ActivityCard';
-import {
-  completedHike,
-  dogFriendlyTidepools,
-  muirWoods,
-} from '../test/fixtures';
+import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 
 describe('ActivityCard', () => {
   it('renders core fields', () => {
@@ -64,9 +60,7 @@ describe('ActivityCard', () => {
 
   it('exposes data-activity-id on the root for scroll-into-view (#94)', () => {
     const { container } = render(<ActivityCard activity={muirWoods} />);
-    expect(
-      container.querySelector(`[data-activity-id="${muirWoods.id}"]`),
-    ).toBeInTheDocument();
+    expect(container.querySelector(`[data-activity-id="${muirWoods.id}"]`)).toBeInTheDocument();
   });
 
   it('fires onHoverChange on pointer enter/leave (#94)', async () => {
@@ -100,9 +94,7 @@ describe('ActivityCard', () => {
   });
 
   it('outlines the cover when highlighted by a hovered pin (#94)', () => {
-    const { container, rerender } = render(
-      <ActivityCard activity={muirWoods} />,
-    );
+    const { container, rerender } = render(<ActivityCard activity={muirWoods} />);
     expect(container.querySelector('.outline-2')).toBeNull();
     rerender(<ActivityCard activity={muirWoods} highlighted />);
     expect(container.querySelector('.outline-2')).not.toBeNull();
@@ -123,24 +115,15 @@ describe('ActivityCard', () => {
   });
 
   it('renders an actionSlot overlay', () => {
-    render(
-      <ActivityCard
-        activity={muirWoods}
-        actionSlot={<button type="button">Trip</button>}
-      />,
-    );
+    render(<ActivityCard activity={muirWoods} actionSlot={<button type="button">Trip</button>} />);
     expect(screen.getByRole('button', { name: 'Trip' })).toBeInTheDocument();
   });
 
   it('shows both the completed badge and the actionSlot without dropping either', () => {
     render(
-      <ActivityCard
-        activity={completedHike}
-        actionSlot={<button type="button">Trip</button>}
-      />,
+      <ActivityCard activity={completedHike} actionSlot={<button type="button">Trip</button>} />,
     );
     expect(screen.getByText('COMPLETED')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trip' })).toBeInTheDocument();
   });
-
 });

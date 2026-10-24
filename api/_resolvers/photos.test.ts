@@ -69,7 +69,13 @@ const REMOVE = `mutation($i: RemoveActivityPhotoInput!){ removeActivityPhoto(inp
 const DELETE_ACTIVITY = `mutation($i: DeleteActivityInput!){ deleteActivity(input: $i){ deletedId } }`;
 
 // --- in-memory tables -------------------------------------------------------
-type Row = { id: string; activity_id: string; pathname: string; added_by: string; created_at: number };
+type Row = {
+  id: string;
+  activity_id: string;
+  pathname: string;
+  added_by: string;
+  created_at: number;
+};
 let table: Map<string, Row>;
 let catalog: Set<string>;
 
@@ -95,10 +101,19 @@ function fakeDb(q: unknown) {
     return { rows: [{ n: forActivity(args[0]).length }] };
   }
   if (sql.startsWith('INSERT INTO activity_photos')) {
-    expect(sql).toMatch(/WHERE EXISTS \(SELECT 1 FROM a WHERE id = \?\)\s+AND \(SELECT COUNT\(\*\) FROM activity_photos WHERE activity_id = \?\) < \?/);
+    expect(sql).toMatch(
+      /WHERE EXISTS \(SELECT 1 FROM a WHERE id = \?\)\s+AND \(SELECT COUNT\(\*\) FROM activity_photos WHERE activity_id = \?\) < \?/,
+    );
     expect(sql).toMatch(/ON CONFLICT\(id\) DO NOTHING/);
     const [id, activity_id, pathname, added_by, created_at, existsFor, capFor, cap] = args as [
-      string, string, string, string, number, string, string, number,
+      string,
+      string,
+      string,
+      string,
+      number,
+      string,
+      string,
+      number,
     ];
     if (table.has(id) || !catalog.has(existsFor) || forActivity(capFor).length >= cap) {
       return { rows: [], rowsAffected: 0 };
@@ -524,9 +539,8 @@ describe('deleting an activity', () => {
 
 describe('pathnamesFrom', () => {
   it('keeps the string pathnames of returned rows', () => {
-    expect(photos.pathnamesFrom([{ pathname: 'a' }, { pathname: 3 }, {}, { pathname: 'b' }])).toEqual([
-      'a',
-      'b',
-    ]);
+    expect(
+      photos.pathnamesFrom([{ pathname: 'a' }, { pathname: 3 }, {}, { pathname: 'b' }]),
+    ).toEqual(['a', 'b']);
   });
 });

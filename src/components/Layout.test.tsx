@@ -45,9 +45,7 @@ describe('Layout', () => {
     // `hover:text-secondary`, so a className substring match would not).
     const curated = screen.getByRole('link', { name: 'Curated' });
     expect(curated).toHaveAttribute('aria-current', 'page');
-    expect(
-      screen.getByRole('link', { name: 'Explore' }),
-    ).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Explore' })).not.toHaveAttribute('aria-current');
   });
 
   it('marks the Trips link active on /trips', () => {
@@ -61,9 +59,7 @@ describe('Layout', () => {
   // catalog's "Completed only" filter now.
   it('has no Adventures tab', () => {
     renderAt('/');
-    expect(
-      screen.queryByRole('link', { name: 'Adventures' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Adventures' })).not.toBeInTheDocument();
   });
 
   it('renders the brand and footer', () => {
@@ -77,18 +73,13 @@ describe('Layout', () => {
   // Explore is an owner-only surface (#111): hidden, not greyed out.
   it('shows the Explore tab to the owner', () => {
     renderAt('/');
-    expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute(
-      'href',
-      '/explore',
-    );
+    expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');
   });
 
   it('hides the Explore tab from non-owners', () => {
     ownerState.isOwner = false;
     renderAt('/');
-    expect(
-      screen.queryByRole('link', { name: 'Explore' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Explore' })).not.toBeInTheDocument();
     // The rest of the nav is unaffected.
     expect(screen.getByRole('link', { name: 'Curated' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Trips' })).toBeInTheDocument();

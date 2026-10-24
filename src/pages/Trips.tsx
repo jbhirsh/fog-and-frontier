@@ -1,10 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useOwner } from '../lib/useOwner';
-import {
-  useTripsList,
-  type TripListItem,
-  type TripStatus,
-} from '../lib/userTrips';
+import { useTripsList, type TripListItem, type TripStatus } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
 
 export function Trips() {
@@ -13,9 +9,7 @@ export function Trips() {
 
   if (!isLoaded) {
     return (
-      <section className="px-margin py-xl text-center text-on-surface-variant">
-        Loading…
-      </section>
+      <section className="px-margin py-xl text-center text-on-surface-variant">Loading…</section>
     );
   }
 
@@ -37,11 +31,10 @@ export function Trips() {
       <section className="px-margin py-lg md:py-xl bg-surface-container-low border-b border-outline-variant/20">
         <div className="max-w-screen-2xl mx-auto flex items-baseline justify-between flex-wrap gap-md">
           <div>
-            <h1 className="font-display text-headline-lg md:text-display text-primary">
-              Trips
-            </h1>
+            <h1 className="font-display text-headline-lg md:text-display text-primary">Trips</h1>
             <p className="font-body-md text-on-surface-variant">
-              Plan a multi-day outing — shortlist activities, slot them into a per-day itinerary, see the map.
+              Plan a multi-day outing — shortlist activities, slot them into a per-day itinerary,
+              see the map.
             </p>
           </div>
           {isOwner && (
@@ -49,7 +42,10 @@ export function Trips() {
               to="/trips/new"
               className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
             >
-              <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+              <span
+                className="material-symbols-outlined text-icon-md"
+                style={{ marginLeft: glyphBleed('add') }}
+              >
                 add
               </span>
               New trip
@@ -77,7 +73,10 @@ export function Trips() {
                 to="/trips/new"
                 className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 transition-opacity"
               >
-                <span className="material-symbols-outlined text-icon-md" style={{ marginLeft: glyphBleed('add') }}>
+                <span
+                  className="material-symbols-outlined text-icon-md"
+                  style={{ marginLeft: glyphBleed('add') }}
+                >
                   add
                 </span>
                 New trip

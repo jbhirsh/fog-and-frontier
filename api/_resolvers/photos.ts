@@ -132,10 +132,7 @@ async function countOf(activityId: string): Promise<number> {
 }
 
 function photoLimit() {
-  return conflict(
-    `an activity can have at most ${MAX_PHOTOS_PER_ACTIVITY} photos`,
-    'photo_limit',
-  );
+  return conflict(`an activity can have at most ${MAX_PHOTOS_PER_ACTIVITY} photos`, 'photo_limit');
 }
 
 async function activityPhotos(
@@ -224,9 +221,7 @@ async function addActivityPhoto(
     if (stillThere.rows.length === 0) throw notFound('activity not found');
     throw photoLimit();
   }
-  const [photo] = await withUrls([
-    { id, activityId, pathname: input.pathname, createdAt: now },
-  ]);
+  const [photo] = await withUrls([{ id, activityId, pathname: input.pathname, createdAt: now }]);
   return { photo };
 }
 

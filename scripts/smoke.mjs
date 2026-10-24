@@ -132,7 +132,10 @@ async function checkGraphql() {
     record(
       'POST /api/graphql',
       false,
-      `GraphQL errors: ${payload.errors.map((e) => e.message).join('; ').slice(0, 300)}`,
+      `GraphQL errors: ${payload.errors
+        .map((e) => e.message)
+        .join('; ')
+        .slice(0, 300)}`,
     );
     return;
   }
@@ -267,7 +270,9 @@ async function checkHtmlAndCss() {
   }
 }
 
-console.log(`Smoke gate against ${baseUrl} (SMOKE_ENV=${process.env.SMOKE_ENV ?? 'Production (default)'}, strict=${STRICT})`);
+console.log(
+  `Smoke gate against ${baseUrl} (SMOKE_ENV=${process.env.SMOKE_ENV ?? 'Production (default)'}, strict=${STRICT})`,
+);
 await checkGraphql();
 await checkTrips();
 await checkHtmlAndCss();

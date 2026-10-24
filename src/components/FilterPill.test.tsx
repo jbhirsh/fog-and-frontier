@@ -35,6 +35,9 @@ describe('FilterPill', () => {
     // is hidden from assistive tech so it isn't read twice.
     const select = screen.getByRole('combobox', { name: 'Distance' });
     expect(select.parentElement).toHaveClass('absolute', 'inset-0');
-    expect(screen.getByText('Any distance', { selector: 'span' })).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Any distance', { selector: 'span' })).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
   });
 });

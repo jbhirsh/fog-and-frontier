@@ -42,11 +42,7 @@ const sheet = () => screen.getByRole('region', { name: 'Activities list' });
 const grabber = () => screen.getByRole('button', { name: /resize list/i });
 
 // Drag from y=700 to `toY` on `target`, releasing (or cancelling) on window.
-function drag(
-  target: Element,
-  toY: number,
-  end: 'pointerUp' | 'pointerCancel' = 'pointerUp',
-) {
+function drag(target: Element, toY: number, end: 'pointerUp' | 'pointerCancel' = 'pointerUp') {
   fireEvent.pointerDown(target, { clientY: 700 });
   fireEvent.pointerMove(window, { clientY: toY });
   fireEvent[end](window, { clientY: toY });

@@ -61,11 +61,7 @@ export function toMapBounds(bounds: LeafletLatLngBoundsLike): MapBounds {
  * Assumes both the point and the bounds use normalized longitudes in
  * [-180, 180]; {@link toMapBounds} normalizes a Leaflet viewport.
  */
-export function isWithinBounds(
-  lat: number,
-  lng: number,
-  bounds: MapBounds,
-): boolean {
+export function isWithinBounds(lat: number, lng: number, bounds: MapBounds): boolean {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
 
   const withinLat = lat <= bounds.north && lat >= bounds.south;
@@ -87,10 +83,7 @@ export function isWithinBounds(
  * This stacks on top of the other catalog filters — callers pass an already
  * filtered list and narrow it further to the current viewport.
  */
-export function filterByBounds(
-  activities: readonly Activity[],
-  bounds: MapBounds,
-): Activity[] {
+export function filterByBounds(activities: readonly Activity[], bounds: MapBounds): Activity[] {
   return activities.filter((activity) => {
     // Coords are typed as required, but a row can still arrive without them.
     // Non-finite values need no check here: isWithinBounds rejects them.
@@ -109,9 +102,7 @@ export type LatLngCorners = [[number, number], [number, number]];
  * activity has usable coordinates (there is nothing to fit). "Clear bounds"
  * re-frames the map to this box so the map and the list agree again (#106).
  */
-export function activitiesBounds(
-  activities: readonly Activity[],
-): LatLngCorners | null {
+export function activitiesBounds(activities: readonly Activity[]): LatLngCorners | null {
   let south = Infinity;
   let west = Infinity;
   let north = -Infinity;

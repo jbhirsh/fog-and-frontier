@@ -31,9 +31,7 @@ export function coverageGlobs(key: 'include' | 'exclude'): string[] {
 export function coverageBacklog(): string[] {
   const [, backlog] = arrayBody('exclude').split(BACKLOG_MARKER);
   if (backlog === undefined) {
-    throw new Error(
-      `vite.config.ts coverage.exclude has no "${BACKLOG_MARKER}" comment`,
-    );
+    throw new Error(`vite.config.ts coverage.exclude has no "${BACKLOG_MARKER}" comment`);
   }
   return quotedGlobs(backlog);
 }

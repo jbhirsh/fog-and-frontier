@@ -228,7 +228,10 @@ export function drawPointer(): void {
     const SAVED = 'prGif:pointer';
     const at = { x: -100, y: -100, known: false };
     try {
-      const saved = JSON.parse(sessionStorage.getItem(SAVED) ?? 'null') as { x: number; y: number } | null;
+      const saved = JSON.parse(sessionStorage.getItem(SAVED) ?? 'null') as {
+        x: number;
+        y: number;
+      } | null;
       if (saved) {
         at.x = saved.x;
         at.y = saved.y;
@@ -329,8 +332,11 @@ export function drawPointer(): void {
         keys.textContent = [...held, name].join('+');
         typing = false;
       }
-      const clip = (window as unknown as { __prGifClip?: { x: number; y: number; width: number; height: number } })
-        .__prGifClip;
+      const clip = (
+        window as unknown as {
+          __prGifClip?: { x: number; y: number; width: number; height: number };
+        }
+      ).__prGifClip;
       keys.style.left = clip ? `${clip.x + clip.width / 2}px` : '50%';
       keys.style.bottom = clip ? `${innerHeight - (clip.y + clip.height) + 16}px` : '16px';
       keys.style.opacity = '1';
@@ -368,7 +374,8 @@ export const LIVE_GRAPHQL = `${PRODUCTION}/api/graphql`;
 export const CDN_WIDTH = 1280;
 export const CDN_QUALITY = 75;
 const IMAGE = /\.(png|jpe?g|gif|webp|avif|svg)(\?|$)/i;
-const CARTO_TILE = /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/[^/]+\/(\d+)\/(\d+)\/(\d+)(?:@2x)?\.png/;
+const CARTO_TILE =
+  /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/[^/]+\/(\d+)\/(\d+)\/(\d+)(?:@2x)?\.png/;
 
 /** The OpenStreetMap tile for a CARTO tile's URL, or null if it isn't one. */
 export function osmTile(url: string): string | null {
@@ -389,7 +396,10 @@ export function osmTile(url: string): string | null {
 export async function liveSite(page: Pick<Page, 'route'>, api = LIVE_GRAPHQL): Promise<void> {
   const stubbed = new Set<string>();
   await page.route('**/api/graphql', async (route) => {
-    const body = route.request().postDataJSON() as { query?: string; operationName?: string } | null;
+    const body = route.request().postDataJSON() as {
+      query?: string;
+      operationName?: string;
+    } | null;
     if (!/^\s*query\b/.test(body?.query ?? '')) return route.fallback();
     try {
       const response = await route.fetch({ url: api });
@@ -440,7 +450,8 @@ export function pictureSource(
       direct: parsed.searchParams.get('url') ?? undefined,
     };
   }
-  if (['localhost', '127.0.0.1'].includes(parsed.hostname) || !/^https?:$/.test(parsed.protocol)) return null;
+  if (['localhost', '127.0.0.1'].includes(parsed.hostname) || !/^https?:$/.test(parsed.protocol))
+    return null;
   return {
     url: `${production}/_vercel/image?url=${encodeURIComponent(url)}&w=${CDN_WIDTH}&q=${CDN_QUALITY}`,
     direct: url,
@@ -478,7 +489,10 @@ export async function cachePhotos(
       const named = source.direct ?? source.url;
       const file = photoFile(cache, source.url);
       if (existsSync(file) && existsSync(`${file}.type`)) {
-        return route.fulfill({ body: readFileSync(file), contentType: readFileSync(`${file}.type`, 'utf8') });
+        return route.fulfill({
+          body: readFileSync(file),
+          contentType: readFileSync(`${file}.type`, 'utf8'),
+        });
       }
       let why = '';
       let refusal: Awaited<ReturnType<typeof route.fetch>> | undefined;
@@ -783,7 +797,10 @@ export function recordFrames<P extends Recordable<P>>(
       }
       const file = `arrived-${arrived.length}.png`;
       writeFileSync(join(dir, file), png);
-      arrived.push({ file, time: stamp !== undefined && offset !== null ? stamp * 1000 + offset : now });
+      arrived.push({
+        file,
+        time: stamp !== undefined && offset !== null ? stamp * 1000 + offset : now,
+      });
       first();
       // Unacknowledged, it sends no more.
       cdp.send('Page.screencastFrameAck', { sessionId: frame.sessionId }).catch(() => {});
@@ -1039,7 +1056,12 @@ export function sideBySideArgs(
 ): string[] {
   const longest = Math.max(before.ms, after.ms);
   const half = Math.floor((width - 12) / 2);
-  const panel = (input: number, label: string, { ms, crop }: { ms: number; crop?: Clip }, pad: string) =>
+  const panel = (
+    input: number,
+    label: string,
+    { ms, crop }: { ms: number; crop?: Clip },
+    pad: string,
+  ) =>
     `[${input}:v]${cropFilter(crop)}fps=25,scale=${half}:-1:flags=lanczos,` +
     `tpad=stop_mode=clone:stop_duration=${((longest - ms) / 1000).toFixed(3)},` +
     `pad=${pad}:white,` +

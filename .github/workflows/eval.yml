@@ -23,13 +23,13 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - 'api/_resolvers/gemini.ts'
+      - "api/_resolvers/gemini.ts"
       # The follow-up AllTrails search's prompt.
-      - 'api/_allTrailsSearch.ts'
+      - "api/_allTrailsSearch.ts"
       # HOME_BASE goes into the prompts; the eval matches _gqlError's codes.
-      - 'api/_home.ts'
-      - 'api/_gqlError.ts'
-      - 'eval/**'
+      - "api/_home.ts"
+      - "api/_gqlError.ts"
+      - "eval/**"
   workflow_dispatch:
 
 concurrency:
@@ -99,8 +99,8 @@ jobs:
         if: steps.grade.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: package-lock.json
 
       - name: Install deps

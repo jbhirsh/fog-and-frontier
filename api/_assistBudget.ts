@@ -39,7 +39,15 @@ export async function claimAssist(email: string, now = new Date()): Promise<bool
         sql: `INSERT INTO gemini_assists (day, who, n)
               SELECT ?, ?, 1 WHERE ${SHARED_HAS_ROOM}
               ON CONFLICT (day, who) DO UPDATE SET n = n + 1 WHERE n < ? AND ${SHARED_HAS_ROOM}`,
-        args: [day, email, day, TOTAL_DAILY_ASSISTS, ACCOUNT_DAILY_ASSISTS, day, TOTAL_DAILY_ASSISTS],
+        args: [
+          day,
+          email,
+          day,
+          TOTAL_DAILY_ASSISTS,
+          ACCOUNT_DAILY_ASSISTS,
+          day,
+          TOTAL_DAILY_ASSISTS,
+        ],
       },
       {
         sql: `INSERT INTO gemini_assists (day, who, n)

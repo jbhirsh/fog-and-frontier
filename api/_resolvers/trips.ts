@@ -27,11 +27,7 @@ async function trips(_parent: unknown, _args: unknown, ctx: GqlContext) {
   return list.map(mapTripListItem);
 }
 
-async function trip(
-  _parent: unknown,
-  { id }: { id: string },
-  ctx: GqlContext,
-) {
+async function trip(_parent: unknown, { id }: { id: string }, ctx: GqlContext) {
   const t = await loadTripForMemberOrNull(ctx, id);
   return t ? mapTrip(t) : null;
 }

@@ -51,9 +51,7 @@ export function ContributorsField({ value, users, onChange }: Props) {
 
   return (
     <fieldset ref={groupRef} tabIndex={-1} className="focus:outline-none">
-      <legend className="block font-body-sm text-on-surface-variant mb-xs">
-        Contributors
-      </legend>
+      <legend className="block font-body-sm text-on-surface-variant mb-xs">Contributors</legend>
       <div className="flex flex-wrap items-center gap-xs">
         {value.map((email) => (
           <span

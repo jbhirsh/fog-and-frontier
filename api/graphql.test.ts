@@ -45,10 +45,7 @@ async function run(
   variables: Record<string, unknown> = {},
   caller: Caller = null,
 ): Promise<SingleResult> {
-  const res = await server.executeOperation(
-    { query, variables },
-    { contextValue: { caller } },
-  );
+  const res = await server.executeOperation({ query, variables }, { contextValue: { caller } });
   if (res.body.kind !== 'single') throw new Error('expected single result');
   return res.body.singleResult as SingleResult;
 }
@@ -315,8 +312,7 @@ describe('Query.activities (public)', () => {
   });
 
   it('skips rows with no usable id or a JSON payload that is not an object', async () => {
-    const valid = (id?: string) =>
-      JSON.stringify({ ...(id ? { id } : {}), ...minimalActivity() });
+    const valid = (id?: string) => JSON.stringify({ ...(id ? { id } : {}), ...minimalActivity() });
     setup({
       catalog: [
         { id: 'a1', j: valid('a1') },
@@ -405,10 +401,7 @@ describe('Query.activities: malformed rows (data boundary)', () => {
   ])('a row with %s is skipped; the rest still load', async (_label, patch) => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     setup({
-      catalog: [
-        catalogRow('bad-row', { ...validRow, ...patch }),
-        catalogRow('good', validRow),
-      ],
+      catalog: [catalogRow('bad-row', { ...validRow, ...patch }), catalogRow('good', validRow)],
     });
     const r = await run(FULL_SELECTION);
     expect(r.errors).toBeUndefined();
@@ -473,7 +466,12 @@ describe('Query.activities: malformed rows (data boundary)', () => {
 
 describe('Query.completed (public)', () => {
   it('returns completion entries', async () => {
-    setup({ completedRows: [{ id: 'a1', v: 1 }, { id: 'a2', v: 0 }] });
+    setup({
+      completedRows: [
+        { id: 'a1', v: 1 },
+        { id: 'a2', v: 0 },
+      ],
+    });
     const r = await run('{ completed { id completed } }');
     expect(r.errors).toBeUndefined();
     expect(r.data?.completed).toEqual([
@@ -483,7 +481,12 @@ describe('Query.completed (public)', () => {
   });
 
   it('stringifies a numeric row id and skips a null id', async () => {
-    setup({ completedRows: [{ id: 7, v: 1 }, { id: null, v: 0 }] });
+    setup({
+      completedRows: [
+        { id: 7, v: 1 },
+        { id: null, v: 0 },
+      ],
+    });
     const r = await run('{ completed { id completed } }');
     expect(r.errors).toBeUndefined();
     // Numeric id → '7'; the null-id row is dropped (rowIdToString → null).
@@ -618,10 +621,7 @@ describe('owner-gated mutations', () => {
       OWNER,
     );
     expect(batch).toHaveBeenCalledTimes(1);
-    const [stmts, mode] = batch.mock.calls[0] as [
-      { sql: string; args: unknown[] }[],
-      string,
-    ];
+    const [stmts, mode] = batch.mock.calls[0] as [{ sql: string; args: unknown[] }[], string];
     expect(mode).toBe('write');
     expect(stmts.map((s) => s.sql)).toEqual([
       'DELETE FROM a WHERE id = ?',
@@ -776,8 +776,7 @@ describe('contributors (#9)', () => {
   const SAVE =
     'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id contributors } } }';
   const TARUN = 'tarun@example.com';
-  const users = (...emails: string[]) =>
-    emails.map((email) => ({ email, display_name: null }));
+  const users = (...emails: string[]) => emails.map((email) => ({ email, display_name: null }));
 
   function storedJson(): Row {
     return JSON.parse(executeWrites()[0]?.args[1] as string) as Row;
@@ -831,7 +830,10 @@ describe('contributors (#9)', () => {
       {
         i: {
           id: 'a1',
-          activity: { ...minimalActivity(), contributors: [' Tarun@Example.com', TARUN, OWNER.email] },
+          activity: {
+            ...minimalActivity(),
+            contributors: [' Tarun@Example.com', TARUN, OWNER.email],
+          },
         },
       },
       OWNER,
@@ -881,7 +883,11 @@ describe('contributors (#9)', () => {
   it.each([
     ['an empty list', [], 'contributors must name at least one person'],
     ['only blanks', ['  ', ''], 'contributors must name at least one person'],
-    ['an unknown account', [TARUN, 'stranger@example.com'], 'not a known account: stranger@example.com'],
+    [
+      'an unknown account',
+      [TARUN, 'stranger@example.com'],
+      'not a known account: stranger@example.com',
+    ],
   ])('%s → BAD_USER_INPUT, nothing written', async (_label, contributors, message) => {
     setup({ usersRows: users(TARUN) });
     const r = await run(
@@ -929,7 +935,9 @@ describe('contributors (#9)', () => {
   it('a trip snapshot carries the contributors it was copied with', async () => {
     setup({
       activities: [
-        taRow({ snapshot_json: JSON.stringify({ id: 'act1', name: 'Snap', contributors: [TARUN] }) }),
+        taRow({
+          snapshot_json: JSON.stringify({ id: 'act1', name: 'Snap', contributors: [TARUN] }),
+        }),
       ],
     });
     const r = await run(
@@ -954,7 +962,11 @@ describe('costTier (#85)', () => {
 
   it.each(['free', '$', '$$', '$$$'])('saves and reads back %s', async (tier) => {
     setup();
-    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: tier } } }, OWNER);
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), costTier: tier } } },
+      OWNER,
+    );
     expect(r.errors).toBeUndefined();
     expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', costTier: tier } });
     const stored = executeWrites()[0]?.args[1] as string;
@@ -966,22 +978,37 @@ describe('costTier (#85)', () => {
   it('saves where an activity was found (#6)', async () => {
     setup();
     const reel = 'https://www.instagram.com/reel/Ddl9QKSv0D7/';
-    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), sourceUrl: reel } } }, OWNER);
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), sourceUrl: reel } } },
+      OWNER,
+    );
     expect(r.errors).toBeUndefined();
     expect(JSON.parse(executeWrites()[0]?.args[1] as string)).toMatchObject({ sourceUrl: reel });
   });
 
-  it.each(['javascript:alert(1)', 'not a link'])('refuses %s as where it was found, writing nothing', async (bad) => {
-    setup();
-    const refused = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), sourceUrl: bad } } }, OWNER);
-    expect(code(refused)).toBe('BAD_USER_INPUT');
-    expect(refused.errors?.[0]?.message).toBe('sourceUrl must be a web address');
-    expect(executeWrites()).toEqual([]);
-  });
+  it.each(['javascript:alert(1)', 'not a link'])(
+    'refuses %s as where it was found, writing nothing',
+    async (bad) => {
+      setup();
+      const refused = await run(
+        SAVE,
+        { i: { id: 'a1', activity: { ...minimalActivity(), sourceUrl: bad } } },
+        OWNER,
+      );
+      expect(code(refused)).toBe('BAD_USER_INPUT');
+      expect(refused.errors?.[0]?.message).toBe('sourceUrl must be a web address');
+      expect(executeWrites()).toEqual([]);
+    },
+  );
 
   it('refuses a tier outside the set, writing nothing', async () => {
     setup();
-    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: '$$$$' } } }, OWNER);
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), costTier: '$$$$' } } },
+      OWNER,
+    );
     expect(code(r)).toBe('BAD_USER_INPUT');
     expect(r.errors?.[0]?.message).toBe('costTier must be free, $, $$ or $$$');
     expect(executeWrites()).toEqual([]);
@@ -989,13 +1016,21 @@ describe('costTier (#85)', () => {
 
   it('clears it with null', async () => {
     setup();
-    const r = await run(SAVE, { i: { id: 'a1', activity: { ...minimalActivity(), costTier: null } } }, OWNER);
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), costTier: null } } },
+      OWNER,
+    );
     expect(r.errors).toBeUndefined();
     expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', costTier: null } });
   });
 
   it('reads a stored tier outside the set as null rather than failing the catalog', async () => {
-    setup({ catalog: [{ id: 'a1', j: JSON.stringify({ id: 'a1', ...minimalActivity(), costTier: 'cheap' }) }] });
+    setup({
+      catalog: [
+        { id: 'a1', j: JSON.stringify({ id: 'a1', ...minimalActivity(), costTier: 'cheap' }) },
+      ],
+    });
     const read = await run('{ activities { id costTier } }');
     expect(read.errors).toBeUndefined();
     expect(read.data?.activities).toEqual([{ id: 'a1', costTier: null }]);
@@ -1003,7 +1038,12 @@ describe('costTier (#85)', () => {
 });
 
 describe('duplicates (#17)', () => {
-  const CASTLE = { id: 'castle', ...minimalActivity(), name: 'Castle Rock', location: { city: 'Los Gatos', coords: { lat: 37.2309, lng: -122.0961 } } };
+  const CASTLE = {
+    id: 'castle',
+    ...minimalActivity(),
+    name: 'Castle Rock',
+    location: { city: 'Los Gatos', coords: { lat: 37.2309, lng: -122.0961 } },
+  };
   const catalog = [{ id: 'castle', j: JSON.stringify(CASTLE) }];
   const CHECK =
     'query($n: String!, $lat: Float!, $lng: Float!){ checkDuplicate(name:$n, lat:$lat, lng:$lng){ id name city distanceMeters confidence } }';
@@ -1011,7 +1051,11 @@ describe('duplicates (#17)', () => {
   const newCastle = (over: Record<string, unknown> = {}) => ({
     id: 'castle-rock',
     create: true,
-    activity: { ...minimalActivity(), name: 'Castle Rock!', location: { city: 'Los Gatos', coords: { lat: 37.2312, lng: -122.0961 } } },
+    activity: {
+      ...minimalActivity(),
+      name: 'Castle Rock!',
+      location: { city: 'Los Gatos', coords: { lat: 37.2312, lng: -122.0961 } },
+    },
     ...over,
   });
 
@@ -1020,7 +1064,13 @@ describe('duplicates (#17)', () => {
     const r = await run(CHECK, { n: 'castle rock', lat: 37.2312, lng: -122.0961 });
     expect(r.errors).toBeUndefined();
     expect(r.data?.checkDuplicate).toEqual([
-      { id: 'castle', name: 'Castle Rock', city: 'Los Gatos', distanceMeters: 33, confidence: 'high' },
+      {
+        id: 'castle',
+        name: 'Castle Rock',
+        city: 'Los Gatos',
+        distanceMeters: 33,
+        confidence: 'high',
+      },
     ]);
   });
 
@@ -1054,7 +1104,10 @@ describe('duplicates (#17)', () => {
     setup({ catalog, snapshotJson: null });
     // Same name 50 km away: possible, not high.
     const far = newCastle();
-    (far.activity as { location: unknown }).location = { city: 'Elsewhere', coords: { lat: 37.68, lng: -122.0961 } };
+    (far.activity as { location: unknown }).location = {
+      city: 'Elsewhere',
+      coords: { lat: 37.68, lng: -122.0961 },
+    };
     const r = await run(SAVE, { i: far }, OWNER);
     expect(r.errors).toBeUndefined();
   });
@@ -1076,7 +1129,10 @@ describe('duplicates (#17)', () => {
     const write = executeWrites()[0];
     expect(write?.args[0]).toBe('castle-rock-3');
     // A new row credits its creator, not whatever the taken one had.
-    expect(JSON.parse(write?.args[1] as string)).toMatchObject({ id: 'castle-rock-3', contributors: [OWNER.email] });
+    expect(JSON.parse(write?.args[1] as string)).toMatchObject({
+      id: 'castle-rock-3',
+      contributors: [OWNER.email],
+    });
   });
 
   it('saveActivity: a create that loses the race for an id takes the next one, never replacing', async () => {
@@ -1110,7 +1166,8 @@ describe('duplicates (#17)', () => {
     setup({ catalog: [], snapshotJson: null });
     execute.mockImplementation((q: unknown) => {
       const { sql } = q as { sql?: string };
-      if (sql?.startsWith('INSERT INTO a (id, j, t)')) return Promise.resolve({ rows: [], rowsAffected: 0 });
+      if (sql?.startsWith('INSERT INTO a (id, j, t)'))
+        return Promise.resolve({ rows: [], rowsAffected: 0 });
       return Promise.resolve(routeExecute(q));
     });
     const r = await run(SAVE, { i: newCastle() }, OWNER);
@@ -1136,13 +1193,22 @@ describe('Mutation.suggestTripActivities (#78)', () => {
     id,
     j: JSON.stringify({ id, ...minimalActivity(), name, ...extra }),
   });
-  const catalog = [row('a', 'Fort Funston', { dogFriendly: true }), row('b', 'Muir Woods'), row('c', 'Exploratorium')];
+  const catalog = [
+    row('a', 'Fort Funston', { dogFriendly: true }),
+    row('b', 'Muir Woods'),
+    row('c', 'Exploratorium'),
+  ];
   const picks = (...items: [string, string][]) =>
-    geminiText(JSON.stringify({ suggestions: items.map(([activityId, reason]) => ({ activityId, reason })) }));
+    geminiText(
+      JSON.stringify({
+        suggestions: items.map(([activityId, reason]) => ({ activityId, reason })),
+      }),
+    );
   const sentBody = () =>
-    JSON.parse(
-      ((vi.mocked(fetch).mock.calls[0] as unknown[])[1] as { body: string }).body,
-    ) as { contents: { parts: { text: string }[] }[]; tools?: unknown };
+    JSON.parse(((vi.mocked(fetch).mock.calls[0] as unknown[])[1] as { body: string }).body) as {
+      contents: { parts: { text: string }[] }[];
+      tools?: unknown;
+    };
 
   it('is owner-only', async () => {
     setup({ catalog });
@@ -1152,12 +1218,28 @@ describe('Mutation.suggestTripActivities (#78)', () => {
 
   it('keeps only real, unrepeated, unexcluded picks, with their activities', async () => {
     setup({ catalog });
-    stubFetch(picks(['a', 'dogs on the beach'], ['zzz', 'made up'], ['a', 'again'], ['c', ' rainy day '], ['b', 'excluded']));
-    const r = await run(SUGGEST, { i: { prompt: '  a dog day  ', excludeActivityIds: ['b'] } }, OWNER);
+    stubFetch(
+      picks(
+        ['a', 'dogs on the beach'],
+        ['zzz', 'made up'],
+        ['a', 'again'],
+        ['c', ' rainy day '],
+        ['b', 'excluded'],
+      ),
+    );
+    const r = await run(
+      SUGGEST,
+      { i: { prompt: '  a dog day  ', excludeActivityIds: ['b'] } },
+      OWNER,
+    );
     expect(r.errors).toBeUndefined();
     expect(r.data?.suggestTripActivities).toEqual({
       suggestions: [
-        { activityId: 'a', reason: 'dogs on the beach', activity: { id: 'a', name: 'Fort Funston' } },
+        {
+          activityId: 'a',
+          reason: 'dogs on the beach',
+          activity: { id: 'a', name: 'Fort Funston' },
+        },
         { activityId: 'c', reason: 'rainy day', activity: { id: 'c', name: 'Exploratorium' } },
       ],
     });
@@ -1166,7 +1248,11 @@ describe('Mutation.suggestTripActivities (#78)', () => {
     const body = sentBody();
     const text = body.contents[0].parts[0].text;
     expect(text.startsWith('Request: a dog day\n\nCatalog:\n')).toBe(true);
-    const sent = JSON.parse(text.split('Catalog:\n')[1]) as { id: string; city: string; dogFriendly: boolean | null }[];
+    const sent = JSON.parse(text.split('Catalog:\n')[1]) as {
+      id: string;
+      city: string;
+      dogFriendly: boolean | null;
+    }[];
     expect(sent.map((c) => c.id)).toEqual(['a', 'c']);
     expect(sent[0]).toMatchObject({ city: 'X', dogFriendly: true });
     expect(body.tools).toBeUndefined();
@@ -1177,7 +1263,9 @@ describe('Mutation.suggestTripActivities (#78)', () => {
     setup({ catalog: many });
     stubFetch(picks(...many.map((m) => [m.id, 'fits'] as [string, string])));
     const r = await run(SUGGEST, { i: { prompt: 'anything' } }, OWNER);
-    expect((r.data?.suggestTripActivities as { suggestions: unknown[] }).suggestions).toHaveLength(12);
+    expect((r.data?.suggestTripActivities as { suggestions: unknown[] }).suggestions).toHaveLength(
+      12,
+    );
   });
 
   it('asks nothing when every activity is excluded', async () => {
@@ -1191,7 +1279,10 @@ describe('Mutation.suggestTripActivities (#78)', () => {
   it.each([
     [{ prompt: '   ' }, 'prompt is required'],
     [{ prompt: 'x'.repeat(2001) }, 'prompt too long'],
-    [{ prompt: 'x', excludeActivityIds: Array.from({ length: 51 }, (_, i) => `e${i}`) }, 'at most 50 excluded activities'],
+    [
+      { prompt: 'x', excludeActivityIds: Array.from({ length: 51 }, (_, i) => `e${i}`) },
+      'at most 50 excluded activities',
+    ],
   ])('refuses bad input: %#', async (i, message) => {
     setup({ catalog });
     stubFetch(picks());
@@ -1206,7 +1297,12 @@ describe('Mutation.suggestTripActivities (#78)', () => {
     stubFetch(picks());
     const r = await run(
       SUGGEST,
-      { i: { prompt: 'x'.repeat(2000), excludeActivityIds: Array.from({ length: 50 }, (_, i) => `e${i}`) } },
+      {
+        i: {
+          prompt: 'x'.repeat(2000),
+          excludeActivityIds: Array.from({ length: 50 }, (_, i) => `e${i}`),
+        },
+      },
       OWNER,
     );
     expect(r.errors).toBeUndefined();
@@ -1223,7 +1319,10 @@ describe('Mutation.suggestTripActivities (#78)', () => {
     setup({ catalog });
     stubFetch(geminiText(JSON.stringify({ suggestions: [{ activityId: 'a' }] })));
     const r = await run(SUGGEST, { i: { prompt: 'x' } }, OWNER);
-    expect((r.data?.suggestTripActivities as { suggestions: { reason: string }[] }).suggestions[0].reason).toBe('');
+    expect(
+      (r.data?.suggestTripActivities as { suggestions: { reason: string }[] }).suggestions[0]
+        .reason,
+    ).toBe('');
   });
 
   it('turns an upstream failure or a non-JSON answer into BAD_GATEWAY', async () => {
@@ -1322,7 +1421,8 @@ describe('Gemini ops', () => {
   }
 
   it('findSharedPlaces (#6): owners only, and only for an Instagram link', async () => {
-    const FIND = 'mutation($u: String!){ findSharedPlaces(url: $u){ places { name } read { caption } } }';
+    const FIND =
+      'mutation($u: String!){ findSharedPlaces(url: $u){ places { name } read { caption } } }';
     const reel = { u: 'https://www.instagram.com/reel/Ddl9QKSv0D7/' };
     expect(code(await run(FIND, reel))).toBe('UNAUTHENTICATED');
     expect(code(await run(FIND, reel, EDITOR))).toBe('FORBIDDEN');
@@ -1369,7 +1469,10 @@ describe('Gemini ops', () => {
     ['long notes', { title: 'Castle Rock', notes: 'x'.repeat(2001) }, 'notes are too long'],
     [
       'more than five links',
-      { title: 'Castle Rock', notes: Array.from({ length: 6 }, (_, i) => `https://e.example/${i}`).join(' ') },
+      {
+        title: 'Castle Rock',
+        notes: Array.from({ length: 6 }, (_, i) => `https://e.example/${i}`).join(' '),
+      },
       'a draft can include at most 5 links',
     ],
     [
@@ -1385,15 +1488,18 @@ describe('Gemini ops', () => {
       { title: Array.from({ length: 6 }, (_, i) => `http://a${i}.co`).join(' ') },
       'a draft can include at most 5 links',
     ],
-  ])('generateActivity: a non-owner with %s → BAD_USER_INPUT, no draft spent', async (_name, input, message) => {
-    setup();
-    stubCastleRock();
-    const r = await run(DRAFT, { i: input }, EDITOR);
-    expect(code(r)).toBe('BAD_USER_INPUT');
-    expect(r.errors?.[0]?.message).toBe(message);
-    expect(assistClaims()).toBe(0);
-    expect(fetch).not.toHaveBeenCalled();
-  });
+  ])(
+    'generateActivity: a non-owner with %s → BAD_USER_INPUT, no draft spent',
+    async (_name, input, message) => {
+      setup();
+      stubCastleRock();
+      const r = await run(DRAFT, { i: input }, EDITOR);
+      expect(code(r)).toBe('BAD_USER_INPUT');
+      expect(r.errors?.[0]?.message).toBe(message);
+      expect(assistClaims()).toBe(0);
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
 
   it('generateActivity: a non-owner at each limit still gets a draft', async () => {
     setup();
@@ -1439,7 +1545,10 @@ describe('Gemini ops', () => {
 
   it("generateActivity: a non-owner's draft is given back when the request never connects", async () => {
     setup();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('socket hang up'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new Error('socket hang up'))),
+    );
     const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
     expect(r.errors).toBeDefined();
     expect(givenBack()).toHaveLength(1);
@@ -1459,7 +1568,9 @@ describe('Gemini ops', () => {
     setup();
     stubFetch({ error: 'unavailable' }, { ok: false });
     // The claim goes through; the give-back after Gemini's failure doesn't.
-    const claimOnly = batch.getMockImplementation() as (stmts: { sql: string }[]) => Promise<unknown>;
+    const claimOnly = batch.getMockImplementation() as (
+      stmts: { sql: string }[],
+    ) => Promise<unknown>;
     batch.mockImplementation((stmts: { sql: string }[]) =>
       stmts.some((s) => /^UPDATE gemini_assists/.test(s.sql))
         ? Promise.reject(new Error('db down'))
@@ -1538,7 +1649,8 @@ describe('Gemini ops', () => {
       duration: 'Half Day',
     };
     const STAIRS = 'https://www.alltrails.com/trail/us/california/dragon-mountain-stairs';
-    const LINKED = 'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name allTrailsUrl } } }';
+    const LINKED =
+      'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name allTrailsUrl } } }';
     type Answer = { ok: boolean; body: unknown } | Error;
     /** Answers each Gemini request in turn; Commons finds nothing. */
     function stubGemini(...answers: Answer[]) {
@@ -1563,14 +1675,19 @@ describe('Gemini ops', () => {
       );
       return asked;
     }
-    const answer = (value: unknown): Answer => ({ ok: true, body: geminiText(JSON.stringify(value)) });
+    const answer = (value: unknown): Answer => ({
+      ok: true,
+      body: geminiText(JSON.stringify(value)),
+    });
 
     it('searches once more, for the trail page alone, and keeps what it finds', async () => {
       setup();
       const asked = stubGemini(answer(HIKE), answer({ allTrailsUrl: STAIRS }));
       const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak, Milpitas' } }, OWNER);
       expect(r.errors).toBeUndefined();
-      expect(r.data?.generateActivity).toEqual({ activity: { name: 'Dragon Mountain Peak', allTrailsUrl: STAIRS } });
+      expect(r.data?.generateActivity).toEqual({
+        activity: { name: 'Dragon Mountain Peak', allTrailsUrl: STAIRS },
+      });
       expect(asked).toHaveLength(2);
       const search = asked[1] as {
         systemInstruction: { parts: { text: string }[] };
@@ -1606,7 +1723,11 @@ describe('Gemini ops', () => {
     });
 
     it('counts a non-owner’s draft once, and keeps it counted when the search fails', async () => {
-      for (const second of [answer({ allTrailsUrl: STAIRS }), { ok: false, body: {} }, new Error('reset')]) {
+      for (const second of [
+        answer({ allTrailsUrl: STAIRS }),
+        { ok: false, body: {} },
+        new Error('reset'),
+      ]) {
         setup();
         // Counted per draft: the last one's writes go.
         batch.mockClear();
@@ -1628,7 +1749,12 @@ describe('Gemini ops', () => {
         [timedOut, { error: 'TimeoutError' }],
         [new TypeError('fetch failed'), { error: 'TypeError' }],
         [answer({}), null],
-        [answer({ allTrailsUrl: 'https://www.alltrails.com/parks/us/california/ed-r-levin-county-park' }), null],
+        [
+          answer({
+            allTrailsUrl: 'https://www.alltrails.com/parks/us/california/ed-r-levin-county-park',
+          }),
+          null,
+        ],
       ];
       for (const [second, logged] of cases) {
         setup();
@@ -1637,7 +1763,9 @@ describe('Gemini ops', () => {
         stubGemini(answer(HIKE), second);
         const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
         expect(r.errors).toBeUndefined();
-        expect(r.data?.generateActivity).toEqual({ activity: { name: 'Dragon Mountain Peak', allTrailsUrl: null } });
+        expect(r.data?.generateActivity).toEqual({
+          activity: { name: 'Dragon Mountain Peak', allTrailsUrl: null },
+        });
         const events = info.mock.calls
           .map((c) => JSON.parse(String(c[0])) as Row)
           .filter((e) => e.event === 'draft.trail_search_failed');
@@ -1657,9 +1785,14 @@ describe('Gemini ops', () => {
       ];
       for (const draft of drafts) {
         setup();
-        const asked = stubGemini(answer(draft), answer({ allTrailsUrl: 'https://www.alltrails.com/trail/other' }));
+        const asked = stubGemini(
+          answer(draft),
+          answer({ allTrailsUrl: 'https://www.alltrails.com/trail/other' }),
+        );
         const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-        expect((r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl).toBe(draft.allTrailsUrl ?? null);
+        expect((r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl).toBe(
+          draft.allTrailsUrl ?? null,
+        );
         expect(asked).toHaveLength(1);
       }
     });
@@ -1667,7 +1800,10 @@ describe('Gemini ops', () => {
     it('searches again when the draft’s own link was dropped as unsavable', async () => {
       setup();
       const redirect = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc';
-      const asked = stubGemini(answer({ ...HIKE, allTrailsUrl: redirect }), answer({ allTrailsUrl: STAIRS }));
+      const asked = stubGemini(
+        answer({ ...HIKE, allTrailsUrl: redirect }),
+        answer({ allTrailsUrl: STAIRS }),
+      );
       const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
       expect((r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl).toBe(STAIRS);
       expect(asked).toHaveLength(2);
@@ -1702,7 +1838,12 @@ describe('Gemini ops', () => {
     );
     expect(r.errors).toBeUndefined();
     expect(r.data?.generateActivity).toEqual({
-      activity: { name: 'Manresa', cuisine: 'Californian', priceRange: '$$$$', dietary: ['vegetarian'] },
+      activity: {
+        name: 'Manresa',
+        cuisine: 'Californian',
+        priceRange: '$$$$',
+        dietary: ['vegetarian'],
+      },
     });
   });
 
@@ -1894,26 +2035,29 @@ describe('Gemini ops', () => {
       'allTrailsRating',
     ],
     ['discover', '{ discover(range: weekend){ range } }', {}, 'medium', 'items'],
-  ])('%s: sends a grounded, schema-shaped Gemini 3 request', async (_name, query, vars, level, key) => {
-    setup();
-    stubFetch(geminiText(JSON.stringify(castleRock)));
-    await run(query, vars, OWNER);
-    // stubFetch's mock takes (url: string, init); the resolvers pass a JSON body.
-    const calls = vi.mocked(fetch).mock.calls as unknown as [string, { body: string }][];
-    const call = calls.find(([url]) => url.includes('generativelanguage'));
-    expect(call?.[0]).toContain('/models/gemini-3.8-flash:generateContent');
-    const body = JSON.parse(call?.[1].body ?? '{}') as Row;
-    expect(body.tools).toEqual([{ googleSearch: {} }, { urlContext: {} }]);
-    const config = body.generationConfig as Row;
-    expect(config).toMatchObject({
-      responseMimeType: 'application/json',
-      thinkingConfig: { thinkingLevel: level },
-    });
-    // Its own schema: the activity's fields, the lookup's numbers, or an event list.
-    const schema = config.responseJsonSchema as Row;
-    expect(key === 'items' ? schema : schema.properties).toHaveProperty(key);
-    expect(config).not.toHaveProperty('temperature');
-  });
+  ])(
+    '%s: sends a grounded, schema-shaped Gemini 3 request',
+    async (_name, query, vars, level, key) => {
+      setup();
+      stubFetch(geminiText(JSON.stringify(castleRock)));
+      await run(query, vars, OWNER);
+      // stubFetch's mock takes (url: string, init); the resolvers pass a JSON body.
+      const calls = vi.mocked(fetch).mock.calls as unknown as [string, { body: string }][];
+      const call = calls.find(([url]) => url.includes('generativelanguage'));
+      expect(call?.[0]).toContain('/models/gemini-3.8-flash:generateContent');
+      const body = JSON.parse(call?.[1].body ?? '{}') as Row;
+      expect(body.tools).toEqual([{ googleSearch: {} }, { urlContext: {} }]);
+      const config = body.generationConfig as Row;
+      expect(config).toMatchObject({
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingLevel: level },
+      });
+      // Its own schema: the activity's fields, the lookup's numbers, or an event list.
+      const schema = config.responseJsonSchema as Row;
+      expect(key === 'items' ? schema : schema.properties).toHaveProperty(key);
+      expect(config).not.toHaveProperty('temperature');
+    },
+  );
 
   it('generateActivity: gemini JSON that is not an object → BAD_GATEWAY', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -2037,9 +2181,7 @@ describe('Query.trips / trip', () => {
     });
     const r = await run('{ trips { id scheduledCount unscheduledCount } }', {}, OWNER);
     expect(r.errors).toBeUndefined();
-    expect(r.data?.trips).toEqual([
-      { id: 'trip1', scheduledCount: 2, unscheduledCount: 1 },
-    ]);
+    expect(r.data?.trips).toEqual([{ id: 'trip1', scheduledCount: 2, unscheduledCount: 1 }]);
   });
 
   it('trip(id): anon → UNAUTHENTICATED', async () => {

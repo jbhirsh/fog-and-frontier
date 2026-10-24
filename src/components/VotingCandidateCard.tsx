@@ -37,9 +37,7 @@ export function VotingCandidateCard({
   const snapshot = activity.snapshot;
   const name = snapshot?.name ?? '(deleted activity)';
   const cover = snapshot?.coverImage ?? null;
-  const cityLine = [snapshot?.location?.city, snapshot?.duration]
-    .filter(Boolean)
-    .join(' · ');
+  const cityLine = [snapshot?.location?.city, snapshot?.duration].filter(Boolean).join(' · ');
   const orphaned = !snapshot;
 
   return (
@@ -72,21 +70,11 @@ export function VotingCandidateCard({
             onClick={onOpen}
             className="flex gap-md flex-1 min-w-0 text-left rounded-lg hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
           >
-            <CardBody
-              cover={cover}
-              name={name}
-              cityLine={cityLine}
-              orphaned={orphaned}
-            />
+            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
           </button>
         ) : (
           <div className="flex gap-md flex-1 min-w-0">
-            <CardBody
-              cover={cover}
-              name={name}
-              cityLine={cityLine}
-              orphaned={orphaned}
-            />
+            <CardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
           </div>
         )}
 
@@ -133,10 +121,7 @@ function CardBody({
         {cover ? (
           <CdnImage alt="" src={cover} sizes="80px" className="w-full h-full object-cover" />
         ) : (
-          <span
-            className="material-symbols-outlined text-outline"
-            style={{ fontSize: 28 }}
-          >
+          <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>
             landscape
           </span>
         )}
@@ -152,9 +137,7 @@ function CardBody({
           </div>
         )}
         {orphaned && (
-          <div className="font-body-md text-xs text-error">
-            Original activity was deleted.
-          </div>
+          <div className="font-body-md text-xs text-error">Original activity was deleted.</div>
         )}
       </div>
     </>

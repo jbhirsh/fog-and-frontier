@@ -25,9 +25,7 @@ export function MembersStrip({
   const currentLower = currentEmail?.toLowerCase() ?? null;
 
   // Is the current user a member but NOT the creator? If so show Leave button.
-  const currentMember = members.find(
-    (m) => m.email.toLowerCase() === currentLower,
-  );
+  const currentMember = members.find((m) => m.email.toLowerCase() === currentLower);
   const showLeave = !!currentMember && !currentMember.is_creator;
 
   return (
@@ -46,9 +44,7 @@ export function MembersStrip({
           >
             <span>
               {member.display_name ?? member.email}
-              {isOwnChip && (
-                <span className="ml-xs text-on-surface-variant/60">· You</span>
-              )}
+              {isOwnChip && <span className="ml-xs text-on-surface-variant/60">· You</span>}
             </span>
             {member.is_creator && (
               <span className="font-label-caps text-label-caps text-primary bg-primary-fixed px-xs rounded-full text-xs">
@@ -60,11 +56,7 @@ export function MembersStrip({
                 type="button"
                 onClick={() => onRemoveMember(member.email)}
                 disabled={removeDisabled}
-                title={
-                  removeDisabled
-                    ? 'Only the trip creator can remove members'
-                    : undefined
-                }
+                title={removeDisabled ? 'Only the trip creator can remove members' : undefined}
                 aria-label={`Remove ${member.email}`}
                 className="inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 hover:text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -121,10 +113,7 @@ export function MembersStrip({
         onClick={onInvite}
         className="inline-flex items-center gap-xs font-body-md text-sm px-sm py-xs rounded-full border border-outline-variant/40 text-primary hover:bg-surface-variant"
       >
-        <span className="material-symbols-outlined text-icon-sm">
-          person_add
-        </span>
-        + Invite
+        <span className="material-symbols-outlined text-icon-sm">person_add</span>+ Invite
       </button>
     </div>
   );

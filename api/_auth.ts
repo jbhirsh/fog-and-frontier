@@ -40,16 +40,12 @@ function client() {
 // #50 AC. Clerk/network failures collapse to `anon` since we can't trust the
 // identity — same conservative posture as the prior boolean helper.
 export type CallerStatus =
-  | { state: 'anon' }
-  | { state: 'non_owner'; email: string }
-  | { state: 'owner'; email: string };
+  { state: 'anon' } | { state: 'non_owner'; email: string } | { state: 'owner'; email: string };
 
 // Token-core: resolve a caller from a raw Bearer token string (no req object).
 // The GraphQL context (api/_gqlContext.ts) extracts the token from the request
 // and authenticates from it, so the identity logic lives here.
-export async function getCallerStatusFromToken(
-  token: string | null,
-): Promise<CallerStatus> {
+export async function getCallerStatusFromToken(token: string | null): Promise<CallerStatus> {
   if (!secretKey || ownerEmails.size === 0) return { state: 'anon' };
   if (!token) return { state: 'anon' };
 
@@ -65,18 +61,14 @@ export async function getCallerStatusFromToken(
   let email: string | null;
   try {
     const user = await client().users.getUser(userId);
-    const primary = user.emailAddresses.find(
-      (e) => e.id === user.primaryEmailAddressId,
-    );
+    const primary = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
     email = primary?.emailAddress.trim().toLowerCase() ?? null;
   } catch {
     return { state: 'anon' };
   }
 
   if (!email) return { state: 'anon' };
-  return ownerEmails.has(email)
-    ? { state: 'owner', email }
-    : { state: 'non_owner', email };
+  return ownerEmails.has(email) ? { state: 'owner', email } : { state: 'non_owner', email };
 }
 
 export type CurrentUser = { email: string; role: UserRole };
@@ -88,9 +80,7 @@ export type CurrentUser = { email: string; role: UserRole };
 // Callers MUST have run `ensureTripsSchema()` first (it creates the `users`
 // table). The GraphQL guards in api/_gqlContext.ts build on its result:
 // `requireOwnerCtx` remains the gate for site-wide writes and paid endpoints.
-export async function getCurrentUserFromToken(
-  token: string | null,
-): Promise<CurrentUser | null> {
+export async function getCurrentUserFromToken(token: string | null): Promise<CurrentUser | null> {
   const status = await getCallerStatusFromToken(token);
   if (status.state === 'anon') return null;
   const email = status.email;

@@ -1,21 +1,8 @@
 export type Category =
-  | 'hiking'
-  | 'cycling'
-  | 'water'
-  | 'food'
-  | 'culture'
-  | 'scenic'
-  | 'climbing'
-  | 'camping'
-  | 'other';
+  'hiking' | 'cycling' | 'water' | 'food' | 'culture' | 'scenic' | 'climbing' | 'camping' | 'other';
 
 export type Duration =
-  | '1-2 Hours'
-  | '2-3 Hours'
-  | 'Half Day'
-  | 'Full Day'
-  | 'Weekend'
-  | 'Multi-Day';
+  '1-2 Hours' | '2-3 Hours' | 'Half Day' | 'Full Day' | 'Weekend' | 'Multi-Day';
 
 export type Difficulty = 'easy' | 'moderate' | 'advanced';
 
@@ -24,19 +11,22 @@ export type PriceRange = '$' | '$$' | '$$$' | '$$$$';
 // What it costs one person to do (#85): free, $ under $25, $$ $25–75, $$$ over $75.
 export type CostTier = 'free' | '$' | '$$' | '$$$';
 
-export type Region = 'sf' | 'north-bay' | 'east-bay' | 'south-bay' | 'peninsula' | 'central-coast' | 'norcal' | 'socal' | 'oregon' | 'washington';
+export type Region =
+  | 'sf'
+  | 'north-bay'
+  | 'east-bay'
+  | 'south-bay'
+  | 'peninsula'
+  | 'central-coast'
+  | 'norcal'
+  | 'socal'
+  | 'oregon'
+  | 'washington';
 
 // Who manages the land an activity sits on. Optional — not every activity is
 // in a park. Drives the park-designation filter (state park vs county park,
 // etc.) in the catalog. See issue #77.
-export type ParkType =
-  | 'national'
-  | 'state'
-  | 'regional'
-  | 'county'
-  | 'city'
-  | 'private'
-  | 'none';
+export type ParkType = 'national' | 'state' | 'regional' | 'county' | 'city' | 'private' | 'none';
 
 export interface Activity {
   id: string;

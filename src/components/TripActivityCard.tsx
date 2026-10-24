@@ -39,9 +39,7 @@ export function TripActivityCard({
   const orphaned = !snapshot;
   const name = snapshot?.name ?? '(deleted activity)';
   const cover = snapshot?.coverImage ?? null;
-  const cityLine = [snapshot?.location?.city, snapshot?.duration]
-    .filter(Boolean)
-    .join(' · ');
+  const cityLine = [snapshot?.location?.city, snapshot?.duration].filter(Boolean).join(' · ');
   const start = activity.start_time;
   const end = derivedEndTime(activity);
   const draggable = !disabled && !!onDragStart;
@@ -138,27 +136,20 @@ function CardBody({
         {cover ? (
           <CdnImage alt="" src={cover} sizes="80px" className="w-full h-full object-cover" />
         ) : (
-          <span
-            className="material-symbols-outlined text-outline"
-            style={{ fontSize: 28 }}
-          >
+          <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>
             landscape
           </span>
         )}
       </div>
       <div className="flex-1 min-w-0 space-y-xs">
-        <div className="font-headline-md text-body-lg text-on-surface line-clamp-1">
-          {name}
-        </div>
+        <div className="font-headline-md text-body-lg text-on-surface line-clamp-1">{name}</div>
         {cityLine && (
           <div className="font-body-md text-sm text-on-surface-variant line-clamp-1">
             {cityLine}
           </div>
         )}
         {orphaned && (
-          <div className="font-body-md text-xs text-error">
-            Original activity was deleted.
-          </div>
+          <div className="font-body-md text-xs text-error">Original activity was deleted.</div>
         )}
       </div>
     </>

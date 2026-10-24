@@ -119,8 +119,9 @@ export function parseEmbedPage(html: string, link: InstagramLink): InstagramPost
     // Not the JSON it should be: no post.
   }
   if (!media || typeof media !== 'object') return null;
-  const caption = (media.edge_media_to_caption as { edges?: { node?: { text?: unknown } }[] } | undefined)
-    ?.edges?.[0]?.node?.text;
+  const caption = (
+    media.edge_media_to_caption as { edges?: { node?: { text?: unknown } }[] } | undefined
+  )?.edges?.[0]?.node?.text;
   const owner = media.owner as { username?: unknown } | undefined;
   const isVideo = typeof media.is_video === 'boolean' ? media.is_video : undefined;
   const videoUrl = str(media.video_url);
@@ -153,7 +154,9 @@ export function parsePostPage(html: string, link: InstagramLink): InstagramPost 
     }
     for (const child of Object.values(o)) walk(child);
   };
-  for (const block of html.matchAll(/<script type="application\/json"[^>]*>([\s\S]*?)<\/script>/g)) {
+  for (const block of html.matchAll(
+    /<script type="application\/json"[^>]*>([\s\S]*?)<\/script>/g,
+  )) {
     try {
       walk(JSON.parse(block[1]));
     } catch {
@@ -357,7 +360,11 @@ export async function fetchMedia(
       return null;
     }
     const mimeType = (r.headers.get('content-type') ?? '').split(';')[0];
-    if (!r.ok || !/^(image|video)\//.test(mimeType) || Number(r.headers.get('content-length')) > maxBytes) {
+    if (
+      !r.ok ||
+      !/^(image|video)\//.test(mimeType) ||
+      Number(r.headers.get('content-length')) > maxBytes
+    ) {
       await discard(r);
       return null;
     }

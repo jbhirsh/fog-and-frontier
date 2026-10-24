@@ -16,10 +16,7 @@ interface Props {
  * render that background page, so its filters and scroll survive, and the
  * detail renders on top.
  */
-export function ActivityPermalinkRoutes({
-  children,
-  routes: PageRoutes = Routes,
-}: Props) {
+export function ActivityPermalinkRoutes({ children, routes: PageRoutes = Routes }: Props) {
   const location = useLocation();
   const background = backgroundFor(location);
   return (

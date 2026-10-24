@@ -148,16 +148,11 @@ export function CuratedAdventures() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isLg = useMediaQuery('(min-width: 1024px)');
   const viewParam = searchParams.get('view');
-  const requestedView: ViewMode = isViewMode(viewParam)
-    ? viewParam
-    : isLg
-      ? 'split'
-      : 'list';
+  const requestedView: ViewMode = isViewMode(viewParam) ? viewParam : isLg ? 'split' : 'list';
   // Split needs the two-column desktop layout; below `lg` there's no room, so
   // a `?view=split` link (or a window narrowed while in Split) falls back to
   // List there instead.
-  const view: ViewMode =
-    requestedView === 'split' && !isLg ? 'list' : requestedView;
+  const view: ViewMode = requestedView === 'split' && !isLg ? 'list' : requestedView;
   function setView(next: ViewMode) {
     // Split is desktop-only; below `lg`, store List so the URL never carries a
     // `?view=split` that would silently activate if the window is widened.
@@ -205,10 +200,7 @@ export function CuratedAdventures() {
   function toggleCompletedOnly() {
     // Read from `prev`, not the render's value, so two quick clicks toggle
     // twice instead of both turning it on.
-    setSearchParams(
-      (prev) => withCompletedOnly(prev, !readCompletedOnly(prev)),
-      { replace: true },
-    );
+    setSearchParams((prev) => withCompletedOnly(prev, !readCompletedOnly(prev)), { replace: true });
   }
   // Contributors (#9) are URL-sourced too (`?contributors=`). Only signed-in
   // callers get contributor data, so for anyone else the filter is off rather
@@ -246,9 +238,7 @@ export function CuratedAdventures() {
   }
   const [adding, setAdding] = useState(false);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
-  const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(() => new Set());
   const [tripDialogOpen, setTripDialogOpen] = useState(false);
   const [tripAddedToast, setTripAddedToast] = useState<string | null>(null);
   const [targetTrip, setTargetTrip] = useState<TargetTrip | null>(
@@ -307,17 +297,12 @@ export function CuratedAdventures() {
       let added = 0;
       let skipped = 0;
       for (const id of selectedForTrip) {
-        const { alreadyOnTrip, tripPast } = await addActivityToTrip(
-          targetTrip.id,
-          id,
-        );
+        const { alreadyOnTrip, tripPast } = await addActivityToTrip(targetTrip.id, id);
         if (tripPast) {
           // Trip flipped to past between the navigation and now (e.g. a
           // second tab). Drop the target so the action bar reverts to
           // generic mode and the user can pick a different trip.
-          setTripAddedToast(
-            `"${targetTrip.title}" is now past — pick a different trip.`,
-          );
+          setTripAddedToast(`"${targetTrip.title}" is now past — pick a different trip.`);
           window.setTimeout(() => setTripAddedToast(null), 3500);
           setTargetTrip(null);
           return;
@@ -331,9 +316,7 @@ export function CuratedAdventures() {
       if (parts.length > 0) setTripAddedToast(parts.join(' · '));
       void navigate(`/trips/${targetTrip.id}`);
     } catch (err) {
-      setTripAddedToast(
-        err instanceof Error ? err.message : 'Failed to add to trip.',
-      );
+      setTripAddedToast(err instanceof Error ? err.message : 'Failed to add to trip.');
       window.setTimeout(() => setTripAddedToast(null), 3000);
     } finally {
       setSubmittingTarget(false);
@@ -360,10 +343,7 @@ export function CuratedAdventures() {
   // framed it deliberately), so there's nothing else to coordinate.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinHoveredId, setPinHoveredId] = useState<string | null>(null);
-  const handleBoundsChange = useCallback(
-    (next: MapBounds) => setBounds(next),
-    [],
-  );
+  const handleBoundsChange = useCallback((next: MapBounds) => setBounds(next), []);
   // "Clear bounds" also flies the map out to fit every result (#106), so the
   // map and the list agree again; bumping the signal asks the map to re-fit.
   const [fitSignal, setFitSignal] = useState(0);
@@ -385,10 +365,12 @@ export function CuratedAdventures() {
   // its end comes into view. Desktop List's three-column grid gets a bigger
   // page; everything else is one or two columns. Prev/next and filtering still
   // see every card.
-  const { count: revealedCount, remaining, showMore, revealTo } = useRevealedCount(
-    visibleResults.length,
-    view === 'list' && isLg ? 12 : 6,
-  );
+  const {
+    count: revealedCount,
+    remaining,
+    showMore,
+    revealTo,
+  } = useRevealedCount(visibleResults.length, view === 'list' && isLg ? 12 : 6);
   const endOfListRef = useWhenVisible<HTMLDivElement>(
     showMore,
     `${revealedCount}/${visibleResults.length}`,
@@ -401,9 +383,7 @@ export function CuratedAdventures() {
   // new request for the list as it stood; the ref marks the one served, so a
   // later page load doesn't scroll back to it, and a request for a list
   // that has since changed is dropped.
-  const [scrollRequest, setScrollRequest] = useState<{ id: string; list: string } | null>(
-    null,
-  );
+  const [scrollRequest, setScrollRequest] = useState<{ id: string; list: string } | null>(null);
   const servedScroll = useRef<{ id: string; list: string } | null>(null);
   useEffect(() => {
     if (!scrollRequest || servedScroll.current === scrollRequest) return;
@@ -459,54 +439,54 @@ export function CuratedAdventures() {
       </div>
     ) : (
       <>
-      <div className={`grid gap-gutter ${gridColsClass}`}>
-        {visibleResults.slice(0, revealedCount).map((a) => (
-          <ActivityCard
-            key={a.id}
-            activity={a}
-            selectionMode={selectionMode}
-            selected={selectedForTrip.has(a.id)}
-            highlighted={a.id === pinHoveredId}
-            onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
-            onClick={() => {
-              if (selectionMode) {
-                toggleSelected(a.id);
-              } else {
-                openFromList(a.id);
+        <div className={`grid gap-gutter ${gridColsClass}`}>
+          {visibleResults.slice(0, revealedCount).map((a) => (
+            <ActivityCard
+              key={a.id}
+              activity={a}
+              selectionMode={selectionMode}
+              selected={selectedForTrip.has(a.id)}
+              highlighted={a.id === pinHoveredId}
+              onHoverChange={(hovering) => setHoveredId(hovering ? a.id : null)}
+              onClick={() => {
+                if (selectionMode) {
+                  toggleSelected(a.id);
+                } else {
+                  openFromList(a.id);
+                }
+              }}
+              actionSlot={
+                // Per-card "Add to trip" shows only while building a trip
+                // (#112), keeping the default browse view uncluttered. An
+                // active trip target (location.state) always opens selection
+                // mode, so selectionMode covers both cases.
+                isSignedIn && selectionMode ? (
+                  <AddToTripDropdown
+                    activityId={a.id}
+                    onAdded={(msg) => {
+                      setTripAddedToast(msg);
+                      window.setTimeout(() => setTripAddedToast(null), 3000);
+                    }}
+                  />
+                ) : undefined
               }
-            }}
-            actionSlot={
-              // Per-card "Add to trip" shows only while building a trip
-              // (#112), keeping the default browse view uncluttered. An
-              // active trip target (location.state) always opens selection
-              // mode, so selectionMode covers both cases.
-              isSignedIn && selectionMode ? (
-                <AddToTripDropdown
-                  activityId={a.id}
-                  onAdded={(msg) => {
-                    setTripAddedToast(msg);
-                    window.setTimeout(() => setTripAddedToast(null), 3000);
-                  }}
-                />
-              ) : undefined
-            }
-          />
-        ))}
-      </div>
-      {remaining > 0 && (
-        // The end of the list: coming into view adds the next page. The
-        // button does the same for keyboards and browsers without
-        // IntersectionObserver.
-        <div ref={endOfListRef} className="flex justify-center pt-lg">
-          <button
-            type="button"
-            onClick={handleShowMore}
-            className="inline-flex items-center min-h-11 px-md rounded-full border border-outline-variant/40 text-primary font-body-md hover:bg-surface-variant"
-          >
-            Show more ({remaining} left)
-          </button>
+            />
+          ))}
         </div>
-      )}
+        {remaining > 0 && (
+          // The end of the list: coming into view adds the next page. The
+          // button does the same for keyboards and browsers without
+          // IntersectionObserver.
+          <div ref={endOfListRef} className="flex justify-center pt-lg">
+            <button
+              type="button"
+              onClick={handleShowMore}
+              className="inline-flex items-center min-h-11 px-md rounded-full border border-outline-variant/40 text-primary font-body-md hover:bg-surface-variant"
+            >
+              Show more ({remaining} left)
+            </button>
+          </div>
+        )}
       </>
     );
 
@@ -515,12 +495,10 @@ export function CuratedAdventures() {
   const listHeader = (
     <div className="mb-md space-y-sm">
       <div>
-        <h1 className="font-display text-headline-md text-primary">
-          Curated Adventures
-        </h1>
+        <h1 className="font-display text-headline-md text-primary">Curated Adventures</h1>
         <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
-          {results.length} place{results.length === 1 ? '' : 's'} · sorted by
-          distance from {origin.label}
+          {results.length} place{results.length === 1 ? '' : 's'} · sorted by distance from{' '}
+          {origin.label}
         </p>
       </div>
       {isOwner && (
@@ -626,8 +604,7 @@ export function CuratedAdventures() {
         {bounds ? (
           <>
             <span>
-              Showing <b className="text-on-surface">{visibleResults.length}</b>{' '}
-              in this area
+              Showing <b className="text-on-surface">{visibleResults.length}</b> in this area
             </span>
             <button
               type="button"
@@ -866,7 +843,12 @@ export function CuratedAdventures() {
             >
               <span
                 className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed(isOwner ? 'add' : 'lightbulb') }}
+                style={{
+                  fontSize: 18,
+                  width: 18,
+                  height: 18,
+                  marginLeft: glyphBleed(isOwner ? 'add' : 'lightbulb'),
+                }}
                 aria-hidden="true"
               >
                 {isOwner ? 'add' : 'lightbulb'}
@@ -991,11 +973,7 @@ export function CuratedAdventures() {
           {filterToolbar}
           <section
             className={`px-gutter py-md max-w-screen-2xl mx-auto ${
-              selectionMode && selectedForTrip.size > 0
-                ? 'pb-32'
-                : showMapButton
-                  ? 'pb-24'
-                  : ''
+              selectionMode && selectedForTrip.size > 0 ? 'pb-32' : showMapButton ? 'pb-24' : ''
             }`}
           >
             {listHeader}
@@ -1027,10 +1005,7 @@ export function CuratedAdventures() {
             <div className="font-body-md text-on-surface">
               {targetTrip ? (
                 <>
-                  Adding to{' '}
-                  <span className="font-bold">
-                    &quot;{targetTrip.title}&quot;
-                  </span>
+                  Adding to <span className="font-bold">&quot;{targetTrip.title}&quot;</span>
                   {' · '}
                   {selectedForTrip.size} selected
                 </>
@@ -1060,9 +1035,7 @@ export function CuratedAdventures() {
                     setTripDialogOpen(true);
                   }
                 }}
-                disabled={
-                  selectedForTrip.size === 0 || submittingTarget || overBulkCap
-                }
+                disabled={selectedForTrip.size === 0 || submittingTarget || overBulkCap}
                 title={overBulkCap ? `Pick at most ${MAX_BULK_ADD}` : undefined}
                 className="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-sm rounded-full font-body-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >

@@ -1,15 +1,5 @@
-import {
-  NavLink,
-  Outlet,
-  useLocation,
-  useSearchParams,
-} from 'react-router-dom';
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  UserButton,
-} from '@clerk/clerk-react';
+import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 
@@ -80,9 +70,7 @@ export function Layout() {
               }`}
             >
               <label className="flex items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest pl-gutter pr-xs py-xs shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
-                <span className="material-symbols-outlined text-outline">
-                  search
-                </span>
+                <span className="material-symbols-outlined text-outline">search</span>
                 <input
                   value={q}
                   onChange={(e) => handleChange(e.target.value)}
@@ -96,10 +84,7 @@ export function Layout() {
                   aria-label="Search"
                   className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary text-on-secondary transition-opacity hover:opacity-90"
                 >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: 20 }}
-                  >
+                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
                     arrow_forward
                   </span>
                 </button>

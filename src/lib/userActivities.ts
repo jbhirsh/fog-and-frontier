@@ -2,12 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
 import type { Activity, CostTier, Duration, PriceRange, Region } from '../data/types';
 import { apolloClient } from './apolloClient';
-import {
-  ACTIVITIES_QUERY,
-  DELETE_ACTIVITY,
-  SAVE_ACTIVITY,
-  type ActivityLike,
-} from './gqlDocs';
+import { ACTIVITIES_QUERY, DELETE_ACTIVITY, SAVE_ACTIVITY, type ActivityLike } from './gqlDocs';
 
 // Boundary mapper: GraphQL Activity/ActivitySnapshot row -> the app's domain
 // Activity model. Catalog rows are non-null; snapshot rows are all-nullable
@@ -96,8 +91,7 @@ export function activityToInput(a: Activity) {
   };
 }
 
-export const CATALOG_LOAD_ERROR =
-  "Couldn't load activities. Try again in a moment.";
+export const CATALOG_LOAD_ERROR = "Couldn't load activities. Try again in a moment.";
 
 // Public catalog read. cache-and-network: instant cached render + background
 // refresh (offline persistence was dropped in the GraphQL migration). `error`
@@ -113,10 +107,7 @@ export function useUserActivities(): {
   const { data, error, loading } = useQuery(ACTIVITIES_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
-  const activities = useMemo(
-    () => (data?.activities ?? []).map(rowToActivity),
-    [data],
-  );
+  const activities = useMemo(() => (data?.activities ?? []).map(rowToActivity), [data]);
   return {
     activities,
     error: error ? CATALOG_LOAD_ERROR : null,

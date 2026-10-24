@@ -116,7 +116,10 @@ function toTripRow(t: FixtureTrip) {
       dayIndex: a.dayIndex,
       startTime: a.startTime,
       displayOrder: a.displayOrder,
-      snapshot: { ...toActivityRow(fixtureActivities[a.activityId]), __typename: 'ActivitySnapshot' },
+      snapshot: {
+        ...toActivityRow(fixtureActivities[a.activityId]),
+        __typename: 'ActivitySnapshot',
+      },
     })),
     members: fixtureTripMembers.map((m) => ({ __typename: 'TripMember', ...m })),
     invites: [],
@@ -143,14 +146,16 @@ export async function signIn(page: Page) {
 export const TRIP_VIEWS = [
   { name: 'trips-list', path: '/trips', map: false, ready: 'Spring Getaway' },
   { name: 'trips-new', path: '/trips/new', map: false, ready: 'Open voting first' },
-  { name: 'trip-planning', path: '/trips/fixture-trip-planning', map: true, ready: 'Coast Weekend' },
+  {
+    name: 'trip-planning',
+    path: '/trips/fixture-trip-planning',
+    map: true,
+    ready: 'Coast Weekend',
+  },
   { name: 'trip-voting', path: '/trips/fixture-trip-voting', map: false, ready: 'Spring Getaway' },
 ] as const;
 
-export async function settleTripView(
-  page: Page,
-  view: { map: boolean; ready: string },
-) {
+export async function settleTripView(page: Page, view: { map: boolean; ready: string }) {
   await expect(page.getByText(view.ready).first()).toBeVisible();
   await waitForVisualReady(page);
   if (view.map) {
@@ -307,9 +312,7 @@ export async function assertNoHorizontalOverflow(page: Page) {
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
   }));
-  expect(scrollWidth, 'no element should extend past viewport width').toBe(
-    innerWidth,
-  );
+  expect(scrollWidth, 'no element should extend past viewport width').toBe(innerWidth);
 }
 
 // Deterministic stub for the Gemini-backed `generateActivity` GraphQL mutation
@@ -354,9 +357,7 @@ const STUB_GENERATED = {
 // other operation via fallback. Call after mockApis.
 export async function stubGenerateActivity(page: Page) {
   await page.route('**/api/graphql', async (route) => {
-    const op = (
-      route.request().postDataJSON() as { operationName?: string } | null
-    )?.operationName;
+    const op = (route.request().postDataJSON() as { operationName?: string } | null)?.operationName;
     if (op !== 'GenerateActivity') {
       await route.fallback();
       return;

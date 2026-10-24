@@ -76,8 +76,7 @@ export function ActivityCard({
   // button) so the corner action overlay — a sibling sitting on top of the
   // button — doesn't trigger a spurious mouse-leave and flicker the highlight.
   const activeRef = useRef({ pointer: false, focus: false });
-  const emitHover = () =>
-    onHoverChange?.(activeRef.current.pointer || activeRef.current.focus);
+  const emitHover = () => onHoverChange?.(activeRef.current.pointer || activeRef.current.focus);
 
   return (
     // `data-activity-id` lets the list scroll a card into view by id when its

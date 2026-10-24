@@ -294,10 +294,7 @@ PASS (pass=true) otherwise — including specifics you confirmed with search, ho
 
 Return JSON {pass, issues}. "issues" is a short list of concrete problems, empty when pass=true.`;
 
-export async function judgeDescriptions(
-  value: unknown,
-  context: string,
-): Promise<CheckResult> {
+export async function judgeDescriptions(value: unknown, context: string): Promise<CheckResult> {
   const activity = unwrapActivity(value);
   if (!activity) {
     return {
@@ -398,9 +395,7 @@ export function describeEvent(event: unknown, index: number): string {
   // dateText as the human-readable supplement.
   const startDate = readString(rec, 'startDate');
   const endDate = readString(rec, 'endDate');
-  const isoDate = startDate
-    ? `${startDate}${endDate ? `..${endDate}` : ''}`
-    : '(no startDate)';
+  const isoDate = startDate ? `${startDate}${endDate ? `..${endDate}` : ''}` : '(no startDate)';
   const dateText = readString(rec, 'dateText');
   const location = readString(rec, 'location') || '(no location)';
   const blurb = readString(rec, 'blurb') || '(no blurb)';

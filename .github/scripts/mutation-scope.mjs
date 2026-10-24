@@ -37,8 +37,7 @@ const inScope = new Set(
     .flatMap(subjects)
     .filter(
       (file) =>
-        include.some((g) => matchesGlob(file, g)) &&
-        !exclude.some((g) => matchesGlob(file, g)),
+        include.some((g) => matchesGlob(file, g)) && !exclude.some((g) => matchesGlob(file, g)),
     ),
 );
 process.stdout.write([...inScope].join(','));

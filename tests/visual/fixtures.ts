@@ -62,8 +62,9 @@ const FIXTURES: Activity[] = [
   },
 ];
 
-export const fixtureActivities: Record<string, Activity> =
-  Object.fromEntries(FIXTURES.map((a) => [a.id, a]));
+export const fixtureActivities: Record<string, Activity> = Object.fromEntries(
+  FIXTURES.map((a) => [a.id, a]),
+);
 
 // Overrides keyed by fixture ids only — never reference real catalog ids,
 // so the test stays independent of what the live catalog holds.
@@ -184,8 +185,20 @@ export const fixtureTrips: Record<string, FixtureTrip> = {
 };
 
 export const fixtureTripMembers = [
-  { email: FIXTURE_EMAIL, displayName: 'Jess', addedByEmail: FIXTURE_EMAIL, addedAt: AT, isCreator: true },
-  { email: FRIEND_EMAIL, displayName: 'Tarun', addedByEmail: FIXTURE_EMAIL, addedAt: AT, isCreator: false },
+  {
+    email: FIXTURE_EMAIL,
+    displayName: 'Jess',
+    addedByEmail: FIXTURE_EMAIL,
+    addedAt: AT,
+    isCreator: true,
+  },
+  {
+    email: FRIEND_EMAIL,
+    displayName: 'Tarun',
+    addedByEmail: FIXTURE_EMAIL,
+    addedAt: AT,
+    isCreator: false,
+  },
 ];
 
 export const FIXTURE_TRIP_CREATED_AT = AT;

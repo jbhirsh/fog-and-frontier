@@ -14,16 +14,9 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "hiking",
-          "scenic"
-        ],
-        "region": [
-          "north-bay"
-        ],
-        "parkType": [
-          "national"
-        ],
+        "category": ["hiking", "scenic"],
+        "region": ["north-bay"],
+        "parkType": ["national"],
         "geo": {
           "lat": 37.934,
           "lng": -122.7468,
@@ -41,15 +34,9 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "water"
-        ],
-        "region": [
-          "central-coast"
-        ],
-        "city": [
-          "Moss Landing"
-        ],
+        "category": ["water"],
+        "region": ["central-coast"],
+        "city": ["Moss Landing"],
         "geo": {
           "lat": 36.8,
           "lng": -121.7841,
@@ -67,28 +54,16 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "hiking"
-        ],
-        "region": [
-          "east-bay"
-        ],
-        "parkType": [
-          "regional"
-        ],
-        "city": [
-          "Fremont",
-          "Milpitas"
-        ],
+        "category": ["hiking"],
+        "region": ["east-bay"],
+        "parkType": ["regional"],
+        "city": ["Fremont", "Milpitas"],
         "geo": {
           "lat": 37.5044,
           "lng": -121.9083,
           "toleranceKm": 12
         },
-        "costTier": [
-          "free",
-          "$"
-        ]
+        "costTier": ["free", "$"]
       },
       "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14)."
     },
@@ -101,27 +76,16 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "hiking",
-          "scenic"
-        ],
-        "region": [
-          "sf"
-        ],
-        "parkType": [
-          "national"
-        ],
-        "city": [
-          "San Francisco"
-        ],
+        "category": ["hiking", "scenic"],
+        "region": ["sf"],
+        "parkType": ["national"],
+        "city": ["San Francisco"],
         "geo": {
           "lat": 37.786,
           "lng": -122.5033,
           "toleranceKm": 10
         },
-        "costTier": [
-          "free"
-        ]
+        "costTier": ["free"]
       },
       "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09. costTier free: no entry or parking fee at Lands End (nps.gov/goga fees; as of 2026-10-14)."
     },
@@ -134,17 +98,9 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "hiking"
-        ],
-        "region": [
-          "south-bay",
-          "central-coast",
-          "peninsula"
-        ],
-        "parkType": [
-          "state"
-        ],
+        "category": ["hiking"],
+        "region": ["south-bay", "central-coast", "peninsula"],
+        "parkType": ["state"],
         "geo": {
           "lat": 37.1723,
           "lng": -122.2225,
@@ -162,25 +118,15 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "hiking",
-          "scenic"
-        ],
-        "region": [
-          "north-bay"
-        ],
-        "parkType": [
-          "national"
-        ],
+        "category": ["hiking", "scenic"],
+        "region": ["north-bay"],
+        "parkType": ["national"],
         "geo": {
           "lat": 37.897,
           "lng": -122.5817,
           "toleranceKm": 10
         },
-        "costTier": [
-          "$",
-          "$$"
-        ]
+        "costTier": ["$", "$$"]
       },
       "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.897/-122.5817 (Wikipedia infobox / NPS). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09. costTier: $15 entry + $9 parking reservation per car, ~$19.50 each for two → $; $$ accepted for a model that counts the car alone (nps.gov/muwo/planyourvisit/fees.htm; as of 2026-10-14)."
     },
@@ -194,16 +140,9 @@
       "expect": {
         "judgeDescriptions": true,
         "restaurantFields": true,
-        "category": [
-          "food"
-        ],
-        "region": [
-          "peninsula",
-          "central-coast"
-        ],
-        "city": [
-          "Pescadero"
-        ],
+        "category": ["food"],
+        "region": ["peninsula", "central-coast"],
+        "city": ["Pescadero"],
         "geo": {
           "lat": 37.252,
           "lng": -122.3824,
@@ -221,25 +160,15 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "scenic"
-        ],
-        "region": [
-          "central-coast"
-        ],
-        "city": [
-          "Pebble Beach",
-          "Monterey",
-          "Pacific Grove"
-        ],
+        "category": ["scenic"],
+        "region": ["central-coast"],
+        "city": ["Pebble Beach", "Monterey", "Pacific Grove"],
         "geo": {
           "lat": 36.5848,
           "lng": -121.9651,
           "toleranceKm": 20
         },
-        "costTier": [
-          "$"
-        ]
+        "costTier": ["$"]
       },
       "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the three towns the loop touches. As of 2026-07-09. costTier $: ~$11-12 per vehicle at the gate, $ split or not (travel guides; the official rate varies year to year; as of 2026-10-14)."
     },
@@ -252,18 +181,9 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "scenic",
-          "hiking",
-          "water",
-          "other"
-        ],
-        "region": [
-          "oregon"
-        ],
-        "city": [
-          "Cannon Beach"
-        ],
+        "category": ["scenic", "hiking", "water", "other"],
+        "region": ["oregon"],
+        "city": ["Cannon Beach"],
         "geo": {
           "lat": 45.8917,
           "lng": -123.9615,
@@ -281,21 +201,10 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "climbing"
-        ],
-        "region": [
-          "south-bay",
-          "peninsula",
-          "central-coast"
-        ],
-        "parkType": [
-          "state"
-        ],
-        "city": [
-          "Los Gatos",
-          "Saratoga"
-        ],
+        "category": ["climbing"],
+        "region": ["south-bay", "peninsula", "central-coast"],
+        "parkType": ["state"],
+        "city": ["Los Gatos", "Saratoga"],
         "geo": {
           "lat": 37.2316,
           "lng": -122.1169,
@@ -314,16 +223,9 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "hiking"
-        ],
-        "region": [
-          "south-bay",
-          "east-bay"
-        ],
-        "city": [
-          "Milpitas"
-        ],
+        "category": ["hiking"],
+        "region": ["south-bay", "east-bay"],
+        "city": ["Milpitas"],
         "geo": {
           "lat": 37.4524,
           "lng": -121.8505,
@@ -345,15 +247,9 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "camping"
-        ],
-        "region": [
-          "central-coast"
-        ],
-        "parkType": [
-          "national"
-        ],
+        "category": ["camping"],
+        "region": ["central-coast"],
+        "parkType": ["national"],
         "geo": {
           "lat": 36.4932,
           "lng": -121.1463,
@@ -371,13 +267,8 @@
       },
       "expect": {
         "judgeDescriptions": true,
-        "category": [
-          "cycling"
-        ],
-        "region": [
-          "sf",
-          "north-bay"
-        ],
+        "category": ["cycling"],
+        "region": ["sf", "north-bay"],
         "geo": {
           "lat": 37.8199,
           "lng": -122.4787,
@@ -395,9 +286,7 @@
       },
       "expect": {
         "graceful": {
-          "allowedErrors": [
-            "BAD_GATEWAY"
-          ],
+          "allowedErrors": ["BAD_GATEWAY"],
           "ifReturned": null
         }
       },
@@ -415,9 +304,7 @@
       },
       "expect": {
         "graceful": {
-          "allowedErrors": [
-            "BAD_GATEWAY"
-          ],
+          "allowedErrors": ["BAD_GATEWAY"],
           "ifReturned": {
             "geo": {
               "lat": 39.6655,
@@ -438,9 +325,7 @@
       },
       "expect": {
         "graceful": {
-          "allowedErrors": [
-            "BAD_GATEWAY"
-          ],
+          "allowedErrors": ["BAD_GATEWAY"],
           "ifReturned": {
             "judgeRealPlace": true
           }
@@ -573,9 +458,7 @@
       "expect": {
         "graceful": {
           "allNull": true,
-          "allowedErrors": [
-            "BAD_GATEWAY"
-          ]
+          "allowedErrors": ["BAD_GATEWAY"]
         }
       },
       "notes": "Syntactically valid alltrails.com URL (passes the resolver's host regex, so it DOES reach the paid call) but a fabricated, non-existent trail slug. Nothing is verifiable, so the honest outcome is all-null lookup fields, or a clean upstream BAD_GATEWAY — both accepted. No coordinates. As of 2026-07-09."
@@ -589,9 +472,7 @@
       },
       "expect": {
         "graceful": {
-          "allowedErrors": [
-            "BAD_USER_INPUT"
-          ]
+          "allowedErrors": ["BAD_USER_INPUT"]
         }
       },
       "notes": "Non-AllTrails URL. The resolver's `/^https?:\\/\\/(www\\.)?alltrails\\.com\\//` guard rejects it with badInput BEFORE any paid Gemini call, so this is fully deterministic — BAD_USER_INPUT is the only acceptable outcome. No coordinates. As of 2026-07-09."
@@ -738,15 +619,8 @@
         ]
       },
       "expect": {
-        "includeAny": [
-          "fort-funston",
-          "carmel-beach"
-        ],
-        "excludeAll": [
-          "muir-woods",
-          "alamere-falls",
-          "big-basin"
-        ],
+        "includeAny": ["fort-funston", "carmel-beach"],
+        "excludeAll": ["muir-woods", "alamere-falls", "big-basin"],
         "minPicks": 1,
         "maxPicks": 12
       },
@@ -894,16 +768,8 @@
         ]
       },
       "expect": {
-        "includeAny": [
-          "exploratorium",
-          "cal-academy",
-          "de-young"
-        ],
-        "excludeAll": [
-          "alamere-falls",
-          "mission-peak",
-          "big-basin"
-        ],
+        "includeAny": ["exploratorium", "cal-academy", "de-young"],
+        "excludeAll": ["alamere-falls", "mission-peak", "big-basin"],
         "minPicks": 1,
         "maxPicks": 12
       },

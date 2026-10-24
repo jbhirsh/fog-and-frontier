@@ -10,9 +10,7 @@ const { init, reactRouterV7BrowserTracingIntegration } = vi.hoisted(() => ({
 }));
 
 vi.mock('@sentry/react', async () => {
-  const actual = await vi.importActual<typeof import('@sentry/react')>(
-    '@sentry/react',
-  );
+  const actual = await vi.importActual<typeof import('@sentry/react')>('@sentry/react');
   return { ...actual, init, reactRouterV7BrowserTracingIntegration };
 });
 
@@ -27,15 +25,11 @@ const {
 
 describe('stripQueryString', () => {
   it('removes everything after the first ?', () => {
-    expect(stripQueryString('https://api.example.com/x?a=1&b=2')).toBe(
-      'https://api.example.com/x',
-    );
+    expect(stripQueryString('https://api.example.com/x?a=1&b=2')).toBe('https://api.example.com/x');
   });
 
   it('leaves URLs without a query string untouched', () => {
-    expect(stripQueryString('https://api.example.com/x')).toBe(
-      'https://api.example.com/x',
-    );
+    expect(stripQueryString('https://api.example.com/x')).toBe('https://api.example.com/x');
   });
 
   it('strips the Gemini-style key=... query', () => {
@@ -178,15 +172,13 @@ describe('scrubEmbeddedQueries', () => {
   });
 
   it('strips multiple embedded query strings', () => {
-    expect(
-      scrubEmbeddedQueries('a https://x.test/?a=1 b https://y.test/?b=2 c'),
-    ).toBe('a https://x.test/ b https://y.test/ c');
+    expect(scrubEmbeddedQueries('a https://x.test/?a=1 b https://y.test/?b=2 c')).toBe(
+      'a https://x.test/ b https://y.test/ c',
+    );
   });
 
   it('leaves text without `?` untouched', () => {
-    expect(scrubEmbeddedQueries('nothing to scrub here')).toBe(
-      'nothing to scrub here',
-    );
+    expect(scrubEmbeddedQueries('nothing to scrub here')).toBe('nothing to scrub here');
   });
 });
 

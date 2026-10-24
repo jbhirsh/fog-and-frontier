@@ -11,11 +11,18 @@ const high: DuplicateMatch = {
   distanceMeters: 30,
   confidence: 'high',
 };
-const possible: DuplicateMatch = { ...high, id: 'castle-park', name: 'Castle Rock Park', confidence: 'possible' };
+const possible: DuplicateMatch = {
+  ...high,
+  id: 'castle-park',
+  name: 'Castle Rock Park',
+  confidence: 'possible',
+};
 
 describe('DuplicateNotice (#17)', () => {
   it('renders nothing without a match', () => {
-    const { container } = render(<DuplicateNotice matches={[]} onSaveAnyway={() => {}} saving={false} />);
+    const { container } = render(
+      <DuplicateNotice matches={[]} onSaveAnyway={() => {}} saving={false} />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -34,7 +41,9 @@ describe('DuplicateNotice (#17)', () => {
       'This looks like a duplicate of Castle Rock in Los Gatos.',
     );
     const open = screen.getByRole('button', { name: 'Open existing' });
-    expect(open).toHaveAccessibleDescription('This looks like a duplicate of Castle Rock in Los Gatos.');
+    expect(open).toHaveAccessibleDescription(
+      'This looks like a duplicate of Castle Rock in Los Gatos.',
+    );
     expect(screen.getByRole('button', { name: 'Save anyway' })).toHaveAccessibleDescription(
       'This looks like a duplicate of Castle Rock in Los Gatos.',
     );
@@ -52,7 +61,12 @@ describe('DuplicateNotice (#17)', () => {
 
   it('names the go-ahead for what it does: a suggestion is sent (#73)', () => {
     render(
-      <DuplicateNotice matches={[high]} onSaveAnyway={() => {}} saving={false} anywayLabel="Send anyway" />,
+      <DuplicateNotice
+        matches={[high]}
+        onSaveAnyway={() => {}}
+        saving={false}
+        anywayLabel="Send anyway"
+      />,
     );
     expect(screen.getByRole('button', { name: 'Send anyway' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
@@ -61,10 +75,17 @@ describe('DuplicateNotice (#17)', () => {
   it('only notes a possible match, with a way to view it', async () => {
     const onOpenActivity = vi.fn();
     render(
-      <DuplicateNotice matches={[possible]} onOpenActivity={onOpenActivity} onSaveAnyway={() => {}} saving={false} />,
+      <DuplicateNotice
+        matches={[possible]}
+        onOpenActivity={onOpenActivity}
+        onSaveAnyway={() => {}}
+        saving={false}
+      />,
     );
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('You may already have Castle Rock Park in Los Gatos saved.');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'You may already have Castle Rock Park in Los Gatos saved.',
+    );
     expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'View' })).toHaveAccessibleDescription(
       'You may already have Castle Rock Park in Los Gatos saved.',

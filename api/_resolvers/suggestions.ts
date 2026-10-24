@@ -177,11 +177,7 @@ async function acceptSuggestion(
   throw conflict('another activity took this id; try accepting again');
 }
 
-async function rejectSuggestion(
-  _parent: unknown,
-  { id }: { id: string },
-  ctx: GqlContext,
-) {
+async function rejectSuggestion(_parent: unknown, { id }: { id: string }, ctx: GqlContext) {
   requireOwnerCtx(ctx);
   const rs = await db().execute({
     sql: "UPDATE suggestions SET status = 'rejected' WHERE id = ? AND status = 'pending'",

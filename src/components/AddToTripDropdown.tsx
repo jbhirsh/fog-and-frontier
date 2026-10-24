@@ -16,10 +16,7 @@ export function AddToTripDropdown({ activityId, onAdded }: Props) {
   useEffect(() => {
     if (!open) return;
     function onDocClick(e: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
@@ -54,11 +51,7 @@ export function AddToTripDropdown({ activityId, onAdded }: Props) {
         Trip
       </button>
       {open && (
-        <DropdownMenu
-          activityId={activityId}
-          onClose={() => setOpen(false)}
-          onAdded={onAdded}
-        />
+        <DropdownMenu activityId={activityId} onClose={() => setOpen(false)} onAdded={onAdded} />
       )}
     </div>
   );
@@ -90,29 +83,18 @@ function DropdownMenu({
     });
   }
 
-  async function handleAddTo(
-    tripId: string,
-    tripTitle: string,
-    e: React.MouseEvent,
-  ) {
+  async function handleAddTo(tripId: string, tripTitle: string, e: React.MouseEvent) {
     e.stopPropagation();
     if (busy) return;
     setBusy(true);
     setErrMsg(null);
     try {
-      const { alreadyOnTrip, tripPast } = await addActivityToTrip(
-        tripId,
-        activityId,
-      );
+      const { alreadyOnTrip, tripPast } = await addActivityToTrip(tripId, activityId);
       if (tripPast) {
         setErrMsg(`"${tripTitle}" was just marked past — refresh to retry.`);
         return;
       }
-      onAdded?.(
-        alreadyOnTrip
-          ? `Already on "${tripTitle}"`
-          : `Added to "${tripTitle}"`,
-      );
+      onAdded?.(alreadyOnTrip ? `Already on "${tripTitle}"` : `Added to "${tripTitle}"`);
       onClose();
     } catch (err) {
       setErrMsg(err instanceof Error ? err.message : 'Failed to add.');
@@ -128,9 +110,7 @@ function DropdownMenu({
         onClick={handleNewTrip}
         className="w-full text-left px-md py-sm hover:bg-surface-variant border-b border-outline-variant/20"
       >
-        <span className="block font-body-md text-on-surface">
-          New trip from this
-        </span>
+        <span className="block font-body-md text-on-surface">New trip from this</span>
         <span className="block font-body-md text-sm text-on-surface-variant">
           Create a trip pre-loaded with this activity.
         </span>

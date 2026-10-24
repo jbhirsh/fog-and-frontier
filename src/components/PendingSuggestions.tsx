@@ -82,7 +82,8 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
     } catch (e) {
       const { code, appCode, message } = gqlErrorInfo(e);
       if (code === 'NOT_FOUND') await decidedElsewhere(s);
-      else if (appCode === 'duplicate') setDuplicateOf((d) => ({ ...d, [s.id]: `This ${message}.` }));
+      else if (appCode === 'duplicate')
+        setDuplicateOf((d) => ({ ...d, [s.id]: `This ${message}.` }));
       else setErrors((d) => ({ ...d, [s.id]: e instanceof Error ? message : 'Failed to accept' }));
     } finally {
       setBusy(null);
@@ -139,8 +140,7 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
             >
               {open ? 'expand_less' : 'expand_more'}
             </span>
-            Waiting for review{' '}
-            {/* A circle (20px) that only widens for two digits. */}
+            Waiting for review {/* A circle (20px) that only widens for two digits. */}
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] text-body-sm leading-none tabular-nums text-on-primary">
               {waiting}
             </span>
@@ -151,7 +151,10 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
       </h2>
       {/* Always in the tree (visually hidden while empty), so what's said
           into it is announced. */}
-      <div role="status" className="font-body-sm text-body-sm text-on-surface-variant empty:sr-only">
+      <div
+        role="status"
+        className="font-body-sm text-body-sm text-on-surface-variant empty:sr-only"
+      >
         {outcome && (
           <>
             {outcome.text}{' '}
@@ -192,7 +195,10 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
                   <time dateTime={s.suggestedAt}>{formatReviewDate(s.suggestedAt)}</time>
                 </p>
                 {duplicateOf[s.id] && (
-                  <div role="alert" className="rounded-lg border border-error bg-error-container/40 px-sm">
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-error bg-error-container/40 px-sm"
+                  >
                     {duplicateOf[s.id]}{' '}
                     <button
                       type="button"
@@ -216,7 +222,7 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
                     disabled={busy !== null}
                     className={`${button} bg-primary text-on-primary hover:opacity-90`}
                   >
-                    Accept{' '}<span className="sr-only">{a.name}</span>
+                    Accept <span className="sr-only">{a.name}</span>
                   </button>
                   <button
                     type="button"
@@ -224,7 +230,7 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
                     disabled={busy !== null}
                     className={`${button} text-on-surface-variant hover:bg-surface-variant`}
                   >
-                    Reject{' '}<span className="sr-only">{a.name}</span>
+                    Reject <span className="sr-only">{a.name}</span>
                   </button>
                 </div>
               </li>

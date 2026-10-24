@@ -140,18 +140,15 @@ export function applyCatalogFilters(
       if (miles > maxDistance) return false;
       if (duration !== 'Any' && a.duration !== duration) return false;
       if (category !== 'Any' && a.category !== category) return false;
-      if (parkType !== 'Any' && (a.parkType ?? 'none') !== parkType)
-        return false;
+      if (parkType !== 'Any' && (a.parkType ?? 'none') !== parkType) return false;
       if (dogOnly && !a.dogFriendly) return false;
       if (completedOnly && !isEffectivelyCompleted(a, overrides)) return false;
       if (freeOnly && a.costTier !== 'free') return false;
-      if (
-        contributors.length > 0 &&
-        !a.contributors?.some((c) => contributors.includes(c))
-      )
+      if (contributors.length > 0 && !a.contributors?.some((c) => contributors.includes(c)))
         return false;
       if (q) {
-        const hay = `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
+        const hay =
+          `${a.name} ${a.shortDescription} ${a.location.city} ${a.category}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -189,22 +186,12 @@ export interface CatalogFilters extends CatalogFilterState {
  */
 export function useCatalogFilters(): CatalogFilters {
   const [search, setSearch] = useState(INITIAL_CATALOG_FILTERS.search);
-  const [maxDistance, setMaxDistance] = useState<number>(
-    INITIAL_CATALOG_FILTERS.maxDistance,
-  );
-  const [duration, setDuration] = useState<DurationFilter>(
-    INITIAL_CATALOG_FILTERS.duration,
-  );
-  const [category, setCategory] = useState<CategoryFilter>(
-    INITIAL_CATALOG_FILTERS.category,
-  );
-  const [parkType, setParkType] = useState<ParkTypeFilter>(
-    INITIAL_CATALOG_FILTERS.parkType,
-  );
+  const [maxDistance, setMaxDistance] = useState<number>(INITIAL_CATALOG_FILTERS.maxDistance);
+  const [duration, setDuration] = useState<DurationFilter>(INITIAL_CATALOG_FILTERS.duration);
+  const [category, setCategory] = useState<CategoryFilter>(INITIAL_CATALOG_FILTERS.category);
+  const [parkType, setParkType] = useState<ParkTypeFilter>(INITIAL_CATALOG_FILTERS.parkType);
   const [dogOnly, setDogOnly] = useState(INITIAL_CATALOG_FILTERS.dogOnly);
-  const [completedOnly, setCompletedOnly] = useState(
-    INITIAL_CATALOG_FILTERS.completedOnly,
-  );
+  const [completedOnly, setCompletedOnly] = useState(INITIAL_CATALOG_FILTERS.completedOnly);
   const [freeOnly, setFreeOnly] = useState(INITIAL_CATALOG_FILTERS.freeOnly);
   const [contributors, setContributors] = useState<readonly string[]>(
     INITIAL_CATALOG_FILTERS.contributors,

@@ -6,13 +6,7 @@ import { execSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
 import { GRADED_FLOOR } from './types.js';
-import type {
-  CaseResult,
-  EvalResults,
-  EvalSummary,
-  Feature,
-  SurfaceSummary,
-} from './types.js';
+import type { CaseResult, EvalResults, EvalSummary, Feature, SurfaceSummary } from './types.js';
 
 const FEATURES: Feature[] = ['generateActivity', 'alltrailsLookup', 'discover', 'tripSuggestions'];
 
@@ -66,10 +60,10 @@ function surfaceScore(s: SurfaceSummary): number {
 function summarize(cases: CaseResult[]): EvalSummary {
   const overall = tally(cases);
   const bySurface: Record<Feature, SurfaceSummary> = {
-    generateActivity: tally(cases.filter(c => c.feature === 'generateActivity')),
-    alltrailsLookup: tally(cases.filter(c => c.feature === 'alltrailsLookup')),
-    discover: tally(cases.filter(c => c.feature === 'discover')),
-    tripSuggestions: tally(cases.filter(c => c.feature === 'tripSuggestions')),
+    generateActivity: tally(cases.filter((c) => c.feature === 'generateActivity')),
+    alltrailsLookup: tally(cases.filter((c) => c.feature === 'alltrailsLookup')),
+    discover: tally(cases.filter((c) => c.feature === 'discover')),
+    tripSuggestions: tally(cases.filter((c) => c.feature === 'tripSuggestions')),
   };
   return {
     ...overall,
@@ -128,9 +122,7 @@ function row(cells: string[]): string {
   return cells
     .map((cell, i) => {
       const col = COLS[i];
-      return col.align === 'left'
-        ? cell.padEnd(col.width)
-        : cell.padStart(col.width);
+      return col.align === 'left' ? cell.padEnd(col.width) : cell.padStart(col.width);
     })
     .join('');
 }
@@ -152,15 +144,11 @@ function surfaceRow(label: string, s: SurfaceSummary): string {
  * flags it as the xfail marker, then any failing check, then any detail.
  */
 function xfailReason(c: CaseResult): string {
-  const named = c.checks.find(chk =>
-    /xfail|expected[-\s]?failure|known/i.test(chk.name),
-  );
+  const named = c.checks.find((chk) => /xfail|expected[-\s]?failure|known/i.test(chk.name));
   if (named?.detail) return named.detail;
-  const failing = c.checks.find(
-    chk => chk.status === 'fail' || chk.status === 'error',
-  );
+  const failing = c.checks.find((chk) => chk.status === 'fail' || chk.status === 'error');
   if (failing?.detail) return failing.detail;
-  return c.checks.find(chk => chk.detail)?.detail ?? '(reason not recorded)';
+  return c.checks.find((chk) => chk.detail)?.detail ?? '(reason not recorded)';
 }
 
 /** Single-line, length-capped JSON of the raw resolver output for debugging. */
@@ -193,9 +181,7 @@ export function renderScorecard(results: EvalResults): string {
   // inconclusive banner is bordered ("louder") because it forces a non-zero
   // exit regardless of score.
   if (summary.errored > 0) {
-    lines.push(
-      `⚠ ${summary.errored} case(s) errored (infrastructure) — excluded from score`,
-    );
+    lines.push(`⚠ ${summary.errored} case(s) errored (infrastructure) — excluded from score`);
   }
   if (summary.inconclusive) {
     const border = '═'.repeat(TABLE_WIDTH);
@@ -209,7 +195,7 @@ export function renderScorecard(results: EvalResults): string {
 
   // Per-surface table + TOTAL.
   const divider = '─'.repeat(TABLE_WIDTH);
-  lines.push(row(COLS.map(col => col.head)));
+  lines.push(row(COLS.map((col) => col.head)));
   lines.push(divider);
   for (const f of FEATURES) {
     lines.push(surfaceRow(f, summary.bySurface[f]));
@@ -219,7 +205,7 @@ export function renderScorecard(results: EvalResults): string {
   lines.push('');
 
   // Expected failures — reported transparently, never silently tuned away.
-  const known = results.cases.filter(c => c.status === 'known-failure');
+  const known = results.cases.filter((c) => c.status === 'known-failure');
   for (const c of known) {
     lines.push(`KNOWN FINDING (expected failure): ${c.id} — ${xfailReason(c)}`);
   }
@@ -227,15 +213,13 @@ export function renderScorecard(results: EvalResults): string {
 
   // Errored cases — surfaced with detail so infra flake stays debuggable
   // rather than vanishing behind a bare count.
-  const errored = results.cases.filter(c => c.status === 'error');
+  const errored = results.cases.filter((c) => c.status === 'error');
   if (errored.length > 0) {
     lines.push('ERRORED CASES (infrastructure — excluded from score)');
     for (const c of errored) {
       lines.push('');
       lines.push(`• ${c.id} [${c.feature}]`);
-      for (const chk of c.checks.filter(
-        chk => chk.status === 'error' || chk.status === 'fail',
-      )) {
+      for (const chk of c.checks.filter((chk) => chk.status === 'error' || chk.status === 'fail')) {
         lines.push(`  ✗ ${chk.name}: ${chk.detail}`);
       }
       lines.push(`  output: ${outputSnippet(c.output)}`);
@@ -245,16 +229,14 @@ export function renderScorecard(results: EvalResults): string {
 
   // Findings — genuine quality failures that count against the score.
   const findings = results.cases.filter(
-    c => c.status === 'fail' || c.status === 'unexpected-pass',
+    (c) => c.status === 'fail' || c.status === 'unexpected-pass',
   );
   if (findings.length > 0) {
     lines.push('FINDINGS');
     for (const c of findings) {
       lines.push('');
       lines.push(`✗ ${c.id} [${c.feature}]`);
-      const bad = c.checks.filter(
-        chk => chk.status === 'fail' || chk.status === 'error',
-      );
+      const bad = c.checks.filter((chk) => chk.status === 'fail' || chk.status === 'error');
       if (bad.length === 0) {
         lines.push(
           c.status === 'unexpected-pass'

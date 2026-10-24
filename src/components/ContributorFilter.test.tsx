@@ -21,9 +21,11 @@ describe('ContributorFilter (#9)', () => {
     render(<ContributorFilter options={[JESS, TARUN]} selected={[]} onChange={onChange} />);
     const picker = screen.getByRole('combobox', { name: 'Contributed by' });
     expect(screen.getByRole('option', { name: 'Any contributor' })).toBeDisabled();
-    expect(
-      screen.getAllByRole('option').map((o) => o.textContent),
-    ).toEqual(['Any contributor', 'Jess Hirsh', 'Tarun']);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Any contributor',
+      'Jess Hirsh',
+      'Tarun',
+    ]);
     await userEvent.selectOptions(picker, TARUN);
     expect(onChange).toHaveBeenCalledWith([TARUN]);
   });
@@ -73,9 +75,7 @@ describe('ContributorFilter (#9)', () => {
     );
     // Everyone is chosen, so there's no one left to pick.
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Remove contributor filter: Tarun' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Remove contributor filter: Tarun' }));
     expect(onChange).toHaveBeenCalledWith([JESS]);
   });
 
@@ -93,7 +93,11 @@ describe('ContributorFilter (#9)', () => {
     function Stateful({ initial }: { initial: string[] }) {
       const [selected, setSelected] = useState(initial);
       return (
-        <ContributorFilter options={[JESS, TARUN, SAM]} selected={selected} onChange={setSelected} />
+        <ContributorFilter
+          options={[JESS, TARUN, SAM]}
+          selected={selected}
+          onChange={setSelected}
+        />
       );
     }
     const remove = (name: string) =>

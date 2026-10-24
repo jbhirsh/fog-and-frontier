@@ -48,8 +48,7 @@ const photoState = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/userPhotos', async () => {
-  const actual =
-    await vi.importActual<typeof import('../lib/userPhotos')>('../lib/userPhotos');
+  const actual = await vi.importActual<typeof import('../lib/userPhotos')>('../lib/userPhotos');
   return {
     ...actual,
     useActivityPhotos: (activityId: string, isOwner: boolean) => {
@@ -63,9 +62,7 @@ const deleteSpy = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('../lib/userActivities', async () => {
   const actual =
-    await vi.importActual<typeof import('../lib/userActivities')>(
-      '../lib/userActivities',
-    );
+    await vi.importActual<typeof import('../lib/userActivities')>('../lib/userActivities');
   return { ...actual, deleteUserActivity: deleteSpy };
 });
 
@@ -125,12 +122,8 @@ beforeEach(() => {
 describe('ActivityDetail', () => {
   it('renders the activity name, description, and stats', () => {
     render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-    expect(
-      screen.getByRole('heading', { name: 'Test Muir Woods' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('A longer description of the redwoods loop.'),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Test Muir Woods' })).toBeInTheDocument();
+    expect(screen.getByText('A longer description of the redwoods loop.')).toBeInTheDocument();
     expect(screen.getAllByText('Half Day').length).toBeGreaterThan(0);
   });
 
@@ -155,13 +148,9 @@ describe('ActivityDetail', () => {
         onShowContributor={onShowContributor}
       />,
     );
-    await userEvent.click(
-      screen.getByRole('button', { name: "Show Jess's picks" }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: "Show Jess's picks" }));
     expect(onShowContributor).toHaveBeenCalledWith('jess@example.com');
-    expect(
-      screen.getByRole('button', { name: "Show Tarun's picks" }),
-    ).toHaveTextContent('Tarun');
+    expect(screen.getByRole('button', { name: "Show Tarun's picks" })).toHaveTextContent('Tarun');
   });
 
   it('names every contributor as plain text without a way to show them', () => {
@@ -188,14 +177,24 @@ describe('ActivityDetail', () => {
     ownerState.isOwner = false;
     const reel = 'https://www.instagram.com/reel/Ddl9QKSv0D7/';
     const { rerender } = render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-    expect(screen.queryByRole('link', { name: /Seen on Instagram|Where we found it/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Seen on Instagram|Where we found it/ }),
+    ).not.toBeInTheDocument();
     rerender(<ActivityDetail activity={{ ...muirWoods, sourceUrl: reel }} onClose={() => {}} />);
     const link = screen.getByRole('link', { name: /Seen on Instagram/ });
     expect(link).toHaveAttribute('href', reel);
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    rerender(<ActivityDetail activity={{ ...muirWoods, sourceUrl: 'https://example.com/hikes' }} onClose={() => {}} />);
-    expect(screen.getByRole('link', { name: /Where we found it/ })).toHaveAttribute('href', 'https://example.com/hikes');
+    rerender(
+      <ActivityDetail
+        activity={{ ...muirWoods, sourceUrl: 'https://example.com/hikes' }}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByRole('link', { name: /Where we found it/ })).toHaveAttribute(
+      'href',
+      'https://example.com/hikes',
+    );
   });
 
   it('falls back to the short description when no long one is provided', () => {
@@ -214,9 +213,7 @@ describe('ActivityDetail', () => {
 
   it('credits a Commons cover under the hero (#36)', () => {
     const credit = 'Photo: Jo, CC BY-SA 4.0, via Wikimedia Commons';
-    render(
-      <ActivityDetail activity={{ ...muirWoods, coverCredit: credit }} onClose={() => {}} />,
-    );
+    render(<ActivityDetail activity={{ ...muirWoods, coverCredit: credit }} onClose={() => {}} />);
     expect(screen.getByText(credit)).toBeInTheDocument();
   });
 
@@ -246,9 +243,7 @@ describe('ActivityDetail', () => {
       render(<ActivityDetail activity={completedHike} onClose={() => {}} />, {
         reviews: [jessReview],
       });
-      expect(
-        await screen.findByRole('heading', { name: 'Reviews' }),
-      ).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Reviews' })).toBeInTheDocument();
       expect(screen.getByText('The ridge was worth it.')).toBeInTheDocument();
     });
 
@@ -271,29 +266,19 @@ describe('ActivityDetail', () => {
         activities: [completedHike, nearbyCompleted],
         reviews: [jessReview],
       });
-      await user.click(
-        await screen.findByRole('button', { name: /edit review/i }),
-      );
+      await user.click(await screen.findByRole('button', { name: /edit review/i }));
       expect(screen.getByRole('textbox')).toHaveValue('The ridge was worth it.');
 
-      await user.click(
-        screen.getByRole('button', { name: /Nearby Completed Loop/ }),
-      );
+      await user.click(screen.getByRole('button', { name: /Nearby Completed Loop/ }));
       // The draft belonged to the previous activity — it must not carry over
       // and get saved onto this one.
-      await waitFor(() =>
-        expect(screen.queryByRole('textbox')).not.toBeInTheDocument(),
-      );
-      expect(
-        screen.queryByText('The ridge was worth it.'),
-      ).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
+      expect(screen.queryByText('The ridge was worth it.')).not.toBeInTheDocument();
     });
 
     it('does not show reviews on an activity we have not done yet', () => {
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(
-        screen.queryByRole('heading', { name: 'Reviews' }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Reviews' })).not.toBeInTheDocument();
     });
   });
 
@@ -319,9 +304,7 @@ describe('ActivityDetail', () => {
     });
 
     const lunch = near('n-lunch', 'Trailside Tacos', 'food', 6);
-    const hikes = [1, 2, 3, 4].map((n) =>
-      near(`n-hike-${n}`, `Ridge Hike ${n}`, 'hiking', n),
-    );
+    const hikes = [1, 2, 3, 4].map((n) => near(`n-hike-${n}`, `Ridge Hike ${n}`, 'hiking', n));
     const vista = near('n-vista', 'Overlook Vista', 'scenic', 5);
     const faraway = near('n-far', 'Faraway Diner', 'food', 40);
 
@@ -340,18 +323,14 @@ describe('ActivityDetail', () => {
       });
       expect(screen.getAllByRole('region')).toHaveLength(3);
       // Each heading leads with its category's map-pin glyph (CATEGORY_ICON).
-      expect(
-        screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent),
-      ).toEqual([
+      expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
         'restaurantNearby food',
         'directions_walkNearby hikes',
         'landscapeNearby scenic spots',
       ]);
 
       const food = screen.getByRole('region', { name: 'Nearby food' });
-      expect(
-        within(food).getByRole('button', { name: /Trailside Tacos/ }),
-      ).toBeInTheDocument();
+      expect(within(food).getByRole('button', { name: /Trailside Tacos/ })).toBeInTheDocument();
       // Out of range, so absent even though it's food.
       expect(screen.queryByText('Faraway Diner')).not.toBeInTheDocument();
 
@@ -364,15 +343,13 @@ describe('ActivityDetail', () => {
           .map((b) => within(b).getByRole('img').getAttribute('alt')),
       ).toEqual(['Ridge Hike 1', 'Ridge Hike 2', 'Ridge Hike 3']);
       expect(
-        within(
-          screen.getByRole('region', { name: 'Nearby scenic spots' }),
-        ).getByRole('button', { name: /Overlook Vista/ }),
+        within(screen.getByRole('region', { name: 'Nearby scenic spots' })).getByRole('button', {
+          name: /Overlook Vista/,
+        }),
       ).toBeInTheDocument();
 
       // The open activity never lists itself.
-      expect(
-        screen.queryByRole('button', { name: /Test Muir Woods/ }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Test Muir Woods/ })).not.toBeInTheDocument();
     });
 
     it('swaps the detail to a nearby activity on tap and regroups around it', async () => {
@@ -383,22 +360,19 @@ describe('ActivityDetail', () => {
       });
       await user.click(screen.getByRole('button', { name: /Trailside Tacos/ }));
 
-      expect(
-        screen.getByRole('dialog', { name: 'Trailside Tacos' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Trailside Tacos' })).toBeInTheDocument();
       // Now centred on the restaurant: it drops out of its own list, the hike
       // it was reached from appears, and food no longer leads (the open
       // activity is food), so groups go by nearest member.
+      expect(screen.queryByRole('region', { name: 'Nearby food' })).not.toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
+        'landscapeNearby scenic spots',
+        'directions_walkNearby hikes',
+      ]);
       expect(
-        screen.queryByRole('region', { name: 'Nearby food' }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent),
-      ).toEqual(['landscapeNearby scenic spots', 'directions_walkNearby hikes']);
-      expect(
-        within(
-          screen.getByRole('region', { name: 'Nearby hikes' }),
-        ).getByRole('button', { name: /Test Muir Woods/ }),
+        within(screen.getByRole('region', { name: 'Nearby hikes' })).getByRole('button', {
+          name: /Test Muir Woods/,
+        }),
       ).toBeInTheDocument();
     });
 
@@ -418,20 +392,14 @@ describe('ActivityDetail', () => {
       stubScrollTo();
       const onSelectNearby = vi.fn();
       render(
-        <ActivityDetail
-          activity={muirWoods}
-          onClose={() => {}}
-          onSelectNearby={onSelectNearby}
-        />,
+        <ActivityDetail activity={muirWoods} onClose={() => {}} onSelectNearby={onSelectNearby} />,
         { activities: [muirWoods, lunch] },
       );
       await user.click(screen.getByRole('button', { name: /Trailside Tacos/ }));
       expect(onSelectNearby).toHaveBeenCalledWith(lunch);
       // The route decides what opens next (#86); until it does, the detail
       // stays put.
-      expect(
-        screen.getByRole('dialog', { name: 'Test Muir Woods' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Test Muir Woods' })).toBeInTheDocument();
     });
 
     it('hides the section when nothing is within range', () => {
@@ -449,9 +417,7 @@ describe('ActivityDetail', () => {
     it('hides the Mark-as-completed toggle for non-owners', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(
-        screen.queryByRole('button', { name: /mark as completed/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /mark as completed/i })).not.toBeInTheDocument();
     });
 
     it('keeps the completed status as a read-only badge for non-owners', () => {
@@ -459,11 +425,8 @@ describe('ActivityDetail', () => {
       render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
       // Status is preserved (a read), but it is not an interactive control.
       expect(screen.getByText(/COMPLETED/)).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /completed/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /completed/i })).not.toBeInTheDocument();
     });
-
   });
 
   describe('Your Photos (owner-only, #19)', () => {
@@ -497,9 +460,7 @@ describe('ActivityDetail', () => {
     });
 
     it('shows the section to owners on a completed activity, or in upload mode', () => {
-      const { unmount } = render(
-        <ActivityDetail activity={completedHike} onClose={() => {}} />,
-      );
+      const { unmount } = render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
       expect(screen.getByRole('heading', { name: 'Your Photos' })).toBeInTheDocument();
       unmount();
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} showUploads />);
@@ -547,9 +508,7 @@ describe('ActivityDetail', () => {
     });
 
     it('hands chosen files to the upload, and clears the picker', async () => {
-      const { container } = render(
-        <ActivityDetail activity={completedHike} onClose={() => {}} />,
-      );
+      const { container } = render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
       const input = container.querySelector('input[type="file"]') as HTMLInputElement;
       expect(input).toHaveAttribute('accept', 'image/*');
       expect(input).toHaveAttribute('multiple');
@@ -561,9 +520,7 @@ describe('ActivityDetail', () => {
     });
 
     it('ignores an empty pick', () => {
-      const { container } = render(
-        <ActivityDetail activity={completedHike} onClose={() => {}} />,
-      );
+      const { container } = render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
       const input = container.querySelector('input[type="file"]') as HTMLInputElement;
       fireEvent.change(input, { target: { files: [] } });
       expect(photoState.addPhotos).not.toHaveBeenCalled();
@@ -571,9 +528,7 @@ describe('ActivityDetail', () => {
 
     it('shows progress while uploading, and takes no more files', () => {
       photoState.uploading = true;
-      const { container } = render(
-        <ActivityDetail activity={completedHike} onClose={() => {}} />,
-      );
+      const { container } = render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
       expect(screen.getByText('Uploading…')).toBeInTheDocument();
       expect(screen.queryByText('Add photos')).not.toBeInTheDocument();
       expect(container.querySelector('input[type="file"]')).toBeDisabled();
@@ -652,10 +607,7 @@ describe('ActivityDetail', () => {
     expect(screen.getByText('600 ft gain')).toBeInTheDocument();
     expect(screen.getByText(/3\.2 mi loop/)).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /View on AllTrails/ });
-    expect(link).toHaveAttribute(
-      'href',
-      'https://www.alltrails.com/trail/test',
-    );
+    expect(link).toHaveAttribute('href', 'https://www.alltrails.com/trail/test');
   });
 
   it('omits the trail-details panel when no hike fields are present', () => {
@@ -670,9 +622,7 @@ describe('ActivityDetail', () => {
     }
 
     it('links to Google Maps directions in a new tab on non-Apple devices', () => {
-      stubUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0',
-      );
+      stubUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0');
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
       const link = screen.getByRole('link', { name: /Get directions/ });
       expect(link).toHaveAttribute(
@@ -684,13 +634,9 @@ describe('ActivityDetail', () => {
     });
 
     it('links to Apple Maps on Apple devices', () => {
-      stubUserAgent(
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Safari/604.1',
-      );
+      stubUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Safari/604.1');
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(
-        screen.getByRole('link', { name: /Get directions/ }),
-      ).toHaveAttribute(
+      expect(screen.getByRole('link', { name: /Get directions/ })).toHaveAttribute(
         'href',
         'https://maps.apple.com/?daddr=37.8917%2C-122.5719',
       );
@@ -699,9 +645,7 @@ describe('ActivityDetail', () => {
     it('is shown to non-owners too (a read, not owner-gated)', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(
-        screen.getByRole('link', { name: /Get directions/ }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Get directions/ })).toBeInTheDocument();
     });
 
     it('is absent when the activity has no usable coordinates', () => {
@@ -717,9 +661,7 @@ describe('ActivityDetail', () => {
           onClose={() => {}}
         />,
       );
-      expect(
-        screen.queryByRole('link', { name: /Get directions/ }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Get directions/ })).not.toBeInTheDocument();
     });
   });
 
@@ -733,9 +675,7 @@ describe('ActivityDetail', () => {
   describe('delete', () => {
     it('shows a Delete button on user-added activities', () => {
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(
-        screen.getByRole('button', { name: /delete activity/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /delete activity/i })).toBeInTheDocument();
     });
 
     it('draws its focus ring inside, since it sits pulled out to the panel edge', () => {
@@ -750,9 +690,7 @@ describe('ActivityDetail', () => {
     it('shows a Delete button on built-in activities too', () => {
       const builtIn = builtInActivity();
       render(<ActivityDetail activity={builtIn} onClose={() => {}} />);
-      expect(
-        screen.getByRole('button', { name: /delete activity/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /delete activity/i })).toBeInTheDocument();
     });
 
     it.each([
@@ -765,16 +703,10 @@ describe('ActivityDetail', () => {
         const onClose = vi.fn();
         render(<ActivityDetail activity={activity} onClose={onClose} />);
 
-        await userEvent.click(
-          screen.getByRole('button', { name: /delete activity/i }),
-        );
+        await userEvent.click(screen.getByRole('button', { name: /delete activity/i }));
 
-        expect(confirmSpy).toHaveBeenCalledWith(
-          expect.stringContaining(activity.name),
-        );
-        expect(confirmSpy).toHaveBeenCalledWith(
-          expect.stringContaining('for everyone'),
-        );
+        expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining(activity.name));
+        expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('for everyone'));
         await waitFor(() => {
           expect(deleteSpy).toHaveBeenCalledWith(activity.id);
         });
@@ -788,9 +720,7 @@ describe('ActivityDetail', () => {
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
       const onClose = vi.fn();
       render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
-      await userEvent.click(
-        screen.getByRole('button', { name: /delete activity/i }),
-      );
+      await userEvent.click(screen.getByRole('button', { name: /delete activity/i }));
       await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
       expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(
         deleteSpy.mock.invocationCallOrder.at(-1)!,
@@ -803,9 +733,7 @@ describe('ActivityDetail', () => {
       const onClose = vi.fn();
       render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
 
-      await userEvent.click(
-        screen.getByRole('button', { name: /delete activity/i }),
-      );
+      await userEvent.click(screen.getByRole('button', { name: /delete activity/i }));
 
       expect(deleteSpy).not.toHaveBeenCalled();
       expect(onClose).not.toHaveBeenCalled();
@@ -816,9 +744,7 @@ describe('ActivityDetail', () => {
     it('does not render the Delete button for non-owners', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(
-        screen.queryByRole('button', { name: /delete activity/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /delete activity/i })).not.toBeInTheDocument();
     });
   });
 
@@ -828,25 +754,19 @@ describe('ActivityDetail', () => {
       ['built-in seed', builtInActivity()],
     ])('shows an Edit button on %s activities', (_label, activity) => {
       render(<ActivityDetail activity={activity} onClose={() => {}} />);
-      expect(
-        screen.getByRole('button', { name: /edit activity/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /edit activity/i })).toBeInTheDocument();
     });
 
     it('does not render the Edit button for non-owners', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(
-        screen.queryByRole('button', { name: /edit activity/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /edit activity/i })).not.toBeInTheDocument();
     });
 
     it('opens the edit form pre-populated with the activity when an owner clicks Edit', async () => {
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
 
-      await userEvent.click(
-        screen.getByRole('button', { name: /edit activity/i }),
-      );
+      await userEvent.click(screen.getByRole('button', { name: /edit activity/i }));
 
       const modal = await screen.findByTestId('add-activity-modal');
       expect(modal).toHaveAttribute('data-edit-id', muirWoods.id);
@@ -858,44 +778,28 @@ describe('ActivityDetail', () => {
       const onClose = vi.fn();
       render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
 
-      await userEvent.click(
-        screen.getByRole('button', { name: /edit activity/i }),
-      );
-      await userEvent.click(
-        await screen.findByRole('button', { name: 'stub-save' }),
-      );
+      await userEvent.click(screen.getByRole('button', { name: /edit activity/i }));
+      await userEvent.click(await screen.findByRole('button', { name: 'stub-save' }));
 
       await waitFor(() => {
-        expect(
-          screen.queryByTestId('add-activity-modal'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('add-activity-modal')).not.toBeInTheDocument();
       });
       // Detail modal stays open showing the updated name; outer onClose
       // is not called.
-      expect(
-        screen.getByRole('heading', { name: 'Updated name' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Updated name' })).toBeInTheDocument();
       expect(onClose).not.toHaveBeenCalled();
     });
 
     it('cancel discards changes and returns to the unchanged detail view', async () => {
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
 
-      await userEvent.click(
-        screen.getByRole('button', { name: /edit activity/i }),
-      );
-      await userEvent.click(
-        await screen.findByRole('button', { name: 'stub-cancel' }),
-      );
+      await userEvent.click(screen.getByRole('button', { name: /edit activity/i }));
+      await userEvent.click(await screen.findByRole('button', { name: 'stub-cancel' }));
 
       await waitFor(() => {
-        expect(
-          screen.queryByTestId('add-activity-modal'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('add-activity-modal')).not.toBeInTheDocument();
       });
-      expect(
-        screen.getByRole('heading', { name: muirWoods.name }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: muirWoods.name })).toBeInTheDocument();
     });
   });
 });

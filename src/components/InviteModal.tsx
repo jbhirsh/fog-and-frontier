@@ -15,13 +15,7 @@ type Props = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function InviteModal({
-  users,
-  excludeEmails,
-  onClose,
-  onCreateInvite,
-  buildLink,
-}: Props) {
+export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, buildLink }: Props) {
   const [query, setQuery] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -109,9 +103,7 @@ export function InviteModal({
         aria-label="Invite to this trip"
         className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xl p-lg space-y-md"
       >
-        <h2 className="font-headline-md text-headline-md text-on-surface">
-          Invite to this trip
-        </h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Invite to this trip</h2>
 
         {createdToken ? (
           /* ── Link-ready state ── */
@@ -196,13 +188,9 @@ export function InviteModal({
                         onClick={() => handleSelectSuggestion(u)}
                         className="w-full text-left px-md py-sm hover:bg-surface-variant font-body-md"
                       >
-                        <span className="block text-on-surface">
-                          {u.display_name ?? u.email}
-                        </span>
+                        <span className="block text-on-surface">{u.display_name ?? u.email}</span>
                         {u.display_name && (
-                          <span className="block text-sm text-on-surface-variant">
-                            {u.email}
-                          </span>
+                          <span className="block text-sm text-on-surface-variant">{u.email}</span>
                         )}
                       </button>
                     </li>

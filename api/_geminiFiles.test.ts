@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DELETE_TIMEOUT_MS, POLL_MS, UPLOAD_TIMEOUT_MS, deleteFile, uploadFile } from './_geminiFiles.js';
+import {
+  DELETE_TIMEOUT_MS,
+  POLL_MS,
+  UPLOAD_TIMEOUT_MS,
+  deleteFile,
+  uploadFile,
+} from './_geminiFiles.js';
 
 const UPLOAD_URL = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
 const SESSION_URL = 'https://generativelanguage.googleapis.com/upload/v1beta/files?upload_id=xyz';
@@ -42,7 +48,11 @@ describe('uploadFile', () => {
     const sleep = vi.fn(() => Promise.resolve());
     const result = await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl, sleep });
     expect(result).toEqual({
-      file: { name: 'files/abc', uri: 'https://generativelanguage.googleapis.com/v1beta/files/abc', mimeType: 'video/mp4' },
+      file: {
+        name: 'files/abc',
+        uri: 'https://generativelanguage.googleapis.com/v1beta/files/abc',
+        mimeType: 'video/mp4',
+      },
     });
 
     const [start, upload, check] = calls;
@@ -56,7 +66,9 @@ describe('uploadFile', () => {
       'x-goog-upload-header-content-type': 'video/mp4',
       'content-type': 'application/json',
     });
-    expect(JSON.parse(start.init.body as string)).toEqual({ file: { display_name: 'shared-post' } });
+    expect(JSON.parse(start.init.body as string)).toEqual({
+      file: { display_name: 'shared-post' },
+    });
 
     expect(upload.url).toBe(SESSION_URL);
     expect(upload.init.method).toBe('POST');
@@ -80,7 +92,11 @@ describe('uploadFile', () => {
   it('waits between checks on its own clock when not given one', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] });
     try {
-      const { fetchImpl, calls } = scripted(started(), json({ file: file('PROCESSING') }), json(file('ACTIVE')));
+      const { fetchImpl, calls } = scripted(
+        started(),
+        json({ file: file('PROCESSING') }),
+        json(file('ACTIVE')),
+      );
       const result = uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl });
       await vi.advanceTimersByTimeAsync(POLL_MS - 1);
       expect(calls).toHaveLength(2);
@@ -95,7 +111,9 @@ describe('uploadFile', () => {
   it('uses a file Gemini processed straight away', async () => {
     const { fetchImpl, calls } = scripted(started(), json({ file: file('ACTIVE') }));
     const sleep = vi.fn(() => Promise.resolve());
-    expect(await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl, sleep })).toMatchObject({ file: { name: 'files/abc' } });
+    expect(await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl, sleep })).toMatchObject({
+      file: { name: 'files/abc' },
+    });
     expect(calls).toHaveLength(2);
     expect(sleep).not.toHaveBeenCalled();
   });
@@ -111,11 +129,17 @@ describe('uploadFile', () => {
       [[started(), json({ file: { name: 'files/abc' } })], 'no file in the answer'],
       [[started(), json({ file: { ...file('ACTIVE'), name: 7 } })], 'no file in the answer'],
       [[started(), json({ file: { ...file('ACTIVE'), uri: null } })], 'no file in the answer'],
-      [[started(), json({ file: { ...file('ACTIVE'), mimeType: undefined } })], 'no file in the answer'],
+      [
+        [started(), json({ file: { ...file('ACTIVE'), mimeType: undefined } })],
+        'no file in the answer',
+      ],
       // Answers with no body to let go of.
       [[new Response(null, { status: 403 })], 'start HTTP 403'],
       [[started(), new Response(null, { status: 413 })], 'upload HTTP 413'],
-      [[started(), json({ file: file('PROCESSING') }), new Response(null, { status: 404 })], 'check HTTP 404'],
+      [
+        [started(), json({ file: file('PROCESSING') }), new Response(null, { status: 404 })],
+        'check HTTP 404',
+      ],
       [[started(), json({ file: file('FAILED') })], 'processing failed'],
       [[started(), json({ file: file('PROCESSING') }), json({}, 404)], 'check HTTP 404'],
       [[started(), json({ file: file('PROCESSING') }), json({ oops: 1 })], 'no file in the answer'],
@@ -128,7 +152,9 @@ describe('uploadFile', () => {
       expect(await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl, sleep })).toEqual({ error });
     }
     const odd = vi.fn(() => Promise.reject(JSON.parse('null') as Error)) as unknown as typeof fetch;
-    expect(await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl: odd, sleep })).toEqual({ error: 'failed' });
+    expect(await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl: odd, sleep })).toEqual({
+      error: 'failed',
+    });
   });
 
   it('deletes a file Gemini has but can’t use, whatever went wrong after the upload', async () => {
@@ -140,7 +166,11 @@ describe('uploadFile', () => {
       [[json({ file: file('PROCESSING') }), new DOMException('slow', 'TimeoutError')], 'timed out'],
     ];
     for (const [answers, error] of afterUpload) {
-      const { fetchImpl, calls } = scripted(started(), ...answers, new Response(null, { status: 200 }));
+      const { fetchImpl, calls } = scripted(
+        started(),
+        ...answers,
+        new Response(null, { status: 200 }),
+      );
       expect(await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl, sleep })).toEqual({ error });
       const last = calls[calls.length - 1];
       expect(last.url).toBe(FILE_URL);
@@ -171,7 +201,11 @@ describe('uploadFile', () => {
       if (checks === 3) return Promise.reject(new DOMException('late', 'TimeoutError'));
       return Promise.resolve(json(file('PROCESSING')));
     }) as unknown as typeof fetch;
-    const result = await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl, sleep: () => Promise.resolve(), timeoutMs: 1 });
+    const result = await uploadFile(VIDEO, 'video/mp4', 'key', {
+      fetchImpl,
+      sleep: () => Promise.resolve(),
+      timeoutMs: 1,
+    });
     expect(result).toEqual({ error: 'timed out' });
     expect(UPLOAD_TIMEOUT_MS).toBe(45_000);
     expect(POLL_MS).toBe(2000);
@@ -200,8 +234,15 @@ describe('uploadFile', () => {
     expect([start.cancelled(), upload.cancelled()]).toEqual([true, true]);
 
     const check = tracked();
-    const second = scripted(started(), json({ file: file('PROCESSING') }), new Response(check.body, { status: 503 }));
-    await uploadFile(VIDEO, 'video/mp4', 'key', { fetchImpl: second.fetchImpl, sleep: () => Promise.resolve() });
+    const second = scripted(
+      started(),
+      json({ file: file('PROCESSING') }),
+      new Response(check.body, { status: 503 }),
+    );
+    await uploadFile(VIDEO, 'video/mp4', 'key', {
+      fetchImpl: second.fetchImpl,
+      sleep: () => Promise.resolve(),
+    });
     expect(check.cancelled()).toBe(true);
   });
 });
@@ -219,6 +260,8 @@ describe('deleteFile', () => {
 
   it('says so when it couldn’t, and never throws', async () => {
     expect(await deleteFile('files/abc', 'key', scripted(json({}, 404)).fetchImpl)).toBe(false);
-    expect(await deleteFile('files/abc', 'key', scripted(new Error('reset')).fetchImpl)).toBe(false);
+    expect(await deleteFile('files/abc', 'key', scripted(new Error('reset')).fetchImpl)).toBe(
+      false,
+    );
   });
 });

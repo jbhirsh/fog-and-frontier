@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: "22"
       # Node built-ins only (the reader has no imports), so no install. Reads
       # public posts: no secrets.
       - name: Read posts

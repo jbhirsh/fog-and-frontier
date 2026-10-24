@@ -60,7 +60,10 @@ function Catalog() {
         Notes <textarea />
       </label>
       <label>
-        Sort <select><option>Name</option></select>
+        Sort{' '}
+        <select>
+          <option>Name</option>
+        </select>
       </label>
       <div role="textbox" aria-label="Rich" contentEditable suppressContentEditableWarning />
       <div role="group" aria-label="Rating">
@@ -123,9 +126,7 @@ describe('ActivityPage (#86)', () => {
     const credited = { ...muirWoods, contributors: ['tarun@example.com'] };
     renderAt([`/activity/${muirWoods.id}`], [credited]);
     const dialog = screen.getByRole('dialog', { name: muirWoods.name });
-    await userEvent.click(
-      within(dialog).getByRole('button', { name: "Show Tarun's picks" }),
-    );
+    await userEvent.click(within(dialog).getByRole('button', { name: "Show Tarun's picks" }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(path()).toBe('/');
     expect(screen.getByTestId('search')).toHaveTextContent('?contributors=tarun%40example.com');
@@ -220,7 +221,7 @@ describe('ActivityPage (#86)', () => {
       expect(screen.getByText('1 of 3')).toBeInTheDocument();
     });
 
-    it("stops at the ends rather than wrapping", async () => {
+    it('stops at the ends rather than wrapping', async () => {
       renderAt(['/'], CATALOG);
       await openFromList();
       await userEvent.click(next());
@@ -320,7 +321,7 @@ describe('ActivityPage (#86)', () => {
       expect(path()).toBe(`/activity/${muirWoods.id}`);
     });
 
-    it("moves focus only on a step, not on a later Back", async () => {
+    it('moves focus only on a step, not on a later Back', async () => {
       renderAt(['/'], CATALOG);
       await openFromList();
       await userEvent.click(next());
@@ -480,9 +481,9 @@ describe('ActivityPage (#86)', () => {
       expect(screen.getByRole('dialog', { name: 'Activity not found' }).className).toContain(
         'motion-safe:animate-dialog-in',
       );
-      expect(
-        screen.getByRole('button', { name: 'Close' }).className,
-      ).toContain('motion-safe:animate-scrim-in');
+      expect(screen.getByRole('button', { name: 'Close' }).className).toContain(
+        'motion-safe:animate-scrim-in',
+      );
       unmount();
       // Back from a dead link onto an open detail... and forward again.
       renderAt(['/', `/activity/${muirWoods.id}`, '/activity/no-such-thing'], CATALOG);
@@ -536,7 +537,9 @@ describe('ActivityPage (#86)', () => {
       expect(card).toHaveFocus();
 
       await userEvent.click(card);
-      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+      await userEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }),
+      );
       expect(card).toHaveFocus();
     });
 
@@ -644,9 +647,7 @@ describe('ActivityPage (#86)', () => {
 
     it('leaves arrow keys to the edit form while it is up (#64)', async () => {
       renderAt(['/'], CATALOG);
-      await userEvent.click(
-        screen.getByRole('button', { name: 'open the hike from the list' }),
-      );
+      await userEvent.click(screen.getByRole('button', { name: 'open the hike from the list' }));
       await userEvent.click(screen.getByRole('button', { name: /EDIT ACTIVITY/ }));
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
       expect(path()).toBe(`/activity/${completedHike.id}`);
@@ -693,9 +694,7 @@ describe('ActivityPage (#86)', () => {
   it('shows nothing until the catalog first loads', async () => {
     renderAt(['/activity/no-such-thing']);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(
-      await screen.findByRole('dialog', { name: 'Activity not found' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Activity not found' })).toBeInTheDocument();
   });
 
   it('leaves other pages alone', () => {

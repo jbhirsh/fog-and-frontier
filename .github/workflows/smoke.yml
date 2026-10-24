@@ -82,7 +82,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: "22"
 
       # Vercel sometimes reports deployments/statuses state=success while
       # actually serving a "Builds: [0ms]" no-build cached preview — no API

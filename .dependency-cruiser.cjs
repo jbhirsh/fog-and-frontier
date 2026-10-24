@@ -61,8 +61,7 @@ module.exports = {
     {
       name: 'data-no-react',
       severity: 'error',
-      comment:
-        'src/data holds compiled-in constants and types only — no React, no framework.',
+      comment: 'src/data holds compiled-in constants and types only — no React, no framework.',
       from: { path: '^src/data/' },
       to: { path: '^node_modules/(react|react-dom|react-router|react-router-dom|react-leaflet)' },
     },
