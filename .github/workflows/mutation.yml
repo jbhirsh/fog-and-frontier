@@ -71,7 +71,10 @@ jobs:
       - run: npm ci
 
       # --diff-filter=d drops deletions: a removed file must not be passed to
-      # --mutate.
+      # --mutate. mutation-scope.mjs also drops a file whose change is
+      # formatting only (its base version, run through Prettier, is what the
+      # PR has), so a reformat doesn't make this a full sweep; it reads the
+      # base from BASE_REF.
       - name: Determine mutation scope
         id: scope
         if: github.event_name == 'pull_request'
