@@ -147,6 +147,9 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   config, turns off any rule that would argue with it. CI's "Format
   (Prettier)" step fails an unformatted file and the pre-commit hook checks
   the staged ones: run `npm run format`, never hand-align around it.
+  `.git-blame-ignore-revs` lists the one-time reformat (#267) by its SHA on
+  `main`, so GitHub's blame skips it; for local blame, set
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs` once.
 - **No `any` anywhere.** CI's "Type coverage" step (`npm run typecov`)
   holds `src/` and `api/` at 100%: an identifier whose type is `any`
   fails it, wherever it came from (a `JSON.parse`, a mock's calls, an
