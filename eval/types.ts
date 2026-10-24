@@ -235,5 +235,5 @@ export interface EvalResults {
 export const DEFAULT_THRESHOLD = 0.9;
 /** minimum fraction of cases that must be graded for a conclusive run */
 export const GRADED_FLOOR = 0.8;
-/** per-case wall-clock budget for the resolver call */
-export const CASE_TIMEOUT_MS = 90_000;
+/** per-case wall-clock budget for the resolver call: a draft and its 45-second AllTrails search */
+export const CASE_TIMEOUT_MS = 120_000;

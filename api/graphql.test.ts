@@ -1927,13 +1927,39 @@ describe('Gemini ops', () => {
       expect(search.signal).toBeInstanceOf(AbortSignal);
     });
 
-    it('gives the search 30 seconds', async () => {
+    it('gives the search 45 seconds', async () => {
       setup();
       const timeout = vi.spyOn(AbortSignal, 'timeout');
       stubGemini(answer(HIKE), answer({}));
       await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-      expect(timeout).toHaveBeenCalledWith(30_000);
+      expect(timeout).toHaveBeenCalledWith(45_000);
       timeout.mockRestore();
+    });
+
+    it('logs how long each search took, answered or not', async () => {
+      const timedOut = Object.assign(new Error('aborted'), { name: 'TimeoutError' });
+      for (const [second, event] of [
+        [answer({ allTrailsUrl: STAIRS }), 'draft.trail_search'],
+        [{ ok: false, body: {} }, 'draft.trail_search_failed'],
+        [timedOut, 'draft.trail_search_failed'],
+      ] as const) {
+        setup();
+        const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+        try {
+          stubGemini(answer(HIKE), second);
+          await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+          const logged = info.mock.calls
+            .map((c) => JSON.parse(String(c[0])) as Row)
+            .filter((e) => String(e.event).startsWith('draft.trail_search'));
+          expect(logged.map((e) => e.event)).toEqual([event]);
+          // Time taken by this search, not a clock reading.
+          expect(typeof logged[0].ms).toBe('number');
+          expect(logged[0].ms).toBeGreaterThanOrEqual(0);
+          expect(logged[0].ms).toBeLessThan(60_000);
+        } finally {
+          info.mockRestore();
+        }
+      }
     });
 
     it('counts a non-owner’s draft once, and keeps it counted when the search fails', async () => {
