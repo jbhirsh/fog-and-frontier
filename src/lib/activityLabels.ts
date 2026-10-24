@@ -1,4 +1,4 @@
-import type { Category, Region } from '../data/types';
+import type { Category } from '../data/types';
 
 // How the filters and the Add/Edit form name an activity's fields. Spelled out
 // rather than left to CSS `capitalize`, which capitalises every word: the
@@ -13,17 +13,3 @@ export function sentenceCase(value: string): string {
 export function categoryOptionLabel(c: 'Any' | Category): string {
   return c === 'Any' ? 'Any category' : sentenceCase(c);
 }
-
-// The region ids are slugs ("north-bay"), so each is named outright.
-export const REGION_LABELS: Readonly<Record<Region, string>> = {
-  sf: 'San Francisco',
-  'north-bay': 'North Bay',
-  'east-bay': 'East Bay',
-  'south-bay': 'South Bay',
-  peninsula: 'Peninsula',
-  'central-coast': 'Central Coast',
-  norcal: 'NorCal',
-  socal: 'SoCal',
-  oregon: 'Oregon',
-  washington: 'Washington',
-};

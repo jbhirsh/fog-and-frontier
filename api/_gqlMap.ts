@@ -6,6 +6,7 @@ import type {
   TripMember,
   TripVote,
 } from './_trips.js';
+import { toRegion } from './_regions.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
 //
@@ -119,7 +120,8 @@ export function coerceSnapshot(raw: unknown): SnapshotShape | null {
     shortDescription: str(r.shortDescription),
     longDescription: str(r.longDescription),
     category: enumVal(r.category, CATEGORIES),
-    region: str(r.region),
+    // An id saved before #274 ("oregon") reads as the region it is now.
+    region: toRegion(r.region) ?? str(r.region),
     parkType: enumVal(r.parkType, PARK_TYPES),
     location: location(r.location),
     duration: str(r.duration),

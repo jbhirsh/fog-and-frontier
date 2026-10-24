@@ -11,17 +11,11 @@ export type PriceRange = '$' | '$$' | '$$$' | '$$$$';
 // What it costs one person to do (#85): free, $ under $25, $$ $25–75, $$$ over $75.
 export type CostTier = 'free' | '$' | '$$' | '$$$';
 
-export type Region =
-  | 'sf'
-  | 'north-bay'
-  | 'east-bay'
-  | 'south-bay'
-  | 'peninsula'
-  | 'central-coast'
-  | 'norcal'
-  | 'socal'
-  | 'oregon'
-  | 'washington';
+// Where an activity is (#274): a California area or an ISO 3166 code. The
+// list is shared with the API, in shared/regions.ts.
+import type { Region } from '../../shared/regions';
+
+export type { Region };
 
 // Who manages the land an activity sits on. Optional — not every activity is
 // in a park. Drives the park-designation filter (state park vs county park,

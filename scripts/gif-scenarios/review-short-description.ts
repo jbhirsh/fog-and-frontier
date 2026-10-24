@@ -7,14 +7,12 @@
 // Gemini's draft is stubbed (its key is only on the deployment), with the
 // cover the real lookup finds (findCoverImage, as generateActivity does).
 
-import type { Page } from '@playwright/test';
-import { findCoverImage } from '../../api/_coverImage.ts';
 import { mockApis, signIn } from '../../tests/visual/helpers';
 import { click, glide, type Scenario } from '../pr-gif.ts';
 import { liveCatalog } from './live-catalog.ts';
+import { stubDraft } from './stub-draft.ts';
 
 const DRAFT = {
-  __typename: 'GeneratedActivity',
   name: 'Castle Rock State Park',
   shortDescription:
     'Sandstone caves, a seasonal waterfall and views to Monterey Bay on a ridge-top loop in the Santa Cruz Mountains',
@@ -41,27 +39,7 @@ const DRAFT = {
   dietary: null,
   allTrailsUrl: null,
   notes: null,
-  coverImage: null as string | null,
-  coverCredit: null as string | null,
 };
-
-async function stubDraft(page: Page) {
-  const cover = await findCoverImage({
-    name: DRAFT.name,
-    lat: DRAFT.lat,
-    lng: DRAFT.lng,
-    category: DRAFT.category,
-  });
-  const activity = { ...DRAFT, coverImage: cover?.url ?? null, coverCredit: cover?.credit ?? null };
-  await page.route('**/api/graphql', async (route) => {
-    const op = (route.request().postDataJSON() as { operationName?: string } | null)?.operationName;
-    if (op !== 'GenerateActivity') return route.fallback();
-    await new Promise((r) => setTimeout(r, 1200));
-    return route.fulfill({
-      json: { data: { generateActivity: { __typename: 'GenerateActivityPayload', activity } } },
-    });
-  });
-}
 
 const scenario: Scenario = {
   name: 'review-short-description',
@@ -74,7 +52,7 @@ const scenario: Scenario = {
     await signIn(page);
     // Production lacks the branch's sourceUrl: its real catalog, without it.
     await liveCatalog(page, { sourceUrl: () => null });
-    await stubDraft(page);
+    await stubDraft(page, DRAFT, 1200);
   },
   async ready(page) {
     await page.getByRole('button', { name: 'Add activity' }).first().waitFor();

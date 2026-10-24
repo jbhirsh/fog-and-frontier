@@ -10,7 +10,8 @@ export type GeneratedFields = Details & {
   shortDescription: string;
   longDescription?: string;
   category: Category;
-  region: Region;
+  // None when Gemini named no region on the list (#274): the form asks.
+  region?: Region;
   parkType?: ParkType;
   city: string;
   lat: number;
@@ -27,7 +28,7 @@ function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
     shortDescription: row.shortDescription,
     longDescription: row.longDescription ?? undefined,
     category: row.category,
-    region: row.region as Region,
+    region: (row.region as Region | null) ?? undefined,
     parkType: row.parkType ?? undefined,
     city: row.city,
     lat: row.lat,

@@ -274,7 +274,7 @@ export const typeDefs = /* GraphQL */ `
     shortDescription: String!
     longDescription: String
     category: Category!
-    region: String!
+    region: String
     parkType: ParkType
     city: String!
     lat: Float!

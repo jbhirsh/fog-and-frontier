@@ -62,8 +62,8 @@ export interface GenerateGracefulExpect {
     /**
      * null → returning any object at all fails the case (pure-nonsense input
      * must not be resolved into a record); otherwise a returned object must
-     * satisfy these requirements (honest coordinates for an out-of-region
-     * place, or a judge-verified real place for a vague prompt).
+     * satisfy these requirements (honest coordinates for a place far from
+     * home, or a judge-verified real place for a vague prompt).
      */
     ifReturned: null | { geo?: GeoExpectation; judgeRealPlace?: boolean };
   };

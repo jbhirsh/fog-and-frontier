@@ -187,7 +187,7 @@
       "expect": {
         "judgeDescriptions": true,
         "category": ["scenic", "hiking", "water", "other"],
-        "region": ["oregon"],
+        "region": ["US-OR"],
         "city": ["Cannon Beach"],
         "geo": {
           "lat": 45.8917,
@@ -195,7 +195,28 @@
           "toleranceKm": 15
         }
       },
-      "notes": "Coastal Oregon beach town (Haystack Rock). region oregon is explicitly in-scope per the system prompt. category left generous — a beach town legitimately reads as scenic, hiking, water, or other. Coords: town center 45.8917/-123.9615 (Haystack Rock sits ~1 km SW at 45.8844/-123.9684). Source: latitude.to Cannon Beach OR + Wikipedia Haystack Rock; as of 2026-07-09."
+      "notes": "Coastal Oregon beach town (Haystack Rock). region US-OR (Oregon), by its ISO code since #274. category left generous — a beach town legitimately reads as scenic, hiking, water, or other. Coords: town center 45.8917/-123.9615 (Haystack Rock sits ~1 km SW at 45.8844/-123.9684). Source: latitude.to Cannon Beach OR + Wikipedia Haystack Rock; as of 2026-07-09."
+    },
+    {
+      "id": "gen-navajo-loop-bryce",
+      "feature": "generateActivity",
+      "kind": "happy",
+      "input": {
+        "title": "Navajo Loop, Bryce Canyon"
+      },
+      "expect": {
+        "judgeDescriptions": true,
+        "category": ["hiking"],
+        "region": ["US-UT"],
+        "parkType": ["national"],
+        "geo": {
+          "lat": 37.6229,
+          "lng": -112.1668,
+          "toleranceKm": 10
+        },
+        "partOf": ["Bryce Canyon National Park"]
+      },
+      "notes": "A place outside California, which the draft must file under its own state's ISO code (#274), US-UT, not stretch a California area over it. Coords: Sunset Point, where the Navajo Loop starts (37.6229/-112.1668, NPS Bryce Canyon). parkType national; partOf the national park."
     },
     {
       "id": "gen-castle-rock-bouldering",
@@ -303,25 +324,23 @@
       "notes": "Pure-nonsense title with no real-world referent. The IDEAL behavior is to refuse (surface BAD_GATEWAY via the parity guard), so ifReturned=null means 'returning any object at all fails'. But the responseSchema marks name/category/region/lat/lng/etc. as required with no 'unknown' escape hatch, so gemini-2.5-flash almost always hallucinates a plausible-looking Bay Area record instead of erroring — hence expectedFailure. A predicted failure scores as pass and is reported as a KNOWN FINDING; an unexpected pass (the model learned to refuse) flags that the golden set needs review. No coordinates to cite. As of 2026-07-09."
     },
     {
-      "id": "gen-out-of-region",
+      "id": "gen-abroad-fushimi-inari",
       "feature": "generateActivity",
-      "kind": "adversarial",
+      "kind": "happy",
       "input": {
-        "title": "Red Rocks Amphitheatre concert, Denver"
+        "title": "Fushimi Inari hike, Kyoto"
       },
       "expect": {
-        "graceful": {
-          "allowedErrors": ["BAD_GATEWAY"],
-          "ifReturned": {
-            "geo": {
-              "lat": 39.6655,
-              "lng": -105.2058,
-              "toleranceKm": 30
-            }
-          }
+        "judgeDescriptions": true,
+        "category": ["hiking", "culture", "scenic"],
+        "region": ["JP-26"],
+        "geo": {
+          "lat": 34.9671,
+          "lng": 135.7727,
+          "toleranceKm": 5
         }
       },
-      "notes": "A real, unambiguous place far outside the app's West-Coast scope. The model may either decline (BAD_GATEWAY) or resolve it — but if it resolves it, the coordinates must be HONEST Colorado, not a fabricated Bay Area stand-in. Coords: Red Rocks Amphitheatre, Morrison CO (39.6655/-105.2058, Wikipedia 'Red Rocks Amphitheatre'), ~16 km SW of Denver. No region expectation: every legal REGION_VALUES enum is wrong for Colorado, so grading region would be unfair. 30 km tolerance. As of 2026-07-09."
+      "notes": "A place abroad, which regions name since #274: Kyoto prefecture is JP-26 (ISO 3166-2), not a California area stretched over it. Coords: the shrine's main gate, Fushimi Inari Taisha (34.9671/135.7727, Wikipedia); the trail climbs Mount Inari behind it, inside the 5 km tolerance. Category generous: the walk through the torii is a hike, a shrine visit and a sight."
     },
     {
       "id": "gen-vague",

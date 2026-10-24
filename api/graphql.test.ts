@@ -571,6 +571,50 @@ describe('owner-gated mutations', () => {
     expect((JSON.parse(write?.args[1] as string) as Row).parentId ?? undefined).toBe(kept);
   });
 
+  it('saveActivity: saves a region as the one it names, and refuses none (#274)', async () => {
+    const SAVE =
+      'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { region } } }';
+    const writes = () =>
+      execute.mock.calls
+        .map((c) => c[0] as { sql: string; args: unknown[] })
+        .filter((q) => typeof q !== 'string' && /^INSERT INTO a /.test(q.sql));
+    for (const [given, saved] of [
+      ['oregon', 'US-OR'],
+      ['jp-26', 'JP-26'],
+      ['north-bay', 'north-bay'],
+    ]) {
+      setup();
+      const r = await run(
+        SAVE,
+        { i: { id: 'a1', activity: { ...minimalActivity(), region: given } } },
+        OWNER,
+      );
+      expect(r.errors).toBeUndefined();
+      expect(r.data?.saveActivity).toEqual({ activity: { region: saved } });
+      expect((JSON.parse(writes().at(-1)?.args[1] as string) as Row).region).toBe(saved);
+    }
+    execute.mockClear();
+    setup();
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), region: 'Utah' } } },
+      OWNER,
+    );
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe('region must be a California area or an ISO 3166 code');
+    expect(writes()).toHaveLength(0);
+  });
+
+  it('activities: a region saved before #274 reads as the one it is now', async () => {
+    setup({
+      catalog: [
+        { id: 'cb', j: JSON.stringify({ ...minimalActivity(), coverImage: '', region: 'oregon' }) },
+      ],
+    });
+    const r = await run('{ activities { id region } }');
+    expect(r.data?.activities).toEqual([{ id: 'cb', region: 'US-OR' }]);
+  });
+
   it('saveActivity: refuses to make an activity part of itself, and saves nothing (#269)', async () => {
     setup();
     const r = await run(
@@ -1707,6 +1751,42 @@ describe('Gemini ops', () => {
     expect(r.errors).toBeUndefined();
     expect(r.data?.generateActivity).toEqual({
       activity: { name: 'Castle Rock', category: 'hiking', city: 'Los Gatos', parkType: 'state' },
+    });
+  });
+
+  describe('generateActivity: the region of a draft (#274)', () => {
+    const DRAFT = {
+      name: 'Navajo Loop',
+      shortDescription: 'Down among the hoodoos of Bryce Canyon',
+      category: 'hiking',
+      city: 'Bryce Canyon City',
+      lat: 37.6229,
+      lng: -112.1668,
+      duration: '1-2 Hours',
+    };
+    const REGIONED =
+      'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name region } } }';
+
+    it('names it as the list writes it', async () => {
+      setup();
+      stubFetch(geminiText(JSON.stringify({ ...DRAFT, region: 'us-ut' })));
+      const r = await run(REGIONED, { i: { title: 'Navajo Loop' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      expect(r.data?.generateActivity).toEqual({
+        activity: { name: 'Navajo Loop', region: 'US-UT' },
+      });
+    });
+
+    it('leaves it for the form to ask when Gemini names none on the list', async () => {
+      for (const region of ['Utah', undefined]) {
+        setup();
+        stubFetch(geminiText(JSON.stringify({ ...DRAFT, region })));
+        const r = await run(REGIONED, { i: { title: 'Navajo Loop' } }, OWNER);
+        expect(r.errors).toBeUndefined();
+        expect(r.data?.generateActivity).toEqual({
+          activity: { name: 'Navajo Loop', region: null },
+        });
+      }
     });
   });
 

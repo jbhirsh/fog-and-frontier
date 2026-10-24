@@ -14,7 +14,6 @@ import { GraphQLError } from 'graphql';
 import {
   ACTIVITY_REQUIRED_FIELDS,
   CATEGORY_VALUES,
-  REGION_VALUES,
   PARK_TYPE_VALUES,
   DURATION_VALUES,
   DIFFICULTY_VALUES,
@@ -22,6 +21,7 @@ import {
   COST_TIER_VALUES,
 } from '../api/_resolvers/gemini.js';
 import { normalizeName as placeName } from '../api/_duplicates.js';
+import { toRegion } from '../api/_regions.js';
 import type {
   AlltrailsExpect,
   AlltrailsGracefulExpect,
@@ -141,7 +141,6 @@ const REQUIRED_ACTIVITY_FIELDS: {
 
 const ENUM_ACTIVITY_FIELDS: { field: string; values: readonly string[] }[] = [
   { field: 'category', values: CATEGORY_VALUES },
-  { field: 'region', values: REGION_VALUES },
   { field: 'parkType', values: PARK_TYPE_VALUES },
   { field: 'duration', values: DURATION_VALUES },
   { field: 'difficulty', values: DIFFICULTY_VALUES },
@@ -185,6 +184,12 @@ function checkEnums(activity: Record<string, unknown>): CheckResult {
     } else if (!values.includes(v)) {
       problems.push(`${field}=${JSON.stringify(v)} not in [${values.join(', ')}]`);
     }
+  }
+  // A region is a California area or an ISO code (#274), written as the
+  // list writes it.
+  const region = activity.region;
+  if (region !== undefined && region !== null && toRegion(region) !== region) {
+    problems.push(`region=${JSON.stringify(region)} is not a region`);
   }
   return problems.length === 0
     ? pass('schema:enums', 'all present enum fields legal')

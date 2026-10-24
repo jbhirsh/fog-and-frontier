@@ -1,6 +1,7 @@
 import { findAllTrailsUrl, type AskGemini } from '../_allTrailsSearch.js';
 import { findCoverImage } from '../_coverImage.js';
 import { matchParent } from '../_parents.js';
+import { toRegion } from '../_regions.js';
 import { badGateway, badInput, forbidden } from '../_gqlError.js';
 import { claimAssist, releaseAssist } from '../_assistBudget.js';
 import { isSavableUrl, LINK_HOSTS } from '../_links.js';
@@ -84,18 +85,6 @@ export const CATEGORY_VALUES = [
   'camping',
   'other',
 ] as const;
-export const REGION_VALUES = [
-  'sf',
-  'north-bay',
-  'east-bay',
-  'south-bay',
-  'peninsula',
-  'central-coast',
-  'norcal',
-  'socal',
-  'oregon',
-  'washington',
-] as const;
 export const PARK_TYPE_VALUES = [
   'national',
   'state',
@@ -153,7 +142,8 @@ const ACTIVITY_SCHEMA = {
     },
     region: {
       type: 'string',
-      enum: REGION_VALUES,
+      description:
+        "In California, one of the app's areas: sf, north-bay, east-bay, south-bay, peninsula, central-coast, norcal (the rest of Northern California, Sacramento, Tahoe and the Sierra north of Mammoth included) or socal. Anywhere else, the ISO 3166-2 code of the first-level subdivision it is in (US-OR for Oregon, US-UT, CA-BC, JP-26 for Kyoto, FR-ARA, GB-SCT), or the ISO 3166-1 code of a country with none (HK).",
     },
     parkType: {
       type: 'string',
@@ -238,7 +228,6 @@ const REQUIRED_GENERATED_FIELDS = [
   'name',
   'shortDescription',
   'category',
-  'region',
   'city',
   'lat',
   'lng',
@@ -264,7 +253,7 @@ const OPTIONAL_GENERATED_ENUMS: Record<string, readonly string[]> = {
 const GENERATE_SYSTEM_PROMPT = `You are a Bay Area outdoor-activity research assistant for a personal travel app called "Fog and Frontier". Given a user's free-form title and optional notes/links, populate a structured Activity record.
 
 Rules:
-- The home base is ${HOME_BASE}. Most activities are within a few hours' drive of the SF Bay Area, but coastal Oregon, Washington, and SoCal are also valid.
+- The home base is ${HOME_BASE}. Most activities are within a few hours' drive of the SF Bay Area, but a place anywhere in the world is valid: give it the region it is really in (one of California's areas, or the ISO code of its state, province or country), never the nearest California one.
 - Use Google Search to check the facts (location, park, hours, prices, trail stats, links) rather than answering from memory, and read any links in the user's notes. If you cannot verify something (e.g. exact AllTrails URL, hike distance), omit that optional field rather than guess.
 - Only give a URL (allTrailsUrl, reservationUrl, menuUrl) that you found in your search results or the user's links; never construct one. Give the page's own address, never a vertexaisearch.cloud.google.com redirect.
 - For a hike or walk, look for its AllTrails listing before leaving "allTrailsUrl" out. AllTrails lists trails rather than places, so search it by every name the place goes by (its common English name and any local or translated one) and by the route or feature it's known for (for example "… Stairs", "… Trail", "… Loop"), and give the alltrails.com/trail/ page of the route that best matches the activity.
@@ -475,6 +464,9 @@ async function generateActivity(
     });
     throw badGateway(detail);
   }
+  // A region it named outside the list (#274) is dropped, for the form to
+  // ask for, rather than failing a draft that was billed.
+  parsed.region = toRegion(parsed.region);
   for (const [field, values] of Object.entries(OPTIONAL_GENERATED_ENUMS)) {
     const v = parsed[field];
     if (v !== undefined && v !== null && !values.includes(v as string)) {

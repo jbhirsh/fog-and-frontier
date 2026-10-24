@@ -242,6 +242,27 @@ describe('coordinate tolerance', () => {
   });
 });
 
+// --- region (#274) ---------------------------------------------------------------
+
+describe('region (via checkGenerateHappy)', () => {
+  it('passes a California area or an ISO code, as the list writes it', () => {
+    for (const region of ['south-bay', 'US-UT', 'JP-26', 'HK']) {
+      const result = checkGenerateHappy({ activity: activityRecord({ region }) }, {});
+      expect(findCheck(result, 'schema:enums').status).toBe('pass');
+    }
+  });
+
+  it('fails anything else, naming it', () => {
+    for (const region of ['utah', 'us-ut', 'US-CA', 7]) {
+      const result = checkGenerateHappy({ activity: activityRecord({ region }) }, {});
+      expect(findCheck(result, 'schema:enums')).toMatchObject({
+        status: 'fail',
+        detail: `region=${JSON.stringify(region)} is not a region`,
+      });
+    }
+  });
+});
+
 // --- cost tier (#85) -------------------------------------------------------------
 
 describe('costTier (via checkGenerateHappy)', () => {

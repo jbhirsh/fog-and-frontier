@@ -19,5 +19,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false
   },
-  "include": ["api/**/*.ts"]
+  "include": ["api/**/*.ts", "shared/**/*.ts"]
 }

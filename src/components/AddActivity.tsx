@@ -10,7 +10,6 @@ import type {
   Duration,
   ParkType,
   PriceRange,
-  Region,
 } from '../data/types';
 import { saveUserActivity } from '../lib/userActivities';
 import { suggestUserActivity } from '../lib/suggestions';
@@ -21,10 +20,11 @@ import { COST_TIERS, costLabel } from '../lib/cost';
 import { useOwner } from '../lib/useOwner';
 import { fetchUsers } from '../lib/userTrips';
 import { ContributorsField } from './ContributorsField';
+import { RegionPicker } from './RegionPicker';
 import { PartOfSelect } from './PartOfSelect';
 import { DuplicateNotice } from './DuplicateNotice';
 import { lookupAllTrails } from '../lib/alltrails';
-import { REGION_LABELS, sentenceCase } from '../lib/activityLabels';
+import { sentenceCase } from '../lib/activityLabels';
 import { generateActivity, type GeneratedFields } from '../lib/generateActivity';
 
 interface Props {
@@ -62,18 +62,6 @@ const CATEGORIES: Category[] = [
   'climbing',
   'camping',
   'other',
-];
-const REGIONS: Region[] = [
-  'sf',
-  'north-bay',
-  'east-bay',
-  'south-bay',
-  'peninsula',
-  'central-coast',
-  'norcal',
-  'socal',
-  'oregon',
-  'washington',
 ];
 const DURATIONS: Duration[] = [
   '1-2 Hours',
@@ -214,7 +202,7 @@ export function AddActivity({
         shortDescription: g.shortDescription,
         longDescription: g.longDescription,
         category: g.category,
-        region: g.region,
+        region: g.region ?? UNCHOSEN,
         parkType: g.parkType,
         location: { city: g.city, coords: { lat: g.lat, lng: g.lng } },
         duration: g.duration,
@@ -345,6 +333,12 @@ export function AddActivity({
     if (suggest && missingForSuggestion(draft).length > 0) {
       setError(null);
       setHeldBack(true);
+      return;
+    }
+    // A draft can come without one, when Gemini names a region not on the
+    // list (#274); the server would refuse it.
+    if (!draft.region) {
+      setError('Choose a region before saving.');
       return;
     }
     setSaving(true);
@@ -807,24 +801,12 @@ function ReviewStep({
             ))}
           </select>
         </Field>
-        <Field label="Region">
-          <select
-            value={draft.region}
-            onChange={(e) => patch('region', e.target.value as Region)}
-            className={selectCls}
-          >
-            {!draft.region && (
-              <option value="" disabled>
-                Choose
-              </option>
-            )}
-            {REGIONS.map((r) => (
-              <option key={r} value={r}>
-                {REGION_LABELS[r]}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <RegionPicker
+          label="Region"
+          value={draft.region}
+          onChange={(region) => patch('region', region)}
+          className={inputCls}
+        />
         <Field label="Duration">
           <select
             value={draft.duration}
