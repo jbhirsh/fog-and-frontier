@@ -24,19 +24,40 @@ describe('useRevealedCount', () => {
 
   it('grows to whole pages that include a given item', () => {
     const { result } = renderHook(() => useRevealedCount(30, 6));
-    act(() => result.current.revealTo(6));
+    let shown = 0;
+    act(() => {
+      shown = result.current.revealTo(6);
+    });
     expect(result.current.count).toBe(12);
-    act(() => result.current.revealTo(17));
+    // It says how many will show, before they do.
+    expect(shown).toBe(12);
+    act(() => {
+      shown = result.current.revealTo(17);
+    });
     expect(result.current.count).toBe(18);
-    act(() => result.current.revealTo(18));
+    expect(shown).toBe(18);
+    act(() => {
+      result.current.revealTo(18);
+    });
     expect(result.current.count).toBe(24);
+    // Never past the end, nor below what's already shown.
+    act(() => {
+      shown = result.current.revealTo(29);
+    });
+    expect(shown).toBe(30);
+    act(() => {
+      shown = result.current.revealTo(0);
+    });
+    expect(shown).toBe(30);
   });
 
   it('never shrinks to reveal an item already shown', () => {
     const { result } = renderHook(() => useRevealedCount(30, 6));
     act(() => result.current.showMore());
     act(() => result.current.showMore());
-    act(() => result.current.revealTo(2));
+    act(() => {
+      result.current.revealTo(2);
+    });
     expect(result.current.count).toBe(18);
   });
 
@@ -48,7 +69,9 @@ describe('useRevealedCount', () => {
     expect(result.current).toMatchObject({ count: 12, remaining: 28 });
     act(() => result.current.showMore());
     expect(result.current.count).toBe(24);
-    act(() => result.current.revealTo(25));
+    act(() => {
+      result.current.revealTo(25);
+    });
     expect(result.current.count).toBe(36);
   });
 

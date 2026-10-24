@@ -17,6 +17,8 @@ export type GeneratedFields = Details & {
   lng: number;
   duration: Duration;
   coverImage?: string;
+  // The saved park it's part of (#269), matched from the park Gemini named.
+  parentId?: string;
 };
 
 function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
@@ -33,6 +35,7 @@ function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
     duration: row.duration as Duration,
     ...rowDetails(row),
     coverImage: row.coverImage ?? undefined,
+    parentId: row.parentId ?? undefined,
   };
 }
 

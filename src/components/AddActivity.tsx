@@ -21,6 +21,7 @@ import { COST_TIERS, costLabel } from '../lib/cost';
 import { useOwner } from '../lib/useOwner';
 import { fetchUsers } from '../lib/userTrips';
 import { ContributorsField } from './ContributorsField';
+import { PartOfSelect } from './PartOfSelect';
 import { DuplicateNotice } from './DuplicateNotice';
 import { lookupAllTrails } from '../lib/alltrails';
 import { REGION_LABELS, sentenceCase } from '../lib/activityLabels';
@@ -239,6 +240,9 @@ export function AddActivity({
         // Whoever adds it is credited (#9), and can add the others who
         // suggested it in the review step.
         contributors: email && !suggest ? [email] : undefined,
+        // The saved park Gemini placed it in (#269); the owners decide that,
+        // so a suggestion doesn't carry one.
+        parentId: suggest ? undefined : g.parentId,
       };
       setDraft(activity);
       setStep('review');
@@ -882,6 +886,16 @@ function ReviewStep({
             ))}
           </select>
         </Field>
+        {/* Which park it's part of (#269): the owners decide, so suggestions don't ask. */}
+        {!suggest && (
+          <Field label="Part of (optional)">
+            <PartOfSelect
+              activity={draft}
+              className={selectCls}
+              onChange={(parentId) => patch('parentId', parentId)}
+            />
+          </Field>
+        )}
         <Field label="City">
           <input
             type="text"
