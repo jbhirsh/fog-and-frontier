@@ -197,7 +197,8 @@ too much of the set, the run is reported **inconclusive** and exits non-zero
 below an **80% graded floor**.
 
 **CI.** `.github/workflows/eval.yml` grades only when the AI code — the
-Gemini resolver (`api/_resolvers/gemini.ts`), the `api/_home.ts` and
+Gemini resolver (`api/_resolvers/gemini.ts`), its follow-up AllTrails
+search (`api/_allTrailsSearch.ts`), the `api/_home.ts` and
 `api/_gqlError.ts` it and the harness read, or `eval/**` — changes, and never a draft: when a PR opens ready for review, is reopened, or
 a draft is marked ready, if the PR touches the AI code; and on a later push
 to a ready PR, unless the AI code is as it was when the workflow last

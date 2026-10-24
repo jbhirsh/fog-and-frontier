@@ -1,9 +1,10 @@
 name: Gemini eval
 
 # Output-quality eval for the Gemini resolver (issue #122). Makes 23 paid
-# resolver calls plus up to 17 judge calls (all search-grounded
+# resolver calls (and a follow-up AllTrails search for each hike drafted
+# without its link) plus up to 17 judge calls (all search-grounded
 # gemini-3.8-flash) per run, so it only grades when the AI code
-# (the resolver, the two api/ files the prompts and grading read, the eval
+# (the resolver, the api/ files the prompts and grading read, the eval
 # harness) changes, and never a draft:
 #   - when a PR opens ready for review, is reopened, or a draft is marked
 #     ready, if the PR touches the AI code;
@@ -23,6 +24,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'api/_resolvers/gemini.ts'
+      # The follow-up AllTrails search's prompt.
+      - 'api/_allTrailsSearch.ts'
       # HOME_BASE goes into the prompts; the eval matches _gqlError's codes.
       - 'api/_home.ts'
       - 'api/_gqlError.ts'
@@ -41,8 +44,9 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     # Grounded calls are slower than the old memory-only ones: the 23 cases
-    # run one at a time with a 90 s cap each, plus up to 17 judge calls with
-    # a 120 s cap each.
+    # run one at a time with a 90 s cap each (a hike's follow-up AllTrails
+    # search, capped at 30 s, runs within its case's), plus up to 17 judge
+    # calls with a 120 s cap each.
     timeout-minutes: 60
     permissions:
       contents: read
@@ -88,7 +92,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
           node .github/scripts/eval-should-grade.mjs
-          api/_resolvers/gemini.ts api/_home.ts api/_gqlError.ts eval
+          api/_resolvers/gemini.ts api/_allTrailsSearch.ts api/_home.ts api/_gqlError.ts eval
           >> "$GITHUB_OUTPUT"
 
       - name: Setup Node

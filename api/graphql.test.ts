@@ -19,6 +19,7 @@ process.env.OWNER_EMAILS = 'owner@example.com';
 process.env.GEMINI_API_KEY = 'test-gemini-key';
 
 const { typeDefs } = await import('./_schema.js');
+const { TRAIL_SEARCH_PROMPT, trailQuestion } = await import('./_allTrailsSearch.js');
 const { resolvers } = await import('./_resolvers/index.js');
 
 const server = new ApolloServer({ typeDefs, resolvers });
@@ -1521,6 +1522,155 @@ describe('Gemini ops', () => {
     expect(r.errors).toBeUndefined();
     expect(r.data?.generateActivity).toEqual({
       activity: { name: 'Castle Rock', category: 'hiking', city: 'Los Gatos', parkType: 'state' },
+    });
+  });
+
+  describe('generateActivity: a hike drafted without its AllTrails link (#6)', () => {
+    const HIKE = {
+      name: 'Dragon Mountain Peak',
+      shortDescription: 'The 450-step Stairway to Heaven',
+      longDescription: 'A Buddhist sanctuary above Calaveras Road.',
+      category: 'hiking',
+      region: 'south-bay',
+      city: 'Milpitas',
+      lat: 37.4524,
+      lng: -121.8505,
+      duration: 'Half Day',
+    };
+    const STAIRS = 'https://www.alltrails.com/trail/us/california/dragon-mountain-stairs';
+    const LINKED = 'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name allTrailsUrl } } }';
+    type Answer = { ok: boolean; body: unknown } | Error;
+    /** Answers each Gemini request in turn; Commons finds nothing. */
+    function stubGemini(...answers: Answer[]) {
+      const asked: Row[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: { body?: string; signal?: unknown }) => {
+          if (url.includes('generativelanguage')) {
+            asked.push({ ...(JSON.parse(init?.body ?? '{}') as Row), signal: init?.signal });
+            const next = answers.shift() ?? { ok: false, body: {} };
+            if (next instanceof Error) return Promise.reject(next);
+            const { ok, body } = next;
+            return Promise.resolve({
+              ok,
+              status: ok ? 200 : 503,
+              json: () => Promise.resolve(body),
+              text: () => Promise.resolve(JSON.stringify(body)),
+            });
+          }
+          return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+        }),
+      );
+      return asked;
+    }
+    const answer = (value: unknown): Answer => ({ ok: true, body: geminiText(JSON.stringify(value)) });
+
+    it('searches once more, for the trail page alone, and keeps what it finds', async () => {
+      setup();
+      const asked = stubGemini(answer(HIKE), answer({ allTrailsUrl: STAIRS }));
+      const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak, Milpitas' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      expect(r.data?.generateActivity).toEqual({ activity: { name: 'Dragon Mountain Peak', allTrailsUrl: STAIRS } });
+      expect(asked).toHaveLength(2);
+      const search = asked[1] as {
+        systemInstruction: { parts: { text: string }[] };
+        contents: { parts: { text: string }[] }[];
+        tools: unknown;
+        generationConfig: { thinkingConfig: unknown; responseJsonSchema: unknown };
+        signal: unknown;
+      };
+      expect(search.systemInstruction.parts[0].text).toBe(TRAIL_SEARCH_PROMPT);
+      expect(search.contents[0].parts[0].text).toBe(
+        [
+          'Place: Dragon Mountain Peak',
+          'Town: Milpitas',
+          'Coordinates: 37.4524, -121.8505',
+          'Short description: The 450-step Stairway to Heaven',
+          'Description: A Buddhist sanctuary above Calaveras Road.',
+        ].join('\n'),
+      );
+      // Search alone (AllTrails' pages don't answer a fetch), at low effort, on a time limit.
+      expect(search.tools).toEqual([{ googleSearch: {} }]);
+      expect(search.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+      expect(search.generationConfig.responseJsonSchema).toEqual(trailQuestion(HIKE).schema);
+      expect(search.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it('gives the search 30 seconds', async () => {
+      setup();
+      const timeout = vi.spyOn(AbortSignal, 'timeout');
+      stubGemini(answer(HIKE), answer({}));
+      await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+      expect(timeout).toHaveBeenCalledWith(30_000);
+      timeout.mockRestore();
+    });
+
+    it('counts a non-owner’s draft once, and keeps it counted when the search fails', async () => {
+      for (const second of [answer({ allTrailsUrl: STAIRS }), { ok: false, body: {} }, new Error('reset')]) {
+        setup();
+        // Counted per draft: the last one's writes go.
+        batch.mockClear();
+        vi.spyOn(console, 'info').mockImplementation(() => {});
+        stubGemini(answer(HIKE), second);
+        const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, EDITOR);
+        expect(r.errors).toBeUndefined();
+        // The account's claim and the shared one, and nothing given back:
+        // Gemini answered the draft, which was billed.
+        expect(assistClaims()).toBe(2);
+        expect(givenBack()).toHaveLength(0);
+      }
+    });
+
+    it('goes without the link when the search fails or finds no trail page, and says why it failed', async () => {
+      const timedOut = Object.assign(new Error('aborted'), { name: 'TimeoutError' });
+      const cases: [Answer, Row | null][] = [
+        [{ ok: false, body: { error: 'overloaded' } }, { status: 503 }],
+        [timedOut, { error: 'TimeoutError' }],
+        [new TypeError('fetch failed'), { error: 'TypeError' }],
+        [answer({}), null],
+        [answer({ allTrailsUrl: 'https://www.alltrails.com/parks/us/california/ed-r-levin-county-park' }), null],
+      ];
+      for (const [second, logged] of cases) {
+        setup();
+        const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+        const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+        stubGemini(answer(HIKE), second);
+        const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+        expect(r.errors).toBeUndefined();
+        expect(r.data?.generateActivity).toEqual({ activity: { name: 'Dragon Mountain Peak', allTrailsUrl: null } });
+        const events = info.mock.calls
+          .map((c) => JSON.parse(String(c[0])) as Row)
+          .filter((e) => e.event === 'draft.trail_search_failed');
+        expect(events).toEqual(logged ? [expect.objectContaining(logged)] : []);
+        // The draft succeeded, so nothing reads as a server error.
+        expect(errors).not.toHaveBeenCalled();
+        info.mockRestore();
+        errors.mockRestore();
+      }
+    });
+
+    it('doesn’t search again for a hike that has its link, or for anything but a hike', async () => {
+      const drafts: (typeof HIKE & { allTrailsUrl?: string })[] = [
+        { ...HIKE, allTrailsUrl: STAIRS },
+        { ...HIKE, category: 'scenic' },
+        { ...HIKE, category: 'camping' },
+      ];
+      for (const draft of drafts) {
+        setup();
+        const asked = stubGemini(answer(draft), answer({ allTrailsUrl: 'https://www.alltrails.com/trail/other' }));
+        const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+        expect((r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl).toBe(draft.allTrailsUrl ?? null);
+        expect(asked).toHaveLength(1);
+      }
+    });
+
+    it('searches again when the draft’s own link was dropped as unsavable', async () => {
+      setup();
+      const redirect = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc';
+      const asked = stubGemini(answer({ ...HIKE, allTrailsUrl: redirect }), answer({ allTrailsUrl: STAIRS }));
+      const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+      expect((r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl).toBe(STAIRS);
+      expect(asked).toHaveLength(2);
     });
   });
 
