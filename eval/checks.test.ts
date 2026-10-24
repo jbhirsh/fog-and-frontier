@@ -487,7 +487,7 @@ describe('partOf (via checkGenerateHappy)', () => {
   });
 });
 
-// --- the follow-up AllTrails search ----------------------------------------------
+// --- the AllTrails search -------------------------------------------------------
 
 describe('withTrailSearch', () => {
   const linkMissing = {
@@ -497,7 +497,7 @@ describe('withTrailSearch', () => {
   };
   const graded = { name: 'expect:city', status: 'pass' as const, detail: 'city=Kyoto' };
 
-  it('fails a draft whose search timed out, or that Gemini refused, saying how and after how long', () => {
+  it('fails a draft whose search timed out, or was refused, saying how and after how long', () => {
     expect(
       withTrailSearch(
         [graded],
@@ -517,9 +517,16 @@ describe('withTrailSearch', () => {
       linkMissing,
       { name: 'trailSearch', status: 'fail', detail: 'the AllTrails search failed (HTTP 400)' },
     ]);
+    // An answer that couldn't be read, or an error that isn't the network's, is the draft's too.
+    for (const error of ['SyntaxError', 'AbortError']) {
+      expect(
+        withTrailSearch([], [{ event: 'draft.trail_search_failed', error }]).at(-1)?.status,
+        error,
+      ).toBe('fail');
+    }
   });
 
-  it('counts a search Gemini couldn’t serve, and the link it cost, as infrastructure', () => {
+  it('counts a search that couldn’t be served, and the link it cost, as infrastructure', () => {
     for (const [failed, why] of [
       [{ status: 429, ms: 800 }, 'HTTP 429) after 0.8s'],
       [{ status: 503 }, 'HTTP 503)'],
@@ -527,10 +534,15 @@ describe('withTrailSearch', () => {
       [{ error: 'TypeError' }, 'TypeError)'],
     ] as const) {
       const detail = `the AllTrails search failed (${why}`;
+      // Another check that failed stays the draft's.
+      const cityWrong = { name: 'expect:city', status: 'fail' as const, detail: 'city=Oslo' };
       expect(
-        withTrailSearch([graded, linkMissing], [{ event: 'draft.trail_search_failed', ...failed }]),
+        withTrailSearch(
+          [cityWrong, linkMissing],
+          [{ event: 'draft.trail_search_failed', ...failed }],
+        ),
       ).toEqual([
-        graded,
+        cityWrong,
         { ...linkMissing, status: 'error', detail: `${linkMissing.detail}, since ${detail}` },
         { name: 'trailSearch', status: 'error', detail },
       ]);
@@ -557,5 +569,44 @@ describe('withTrailSearch', () => {
     ]);
     expect(withTrailSearch([graded], [])).toEqual([graded]);
     expect(withTrailSearch([graded], [{ event: 'share.places' }])).toEqual([graded]);
+  });
+
+  it('says what a search that answered did', () => {
+    const summary = (fields: Record<string, unknown>) =>
+      withTrailSearch([], [{ event: 'draft.trail_search', ms: 2000, results: 3, ...fields }])[0]
+        ?.detail;
+    expect(summary({ queries: ['dragon stairs', 'milpitas'], chosen: true, kept: true })).toBe(
+      'the AllTrails search answered after 2.0s: searched "dragon stairs", "milpitas", found 3 trails, kept its pick',
+    );
+    expect(summary({ queries: ['x'], chosen: true, kept: false })).toBe(
+      'the AllTrails search answered after 2.0s: searched "x", found 3 trails, its pick wasn’t among them',
+    );
+    expect(summary({ queries: [], chosen: false, kept: false })).toBe(
+      'the AllTrails search answered after 2.0s: searched nothing, found 3 trails, it chose none',
+    );
+  });
+
+  it('names the step that failed', () => {
+    expect(
+      withTrailSearch([], [{ event: 'draft.trail_search_failed', step: 'search', status: 400 }]),
+    ).toEqual([
+      {
+        name: 'trailSearch',
+        status: 'fail',
+        detail: 'the AllTrails search failed (search: HTTP 400)',
+      },
+    ]);
+    expect(
+      withTrailSearch(
+        [],
+        [{ event: 'draft.trail_search_failed', step: 'gemini', error: 'TypeError', ms: 1500 }],
+      ),
+    ).toEqual([
+      {
+        name: 'trailSearch',
+        status: 'error',
+        detail: 'the AllTrails search failed (gemini: TypeError) after 1.5s',
+      },
+    ]);
   });
 });

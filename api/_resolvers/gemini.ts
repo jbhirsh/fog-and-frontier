@@ -1,11 +1,16 @@
-import { findAllTrailsUrl, type AskGemini } from '../_allTrailsSearch.js';
+import {
+  AGENT_SEARCH_URL,
+  findAllTrailsUrl,
+  HttpError,
+  type TrailTools,
+} from '../_allTrailsSearch.js';
 import { findCoverImage } from '../_coverImage.js';
 import { matchParent } from '../_parents.js';
 import { toRegion } from '../_regions.js';
 import { badGateway, badInput, forbidden } from '../_gqlError.js';
 import { claimAssist, releaseAssist } from '../_assistBudget.js';
 import { isSavableUrl, LINK_HOSTS } from '../_links.js';
-import { logEvent, logServerError } from '../_log.js';
+import { logServerError } from '../_log.js';
 import { requireOwnerCtx, requireUserCtx, type GqlContext } from '../_gqlContext.js';
 import { HOME_BASE } from '../_home.js';
 import { catalogActivities } from './catalog.js';
@@ -268,48 +273,39 @@ Rules:
 - When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.
 - "costTier" is what one person pays to do it, from the fees you found: "free" when you find no entry, parking or ticket fee (most trails, beaches and city parks), "$" under $25 (e.g. a state park day-use fee, or a national park's per-vehicle fee split between two people), "$$" $25-75, "$$$" over $75. Omit it for restaurants, which use "priceRange" instead, and otherwise only when there's clearly a charge you can't price.`;
 
-// How long the follow-up AllTrails search may take before the draft goes
-// without the link: 30 seconds wasn't always enough (one timed out in the
-// eval on 2026-10-24), and each search logs its time, so this can follow
-// what they take.
+// How long the AllTrails search may take, all its requests together, before
+// the draft goes without the link. Each search logs its time, so this can
+// follow what they take.
 const TRAIL_SEARCH_TIMEOUT_MS = 45_000;
 
-// The follow-up AllTrails search (#6, api/_allTrailsSearch.ts): Google
-// Search alone (AllTrails' own pages don't answer a fetch) at low effort.
-// Each search logs how long it took, so its time limit can follow what
-// searches really take. One that fails is logged as an event, not an error,
-// since the draft still succeeds: it just goes without the link.
-function askForTrail(apiKey: string): AskGemini {
-  return async ({ system, user, schema }) => {
-    const started = Date.now();
-    const ms = () => Date.now() - started;
-    try {
-      const r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: [{ role: 'user', parts: [{ text: user }] }],
-          tools: [{ googleSearch: {} }],
-          generationConfig: jsonConfig(schema, 'low'),
-        }),
-        signal: AbortSignal.timeout(TRAIL_SEARCH_TIMEOUT_MS),
-      });
-      if (!r.ok) {
-        await r.body?.cancel();
-        logEvent('draft.trail_search_failed', { status: r.status, ms: ms() });
-        return undefined;
-      }
-      const answer = responseText((await r.json()) as Parameters<typeof responseText>[0]);
-      logEvent('draft.trail_search', { ms: ms() });
-      return answer;
-    } catch (err) {
-      logEvent('draft.trail_search_failed', {
-        error: (err as { name?: unknown } | null)?.name ?? 'Error',
-        ms: ms(),
-      });
-      return undefined;
+// The AllTrails search's requests (#6, api/_allTrailsSearch.ts): Gemini at
+// the same endpoint as the draft, and the Agent Search app, whose key
+// (AGENT_SEARCH_API_KEY) is restricted to that API. Either one answering
+// with an error status throws, which ends the search.
+function trailTools(apiKey: string, searchKey: string): TrailTools {
+  const signal = AbortSignal.timeout(TRAIL_SEARCH_TIMEOUT_MS);
+  const post = async (url: string, body: unknown): Promise<unknown> => {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!r.ok) {
+      await r.body?.cancel();
+      throw new HttpError(r.status);
     }
+    return r.json();
+  };
+  return {
+    gemini: (body) => post(`${ENDPOINT}?key=${apiKey}`, body),
+    // Snippets come back only when asked for; Gemini matches on them.
+    search: (query) =>
+      post(`${AGENT_SEARCH_URL}?key=${searchKey}`, {
+        query,
+        pageSize: 10,
+        contentSearchSpec: { snippetSpec: { returnSnippet: true } },
+      }),
   };
 }
 
@@ -489,29 +485,33 @@ async function generateActivity(
   // Location-aware Wikimedia Commons lookup (#36). The required-field guard
   // above means name/category/lat/lng are present and typed. No match leaves
   // the cover unset so the UI shows the category placeholder. Alongside it, a
-  // hike drafted without its AllTrails link gets one more search for it,
-  // part of the same draft (it isn't counted again).
+  // hike's AllTrails page is searched for on AllTrails itself, part of the
+  // same draft (it isn't counted again). Its answer replaces the draft's own
+  // link, which is kept only when the search fails, or (with no search key)
+  // doesn't run.
   const place = {
     name: parsed.name as string,
     lat: parsed.lat as number,
     lng: parsed.lng as number,
   };
+  const searchKey = process.env.AGENT_SEARCH_API_KEY;
   const [cover, trail, parentId] = await Promise.all([
     findCoverImage({ ...place, category: parsed.category as string }),
-    parsed.category === 'hiking' && parsed.allTrailsUrl == null
+    parsed.category === 'hiking' && searchKey
       ? findAllTrailsUrl(
           {
             ...place,
             city: parsed.city,
             shortDescription: parsed.shortDescription,
             longDescription: parsed.longDescription,
+            allTrailsUrl: parsed.allTrailsUrl,
           },
-          askForTrail(apiKey),
+          trailTools(apiKey, searchKey),
         )
-      : null,
+      : undefined,
     draftParent({ ...place, partOf: parsed.partOf }),
   ]);
-  if (trail) parsed.allTrailsUrl = trail;
+  if (trail !== undefined) parsed.allTrailsUrl = trail;
   parsed.parentId = parentId;
   if (cover) {
     parsed.coverImage = cover.url;
