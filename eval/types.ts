@@ -43,6 +43,11 @@ export interface GenerateHappyExpect {
   judgeDescriptions?: boolean;
   /** food cases: cuisine and priceRange must be present */
   restaurantFields?: boolean;
+  /**
+   * hikes listed on AllTrails: allTrailsUrl must be one of these trail pages,
+   * by the path after /trail/ (e.g. "us/california/dragon-mountain-stairs")
+   */
+  allTrailsTrails?: string[];
 }
 
 export interface GenerateGracefulExpect {

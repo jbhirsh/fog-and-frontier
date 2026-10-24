@@ -278,6 +278,47 @@ describe('costTier (via checkGenerateHappy)', () => {
   });
 });
 
+// --- AllTrails link (#6: the Dragon Mountain share) -------------------------------
+
+describe('allTrailsUrl (via checkGenerateHappy)', () => {
+  const expect_ = { allTrailsTrails: ['us/california/dragon-mountain-stairs', 'us/california/dragon-mountain-trail-2'] };
+  const graded = (allTrailsUrl?: unknown) =>
+    findCheck(checkGenerateHappy({ activity: activityRecord({ allTrailsUrl }) }, expect_), 'expect:allTrailsUrl');
+
+  it('passes a link to one of the expected trails, however it is dressed', () => {
+    for (const url of [
+      'https://www.alltrails.com/trail/us/california/dragon-mountain-stairs',
+      'https://alltrails.com/trail/us/california/dragon-mountain-trail-2/',
+      'https://www.alltrails.com/trail/us/california/dragon-mountain-stairs?utm_source=x',
+      'https://www.alltrails.com/es/trail/us/california/dragon-mountain-stairs',
+      'https://www.alltrails.com/explore/trail/us/california/dragon-mountain-trail-2',
+    ]) {
+      expect(graded(url)).toMatchObject({ status: 'pass', detail: `allTrailsUrl=${url}` });
+    }
+  });
+
+  it('fails a missing link, another trail, another site, or not a URL', () => {
+    const want = 'one of [us/california/dragon-mountain-stairs, us/california/dragon-mountain-trail-2]';
+    expect(graded()).toMatchObject({ status: 'fail', detail: `allTrailsUrl missing; expected ${want}` });
+    expect(graded('  ').status).toBe('fail');
+    expect(graded('https://www.alltrails.com/trail/us/california/mission-peak-trail')).toMatchObject({
+      status: 'fail',
+      detail: `allTrailsUrl=https://www.alltrails.com/trail/us/california/mission-peak-trail, expected ${want}`,
+    });
+    expect(graded('https://www.alltrails.com/parks/us/california/dragon-mountain-stairs').status).toBe('fail');
+    expect(graded('https://alltrails.com.evil.example/trail/us/california/dragon-mountain-stairs').status).toBe('fail');
+    expect(graded('dragon-mountain-stairs')).toMatchObject({
+      status: 'fail',
+      detail: `allTrailsUrl=dragon-mountain-stairs isn't a URL; expected ${want}`,
+    });
+  });
+
+  it('is not graded without an expectation', () => {
+    const results = checkGenerateHappy({ activity: activityRecord() }, {});
+    expect(results.some((c) => c.name === 'expect:allTrailsUrl')).toBe(false);
+  });
+});
+
 // --- trip suggestions (#78) ------------------------------------------------------
 
 describe('checkTripSuggestions', () => {
