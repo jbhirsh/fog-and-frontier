@@ -189,6 +189,12 @@ input tokens, though the first 5,000 searches a month are free — so expect
 up to a dollar. It is **not** part of `npm test`: it's opt-in because it costs
 money and hits the network.
 
+Cases run **four at a time** (`EVAL_CONCURRENCY` or `--concurrency` sets
+another number; `1` runs them one after another), since each one waits
+mostly on Gemini. Each event line a case logs prints after its case's id
+(`[gen-big-basin] {"event":"draft.trail_search",…}`), and is graded with
+that case alone.
+
 **Threshold semantics.** A run passes at **90%** by default, overridable with
 `EVAL_THRESHOLD` or `--threshold` — both take a fraction (e.g. `0.85`), not a
 percentage. Infrastructure errors (transport failures, a
