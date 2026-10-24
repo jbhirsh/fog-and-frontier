@@ -9,8 +9,10 @@ import {
   isUnwantedTitle,
   nameMatchScore,
   nameTokens,
+  namesPlace,
   nearbyPageImages,
   pickImage,
+  placeFilesFirst,
   rankCommonsCandidates,
   searchRadiusMeters,
   stripHtml,
@@ -403,6 +405,39 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('namesPlace', () => {
+  it('needs two of the name’s words, or its only one', () => {
+    expect(namesPlace('Castle Rock State Park', 'Category:Castle Rock State Park (California)')).toBe(true);
+    expect(namesPlace('Castle Rock State Park', 'Category:Rock formations in California')).toBe(false);
+    expect(namesPlace('Castle Rock State Park', 'Category:BMW 00 touring Series')).toBe(false);
+    expect(namesPlace('Huntington Falls', 'Category:Huntington Falls')).toBe(true);
+    expect(namesPlace('Alcatraz', 'Category:Alcatraz Island')).toBe(true);
+    expect(namesPlace('Alcatraz', 'Category:Islands of California')).toBe(false);
+    // Generic words alone name nothing.
+    expect(namesPlace('Muir Woods Trail', 'Category:Trails in Marin County')).toBe(false);
+    expect(namesPlace('', 'Category:Anything')).toBe(false);
+  });
+});
+
+describe('placeFilesFirst', () => {
+  it('puts files filed under the place first, each group in its order', () => {
+    const titles = ['File:A.jpg', 'File:B.jpg', 'File:C.jpg', 'File:D.jpg'];
+    const filed = [
+      { title: 'File:A.jpg', categories: [{ title: 'Category:Cars' }] },
+      { title: 'File:B.jpg' },
+      { title: 'File:C.jpg', categories: [{ title: 'Category:Castle Rock State Park' }] },
+      { title: 'File:D.jpg', categories: [{ title: 7 }, { title: 'Category:Castle Rock State Park (California)' }] },
+    ];
+    expect(placeFilesFirst({ name: 'Castle Rock State Park' }, titles, filed)).toEqual([
+      'File:C.jpg',
+      'File:D.jpg',
+      'File:A.jpg',
+      'File:B.jpg',
+    ]);
+    expect(placeFilesFirst({ name: 'Castle Rock State Park' }, titles, [])).toEqual(titles);
+  });
+});
+
 describe('findCoverImage', () => {
   it('returns the best-ranked usable Commons image', async () => {
     const calls = stubFetch((p) => {
@@ -451,12 +486,42 @@ describe('findCoverImage', () => {
       format: 'json',
       formatversion: '2',
       action: 'query',
-      prop: 'imageinfo',
+      prop: 'imageinfo|categories',
       titles: 'File:Castle Rock top.jpg|File:Trees of Castle Rock.jpg',
       iiprop: 'url|extmetadata|mime|size',
       iiurlwidth: '1280',
       iiextmetadatafilter: 'Artist|LicenseShortName',
+      clshow: '!hidden',
+      cllimit: 'max',
     });
+  });
+
+  // Castle Rock State Park's best-ranked photos were a car shot at the park,
+  // titled "Castle Rock" and filed under the car's model.
+  it('takes a photo filed under the place over a nearer one only titled like it', async () => {
+    const place: CoverPlace = { name: 'Castle Rock State Park', category: 'hiking', lat: 37.2309, lng: -122.0956 };
+    stubFetch((p) => {
+      if (p.get('list') === 'geosearch') {
+        return {
+          query: {
+            geosearch: [
+              { title: 'File:Castle Rock (136032939).jpeg', dist: 24 },
+              { title: 'File:Rocks - panoramio.jpg', dist: 900 },
+              { title: 'File:In Castle Rock Park - panoramio.jpg', dist: 991 },
+            ],
+          },
+        };
+      }
+      return {
+        query: {
+          pages: [
+            { title: 'File:Castle Rock (136032939).jpeg', imageinfo: [info('https://u.org/bmw')], categories: [{ title: 'Category:BMW 00 touring Series' }] },
+            { title: 'File:In Castle Rock Park - panoramio.jpg', imageinfo: [info('https://u.org/park')], categories: [{ title: 'Category:Castle Rock State Park (California)' }] },
+          ],
+        },
+      };
+    });
+    expect((await findCoverImage(place))?.url).toBe('https://u.org/park/1280px');
   });
 
   it('identifies itself to Wikimedia and passes an abort signal', async () => {

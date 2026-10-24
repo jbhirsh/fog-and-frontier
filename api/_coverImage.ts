@@ -12,7 +12,10 @@
 //      searchRadiusMeters). Candidates are filtered by title (no maps, logos,
 //      SVGs, …) and ranked by name match + distance (rankCommonsCandidates).
 //   2. `prop=imageinfo` for the best candidates: the first raster image big
-//      enough for the hero wins, served as its 1280px thumbnail.
+//      enough for the hero wins, served as its 1280px thumbnail. A photo
+//      filed under a Commons category that names the place goes first: a
+//      title can match a place the photo was only taken at (a car shot at
+//      Castle Rock State Park, titled "Castle Rock").
 //   3. Fallback: the Wikipedia page image of an article that both matches the
 //      name and sits within WIKIPEDIA_MAX_M of the activity. The file is then
 //      resolved on Commons like step 2, which also drops non-free local files.
@@ -153,6 +156,17 @@ export function nameMatchScore(name: string, title: string): number {
   const inTitle = new Set(words(title).map(stem));
   const hits = tokens.filter((t) => inTitle.has(t)).length;
   return hits / tokens.length;
+}
+
+// Whether a Commons category names the place: two of the name's tokens, or
+// its only one. A single shared word ("Rock formations in California" for
+// Castle Rock) is a topic, not the place.
+export function namesPlace(name: string, category: string): boolean {
+  const tokens = nameTokens(name);
+  if (tokens.length === 0) return false;
+  const inCategory = new Set(words(category).map(stem));
+  const hits = tokens.filter((t) => inCategory.has(t)).length;
+  return hits >= Math.min(2, tokens.length);
 }
 
 // No dot → the whole title, which is never a raster extension.
@@ -307,29 +321,48 @@ async function commonsGeosearch(
   );
 }
 
+type CommonsPage = { title?: unknown; imageinfo?: ImageInfo[]; categories?: { title?: unknown }[] };
+
+// The titles, those filed under a category naming the place first, each
+// group in the order given.
+export function placeFilesFirst(place: Pick<CoverPlace, 'name'>, titles: string[], pages: CommonsPage[]): string[] {
+  const named = new Set(
+    pages.flatMap((p) =>
+      (p.categories ?? []).some((c) => typeof c.title === 'string' && namesPlace(place.name, c.title))
+        ? [p.title]
+        : [],
+    ),
+  );
+  return [...titles.filter((t) => named.has(t)), ...titles.filter((t) => !named.has(t))];
+}
+
 // Resolve file titles on Commons and return the first usable one, in the
-// order given.
+// order given, or for a Commons search, with photos filed under the place
+// first. Only visible categories count: the hidden ones are licences and
+// upkeep.
 async function firstUsableImage(
   titles: string[],
   signal: AbortSignal,
+  place?: CoverPlace,
 ): Promise<CoverImage | null> {
   if (titles.length === 0) return null;
   const data = (await getJson(
     COMMONS_API,
     {
       action: 'query',
-      prop: 'imageinfo',
+      prop: 'imageinfo|categories',
       titles: titles.join('|'),
       iiprop: 'url|extmetadata|mime|size',
       iiurlwidth: String(THUMB_WIDTH),
       iiextmetadatafilter: 'Artist|LicenseShortName',
+      clshow: '!hidden',
+      cllimit: 'max',
     },
     signal,
-  )) as QueryResponse<{ pages?: { title?: unknown; imageinfo?: ImageInfo[] }[] }>;
-  const byTitle = new Map<unknown, ImageInfo | undefined>(
-    (data.query?.pages ?? []).map((p) => [p.title, p.imageinfo?.[0]]),
-  );
-  for (const title of titles) {
+  )) as QueryResponse<{ pages?: CommonsPage[] }>;
+  const pages = data.query?.pages ?? [];
+  const byTitle = new Map<unknown, ImageInfo | undefined>(pages.map((p) => [p.title, p.imageinfo?.[0]]));
+  for (const title of place ? placeFilesFirst(place, titles, pages) : titles) {
     const image = pickImage(byTitle.get(title));
     if (image) return image;
   }
@@ -401,7 +434,7 @@ export async function findCoverImage(
     );
     const titles = ranked.slice(0, MAX_CANDIDATES).map((c) => c.title);
     return (
-      (await firstUsableImage(titles, controller.signal)) ??
+      (await firstUsableImage(titles, controller.signal, place)) ??
       (await wikipediaFallback(place, controller.signal))
     );
   } catch {
