@@ -351,27 +351,43 @@ export function checkGenerateHappy(value: unknown, expect: GenerateHappyExpect):
   return results;
 }
 
-// --- generateActivity: the follow-up AllTrails search ---------------------
+// --- generateActivity: the AllTrails search ------------------------------
 
 const seconds = (ms: unknown) =>
   typeof ms === 'number' ? ` after ${(ms / 1000).toFixed(1)}s` : '';
 
-// A search Gemini couldn't serve (rate-limited or down) or the network
-// dropped: infrastructure, like the same failure on the draft itself. One
-// that ran out of time, or that Gemini refused as asked, is the draft's.
+// A search Gemini or Agent Search couldn't serve (rate-limited or down) or
+// the network dropped (fetch's TypeError): infrastructure, like the same
+// failure on the draft itself. One that ran out of time, was refused, or
+// gave an answer that couldn't be read, is the draft's.
 function searchUnavailable(failed: Record<string, unknown>): boolean {
   const status = failed.status;
   if (typeof status === 'number') return status === 429 || status >= 500;
-  return failed.error !== 'TimeoutError';
+  return failed.error === 'TypeError';
+}
+
+// What a search that answered did: its queries, the trails they found, and
+// what became of Gemini's pick.
+function searchSummary(answered: Record<string, unknown>): string {
+  const queries: unknown = answered.queries;
+  if (!Array.isArray(queries)) return '';
+  const pick = answered.kept
+    ? 'kept its pick'
+    : answered.chosen
+      ? 'its pick wasn’t among them'
+      : 'it chose none';
+  const asked = (queries as unknown[]).map((q) => JSON.stringify(q)).join(', ');
+  return `: searched ${asked || 'nothing'}, found ${String(answered.results)} trails, ${pick}`;
 }
 
 /**
- * The hike's follow-up AllTrails search (api/_allTrailsSearch.ts), graded
- * from the events the draft logged, added to the case's `checks`: one that
- * timed out (or that Gemini refused) fails the case, since the draft then
- * goes without its link however the rest of it reads. One Gemini couldn't
- * serve is an infrastructure error, and so is the missing link it caused.
- * No search (a draft that had its link, or isn't a hike) adds nothing.
+ * The hike's AllTrails search (api/_allTrailsSearch.ts), graded from the
+ * events the draft logged, added to the case's `checks`: one that timed out
+ * (or that was refused) fails the case, since the draft then goes without
+ * its link however the rest of it reads. One Gemini or Agent Search
+ * couldn't serve is an infrastructure error, and so is the missing link it
+ * caused. No search (a draft that isn't a hike, or a run without the search
+ * key) adds nothing.
  */
 export function withTrailSearch(
   checks: readonly CheckResult[],
@@ -379,7 +395,8 @@ export function withTrailSearch(
 ): CheckResult[] {
   const failed = events.find((e) => e.event === 'draft.trail_search_failed');
   if (failed) {
-    const why = typeof failed.error === 'string' ? failed.error : `HTTP ${String(failed.status)}`;
+    const step = typeof failed.step === 'string' ? `${failed.step}: ` : '';
+    const why = `${step}${typeof failed.error === 'string' ? failed.error : `HTTP ${String(failed.status)}`}`;
     const detail = `the AllTrails search failed (${why})${seconds(failed.ms)}`;
     if (!searchUnavailable(failed)) return [...checks, fail('trailSearch', detail)];
     return [
@@ -393,7 +410,13 @@ export function withTrailSearch(
   }
   const answered = events.find((e) => e.event === 'draft.trail_search');
   return answered
-    ? [...checks, pass('trailSearch', `the AllTrails search answered${seconds(answered.ms)}`)]
+    ? [
+        ...checks,
+        pass(
+          'trailSearch',
+          `the AllTrails search answered${seconds(answered.ms)}${searchSummary(answered)}`,
+        ),
+      ]
     : [...checks];
 }
 

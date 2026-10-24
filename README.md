@@ -204,7 +204,7 @@ too much of the set, the run is reported **inconclusive** and exits non-zero
 below an **80% graded floor**.
 
 **CI.** `.github/workflows/eval.yml` grades only when the AI code — the
-Gemini resolver (`api/_resolvers/gemini.ts`), its follow-up AllTrails
+Gemini resolver (`api/_resolvers/gemini.ts`), its AllTrails
 search (`api/_allTrailsSearch.ts`), the `api/_home.ts` and
 `api/_gqlError.ts` it and the harness read, or `eval/**` — changes, and never a draft: when a PR opens ready for review, is reopened, or
 a draft is marked ready, if the PR touches the AI code; and on a later push
@@ -219,7 +219,8 @@ touched the schema or the auth context too, which most feature PRs do, and
 that ran into the project's monthly spend cap. There's no schedule (the calls
 are paid), and it **skips green** when `GEMINI_API_KEY` is absent
 (forks, or the secret unset), so it never blocks contributors who can't make the
-calls.
+calls. Hikes are searched for on AllTrails only when the
+`AGENT_SEARCH_API_KEY` secret is set too.
 
 **Golden set status.** The golden set is **DRAFT — pending owner review**; each
 case cites the provenance of its expected coordinates/data and an as-of date.

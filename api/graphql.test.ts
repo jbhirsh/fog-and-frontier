@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApolloServer } from '@apollo/server';
 
 // Integration tests for the consolidated GraphQL API (issue #91). We test
@@ -19,7 +19,8 @@ process.env.OWNER_EMAILS = 'owner@example.com';
 process.env.GEMINI_API_KEY = 'test-gemini-key';
 
 const { typeDefs } = await import('./_schema.js');
-const { TRAIL_SEARCH_PROMPT, trailQuestion } = await import('./_allTrailsSearch.js');
+const { AGENT_SEARCH_URL, trailQuestion, trailRequest } = await import('./_allTrailsSearch.js');
+const { ENDPOINT } = await import('./_resolvers/gemini.js');
 const { resolvers } = await import('./_resolvers/index.js');
 
 const server = new ApolloServer({ typeDefs, resolvers });
@@ -1850,7 +1851,7 @@ describe('Gemini ops', () => {
     });
   });
 
-  describe('generateActivity: a hike drafted without its AllTrails link (#6)', () => {
+  describe('generateActivity: a hike’s AllTrails page, searched on AllTrails (#6)', () => {
     const HIKE = {
       name: 'Dragon Mountain Peak',
       shortDescription: 'The 450-step Stairway to Heaven',
@@ -1863,116 +1864,208 @@ describe('Gemini ops', () => {
       duration: 'Half Day',
     };
     const STAIRS = 'https://www.alltrails.com/trail/us/california/dragon-mountain-stairs';
+    const OTHER = 'https://www.alltrails.com/trail/us/california/dragon-mountain-trail-2';
     const LINKED =
       'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name allTrailsUrl } } }';
     type Answer = { ok: boolean; body: unknown } | Error;
-    /** Answers each Gemini request in turn; Commons finds nothing. */
-    function stubGemini(...answers: Answer[]) {
-      const asked: Row[] = [];
+    type Sent = { url: string; body: Row; signal: unknown; headers: unknown };
+
+    beforeEach(() => {
+      vi.stubEnv('AGENT_SEARCH_API_KEY', 'test-search-key');
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    /**
+     * Answers each Gemini request in turn, and each AllTrails search with the
+     * pages found for its query (or `searchFails`); Commons finds nothing.
+     */
+    function stubGemini(answers: Answer[], searchFails?: Answer) {
+      const asked: Sent[] = [];
+      const searched: Sent[] = [];
+      const reply = (next: Answer) => {
+        if (next instanceof Error) return Promise.reject(next);
+        const { ok, body } = next;
+        return Promise.resolve({
+          ok,
+          status: ok ? 200 : 503,
+          body: null,
+          json: () => Promise.resolve(body),
+          text: () => Promise.resolve(JSON.stringify(body)),
+        });
+      };
       vi.stubGlobal(
         'fetch',
-        vi.fn((url: string, init?: { body?: string; signal?: unknown }) => {
-          if (url.includes('generativelanguage')) {
-            asked.push({ ...(JSON.parse(init?.body ?? '{}') as Row), signal: init?.signal });
-            const next = answers.shift() ?? { ok: false, body: {} };
-            if (next instanceof Error) return Promise.reject(next);
-            const { ok, body } = next;
-            return Promise.resolve({
-              ok,
-              status: ok ? 200 : 503,
-              json: () => Promise.resolve(body),
-              text: () => Promise.resolve(JSON.stringify(body)),
+        vi.fn((url: string, init?: { body?: string; signal?: unknown; headers?: unknown }) => {
+          const sent = {
+            url,
+            body: JSON.parse(init?.body ?? '{}') as Row,
+            signal: init?.signal,
+            headers: init?.headers,
+          };
+          const host = new URL(url).hostname;
+          if (host === 'discoveryengine.googleapis.com') {
+            searched.push(sent);
+            if (searchFails) return reply(searchFails);
+            const found = sent.body.query === 'dragon mountain stairs' ? [STAIRS] : [];
+            return reply({
+              ok: true,
+              body: {
+                results: found.map((link) => ({
+                  document: { derivedStructData: { link, title: 'Dragon Mountain Stairs' } },
+                })),
+              },
             });
+          }
+          if (host === 'generativelanguage.googleapis.com') {
+            asked.push(sent);
+            return reply(answers.shift() ?? { ok: false, body: {} });
           }
           return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
         }),
       );
-      return asked;
+      return { asked, searched };
     }
     const answer = (value: unknown): Answer => ({
       ok: true,
       body: geminiText(JSON.stringify(value)),
     });
+    /** Gemini's reply calling one of the search's tools. */
+    const calling = (name: string, args: Row): Answer => ({
+      ok: true,
+      body: {
+        candidates: [{ content: { role: 'model', parts: [{ functionCall: { name, args } }] } }],
+      },
+    });
+    const searching = calling('search_alltrails', { query: 'dragon mountain stairs' });
+    const choosing = (url?: string) => calling('choose_trail', url ? { url } : {});
+    const linkOf = (r: { data?: Row | null }) =>
+      (r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl;
+    // The draft's search events from here on.
+    function trailEvents() {
+      const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+      info.mockClear();
+      return () =>
+        info.mock.calls
+          .map((c) => JSON.parse(String(c[0])) as Row)
+          .filter((e) => String(e.event).startsWith('draft.trail_search'));
+    }
 
-    it('searches once more, for the trail page alone, and keeps what it finds', async () => {
+    it('lets Gemini search AllTrails, and keeps the trail it chose from what came back', async () => {
       setup();
-      const asked = stubGemini(answer(HIKE), answer({ allTrailsUrl: STAIRS }));
+      const events = trailEvents();
+      const { asked, searched } = stubGemini([answer(HIKE), searching, choosing(STAIRS)]);
       const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak, Milpitas' } }, OWNER);
       expect(r.errors).toBeUndefined();
       expect(r.data?.generateActivity).toEqual({
         activity: { name: 'Dragon Mountain Peak', allTrailsUrl: STAIRS },
       });
-      expect(asked).toHaveLength(2);
-      const search = asked[1] as {
-        systemInstruction: { parts: { text: string }[] };
-        contents: { parts: { text: string }[] }[];
-        tools: unknown;
-        generationConfig: { thinkingConfig: unknown; responseJsonSchema: unknown };
-        signal: unknown;
-      };
-      expect(search.systemInstruction.parts[0].text).toBe(TRAIL_SEARCH_PROMPT);
-      expect(search.contents[0].parts[0].text).toBe(
-        [
-          'Place: Dragon Mountain Peak',
-          'Town: Milpitas',
-          'Coordinates: 37.4524, -121.8505',
-          'Short description: The 450-step Stairway to Heaven',
-          'Description: A Buddhist sanctuary above Calaveras Road.',
-        ].join('\n'),
-      );
-      // Search alone (AllTrails' pages don't answer a fetch), at low effort, on a time limit.
-      expect(search.tools).toEqual([{ googleSearch: {} }]);
-      expect(search.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
-      expect(search.generationConfig.responseJsonSchema).toEqual(trailQuestion(HIKE).schema);
-      expect(search.signal).toBeInstanceOf(AbortSignal);
+      // The Agent Search app, with its own key, on the search's time limit.
+      expect(searched).toEqual([
+        {
+          url: `${AGENT_SEARCH_URL}?key=test-search-key`,
+          body: {
+            query: 'dragon mountain stairs',
+            pageSize: 10,
+            contentSearchSpec: { snippetSpec: { returnSnippet: true } },
+          },
+          signal: expect.any(AbortSignal) as AbortSignal,
+          headers: { 'content-type': 'application/json' },
+        },
+      ]);
+      // Gemini, told the draft's facts, with the search as its tool.
+      expect(asked).toHaveLength(3);
+      const question = [{ role: 'user', parts: [{ text: trailQuestion(HIKE) }] }];
+      expect(asked[1]).toEqual({
+        url: `${ENDPOINT}?key=test-gemini-key`,
+        body: trailRequest(question, false),
+        signal: searched[0]?.signal,
+        headers: { 'content-type': 'application/json' },
+      });
+      expect(events()).toEqual([
+        expect.objectContaining({
+          event: 'draft.trail_search',
+          queries: ['dragon mountain stairs'],
+          results: 1,
+          kept: true,
+        }),
+      ]);
     });
 
-    it('gives the search 45 seconds', async () => {
+    it('gives the search 45 seconds in all', async () => {
       setup();
       const timeout = vi.spyOn(AbortSignal, 'timeout');
-      stubGemini(answer(HIKE), answer({}));
+      trailEvents();
+      stubGemini([answer(HIKE), choosing()]);
       await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-      expect(timeout).toHaveBeenCalledWith(45_000);
+      expect(timeout.mock.calls).toEqual([[45_000]]);
       timeout.mockRestore();
     });
 
-    it('logs how long each search took, answered or not', async () => {
-      const timedOut = Object.assign(new Error('aborted'), { name: 'TimeoutError' });
-      for (const [second, event] of [
-        [answer({ allTrailsUrl: STAIRS }), 'draft.trail_search'],
-        [{ ok: false, body: {} }, 'draft.trail_search_failed'],
-        [timedOut, 'draft.trail_search_failed'],
+    it('replaces the draft’s own link with what it finds, none included', async () => {
+      for (const [chosen, kept] of [
+        [STAIRS, STAIRS],
+        [undefined, null],
       ] as const) {
         setup();
-        const info = vi.spyOn(console, 'info').mockImplementation(() => {});
-        try {
-          stubGemini(answer(HIKE), second);
-          await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-          const logged = info.mock.calls
-            .map((c) => JSON.parse(String(c[0])) as Row)
-            .filter((e) => String(e.event).startsWith('draft.trail_search'));
-          expect(logged.map((e) => e.event)).toEqual([event]);
-          // Time taken by this search, not a clock reading.
-          expect(typeof logged[0].ms).toBe('number');
-          expect(logged[0].ms).toBeGreaterThanOrEqual(0);
-          expect(logged[0].ms).toBeLessThan(60_000);
-        } finally {
-          info.mockRestore();
-        }
+        trailEvents();
+        const { asked } = stubGemini([
+          answer({ ...HIKE, allTrailsUrl: OTHER }),
+          searching,
+          choosing(chosen),
+        ]);
+        const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+        expect(linkOf(r)).toBe(kept);
+        // The draft's own link goes to Gemini as a lead to check.
+        const sent = asked[1]?.body as { contents: { parts: { text: string }[] }[] };
+        expect(sent.contents[0]?.parts[0]?.text).toContain(`A web search suggested ${OTHER}`);
+      }
+    });
+
+    it('keeps the draft’s own link when a request fails, and says which and why', async () => {
+      const timedOut = Object.assign(new Error('aborted'), { name: 'TimeoutError' });
+      const cases: [Answer[], Answer | undefined, Row][] = [
+        [
+          [{ ok: false, body: { error: 'overloaded' } }],
+          undefined,
+          { step: 'gemini', status: 503 },
+        ],
+        [[timedOut], undefined, { step: 'gemini', error: 'TimeoutError' }],
+        [[searching], { ok: false, body: {} }, { step: 'search', status: 503 }],
+        [[searching], new TypeError('fetch failed'), { step: 'search', error: 'TypeError' }],
+      ];
+      for (const [answers, searchFails, logged] of cases) {
+        setup();
+        const events = trailEvents();
+        const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+        stubGemini([answer({ ...HIKE, allTrailsUrl: OTHER }), ...answers], searchFails);
+        const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+        expect(r.errors).toBeUndefined();
+        expect(linkOf(r)).toBe(OTHER);
+        expect(events()).toEqual([
+          {
+            level: 'info',
+            source: 'api',
+            ts: expect.any(String) as string,
+            event: 'draft.trail_search_failed',
+            ms: expect.any(Number) as number,
+            ...logged,
+          },
+        ]);
+        // The draft succeeded, so nothing reads as a server error.
+        expect(errors).not.toHaveBeenCalled();
+        errors.mockRestore();
       }
     });
 
     it('counts a non-owner’s draft once, and keeps it counted when the search fails', async () => {
-      for (const second of [
-        answer({ allTrailsUrl: STAIRS }),
-        { ok: false, body: {} },
-        new Error('reset'),
-      ]) {
+      for (const answers of [[searching, choosing(STAIRS)], [{ ok: false, body: {} }]]) {
         setup();
         // Counted per draft: the last one's writes go.
         batch.mockClear();
-        vi.spyOn(console, 'info').mockImplementation(() => {});
-        stubGemini(answer(HIKE), second);
+        trailEvents();
+        stubGemini([answer(HIKE), ...answers]);
         const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, EDITOR);
         expect(r.errors).toBeUndefined();
         // The account's claim and the shared one, and nothing given back:
@@ -1982,71 +2075,37 @@ describe('Gemini ops', () => {
       }
     });
 
-    it('goes without the link when the search fails or finds no trail page, and says why it failed', async () => {
-      const timedOut = Object.assign(new Error('aborted'), { name: 'TimeoutError' });
-      const cases: [Answer, Row | null][] = [
-        [{ ok: false, body: { error: 'overloaded' } }, { status: 503 }],
-        [timedOut, { error: 'TimeoutError' }],
-        [new TypeError('fetch failed'), { error: 'TypeError' }],
-        [answer({}), null],
-        [
-          answer({
-            allTrailsUrl: 'https://www.alltrails.com/parks/us/california/ed-r-levin-county-park',
-          }),
-          null,
-        ],
+    it('searches for nothing but a hike, and not at all without its key', async () => {
+      const cases: [Row, string | undefined][] = [
+        [{ ...HIKE, category: 'scenic' }, 'test-search-key'],
+        [{ ...HIKE, category: 'camping' }, 'test-search-key'],
+        [{ ...HIKE, allTrailsUrl: OTHER }, undefined],
+        [{ ...HIKE, allTrailsUrl: OTHER }, ''],
       ];
-      for (const [second, logged] of cases) {
+      for (const [draft, key] of cases) {
         setup();
-        const info = vi.spyOn(console, 'info').mockImplementation(() => {});
-        const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-        stubGemini(answer(HIKE), second);
+        vi.stubEnv('AGENT_SEARCH_API_KEY', key);
+        const { asked, searched } = stubGemini([answer(draft), searching, choosing(STAIRS)]);
         const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-        expect(r.errors).toBeUndefined();
-        expect(r.data?.generateActivity).toEqual({
-          activity: { name: 'Dragon Mountain Peak', allTrailsUrl: null },
-        });
-        const events = info.mock.calls
-          .map((c) => JSON.parse(String(c[0])) as Row)
-          .filter((e) => e.event === 'draft.trail_search_failed');
-        expect(events).toEqual(logged ? [expect.objectContaining(logged)] : []);
-        // The draft succeeded, so nothing reads as a server error.
-        expect(errors).not.toHaveBeenCalled();
-        info.mockRestore();
-        errors.mockRestore();
-      }
-    });
-
-    it('doesn’t search again for a hike that has its link, or for anything but a hike', async () => {
-      const drafts: (typeof HIKE & { allTrailsUrl?: string })[] = [
-        { ...HIKE, allTrailsUrl: STAIRS },
-        { ...HIKE, category: 'scenic' },
-        { ...HIKE, category: 'camping' },
-      ];
-      for (const draft of drafts) {
-        setup();
-        const asked = stubGemini(
-          answer(draft),
-          answer({ allTrailsUrl: 'https://www.alltrails.com/trail/other' }),
-        );
-        const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-        expect((r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl).toBe(
-          draft.allTrailsUrl ?? null,
-        );
+        expect(linkOf(r)).toBe(draft.allTrailsUrl ?? null);
         expect(asked).toHaveLength(1);
+        expect(searched).toHaveLength(0);
       }
     });
 
-    it('searches again when the draft’s own link was dropped as unsavable', async () => {
+    it('searches when the draft’s own link was dropped as unsavable', async () => {
       setup();
+      trailEvents();
       const redirect = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc';
-      const asked = stubGemini(
+      const { asked } = stubGemini([
         answer({ ...HIKE, allTrailsUrl: redirect }),
-        answer({ allTrailsUrl: STAIRS }),
-      );
+        searching,
+        choosing(STAIRS),
+      ]);
       const r = await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-      expect((r.data?.generateActivity as { activity: Row }).activity.allTrailsUrl).toBe(STAIRS);
-      expect(asked).toHaveLength(2);
+      expect(linkOf(r)).toBe(STAIRS);
+      const sent = asked[1]?.body as { contents: { parts: { text: string }[] }[] };
+      expect(sent.contents[0]?.parts[0]?.text).not.toContain('suggested');
     });
   });
 
