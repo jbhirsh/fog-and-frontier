@@ -25,6 +25,7 @@ import {
 } from './checks.js';
 import { judgeDescriptions, judgeDiscoverEvents, judgeRealPlace } from './judge.js';
 import { withEvents } from './events.js';
+import { mapPool } from './pool.js';
 import { buildResults, renderScorecard, writeResults } from './report.js';
 import {
   CASE_TIMEOUT_MS,
@@ -49,15 +50,25 @@ interface CliOptions {
   only: string[] | null;
   feature: Feature | null;
   threshold: number;
+  /** how many cases run at once */
+  concurrency: number;
 }
+
+// Cases run at once by default: enough that the run takes a fraction of the
+// time one at a time did, few enough to stay inside Gemini's rate limits (a
+// 429 would leave a case ungraded).
+const DEFAULT_CONCURRENCY = 4;
 
 function parseArgs(argv: string[]): CliOptions {
   let only: string[] | null = null;
   let feature: Feature | null = null;
   let threshold = DEFAULT_THRESHOLD;
+  let concurrency = DEFAULT_CONCURRENCY;
 
   const envThreshold = process.env.EVAL_THRESHOLD;
   if (envThreshold) threshold = Number(envThreshold);
+  const envConcurrency = process.env.EVAL_CONCURRENCY;
+  if (envConcurrency) concurrency = Number(envConcurrency);
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -75,6 +86,8 @@ function parseArgs(argv: string[]): CliOptions {
       feature = value as Feature;
     } else if (arg === '--threshold') {
       threshold = Number(argv[++i]);
+    } else if (arg === '--concurrency') {
+      concurrency = Number(argv[++i]);
     } else {
       exitConfig(`unknown argument: ${arg}`);
     }
@@ -83,13 +96,16 @@ function parseArgs(argv: string[]): CliOptions {
   if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) {
     exitConfig(`threshold must be a fraction in (0, 1], got: ${threshold}`);
   }
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    exitConfig(`concurrency must be a whole number of at least 1, got: ${concurrency}`);
+  }
   if (
     feature &&
     !['generateActivity', 'alltrailsLookup', 'discover', 'tripSuggestions'].includes(feature)
   ) {
     exitConfig(`unknown feature: ${feature}`);
   }
-  return { only, feature, threshold };
+  return { only, feature, threshold, concurrency };
 }
 
 function exitConfig(message: string): never {
@@ -360,13 +376,12 @@ async function main(): Promise<void> {
   if (cases.length === 0) exitConfig('no cases selected');
 
   console.log(
-    `Gemini output-quality eval — ${cases.length} case(s), threshold ${options.threshold * 100}%`,
+    `Gemini output-quality eval — ${cases.length} case(s), ${options.concurrency} at a time, threshold ${options.threshold * 100}%`,
   );
   console.log(`Golden set: ${goldenSet._meta.status}\n`);
 
   const startedAt = new Date().toISOString();
-  const results: CaseResult[] = [];
-  for (const goldenCase of cases) {
+  const results: CaseResult[] = await mapPool(cases, options.concurrency, async (goldenCase) => {
     const start = Date.now();
     const { checks, output } = await gradeCase(goldenCase);
     if (goldenCase.expectedFailure) {
@@ -378,16 +393,16 @@ async function main(): Promise<void> {
     }
     const status = caseStatus(goldenCase, checks);
     const durationMs = Date.now() - start;
-    results.push({
+    console.log(`  ${statusGlyph(status)} ${goldenCase.id} (${(durationMs / 1000).toFixed(1)}s)`);
+    return {
       id: goldenCase.id,
       feature: goldenCase.feature,
       status,
       durationMs,
       checks,
       output,
-    });
-    console.log(`  ${statusGlyph(status)} ${goldenCase.id} (${(durationMs / 1000).toFixed(1)}s)`);
-  }
+    };
+  });
 
   const evalResults = buildResults(results, {
     threshold: options.threshold,
