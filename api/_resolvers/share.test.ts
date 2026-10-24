@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   catalogPlaces: vi.fn(),
   logEvent: vi.fn(),
   logServerError: vi.fn(),
+  uploadFile: vi.fn(),
+  deleteFile: vi.fn(),
 }));
 
 vi.mock('../_instagram.js', async (importActual) => ({
@@ -16,6 +18,7 @@ vi.mock('../_instagram.js', async (importActual) => ({
 }));
 vi.mock('./catalog.js', () => ({ catalogPlaces: mocks.catalogPlaces }));
 vi.mock('../_log.js', () => ({ logEvent: mocks.logEvent, logServerError: mocks.logServerError }));
+vi.mock('../_geminiFiles.js', () => ({ uploadFile: mocks.uploadFile, deleteFile: mocks.deleteFile }));
 
 const {
   GEMINI_TIMEOUT_MS,
@@ -30,7 +33,7 @@ const {
   shareMutation,
 } = await import('./share.js');
 const { ENDPOINT } = await import('./gemini.js');
-const { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } = await import('../_instagram.js');
+const { INLINE_VIDEO_BYTES, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } = await import('../_instagram.js');
 
 const REEL = 'https://www.instagram.com/reel/Ddl9QKSv0D7/';
 const IMAGE = 'https://scontent.cdninstagram.com/poster.jpg';
@@ -305,6 +308,95 @@ describe('findSharedPlaces', () => {
     );
   });
 
+  // The Dragon Mountain reel (DeneiZFxFGB): 26 seconds, served only at 17.7 MB.
+  describe('a video too big to send inline', () => {
+    const big = Buffer.alloc(INLINE_VIDEO_BYTES + 1, 1);
+    const UPLOADED = { name: 'files/abc', uri: 'https://generativelanguage.googleapis.com/v1beta/files/abc', mimeType: 'video/mp4' };
+    beforeEach(() => {
+      mocks.fetchMedia.mockImplementation((url: string) =>
+        Promise.resolve(
+          url === IMAGE ? { data: Buffer.from('jpeg'), mimeType: 'image/jpeg' } : { data: big, mimeType: 'video/mp4' },
+        ),
+      );
+      mocks.deleteFile.mockResolvedValue(true);
+    });
+
+    it('is uploaded, watched from there, and deleted once Gemini has answered', async () => {
+      geminiAnswers(answer(JSON.stringify({ places: [CATARACT] })));
+      mocks.uploadFile.mockResolvedValue({ file: UPLOADED });
+      const result = await find({ url: REEL });
+      expect(result.read.video).toBe(true);
+      const [sent, ...rest] = mocks.uploadFile.mock.calls[0] as [Buffer, string, string];
+      expect(sent === big).toBe(true);
+      expect(rest).toEqual(['video/mp4', 'test-key']);
+      const parts = (geminiRequest().body.contents as { parts: unknown[] }[])[0].parts;
+      expect(parts).toEqual([
+        { text: placesPrompt(FULL_POST, '', { image: false, video: true }) },
+        { fileData: { mimeType: 'video/mp4', fileUri: UPLOADED.uri } },
+      ]);
+      // The picture isn't needed: the video shows it.
+      expect(mocks.fetchMedia).not.toHaveBeenCalledWith(IMAGE, MAX_IMAGE_BYTES);
+      expect(mocks.deleteFile).toHaveBeenCalledWith('files/abc', 'test-key');
+      expect(mocks.logEvent).toHaveBeenCalledWith(
+        'share.places',
+        expect.objectContaining({ video: 'uploaded', image: 'not needed', gemini: 'ok' }),
+      );
+      expect(MAX_VIDEO_BYTES).toBe(60_000_000);
+      expect(INLINE_VIDEO_BYTES).toBe(14_000_000);
+    });
+
+    it('is deleted even when Gemini fails', async () => {
+      geminiAnswers('quota', { status: 429 });
+      mocks.uploadFile.mockResolvedValue({ file: UPLOADED });
+      await expect(find({ url: REEL })).rejects.toMatchObject({ extensions: { code: 'BAD_GATEWAY' } });
+      expect(mocks.deleteFile).toHaveBeenCalledWith('files/abc', 'test-key');
+    });
+
+    it('falls back to the picture when the upload fails, saying why', async () => {
+      geminiAnswers(answer(JSON.stringify({ places: [CATARACT] })));
+      mocks.uploadFile.mockResolvedValue({ error: 'timed out' });
+      const result = await find({ url: REEL });
+      expect(result.read.video).toBe(false);
+      const parts = (geminiRequest().body.contents as { parts: unknown[] }[])[0].parts;
+      expect(parts).toEqual([
+        { text: placesPrompt(FULL_POST, '', { image: true, video: false }) },
+        { inlineData: { mimeType: 'image/jpeg', data: Buffer.from('jpeg').toString('base64') } },
+      ]);
+      expect(mocks.deleteFile).not.toHaveBeenCalled();
+      expect(mocks.logEvent).toHaveBeenCalledWith(
+        'share.places',
+        expect.objectContaining({ video: 'upload failed: timed out', image: 'ok' }),
+      );
+    });
+
+    it('still tries the picture after an upload that took all the video’s time', async () => {
+      geminiAnswers(answer(JSON.stringify({ places: [CATARACT] })));
+      let clock = 1_000_000;
+      const now = vi.spyOn(Date, 'now').mockImplementation(() => clock);
+      mocks.uploadFile.mockImplementation(() => {
+        clock += 45_000;
+        return Promise.resolve({ error: 'timed out' });
+      });
+      try {
+        await find({ url: REEL });
+      } finally {
+        now.mockRestore();
+      }
+      expect(mocks.fetchMedia).toHaveBeenLastCalledWith(IMAGE, MAX_IMAGE_BYTES);
+      expect(mocks.logEvent).toHaveBeenCalledWith('share.places', expect.objectContaining({ image: 'ok' }));
+    });
+
+    it('sends one exactly at the inline limit inline', async () => {
+      const edge = Buffer.alloc(INLINE_VIDEO_BYTES, 1);
+      mocks.fetchMedia.mockResolvedValue({ data: edge, mimeType: 'video/mp4' });
+      geminiAnswers(answer(JSON.stringify({ places: [] })));
+      await find({ url: REEL });
+      expect(mocks.uploadFile.mock.calls.length).toBe(0);
+      const parts = (geminiRequest().body.contents as { parts: { inlineData?: { data: string } }[] }[])[0].parts;
+      expect(parts[1].inlineData?.data.length).toBe(Math.ceil(INLINE_VIDEO_BYTES / 3) * 4);
+    });
+  });
+
   it('tries no more videos once media has taken its time', async () => {
     geminiAnswers(answer(JSON.stringify({ places: [CATARACT] })));
     let clock = 1_000_000;
@@ -318,8 +410,11 @@ describe('findSharedPlaces', () => {
     } finally {
       spy.mockRestore();
     }
-    // The first video used it all: no second video, and no picture.
-    expect(mocks.fetchMedia).toHaveBeenCalledTimes(1);
+    // The first video used it all: no second video, but the picture has its own time.
+    expect(mocks.fetchMedia.mock.calls).toEqual([
+      [VIDEO, MAX_VIDEO_BYTES],
+      [IMAGE, MAX_IMAGE_BYTES],
+    ]);
     expect(MEDIA_BUDGET_MS).toBe(20_000);
   });
 

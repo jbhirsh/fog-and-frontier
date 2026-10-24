@@ -119,7 +119,7 @@ describe('readAll', () => {
   });
 
   it('reads Instagram posts only', () => {
-    expect(CANARY_POSTS).toHaveLength(3);
+    expect(CANARY_POSTS).toHaveLength(4);
     for (const url of CANARY_POSTS) expect(url).toMatch(/^https:\/\/www\.instagram\.com\/(p|reel)\/[\w-]+\/$/);
   });
 });

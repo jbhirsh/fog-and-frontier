@@ -218,12 +218,15 @@ type Fetch = typeof fetch;
 /** How long each source may take. */
 export const SOURCE_TIMEOUT_MS = 8000;
 /**
- * The largest picture and video read, which findSharedPlaces sends to Gemini
- * inline, within its 20 MB per request. A reel's smallest video is about
- * 5 MB for a minute.
+ * The largest picture and video read. A reel's smallest video is often about
+ * 5 MB for a minute, but some are served only at a high bitrate (17.7 MB for
+ * 26 seconds): findSharedPlaces sends Gemini one that fits inline, and
+ * uploads a bigger one (api/_geminiFiles.ts).
  */
 export const MAX_IMAGE_BYTES = 4_000_000;
-export const MAX_VIDEO_BYTES = 14_000_000;
+export const MAX_VIDEO_BYTES = 60_000_000;
+/** The largest video sent inline: base64'd, within Gemini's 20 MB per request. */
+export const INLINE_VIDEO_BYTES = 14_000_000;
 
 // The embed page answers anyone, so it's asked as what this is.
 export const EMBED_HEADERS = {

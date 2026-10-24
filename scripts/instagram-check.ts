@@ -27,13 +27,17 @@ import {
 } from '../api/_instagram.ts';
 
 /**
- * Public posts to read, each with a caption: two reels (the first's video is
- * fetched) and a photo post. The first two are geotagged.
+ * Public posts to read, each with a caption: three reels (the first's video
+ * is fetched) and a photo post. The first two are geotagged. The last, the
+ * first post shared for real, lists nine hikes; its video is served only
+ * above the inline limit (17.7 MB), the case findSharedPlaces uploads to
+ * Gemini (which needs Gemini's key, so isn't run here).
  */
 export const CANARY_POSTS = [
   'https://www.instagram.com/reel/Ddl9QKSv0D7/',
   'https://www.instagram.com/p/Dc1X4T0mPon/',
   'https://www.instagram.com/reel/DXPfcsORBo6/',
+  'https://www.instagram.com/reel/DeneiZFxFGB/',
 ];
 
 export interface CanaryRead {
