@@ -48,6 +48,12 @@ export interface GenerateHappyExpect {
    * by the path after /trail/ (e.g. "us/california/dragon-mountain-stairs")
    */
   allTrailsTrails?: string[];
+  /**
+   * the park it lies inside (#269): partOf must name one of these, however
+   * it's written ("the"/"of", case, punctuation aside). An empty list means
+   * it's in no park, so partOf must be left out.
+   */
+  partOf?: string[];
 }
 
 export interface GenerateGracefulExpect {

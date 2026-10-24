@@ -533,6 +533,79 @@ describe('owner-gated mutations', () => {
     expect(sqls.some((s) => /INSERT INTO a /.test(s))).toBe(true);
   });
 
+  it('saveActivity: keeps the park it is part of (#269), and reads it back', async () => {
+    setup();
+    const r = await run(
+      'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id parentId } } }',
+      { i: { id: 'a1', activity: { ...minimalActivity(), parentId: 'park1' } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', parentId: 'park1' } });
+    const write = execute.mock.calls
+      .map((c) => c[0] as { sql: string; args: unknown[] })
+      .find((q) => typeof q !== 'string' && /^INSERT INTO a /.test(q.sql));
+    expect(JSON.parse(write?.args[1] as string)).toMatchObject({ parentId: 'park1' });
+    // The parent was looked up, and the activity checked for sub-items of its own.
+    const sqls = execute.mock.calls.map((c) =>
+      typeof c[0] === 'string' ? c[0] : (c[0] as { sql: string }).sql,
+    );
+    expect(sqls).toContain("SELECT 1 FROM a WHERE json_extract(j, '$.parentId') = ? LIMIT 1");
+  });
+
+  it.each([
+    ['leaves the park out keeps the stored one', {}, 'park1'],
+    ['clears it with null', { parentId: null }, undefined],
+  ])('saveActivity: an edit that %s (#269)', async (_, given, kept) => {
+    setup({ snapshotJson: JSON.stringify({ id: 'a1', parentId: 'park1' }) });
+    const r = await run(
+      'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id parentId } } }',
+      { i: { id: 'a1', activity: { ...minimalActivity(), ...given } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(r.data?.saveActivity).toEqual({ activity: { id: 'a1', parentId: kept ?? null } });
+    const write = execute.mock.calls
+      .map((c) => c[0] as { sql: string; args: unknown[] })
+      .find((q) => typeof q !== 'string' && /^INSERT INTO a /.test(q.sql));
+    expect((JSON.parse(write?.args[1] as string) as Row).parentId ?? undefined).toBe(kept);
+  });
+
+  it('saveActivity: refuses to make an activity part of itself, and saves nothing (#269)', async () => {
+    setup();
+    const r = await run(
+      'mutation($i: SaveActivityInput!){ saveActivity(input:$i){ activity { id } } }',
+      { i: { id: 'a1', activity: { ...minimalActivity(), parentId: 'a1' } } },
+      OWNER,
+    );
+    expect(code(r)).toBe('BAD_USER_INPUT');
+    expect(r.errors?.[0]?.message).toBe("an activity can't be part of itself");
+    const sqls = execute.mock.calls.map((c) =>
+      typeof c[0] === 'string' ? c[0] : (c[0] as { sql: string }).sql,
+    );
+    expect(sqls.some((q) => /^INSERT INTO a /.test(q))).toBe(false);
+  });
+
+  it('activities: a parent naming the row itself reads as none (#269)', async () => {
+    setup({
+      catalog: [
+        {
+          id: 'loop',
+          j: JSON.stringify({ ...minimalActivity(), coverImage: '', parentId: 'loop' }),
+        },
+        {
+          id: 'hike',
+          j: JSON.stringify({ ...minimalActivity(), coverImage: '', parentId: 'park1' }),
+        },
+      ],
+    });
+    const r = await run('{ activities { id parentId } }');
+    expect(r.data?.activities).toEqual([
+      { id: 'loop', parentId: null },
+      { id: 'hike', parentId: 'park1' },
+    ]);
+  });
+
   it('saveActivity: round-trips + persists parkType + restaurant fields', async () => {
     setup();
     const activity = {
@@ -613,7 +686,7 @@ describe('owner-gated mutations', () => {
     expect(r.data?.deleteActivity).toEqual({ deletedId: 'a1' });
   });
 
-  it('deleteActivity: drops the activity, its reviews and its photos in one batch', async () => {
+  it('deleteActivity: drops the activity, its reviews and its photos, and frees its hikes and stops, in one batch', async () => {
     setup();
     await run(
       'mutation($i: DeleteActivityInput!){ deleteActivity(input:$i){ deletedId } }',
@@ -627,6 +700,7 @@ describe('owner-gated mutations', () => {
       'DELETE FROM a WHERE id = ?',
       'DELETE FROM activity_reviews WHERE activity_id = ?',
       'DELETE FROM activity_photos WHERE activity_id = ? RETURNING pathname',
+      "UPDATE a SET j = json_remove(j, '$.parentId') WHERE json_extract(j, '$.parentId') = ?",
     ]);
     expect(stmts.every((s) => s.args[0] === 'a1')).toBe(true);
   });
@@ -1633,6 +1707,66 @@ describe('Gemini ops', () => {
     expect(r.errors).toBeUndefined();
     expect(r.data?.generateActivity).toEqual({
       activity: { name: 'Castle Rock', category: 'hiking', city: 'Los Gatos', parkType: 'state' },
+    });
+  });
+
+  describe('generateActivity: the saved park a draft is part of (#269)', () => {
+    const PARK = {
+      id: 'point-reyes-seashore',
+      name: 'Point Reyes National Seashore',
+      shortDescription: 'Windswept peninsula',
+      category: 'hiking',
+      region: 'north-bay',
+      location: { city: 'Point Reyes Station', coords: { lat: 38.0405, lng: -122.7993 } },
+      duration: 'Full Day',
+      coverImage: '',
+    };
+    const DRAFT = {
+      name: 'Point Reyes Lighthouse',
+      shortDescription: 'An 1870 lighthouse down 313 steps',
+      category: 'scenic',
+      region: 'north-bay',
+      city: 'Inverness',
+      lat: 37.9956,
+      lng: -123.0224,
+      duration: 'Full Day',
+    };
+    const PARENTED =
+      'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { name parentId } } }';
+
+    it('names the saved park Gemini says it is inside', async () => {
+      setup({ catalog: [{ id: PARK.id, j: JSON.stringify(PARK) }] });
+      stubFetch(geminiText(JSON.stringify({ ...DRAFT, partOf: 'Point Reyes National Seashore' })));
+      const r = await run(PARENTED, { i: { title: 'Point Reyes Lighthouse' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      expect(r.data?.generateActivity).toEqual({
+        activity: { name: 'Point Reyes Lighthouse', parentId: 'point-reyes-seashore' },
+      });
+    });
+
+    it('names none when Gemini gives no park, or one that isn’t saved', async () => {
+      for (const partOf of [undefined, 'Golden Gate National Recreation Area']) {
+        setup({ catalog: [{ id: PARK.id, j: JSON.stringify(PARK) }] });
+        stubFetch(geminiText(JSON.stringify({ ...DRAFT, partOf })));
+        const r = await run(PARENTED, { i: { title: 'Point Reyes Lighthouse' } }, OWNER);
+        expect((r.data?.generateActivity as { activity: Row }).activity.parentId).toBeNull();
+      }
+    });
+
+    it('still drafts when the catalog can’t be read', async () => {
+      setup();
+      execute.mockImplementation((q: unknown) => {
+        const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+        return /SELECT id, j FROM a ORDER BY t DESC/.test(sql)
+          ? Promise.reject(new Error('no database'))
+          : Promise.resolve({ rows: [] });
+      });
+      stubFetch(geminiText(JSON.stringify({ ...DRAFT, partOf: 'Point Reyes National Seashore' })));
+      const r = await run(PARENTED, { i: { title: 'Point Reyes Lighthouse' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      expect(r.data?.generateActivity).toEqual({
+        activity: { name: 'Point Reyes Lighthouse', parentId: null },
+      });
     });
   });
 

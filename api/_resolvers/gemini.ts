@@ -1,5 +1,6 @@
 import { findAllTrailsUrl, type AskGemini } from '../_allTrailsSearch.js';
 import { findCoverImage } from '../_coverImage.js';
+import { matchParent } from '../_parents.js';
 import { badGateway, badInput, forbidden } from '../_gqlError.js';
 import { claimAssist, releaseAssist } from '../_assistBudget.js';
 import { isSavableUrl, LINK_HOSTS } from '../_links.js';
@@ -219,6 +220,11 @@ const ACTIVITY_SCHEMA = {
       type: 'string',
       description: 'Practical tips: parking, fees, dog rules, best season — keep terse',
     },
+    partOf: {
+      type: 'string',
+      description:
+        'The official name of the park, seashore, recreation area, monument or forest the activity lies inside, e.g. "Point Reyes National Seashore". Omit if it is not inside one, or is that park itself.',
+    },
   },
   required: ACTIVITY_REQUIRED_FIELDS,
 };
@@ -263,6 +269,7 @@ Rules:
 - Only give a URL (allTrailsUrl, reservationUrl, menuUrl) that you found in your search results or the user's links; never construct one. Give the page's own address, never a vertexaisearch.cloud.google.com redirect.
 - For a hike or walk, look for its AllTrails listing before leaving "allTrailsUrl" out. AllTrails lists trails rather than places, so search it by every name the place goes by (its common English name and any local or translated one) and by the route or feature it's known for (for example "… Stairs", "… Trail", "… Loop"), and give the alltrails.com/trail/ page of the route that best matches the activity.
 - Coordinates: provide best-known lat/lng for the activity (the trailhead, the restaurant, the park entrance).
+- "partOf": when the activity is inside a larger park, national seashore, recreation area, monument or forest, give that place's official name as its managers write it (Chimney Rock Trail is part of "Point Reyes National Seashore"; Mist Trail of "Yosemite National Park"). Omit it when the activity is that park itself, or isn't inside one.
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
 - "duration" should reflect realistic round-trip time from ${HOME_BASE} including driving.
 - "shortDescription" should be vivid and specific, not generic, with the specifics taken from your sources.
@@ -307,6 +314,27 @@ function askForTrail(apiKey: string): AskGemini {
       return undefined;
     }
   };
+}
+
+// The saved park a draft is part of (#269), matched from the name Gemini
+// gave it. No catalog to match against (the eval has no database) means no
+// parent, never a failed draft.
+async function draftParent(draft: { name: string; lat: number; lng: number; partOf: unknown }) {
+  if (typeof draft.partOf !== 'string') return null;
+  try {
+    const catalog = (await catalogActivities()).map((a) => {
+      const coords = (a.location as { coords: { lat: number; lng: number } }).coords;
+      return {
+        id: a.id as string,
+        name: a.name as string,
+        ...coords,
+        parentId: a.parentId as string | null,
+      };
+    });
+    return matchParent(draft, catalog);
+  } catch {
+    return null;
+  }
 }
 
 // What a non-owner's draft may ask about (#73).
@@ -468,7 +496,7 @@ async function generateActivity(
     lat: parsed.lat as number,
     lng: parsed.lng as number,
   };
-  const [cover, trail] = await Promise.all([
+  const [cover, trail, parentId] = await Promise.all([
     findCoverImage({ ...place, category: parsed.category as string }),
     parsed.category === 'hiking' && parsed.allTrailsUrl == null
       ? findAllTrailsUrl(
@@ -481,8 +509,10 @@ async function generateActivity(
           askForTrail(apiKey),
         )
       : null,
+    draftParent({ ...place, partOf: parsed.partOf }),
   ]);
   if (trail) parsed.allTrailsUrl = trail;
+  parsed.parentId = parentId;
   if (cover) {
     parsed.coverImage = cover.url;
     parsed.coverCredit = cover.credit;

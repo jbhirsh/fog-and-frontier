@@ -194,6 +194,13 @@ describe('suggestActivity', () => {
     });
   });
 
+  it('leaves which park it’s part of to the owners (#269)', async () => {
+    const id = await suggest(FRIEND, { parentId: 'point-reyes-seashore' });
+    const stored = JSON.parse(suggestions.get(id ?? '')?.j ?? '{}') as Record<string, unknown>;
+    expect(stored).toMatchObject({ name: 'Fort Funston' });
+    expect(stored).not.toHaveProperty('parentId');
+  });
+
   it('holds at most ten waiting per account', async () => {
     for (let i = 0; i < 10; i += 1)
       expect(await suggest(FRIEND, { name: `Place ${i}` })).toBeTruthy();
