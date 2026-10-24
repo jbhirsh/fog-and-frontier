@@ -269,15 +269,20 @@ Rules:
 - "costTier" is what one person pays to do it, from the fees you found: "free" when you find no entry, parking or ticket fee (most trails, beaches and city parks), "$" under $25 (e.g. a state park day-use fee, or a national park's per-vehicle fee split between two people), "$$" $25-75, "$$$" over $75. Omit it for restaurants, which use "priceRange" instead, and otherwise only when there's clearly a charge you can't price.`;
 
 // How long the follow-up AllTrails search may take before the draft goes
-// without the link.
-const TRAIL_SEARCH_TIMEOUT_MS = 30_000;
+// without the link: 30 seconds wasn't always enough (one timed out in the
+// eval on 2026-10-24), and each search logs its time, so this can follow
+// what they take.
+const TRAIL_SEARCH_TIMEOUT_MS = 45_000;
 
 // The follow-up AllTrails search (#6, api/_allTrailsSearch.ts): Google
 // Search alone (AllTrails' own pages don't answer a fetch) at low effort.
-// A search that fails is logged as an event, not an error, since the draft
-// still succeeds: it just goes without the link.
+// Each search logs how long it took, so its time limit can follow what
+// searches really take. One that fails is logged as an event, not an error,
+// since the draft still succeeds: it just goes without the link.
 function askForTrail(apiKey: string): AskGemini {
   return async ({ system, user, schema }) => {
+    const started = Date.now();
+    const ms = () => Date.now() - started;
     try {
       const r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
         method: 'POST',
@@ -292,13 +297,16 @@ function askForTrail(apiKey: string): AskGemini {
       });
       if (!r.ok) {
         await r.body?.cancel();
-        logEvent('draft.trail_search_failed', { status: r.status });
+        logEvent('draft.trail_search_failed', { status: r.status, ms: ms() });
         return undefined;
       }
-      return responseText((await r.json()) as Parameters<typeof responseText>[0]);
+      const answer = responseText((await r.json()) as Parameters<typeof responseText>[0]);
+      logEvent('draft.trail_search', { ms: ms() });
+      return answer;
     } catch (err) {
       logEvent('draft.trail_search_failed', {
         error: (err as { name?: unknown } | null)?.name ?? 'Error',
+        ms: ms(),
       });
       return undefined;
     }
