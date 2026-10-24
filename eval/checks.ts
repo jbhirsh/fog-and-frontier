@@ -337,10 +337,64 @@ export function checkGenerateHappy(value: unknown, expect: GenerateHappyExpect):
   if (expect.city) results.push(checkCity(activity, expect.city));
   if (expect.geo) results.push(checkGeo('expect:geo', activity, expect.geo));
   if (expect.restaurantFields) results.push(checkRestaurantFields(activity));
-  if (expect.allTrailsTrails) results.push(checkAllTrailsUrl(activity, expect.allTrailsTrails));
+  if (expect.allTrailsTrails) {
+    // Only a hike is searched for its trail, so a place drafted as another
+    // category it may rightly be (a scenic Lands End) isn't held to one.
+    results.push(
+      activity.category === 'hiking'
+        ? checkAllTrailsUrl(activity, expect.allTrailsTrails)
+        : skipped('expect:allTrailsUrl', `drafted as ${String(activity.category)}, not a hike`),
+    );
+  }
   if (expect.partOf) results.push(checkPartOf(activity, expect.partOf));
 
   return results;
+}
+
+// --- generateActivity: the follow-up AllTrails search ---------------------
+
+const seconds = (ms: unknown) =>
+  typeof ms === 'number' ? ` after ${(ms / 1000).toFixed(1)}s` : '';
+
+// A search Gemini couldn't serve (rate-limited or down) or the network
+// dropped: infrastructure, like the same failure on the draft itself. One
+// that ran out of time, or that Gemini refused as asked, is the draft's.
+function searchUnavailable(failed: Record<string, unknown>): boolean {
+  const status = failed.status;
+  if (typeof status === 'number') return status === 429 || status >= 500;
+  return failed.error !== 'TimeoutError';
+}
+
+/**
+ * The hike's follow-up AllTrails search (api/_allTrailsSearch.ts), graded
+ * from the events the draft logged, added to the case's `checks`: one that
+ * timed out (or that Gemini refused) fails the case, since the draft then
+ * goes without its link however the rest of it reads. One Gemini couldn't
+ * serve is an infrastructure error, and so is the missing link it caused.
+ * No search (a draft that had its link, or isn't a hike) adds nothing.
+ */
+export function withTrailSearch(
+  checks: readonly CheckResult[],
+  events: readonly Record<string, unknown>[],
+): CheckResult[] {
+  const failed = events.find((e) => e.event === 'draft.trail_search_failed');
+  if (failed) {
+    const why = typeof failed.error === 'string' ? failed.error : `HTTP ${String(failed.status)}`;
+    const detail = `the AllTrails search failed (${why})${seconds(failed.ms)}`;
+    if (!searchUnavailable(failed)) return [...checks, fail('trailSearch', detail)];
+    return [
+      ...checks.map((c) =>
+        c.name === 'expect:allTrailsUrl' && c.status === 'fail'
+          ? errored(c.name, `${c.detail}, since ${detail}`)
+          : c,
+      ),
+      errored('trailSearch', detail),
+    ];
+  }
+  const answered = events.find((e) => e.event === 'draft.trail_search');
+  return answered
+    ? [...checks, pass('trailSearch', `the AllTrails search answered${seconds(answered.ms)}`)]
+    : [...checks];
 }
 
 // --- generateActivity: graceful (adversarial) path -------------------------

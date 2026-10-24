@@ -21,8 +21,10 @@ import {
   checkGenerateHappy,
   checkTripSuggestions,
   classifyGeminiError,
+  withTrailSearch,
 } from './checks.js';
 import { judgeDescriptions, judgeDiscoverEvents, judgeRealPlace } from './judge.js';
+import { withEvents } from './events.js';
 import { buildResults, renderScorecard, writeResults } from './report.js';
 import {
   CASE_TIMEOUT_MS,
@@ -251,7 +253,9 @@ function resolvedCheck(outcome: ResolverOutcome): CheckResult {
 async function gradeCase(
   goldenCase: GoldenCase,
 ): Promise<{ checks: CheckResult[]; output: unknown }> {
-  const outcome = await callResolver(goldenCase);
+  const { result: outcome, events } = await withEvents(goldenCase.id, () =>
+    callResolver(goldenCase),
+  );
   const output = outcome.ok
     ? outcome.value
     : { error: outcome.error instanceof Error ? outcome.error.message : String(outcome.error) };
@@ -273,7 +277,7 @@ async function gradeCase(
       const gate = resolvedCheck(outcome);
       checks.push(gate);
       if (gate.status !== 'pass' || !outcome.ok) break;
-      checks.push(...checkGenerateHappy(outcome.value, goldenCase.expect));
+      checks.push(...withTrailSearch(checkGenerateHappy(outcome.value, goldenCase.expect), events));
       // Judges are paid calls — skip when a mechanical check already failed
       // the case; the verdict can't change.
       if (goldenCase.expect.judgeDescriptions && noFailures(checks)) {
