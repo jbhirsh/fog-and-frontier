@@ -10,6 +10,7 @@ import {
   checkDiscoverStructural,
   checkGenerateHappy,
   checkTripSuggestions,
+  withTrailSearch,
   classifyGeminiError,
   haversineKm,
 } from './checks.js';
@@ -348,6 +349,18 @@ describe('allTrailsUrl (via checkGenerateHappy)', () => {
     const results = checkGenerateHappy({ activity: activityRecord() }, {});
     expect(results.some((c) => c.name === 'expect:allTrailsUrl')).toBe(false);
   });
+
+  it('holds only a hike to its trail: another category is never searched for one', () => {
+    const scenic = findCheck(
+      checkGenerateHappy({ activity: activityRecord({ category: 'scenic' }) }, expect_),
+      'expect:allTrailsUrl',
+    );
+    expect(scenic).toEqual({
+      name: 'expect:allTrailsUrl',
+      status: 'skipped',
+      detail: 'drafted as scenic, not a hike',
+    });
+  });
 });
 
 // --- trip suggestions (#78) ------------------------------------------------------
@@ -471,5 +484,78 @@ describe('partOf (via checkGenerateHappy)', () => {
         (c) => c.name === 'expect:partOf',
       ),
     ).toBe(false);
+  });
+});
+
+// --- the follow-up AllTrails search ----------------------------------------------
+
+describe('withTrailSearch', () => {
+  const linkMissing = {
+    name: 'expect:allTrailsUrl',
+    status: 'fail' as const,
+    detail: 'allTrailsUrl missing; expected one of [us/california/x]',
+  };
+  const graded = { name: 'expect:city', status: 'pass' as const, detail: 'city=Kyoto' };
+
+  it('fails a draft whose search timed out, or that Gemini refused, saying how and after how long', () => {
+    expect(
+      withTrailSearch(
+        [graded],
+        [{ event: 'draft.trail_search_failed', error: 'TimeoutError', ms: 30012 }],
+      ),
+    ).toEqual([
+      graded,
+      {
+        name: 'trailSearch',
+        status: 'fail',
+        detail: 'the AllTrails search failed (TimeoutError) after 30.0s',
+      },
+    ]);
+    expect(
+      withTrailSearch([linkMissing], [{ event: 'draft.trail_search_failed', status: 400 }]),
+    ).toEqual([
+      linkMissing,
+      { name: 'trailSearch', status: 'fail', detail: 'the AllTrails search failed (HTTP 400)' },
+    ]);
+  });
+
+  it('counts a search Gemini couldn’t serve, and the link it cost, as infrastructure', () => {
+    for (const [failed, why] of [
+      [{ status: 429, ms: 800 }, 'HTTP 429) after 0.8s'],
+      [{ status: 503 }, 'HTTP 503)'],
+      [{ status: 500 }, 'HTTP 500)'],
+      [{ error: 'TypeError' }, 'TypeError)'],
+    ] as const) {
+      const detail = `the AllTrails search failed (${why}`;
+      expect(
+        withTrailSearch([graded, linkMissing], [{ event: 'draft.trail_search_failed', ...failed }]),
+      ).toEqual([
+        graded,
+        { ...linkMissing, status: 'error', detail: `${linkMissing.detail}, since ${detail}` },
+        { name: 'trailSearch', status: 'error', detail },
+      ]);
+    }
+    // A link check that passed (the draft had a link after all) stays as it was.
+    const found = { ...linkMissing, status: 'pass' as const, detail: 'allTrailsUrl=…' };
+    expect(withTrailSearch([found], [{ event: 'draft.trail_search_failed', status: 503 }])[0]).toBe(
+      found,
+    );
+  });
+
+  it('passes one that answered, and adds nothing when no search ran', () => {
+    expect(
+      withTrailSearch(
+        [graded],
+        [{ event: 'cover.found' }, { event: 'draft.trail_search', ms: 8460 }],
+      ),
+    ).toEqual([
+      graded,
+      { name: 'trailSearch', status: 'pass', detail: 'the AllTrails search answered after 8.5s' },
+    ]);
+    expect(withTrailSearch([], [{ event: 'draft.trail_search' }])).toEqual([
+      { name: 'trailSearch', status: 'pass', detail: 'the AllTrails search answered' },
+    ]);
+    expect(withTrailSearch([graded], [])).toEqual([graded]);
+    expect(withTrailSearch([graded], [{ event: 'share.places' }])).toEqual([graded]);
   });
 });

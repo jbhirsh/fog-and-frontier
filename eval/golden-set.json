@@ -22,9 +22,16 @@
           "lng": -122.7468,
           "toleranceKm": 15
         },
-        "partOf": ["Point Reyes National Seashore"]
+        "partOf": ["Point Reyes National Seashore"],
+        "allTrailsTrails": [
+          "us/california/alamere-falls-via-coast-trail-from-palomarin-trailhead",
+          "us/california/alamere-falls-and-wildcat-camp-via-bear-valley-trail",
+          "us/california/wildcat-camp-trail-to-alamere-falls",
+          "us/california/alamere-falls-to-glen-camp-via-beach",
+          "us/california/alamere-falls-via-olema-valley-bolema-lake-ranch-coast-trail--2"
+        ]
       },
-      "notes": "Point Reyes National Seashore (north Marin). Coords centered on the Palomarin trailhead (NPS Palomarin Trailhead page, 37.934/-122.7468); the falls themselves sit ~4 km NW (NPS Alamere Falls page, 37.9537/-122.7835), so a 15 km tolerance covers whichever point the model returns. parkType national = National Seashore. City intentionally omitted (Bolinas vs Point Reyes Station vs 'Point Reyes' all defensible). Source: nps.gov/pore; as of 2026-07-09."
+      "notes": "Point Reyes National Seashore (north Marin). Coords centered on the Palomarin trailhead (NPS Palomarin Trailhead page, 37.934/-122.7468); the falls themselves sit ~4 km NW (NPS Alamere Falls page, 37.9537/-122.7835), so a 15 km tolerance covers whichever point the model returns. parkType national = National Seashore. City intentionally omitted (Bolinas vs Point Reyes Station vs 'Point Reyes' all defensible). Source: nps.gov/pore; as of 2026-07-09. AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, the Alamere Falls routes it lists from Palomarin, Bear Valley, Wildcat Camp and Olema Valley, checked with the AllTrails connector on 2026-10-24."
     },
     {
       "id": "gen-elkhorn-slough-kayak",
@@ -65,9 +72,17 @@
           "toleranceKm": 12
         },
         "costTier": ["free", "$"],
-        "partOf": ["Mission Peak Regional Preserve"]
+        "partOf": ["Mission Peak Regional Preserve"],
+        "allTrailsTrails": [
+          "us/california/mission-peak-loop-from-stanford-avenue-staging-area",
+          "us/california/mission-peak-from-ohlone-college",
+          "us/california/hidden-valley-trail",
+          "us/california/mission-peak-via-peak-meadow-trail",
+          "us/california/mission-peak-from-ohlone-via-stanford",
+          "us/california/sunol-wilderness-to-mission-peak"
+        ]
       },
-      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14)."
+      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14). AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, the Mission Peak routes it lists from Stanford Avenue, Ohlone College, Hidden Valley, Peak Meadow and Sunol, checked with the AllTrails connector on 2026-10-24."
     },
     {
       "id": "gen-lands-end",
@@ -88,9 +103,15 @@
           "toleranceKm": 10
         },
         "costTier": ["free"],
-        "partOf": ["Golden Gate National Recreation Area"]
+        "partOf": ["Golden Gate National Recreation Area"],
+        "allTrailsTrails": [
+          "us/california/lands-end-trail",
+          "us/california/land-s-end-trail-accessible",
+          "us/california/lands-end-point-via-coastal-trail",
+          "us/california/california-coastal-trail-lands-end-to-golden-gate-bridge"
+        ]
       },
-      "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09. costTier free: no entry or parking fee at Lands End (nps.gov/goga fees; as of 2026-10-14)."
+      "notes": "Lands End Coastal Trail, part of the Golden Gate National Recreation Area (GGNRA) → parkType national per the system prompt's explicit GGNRA=national rule. category accepts hiking OR scenic. Coords: Lands End, SF (37.786/-122.5033). Source: nps.gov GGNRA; as of 2026-07-09. costTier free: no entry or parking fee at Lands End (nps.gov/goga fees; as of 2026-10-14). AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, Lands End Trail, its accessible stretch from Sutro Baths, Lands End Point and the Coastal Trail on to the Golden Gate Bridge, checked with the AllTrails connector on 2026-10-24."
     },
     {
       "id": "gen-big-basin",
@@ -109,9 +130,25 @@
           "lng": -122.2225,
           "toleranceKm": 20
         },
-        "partOf": ["Big Basin Redwoods State Park"]
+        "partOf": ["Big Basin Redwoods State Park"],
+        "allTrailsTrails": [
+          "us/california/berry-creek-falls-trail",
+          "us/california/berry-creek-falls-trail-via-skyline-to-the-sea-trail",
+          "us/california/berry-creek-falls-and-golden-falls-via-skyline-to-the-sea-trail",
+          "us/california/sunset-berry-creek-falls-and-howard-king-trail-loop",
+          "us/california/redwood-trail-at-big-basin-redwoods-state-park",
+          "us/california/sequoia-trail",
+          "us/california/meteor-loop-trail",
+          "us/california/creeping-forest-trail",
+          "us/california/big-basin-extended-loop",
+          "us/california/big-basin-to-waddell-beach",
+          "us/california/big-basin-to-sunset-camp",
+          "us/california/big-basin-to-sunset-camp-to-waddell-beach-via-skyline-to-the-sea",
+          "us/california/skyline-to-the-sea-trail-waterman-gap-to-big-basin-state-park",
+          "us/california/state-park-trifecta"
+        ]
       },
-      "notes": "Big Basin Redwoods STATE Park, Santa Cruz Mountains → parkType state. Region is genuinely ambiguous (Santa Cruz Mtns read as south-bay, peninsula, or central-coast depending on framing) — that ambiguity is deliberate, so all three are accepted. Coords: park HQ, 21600 Big Basin Way, Boulder Creek (37.1723/-122.2225; parks.ca.gov/bigbasin + Wikipedia infobox). 20 km tolerance because trailheads span a large park. City omitted (Boulder Creek vs 'Big Basin'). As of 2026-07-09. Owner-verified addition (2026-07-09): the park runs a post-CZU-fire day-use parking reservation system — reservations are ENCOURAGED but not required ($8 reserved incl. $2 fee, limited first-come-first-served $10; bicycle/bus arrivals exempt). Source: parks.ca.gov/post/49. Descriptions mentioning day-use/advance parking reservations are factual, not fabricated."
+      "notes": "Big Basin Redwoods STATE Park, Santa Cruz Mountains → parkType state. Region is genuinely ambiguous (Santa Cruz Mtns read as south-bay, peninsula, or central-coast depending on framing) — that ambiguity is deliberate, so all three are accepted. Coords: park HQ, 21600 Big Basin Way, Boulder Creek (37.1723/-122.2225; parks.ca.gov/bigbasin + Wikipedia infobox). 20 km tolerance because trailheads span a large park. City omitted (Boulder Creek vs 'Big Basin'). As of 2026-07-09. Owner-verified addition (2026-07-09): the park runs a post-CZU-fire day-use parking reservation system — reservations are ENCOURAGED but not required ($8 reserved incl. $2 fee, limited first-come-first-served $10; bicycle/bus arrivals exempt). Source: parks.ca.gov/post/49. Descriptions mentioning day-use/advance parking reservations are factual, not fabricated. AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, the park’s best-known hikes from park headquarters (Berry Creek Falls in its variants, Redwood Trail, Sequoia Trail, Skyline to the Sea and Meteor, Creeping Forest, the extended loop, Big Basin to Waddell Beach, Sunset Camp and the Skyline to the Sea routes in, and the three-park loop), checked with the AllTrails connector on 2026-10-24."
     },
     {
       "id": "gen-muir-woods",
@@ -214,9 +251,13 @@
           "lng": -112.1668,
           "toleranceKm": 10
         },
-        "partOf": ["Bryce Canyon National Park"]
+        "partOf": ["Bryce Canyon National Park"],
+        "allTrailsTrails": [
+          "us/utah/navajo-loop-trail",
+          "us/utah/navajo-loop-and-queens-garden-trail"
+        ]
       },
-      "notes": "A place outside California, which the draft must file under its own state's ISO code (#274), US-UT, not stretch a California area over it. Coords: Sunset Point, where the Navajo Loop starts (37.6229/-112.1668, NPS Bryce Canyon). parkType national; partOf the national park."
+      "notes": "A place outside California, which the draft must file under its own state's ISO code (#274), US-UT, not stretch a California area over it. Coords: Sunset Point, where the Navajo Loop starts (37.6229/-112.1668, NPS Bryce Canyon). parkType national; partOf the national park. AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, Navajo Loop Trail, and Navajo Loop with Queens Garden, its usual pairing, checked with the AllTrails connector on 2026-10-24."
     },
     {
       "id": "gen-castle-rock-bouldering",
@@ -338,9 +379,10 @@
           "lat": 34.9671,
           "lng": 135.7727,
           "toleranceKm": 5
-        }
+        },
+        "allTrailsTrails": ["japan/kyoto/fushimi-inari-walking-tour"]
       },
-      "notes": "A place abroad, which regions name since #274: Kyoto prefecture is JP-26 (ISO 3166-2), not a California area stretched over it. Coords: the shrine's main gate, Fushimi Inari Taisha (34.9671/135.7727, Wikipedia); the trail climbs Mount Inari behind it, inside the 5 km tolerance. Category generous: the walk through the torii is a hike, a shrine visit and a sight."
+      "notes": "A place abroad, which regions name since #274: Kyoto prefecture is JP-26 (ISO 3166-2), not a California area stretched over it. Coords: the shrine's main gate, Fushimi Inari Taisha (34.9671/135.7727, Wikipedia); the trail climbs Mount Inari behind it, inside the 5 km tolerance. Category generous: the walk through the torii is a hike, a shrine visit and a sight. AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, Fushimi Inari Walking Tour, the loop through the torii up Mount Inari, checked with the AllTrails connector on 2026-10-24."
     },
     {
       "id": "gen-vague",
