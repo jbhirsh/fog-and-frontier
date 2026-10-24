@@ -21,6 +21,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run test:visual` — Playwright visual regression: the desktop pages in Chromium, Firefox and WebKit (`desktop`, `desktop-firefox`, `desktop-webkit`) and the mobile ones on an iPhone (WebKit), each against its own Linux baselines. Baselines come from CI, not a laptop (fonts differ): run `visual.yml` by hand with `update_snapshots` on the branch, which commits them there.
 - `npm run db:snapshot` / `db:seed-preview` — Turso helpers in `scripts/`. The catalog lives only in Turso; there is no static seed.
 - `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/pr-gif-cli.ts`; below, "Show UI changes in the PR").
+- `npm run regions:gen` — regenerate `shared/isoRegions.ts` from ISO 3166 (Debian's `iso-codes` package, `apt install iso-codes`), when a new release adds or renames regions.
 - `npm run links:check` — audit every outbound link in the live catalog (#68): dead links fail it, bot-blocked ones (AllTrails) are listed for checking by hand. Runs weekly in `links.yml`.
 - `npm run instagram:check` — read a few known public Instagram posts the way sharing does (#6), failing when Instagram's pages no longer give what the reader needs. Runs weekly in `instagram.yml`.
 
@@ -28,6 +29,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 
 - `src/` — React app. `src/pages/`, `src/components/`, `src/lib/`, `src/data/types.ts` (Activity model).
 - `api/` — the GraphQL function. `graphql.ts` is the handler; `_schema.ts` is the SDL; `_resolvers/*` implement it. `_gqlContext.ts` has the server auth gates (`requireOwnerCtx`, `requireMemberCtx` / `requireCreatorCtx` for trips, and `requireUserCtx` for any signed-in account), built on the Clerk token check in `_auth.ts`; `_db.ts` is the Turso client.
+- `shared/` — data the app and the API both read, since neither may import the other. Today that's regions (#274). An activity's region is one of California's areas (`sf` … `socal`) or the ISO 3166 code of anywhere else: a country's first-level subdivision (`US-OR`, `JP-26`, `CA-BC`), or a country with none (`HK`). `shared/regions.ts` holds the California areas and the `Region` type, and `shared/isoRegions.ts` the generated ISO list. Each side keeps its own logic: `api/_regions.ts` validates on save, on read (where `oregon` and `washington`, saved before #274, become `US-OR` and `US-WA`) and on a draft; `src/lib/regions.ts` and `RegionPicker` give the form's search. The app loads the ISO list as its own chunk, only when the form needs it.
 - `public/` — static assets.
 - Cover photos load through Vercel's image CDN on deployments (`src/lib/imageCdn.ts`, `CdnImage`): resized per card, cached a month, so visitors don't each go to Wikimedia, which hosts most of them and throttles a busy machine. Only the hosts in `vercel.json`'s `images.remotePatterns` (kept equal to `CDN_HOSTS` by a test) go through it; a photo on any other host loads from its own URL, so add a new host to both.
 - `scripts/` — DB / migration helpers (Node, `--experimental-strip-types` for `.mts/.ts`).

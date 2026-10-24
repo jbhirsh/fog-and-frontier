@@ -5,6 +5,7 @@ import { COST_TIERS, dateToIso, mapCatalogActivity, parseCatalogActivity } from 
 import { isSavableUrl } from '../_links.js';
 import { logServerError } from '../_log.js';
 import { checkParent, parentIdOf, releaseSubItems } from '../_parents.js';
+import { toRegion } from '../_regions.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
 import { forgetCatalog } from './driving.js';
 import { deleteBlobs, deletePhotosOf, pathnamesFrom } from './photos.js';
@@ -176,6 +177,10 @@ export async function rowById(id: string) {
 
 // What schema types can't check about an activity's input.
 export function checkActivityInput(activity: ActivityInput): void {
+  // Saved as the region it names (#274), so an id from before reads as now.
+  const region = toRegion(activity.region);
+  if (!region) throw badInput('region must be a California area or an ISO 3166 code');
+  activity.region = region;
   const costTier = activity.costTier;
   if (costTier != null && !COST_TIERS.has(costTier as string)) {
     throw badInput('costTier must be free, $, $$ or $$$');

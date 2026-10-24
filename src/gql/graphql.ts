@@ -364,7 +364,7 @@ export type GenerateActivityMutationVariables = Exact<{
 }>;
 
 
-export type GenerateActivityMutation = { generateActivity: { activity: { name: string, shortDescription: string, longDescription: string | null, category: Category, region: string, parkType: ParkType | null, city: string, lat: number, lng: number, duration: string, durationDetail: string | null, difficulty: Difficulty | null, dogFriendly: boolean | null, hikeDistanceMiles: number | null, hikeElevationFeet: number | null, cuisine: string | null, priceRange: string | null, costTier: string | null, hours: string | null, reservationUrl: string | null, menuUrl: string | null, dietary: Array<string> | null, allTrailsUrl: string | null, notes: string | null, coverImage: string | null, coverCredit: string | null, parentId: string | null } } };
+export type GenerateActivityMutation = { generateActivity: { activity: { name: string, shortDescription: string, longDescription: string | null, category: Category, region: string | null, parkType: ParkType | null, city: string, lat: number, lng: number, duration: string, durationDetail: string | null, difficulty: Difficulty | null, dogFriendly: boolean | null, hikeDistanceMiles: number | null, hikeElevationFeet: number | null, cuisine: string | null, priceRange: string | null, costTier: string | null, hours: string | null, reservationUrl: string | null, menuUrl: string | null, dietary: Array<string> | null, allTrailsUrl: string | null, notes: string | null, coverImage: string | null, coverCredit: string | null, parentId: string | null } } };
 
 export type AlltrailsLookupMutationVariables = Exact<{
   input: AlltrailsLookupInput;

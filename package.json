@@ -31,6 +31,7 @@
     "test:mutation": "stryker run",
     "db:seed-preview": "node scripts/seed-preview-db.mjs",
     "db:snapshot": "node scripts/snapshot-prod-db.mjs",
+    "regions:gen": "node --experimental-strip-types scripts/gen-regions.ts",
     "links:check": "node scripts/check-links.mjs",
     "instagram:check": "node --experimental-strip-types scripts/instagram-check.ts",
     "gif": "node --experimental-strip-types scripts/pr-gif-cli.ts",

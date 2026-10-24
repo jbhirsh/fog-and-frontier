@@ -155,6 +155,20 @@ export default defineConfig([
     },
   },
 
+  // Data the app and the API share (#274), since neither may import the
+  // other: type-aware via tsconfig.api.json, which includes it, as the app's
+  // does.
+  {
+    files: ['shared/**/*.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.api.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
   // Gemini output-quality eval harness (issue #122). Node lib, no DOM, no JSX.
   // Type-aware via tsconfig.eval.json. Mirrors the api/**/*.ts block.
   {

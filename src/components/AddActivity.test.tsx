@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
@@ -75,6 +75,11 @@ vi.mock('../lib/generateActivity', () => ({
 
 import type { GeneratedFields } from '../lib/generateActivity';
 import { AddActivity } from './AddActivity';
+
+// The region list scrolls its option into view (#274), which jsdom doesn't do.
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 const baseActivity: Activity = {
   id: 'test-edit-activity',
@@ -175,18 +180,8 @@ describe('AddActivity — edit mode', () => {
       'Camping',
       'Other',
     ]);
-    expect(options('Region')).toEqual([
-      'San Francisco',
-      'North Bay',
-      'East Bay',
-      'South Bay',
-      'Peninsula',
-      'Central Coast',
-      'NorCal',
-      'SoCal',
-      'Oregon',
-      'Washington',
-    ]);
+    // Region is a search over every region (#274), showing the one chosen.
+    expect(screen.getByRole('combobox', { name: 'Region' })).toHaveValue('North Bay');
     expect(options('Difficulty')).toEqual(['—', 'Easy', 'Moderate', 'Advanced']);
     expect(options(/^Park type/)).toEqual([
       '— Not in a park —',
@@ -208,7 +203,6 @@ describe('AddActivity — edit mode', () => {
     const selects = screen.getAllByRole('combobox').filter((el) => el.tagName === 'SELECT');
     expect(selects.map((el) => el.closest('label')?.firstChild?.textContent)).toEqual([
       'Category',
-      'Region',
       'Duration',
       'Difficulty',
       'Park type (optional)',
@@ -555,6 +549,50 @@ describe('AddActivity — cost (#85)', () => {
   });
 });
 
+describe('AddActivity — a region from anywhere (#274)', () => {
+  it('asks for one when the draft came without, and saves the one picked', async () => {
+    generateSpy.mockResolvedValue({
+      name: 'Navajo Loop',
+      shortDescription: 'Down among the hoodoos',
+      category: 'hiking',
+      city: 'Bryce Canyon City',
+      lat: 37.62,
+      lng: -112.17,
+      duration: '1-2 Hours',
+    });
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Navajo Loop');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    const region = await screen.findByRole('combobox', { name: 'Region' });
+    expect(region).toHaveValue('');
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    expect(screen.getByText('Choose a region before saving.')).toBeInTheDocument();
+    expect(saveSpy).not.toHaveBeenCalled();
+
+    await userEvent.click(region);
+    await userEvent.type(region, 'utah');
+    await userEvent.click(await screen.findByRole('option', { name: 'Utah, United States' }));
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].region).toBe('US-UT');
+  });
+});
+
+describe('AddActivity — Escape in the region list (#274)', () => {
+  it('closes the list and keeps the dialog, until the list is closed', async () => {
+    const onClose = vi.fn();
+    render(<AddActivity onClose={onClose} editActivity={baseActivity} />);
+    const region = screen.getByRole('combobox', { name: 'Region' });
+    await userEvent.click(region);
+    await userEvent.type(region, 'kyo');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('AddActivity — duplicates (#17)', () => {
   const generated: GeneratedFields = {
     name: 'Castle Rock',
@@ -877,10 +915,11 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     expect(screen.getByLabelText('City')).toHaveValue('');
     expect(screen.getByLabelText('Notes')).toHaveValue('https://example.com/castle-rock');
     // Nothing is guessed about the place: its menus wait for a choice.
-    for (const menu of ['Category', 'Region', 'Duration']) {
+    for (const menu of ['Category', 'Duration']) {
       expect(screen.getByLabelText(menu)).toHaveValue('');
       expect(screen.getByLabelText(menu)).toHaveDisplayValue('Choose');
     }
+    expect(screen.getByRole('combobox', { name: 'Region' })).toHaveValue('');
     expect(screen.getByText('Tap the map to drop a pin.')).toBeInTheDocument();
     expect(generateSpy).not.toHaveBeenCalled();
     // No pin yet, so nothing to compare with the catalog.
@@ -898,9 +937,16 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     expect(screen.getByRole('heading', { name: 'Suggest activity' })).toBeInTheDocument();
   });
 
+  // Region is searched for and picked (#274).
+  async function pickRegion(search: string, label: string) {
+    await userEvent.click(screen.getByRole('combobox', { name: 'Region' }));
+    await userEvent.type(screen.getByRole('combobox', { name: 'Region' }), search);
+    await userEvent.click(await screen.findByRole('option', { name: label }));
+  }
+
   async function choose() {
     await userEvent.selectOptions(screen.getByLabelText('Category'), 'hiking');
-    await userEvent.selectOptions(screen.getByLabelText('Region'), 'south-bay');
+    await pickRegion('south', 'South Bay');
     await userEvent.selectOptions(screen.getByLabelText('Duration'), 'Half Day');
   }
 
@@ -950,12 +996,12 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     expect(
       screen.getByText('Add a category, a region and a duration before sending.'),
     ).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText('Region'), 'oregon');
+    await pickRegion('oregon', 'Oregon, United States');
     expect(screen.getByText('Add a category and a duration before sending.')).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('Duration'), 'Weekend');
     expect(screen.getByText('Add a category before sending.')).toBeInTheDocument();
     // A chosen menu has no "Choose" left in it.
-    expect(screen.getByLabelText('Region')).not.toHaveDisplayValue('Choose');
+    expect(screen.getByLabelText('Duration')).not.toHaveDisplayValue('Choose');
     expect(screen.queryAllByRole('option', { name: 'Choose' })).toHaveLength(1);
     expect(suggestSpy).not.toHaveBeenCalled();
   });
