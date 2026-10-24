@@ -1,7 +1,9 @@
 import { findDuplicates, normalizeName, type DuplicateMatch } from '../_duplicates.js';
 import { badGateway, badInput } from '../_gqlError.js';
 import { requireOwnerCtx, type GqlContext } from '../_gqlContext.js';
+import { deleteFile, uploadFile } from '../_geminiFiles.js';
 import {
+  INLINE_VIDEO_BYTES,
   MAX_IMAGE_BYTES,
   MAX_VIDEO_BYTES,
   fetchMedia,
@@ -165,17 +167,21 @@ export function markSaved(
 }
 
 /**
- * The first media file at `urls` that fits in `maxBytes`, base64'd for
- * Gemini. Each try has its own time limit; none starts after `deadline`.
+ * The first media file at `urls` that fits in `maxBytes`. Each try has its
+ * own time limit; none starts after `deadline`.
  */
 async function firstMedia(urls: readonly string[], maxBytes: number, deadline: number) {
   for (const url of urls) {
     if (Date.now() >= deadline) break;
     const media = await fetchMedia(url, maxBytes);
-    if (media) return { mimeType: media.mimeType, data: media.data.toString('base64') };
+    if (media) return media;
   }
   return null;
 }
+
+const inline = (media: { data: Buffer; mimeType: string }) => ({
+  inlineData: { mimeType: media.mimeType, data: media.data.toString('base64') },
+});
 
 /** What the post page shows: the post as read, minus what only Gemini needs. */
 function shownPost(post: InstagramPost) {
@@ -203,12 +209,32 @@ async function findSharedPlaces(
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
   const { post, steps } = await readInstagramPost(link);
-  // The video, or else the picture: both, base64'd, could pass Gemini's
-  // 20 MB, and the video shows what the picture does.
+  // The video, or else the picture: both together could pass Gemini's
+  // 20 MB, and the video shows what the picture does. A video too big to
+  // send inline is uploaded, and deleted once Gemini has answered.
   const deadline = Date.now() + MEDIA_BUDGET_MS;
-  const video = post.videoUrls ? await firstMedia(post.videoUrls, MAX_VIDEO_BYTES, deadline) : null;
-  const image =
-    !video && post.imageUrl ? await firstMedia([post.imageUrl], MAX_IMAGE_BYTES, deadline) : null;
+  const media = post.videoUrls ? await firstMedia(post.videoUrls, MAX_VIDEO_BYTES, deadline) : null;
+  let video: Record<string, unknown> | null = null;
+  let videoNote = media ? 'ok' : post.videoUrls ? 'failed or too big' : post.isVideo ? 'not given' : 'none';
+  let uploaded: string | null = null;
+  if (media && media.data.length <= INLINE_VIDEO_BYTES) {
+    video = inline(media);
+  } else if (media) {
+    const upload = await uploadFile(media.data, media.mimeType, apiKey);
+    if ('file' in upload) {
+      uploaded = upload.file.name;
+      video = { fileData: { mimeType: upload.file.mimeType, fileUri: upload.file.uri } };
+      videoNote = 'uploaded';
+    } else {
+      videoNote = `upload failed: ${upload.error}`;
+    }
+  }
+  // Its own time for the picture: an upload that failed may have used the video's.
+  const picture =
+    !video && post.imageUrl
+      ? await firstMedia([post.imageUrl], MAX_IMAGE_BYTES, Date.now() + MEDIA_BUDGET_MS)
+      : null;
+  const image = picture ? inline(picture) : null;
   const read = {
     caption: Boolean(post.caption),
     video: Boolean(video),
@@ -219,63 +245,67 @@ async function findSharedPlaces(
       shortcode: post.shortcode,
       ...readSteps(steps),
       image: image ? 'ok' : video ? 'not needed' : post.imageUrl ? 'failed' : 'none',
-      video: video ? 'ok' : post.videoUrls ? 'failed or too big' : post.isVideo ? 'not given' : 'none',
+      video: videoNote,
       geotag: read.geotag,
       ...fields,
     });
-
-  // Nothing to read and nothing to go on: no call.
-  if (!post.caption && !image && !video && !post.geotag && !hint) {
-    note({ places: 0, gemini: 'skipped' });
-    return { post: shownPost(post), places: [], read };
-  }
-
-  const parts: Record<string, unknown>[] = [
-    { text: placesPrompt(post, hint, { image: Boolean(image), video: Boolean(video) }) },
-  ];
-  if (video) parts.push({ inlineData: video });
-  if (image) parts.push({ inlineData: image });
-
-  let r: Response;
+  // An uploaded video is deleted once Gemini has answered, or failed to.
   try {
-    r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: PLACES_SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts }],
-        tools: PLACES_TOOLS,
-        generationConfig: jsonConfig(PLACES_SCHEMA, 'medium'),
-      }),
-      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-    });
-  } catch (err) {
-    const timedOut = err instanceof DOMException && err.name === 'TimeoutError';
-    note({ gemini: timedOut ? 'timed out' : 'unreachable' });
-    logServerError(err, { route: ROUTE, method: 'POST', status: 502 });
-    throw badGateway("Couldn't reach Gemini to read the post");
-  }
-  if (!r.ok) {
-    note({ gemini: `HTTP ${r.status}` });
-    logServerError(new Error(`gemini request failed: ${r.status}`), {
-      route: ROUTE,
-      method: 'POST',
-      status: 502,
-      detail: (await r.text()).slice(0, 500),
-    });
-    throw badGateway("Gemini couldn't read the post");
-  }
+    // Nothing to read and nothing to go on: no call.
+    if (!post.caption && !image && !video && !post.geotag && !hint) {
+      note({ places: 0, gemini: 'skipped' });
+      return { post: shownPost(post), places: [], read };
+    }
 
-  let json: unknown = null;
-  try {
-    const answer = responseText((await r.json()) as Parameters<typeof responseText>[0]);
-    json = answer ? JSON.parse(answer) : null;
-  } catch {
-    // Unusable: no places.
+    const parts: Record<string, unknown>[] = [
+      { text: placesPrompt(post, hint, { image: Boolean(image), video: Boolean(video) }) },
+    ];
+    if (video) parts.push(video);
+    if (image) parts.push(image);
+
+    let r: Response;
+    try {
+      r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: PLACES_SYSTEM_PROMPT }] },
+          contents: [{ role: 'user', parts }],
+          tools: PLACES_TOOLS,
+          generationConfig: jsonConfig(PLACES_SCHEMA, 'medium'),
+        }),
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+      });
+    } catch (err) {
+      const timedOut = err instanceof DOMException && err.name === 'TimeoutError';
+      note({ gemini: timedOut ? 'timed out' : 'unreachable' });
+      logServerError(err, { route: ROUTE, method: 'POST', status: 502 });
+      throw badGateway("Couldn't reach Gemini to read the post");
+    }
+    if (!r.ok) {
+      note({ gemini: `HTTP ${r.status}` });
+      logServerError(new Error(`gemini request failed: ${r.status}`), {
+        route: ROUTE,
+        method: 'POST',
+        status: 502,
+        detail: (await r.text()).slice(0, 500),
+      });
+      throw badGateway("Gemini couldn't read the post");
+    }
+
+    let json: unknown = null;
+    try {
+      const answer = responseText((await r.json()) as Parameters<typeof responseText>[0]);
+      json = answer ? JSON.parse(answer) : null;
+    } catch {
+      // Unusable: no places.
+    }
+    const places = markSaved(cleanPlaces(json), await catalogPlaces());
+    note({ places: places.length, gemini: json === null ? 'unusable' : 'ok' });
+    return { post: shownPost(post), places, read };
+  } finally {
+    if (uploaded) await deleteFile(uploaded, apiKey);
   }
-  const places = markSaved(cleanPlaces(json), await catalogPlaces());
-  note({ places: places.length, gemini: json === null ? 'unusable' : 'ok' });
-  return { post: shownPost(post), places, read };
 }
 
 /** The read steps as log fields. */
