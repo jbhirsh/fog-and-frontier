@@ -361,6 +361,42 @@ describe('AddActivity — edit mode', () => {
   });
 });
 
+describe('AddActivity — other trails found (#6)', () => {
+  const T = 'https://www.alltrails.com/trail/us/california/';
+  const generated: GeneratedFields = {
+    name: 'Alamere Falls',
+    shortDescription: 'A tidefall',
+    category: 'hiking',
+    region: 'north-bay',
+    city: 'Bolinas',
+    lat: 37.93,
+    lng: -122.75,
+    duration: 'Full Day',
+    allTrailsUrl: `${T}alamere-falls-via-coast-trail`,
+    allTrailsOptions: [
+      { url: `${T}alamere-falls-via-coast-trail`, title: 'Via Coast Trail', description: '' },
+      { url: `${T}wildcat-camp-trail`, title: 'Wildcat Camp Trail', description: '' },
+    ],
+  };
+
+  it('offers the other trails the draft found, and saves the one chosen', async () => {
+    generateSpy.mockResolvedValue(generated);
+    lookupSpy.mockResolvedValue({});
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Alamere Falls');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(await screen.findByText('Via Coast Trail')).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: /Not the right trail\? See 1 other/ }),
+    );
+    await userEvent.click(screen.getByText('Wildcat Camp Trail'));
+    expect(screen.getByLabelText('AllTrails URL')).toHaveValue(`${T}wildcat-camp-trail`);
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].allTrailsUrl).toBe(`${T}wildcat-camp-trail`);
+  });
+});
+
 describe('AddActivity — cover credit (#36)', () => {
   const credit = 'Photo: Jo, CC BY-SA 4.0, via Wikimedia Commons';
   const generated: GeneratedFields = {
@@ -791,6 +827,50 @@ describe('AddActivity — suggest mode (#73)', () => {
     await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
     await screen.findByRole('button', { name: 'Send suggestion' });
   }
+
+  it('sends a trail picked from the others with its own numbers, not the draft’s', async () => {
+    const T = 'https://www.alltrails.com/trail/us/california/';
+    generated.allTrailsOptions = [
+      { url: 'https://www.alltrails.com/trail/castle-rock', title: 'Castle Rock', description: '' },
+      { url: `${T}saratoga-gap`, title: 'Saratoga Gap', description: '', miles: 5.2, feet: 900 },
+    ];
+    try {
+      await review();
+      await userEvent.click(screen.getByRole('button', { name: /Not the right trail/ }));
+      await userEvent.click(screen.getByText('Saratoga Gap'));
+      await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+      await waitFor(() => expect(suggestSpy).toHaveBeenCalledTimes(1));
+      const [sent] = suggestSpy.mock.calls[0] as [Activity];
+      expect(sent).toMatchObject({
+        allTrailsUrl: `${T}saratoga-gap`,
+        hikeDistanceMiles: 5.2,
+        hikeElevationFeet: 900,
+      });
+      expect(sent.allTrailsRating).toBeUndefined();
+    } finally {
+      delete generated.allTrailsOptions;
+    }
+  });
+
+  it('forgets the trails a draft found once the form goes back, or is filled by hand', async () => {
+    generated.allTrailsOptions = [
+      { url: 'https://www.alltrails.com/trail/castle-rock', title: 'Castle Rock', description: '' },
+      { url: 'https://www.alltrails.com/trail/x/y/z', title: 'Z', description: '' },
+    ];
+    try {
+      await review();
+      expect(screen.getByRole('button', { name: /Not the right trail/ })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Fill them in yourself' }));
+      await userEvent.type(
+        screen.getByLabelText('AllTrails URL'),
+        'https://www.alltrails.com/trail/a/b/c',
+      );
+      expect(screen.queryByRole('button', { name: /Not the right trail|Pick from/ })).toBeNull();
+    } finally {
+      delete generated.allTrailsOptions;
+    }
+  });
 
   it('reviews without crediting or the AllTrails refresh note', async () => {
     await review();

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AGENT_SEARCH_URL,
   HttpError,
+  MAX_OTHERS,
   MAX_ROUNDS,
   MAX_SEARCHES,
   TRAIL_SEARCH_PROMPT,
@@ -9,7 +10,9 @@ import {
   trailPage,
   trailQuestion,
   trailRequest,
+  trailImage,
   trailResults,
+  trailStats,
   type DraftedHike,
 } from './_allTrailsSearch.js';
 
@@ -23,6 +26,33 @@ const DRAGON: DraftedHike = {
 };
 const STAIRS = 'https://www.alltrails.com/trail/us/california/dragon-mountain-stairs';
 const OTHER = 'https://www.alltrails.com/trail/us/california/dragon-mountain-trail-2';
+// A trail as a search lists it, with nothing but its words.
+const listed = (url: string, title: string, snippet: string) => ({
+  url,
+  title,
+  snippet,
+  description: snippet,
+  image: null,
+  rating: null,
+  reviews: null,
+  miles: null,
+  feet: null,
+});
+// The same trail as the form is offered it.
+const option = (url: string, title: string, description: string) => {
+  const {
+    url: u,
+    title: t,
+    description: d,
+    image,
+    rating,
+    reviews,
+    miles,
+    feet,
+  } = listed(url, title, description);
+  return { url: u, title: t, description: d, image, rating, reviews, miles, feet };
+};
+const NONE = { image: 0, ownDescription: 0, rating: 0, reviews: 0, miles: 0, feet: 0 };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -111,6 +141,11 @@ describe('trailRequest', () => {
                 type: 'string',
                 description:
                   "The trail's url, exactly as a search returned it; omit if none matches",
+              },
+              others: {
+                type: 'array',
+                items: { type: 'string' },
+                description: "Up to 3 other results' urls that could be this trail, best first",
               },
             },
           },
@@ -234,11 +269,185 @@ describe('trailResults', () => {
         ],
       }),
     ).toEqual([
-      { url: STAIRS, title: 'Dragon Mountain Stairs', snippet: 'Near Milpitas' },
-      { url: OTHER, title: '', snippet: '' },
-      { url: 'https://www.alltrails.com/trail/us/ca/x', title: '', snippet: '' },
-      { url: 'https://www.alltrails.com/trail/us/ca/y', title: '', snippet: '' },
+      listed(STAIRS, 'Dragon Mountain Stairs', 'Near Milpitas'),
+      // A page without a title is named from its address.
+      listed(OTHER, 'Dragon mountain trail 2', ''),
+      listed('https://www.alltrails.com/trail/us/ca/x', 'X', ''),
+      listed('https://www.alltrails.com/trail/us/ca/y', 'Y', ''),
     ]);
+  });
+
+  it('reads a title without AllTrails’ suffix, and a snippet without its entities', () => {
+    const [trail] = trailResults({
+      results: [
+        result(
+          'https://www.alltrails.com/trail/us/california/alamere-falls-trail--2',
+          'Alamere Falls Trail | Map, Guide - California | AllTrails',
+          'Head out on this 8.4-mi&nbsp;out-and-back &amp; enjoy   the &quot;tidefall&quot; &#39;s view &lt;3 &gt; &copy;',
+        ),
+      ],
+    });
+    expect(trail?.title).toBe('Alamere Falls Trail');
+    // The words the search matched come marked; the marks go, the words stay.
+    const [marked] = trailResults({
+      results: [
+        result(
+          STAIRS,
+          'Stairs',
+          'Head out on this <b>0.9</b>-mile trail near <B>Milpitas</B> &lt;b&gt;',
+        ),
+      ],
+    });
+    // Markup written as entities is no less markup, and goes the same way.
+    expect(marked?.snippet).toBe('Head out on this 0.9-mile trail near Milpitas');
+    // As does a tag built from the pieces of others, and any < or > left over.
+    const [rebuilt] = trailResults({
+      results: [result(STAIRS, 'Stairs', 'a <<b>script>alert(1)<</b>/script> b &lt;3 > c')],
+    });
+    expect(rebuilt?.snippet).toBe('a alert(1) b c');
+    expect(marked?.miles).toBe(0.9);
+    expect(trail?.snippet).toBe(
+      'Head out on this 8.4-mi out-and-back & enjoy the "tidefall" \'s view &copy;',
+    );
+    // An address's own number isn't part of the name.
+    expect(
+      trailResults({
+        results: [
+          result(
+            'https://www.alltrails.com/trail/us/california/alamere-falls-trail--2',
+            ' | AllTrails',
+          ),
+        ],
+      })[0]?.title,
+    ).toBe('Alamere falls trail');
+  });
+
+  it('takes the page’s own picture, else Google’s thumbnail of it, from an allowed host', () => {
+    const pictured = (pagemap: unknown) =>
+      trailResults({
+        results: [{ document: { derivedStructData: { link: STAIRS, title: 'S', pagemap } } }],
+      })[0]?.image;
+    const OG = 'https://images.alltrails.com/eyJidWNrZXQiOiJhc3NldHMifQ==';
+    const THUMB = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:abc';
+    expect(pictured({ metatags: [{ 'og:image': OG }], cse_thumbnail: [{ src: THUMB }] })).toBe(OG);
+    expect(pictured({ metatags: [{}], cse_thumbnail: [{ src: THUMB }] })).toBe(THUMB);
+    expect(pictured({ metatags: [{ 'og:image': 'https://evil.example/x.jpg' }] })).toBeNull();
+    for (const pagemap of [
+      undefined,
+      null,
+      {},
+      { metatags: 'x', cse_thumbnail: {} },
+      { metatags: [] },
+    ]) {
+      expect(pictured(pagemap), JSON.stringify(pagemap)).toBeNull();
+    }
+  });
+});
+
+describe('trailStats', () => {
+  const none = { rating: null, reviews: null, miles: null, feet: null };
+
+  it('reads the rating its page marks up, and the numbers its words give', () => {
+    expect(
+      trailStats(
+        { aggregaterating: [{ ratingvalue: '4.7', reviewcount: '6,412' }] },
+        'Head out on this 8.4-mile out-and-back trail. Elevation gain 1,640 ft.',
+      ),
+    ).toEqual({ rating: 4.7, reviews: 6412, miles: 8.4, feet: 1640 });
+    // A count of ratings where there's no count of reviews.
+    expect(trailStats({ aggregaterating: [{ ratingcount: '97' }] }, '').reviews).toBe(97);
+  });
+
+  it('reads the ways AllTrails writes them', () => {
+    const read = (words: string) => trailStats(undefined, words);
+    expect(read('Length 13.4 mi · Elevation gain: 2,034 feet · 1,088 reviews')).toEqual({
+      rating: null,
+      reviews: 1088,
+      miles: 13.4,
+      feet: 2034,
+    });
+    expect(read('a 5 mile loop with 905 ft of elevation gain')).toEqual({
+      ...none,
+      miles: 5,
+      feet: 905,
+    });
+    expect(read('Length: 2 mi, 532 ratings, 700 feet elevation gain')).toEqual({
+      ...none,
+      reviews: 532,
+      miles: 2,
+      feet: 700,
+    });
+    expect(read('A 3-miles walk')).toEqual({ ...none, miles: 3 });
+    // The trail's own length over any other distance its words give.
+    expect(read('Located 2 miles from Mill Valley, this 8.4-mile loop').miles).toBe(8.4);
+    expect(read('Located 2 miles from Mill Valley').miles).toBe(2);
+    expect(read('with an elevation gain of 1,640 feet').feet).toBe(1640);
+  });
+
+  it('leaves out what isn’t there, or isn’t a sensible number', () => {
+    expect(trailStats(undefined, '')).toEqual(none);
+    expect(trailStats({}, 'A walk by the sea, 2 km.')).toEqual(none);
+    for (const rating of ['0', '5.5', '-1', 'x', '', null]) {
+      expect(
+        trailStats({ aggregaterating: [{ ratingvalue: rating }] }, '').rating,
+        String(rating),
+      ).toBeNull();
+    }
+    expect(trailStats({ aggregaterating: [{ ratingvalue: '5' }] }, '').rating).toBe(5);
+    for (const count of ['1.5', '-3', 'many', '']) {
+      expect(
+        trailStats({ aggregaterating: [{ reviewcount: count }] }, '').reviews,
+        count,
+      ).toBeNull();
+    }
+    expect(trailStats({ aggregaterating: [{ reviewcount: '0' }] }, '').reviews).toBe(0);
+    expect(trailStats(undefined, 'a 0-mile stroll').miles).toBeNull();
+    // A fraction of a foot is rounded off.
+    expect(trailStats(undefined, 'elevation gain 1,640.5 ft').feet).toBe(1641);
+    // A comma alone is no number.
+    expect(
+      trailStats(undefined, 'Find trail maps, reviews, and photos. Elevation gain, ft.'),
+    ).toEqual(none);
+    // Nor is one no trail could have, which GraphQL's Int couldn't carry either.
+    expect(trailStats(undefined, 'elevation gain 99999999999 ft').feet).toBeNull();
+    expect(trailStats(undefined, 'elevation gain 30,001 ft').feet).toBeNull();
+    expect(trailStats(undefined, 'elevation gain 30,000 ft').feet).toBe(30000);
+    expect(trailStats(undefined, '99999999999 reviews').reviews).toBeNull();
+    expect(trailStats(undefined, '10,000,000 reviews').reviews).toBe(10_000_000);
+    expect(trailStats(undefined, 'a 1000-mile walk').miles).toBeNull();
+    expect(trailStats(undefined, 'a 999-mile walk').miles).toBe(999);
+    expect(trailStats(undefined, 'elevation gain 0 ft').feet).toBe(0);
+    expect(trailStats({ aggregaterating: 'x' }, '')).toEqual(none);
+  });
+});
+
+describe('trailImage', () => {
+  it('keeps an https picture on AllTrails’ hosts or Google’s thumbnails', () => {
+    for (const ok of [
+      'https://images.alltrails.com/x.jpg',
+      'https://alltrails.com/x.jpg',
+      'https://cdn-assets.alltrails.com/x.png',
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:abc',
+    ]) {
+      expect(trailImage(` ${ok} `), ok).toBe(new URL(ok).href);
+    }
+  });
+
+  it('turns down anything else', () => {
+    for (const bad of [
+      'http://images.alltrails.com/x.jpg',
+      'https://notalltrails.com/x.jpg',
+      'https://alltrails.com.evil.example/x.jpg',
+      'https://user@images.alltrails.com/x.jpg',
+      'https://:pw@images.alltrails.com/x.jpg',
+      'javascript:alert(1)',
+      'not a url',
+      '',
+      null,
+      7,
+    ]) {
+      expect(trailImage(bad), String(bad)).toBeNull();
+    }
   });
 
   it('finds nothing in a response without results', () => {
@@ -269,6 +478,9 @@ it('searches the Agent Search app that indexes AllTrails’ trail pages', () => 
 });
 
 describe('findAllTrailsUrl', () => {
+  // The link a search kept, or null, or undefined when it failed.
+  const linkFound = async (hike: DraftedHike, tools: Parameters<typeof findAllTrailsUrl>[1]) =>
+    (await findAllTrailsUrl(hike, tools))?.url;
   type Call = { name: unknown; args?: unknown; id?: string };
   // Gemini's reply making these calls, with the thought signature it must get back.
   const replying = (...calls: Call[]) => ({
@@ -320,7 +532,7 @@ describe('findAllTrailsUrl', () => {
       [replying(search(' dragon mountain stairs ')), replying(choose(STAIRS))],
       STAIRS_FOUND,
     );
-    expect(await findAllTrailsUrl(DRAGON, t)).toBe(STAIRS);
+    expect(await linkFound(DRAGON, t)).toBe(STAIRS);
     expect(t.search.mock.calls).toEqual([['dragon mountain stairs']]);
     const asked = [{ role: 'user', parts: [{ text: trailQuestion(DRAGON) }] }];
     expect(t.gemini.mock.calls[0]?.[0]).toEqual(trailRequest(asked, false));
@@ -359,6 +571,8 @@ describe('findAllTrailsUrl', () => {
         pick: STAIRS,
         chosen: true,
         kept: true,
+        others: 0,
+        with: NONE,
       },
     ]);
   });
@@ -369,7 +583,7 @@ describe('findAllTrailsUrl', () => {
       a: [result(STAIRS)],
       b: [result(OTHER)],
     });
-    expect(await findAllTrailsUrl(DRAGON, t)).toBe(OTHER);
+    expect(await linkFound(DRAGON, t)).toBe(OTHER);
     const sent = t.gemini.mock.calls[1]?.[0] as { contents: { parts: unknown[] }[] };
     expect(sent.contents[2]?.parts).toEqual([
       {
@@ -403,7 +617,7 @@ describe('findAllTrailsUrl', () => {
         [replying(search('dragon mountain stairs')), replying(choose(chosen))],
         STAIRS_FOUND,
       );
-      expect(await findAllTrailsUrl(DRAGON, t), chosen).toBe(STAIRS);
+      expect(await linkFound(DRAGON, t), chosen).toBe(STAIRS);
     }
   });
 
@@ -413,9 +627,9 @@ describe('findAllTrailsUrl', () => {
       [replying(search('dragon mountain stairs')), replying(choose(OTHER))],
       STAIRS_FOUND,
     );
-    expect(await findAllTrailsUrl(DRAGON, t)).toBeNull();
+    expect(await linkFound(DRAGON, t)).toBeNull();
     // Nor one it chose without searching at all.
-    expect(await findAllTrailsUrl(DRAGON, tools([replying(choose(STAIRS))]))).toBeNull();
+    expect(await linkFound(DRAGON, tools([replying(choose(STAIRS))]))).toBeNull();
     expect(events().map((e) => [e.chosen, e.kept, e.results])).toEqual([
       [true, false, 1],
       [true, false, 0],
@@ -435,7 +649,7 @@ describe('findAllTrailsUrl', () => {
         [replying(search('dragon mountain stairs')), replying(choose(url))],
         STAIRS_FOUND,
       );
-      expect(await findAllTrailsUrl(DRAGON, t), String(url)).toBeNull();
+      expect(await linkFound(DRAGON, t), String(url)).toBeNull();
     }
     expect(events().every((e) => e.chosen === false && e.kept === false)).toBe(true);
   });
@@ -451,7 +665,7 @@ describe('findAllTrailsUrl', () => {
     ];
     const text = { candidates: [{ content: { role: 'model', parts } }] };
     const t = tools([replying(search('dragon mountain stairs')), text], STAIRS_FOUND);
-    expect(await findAllTrailsUrl(DRAGON, t)).toBeNull();
+    expect(await linkFound(DRAGON, t)).toBeNull();
     expect(events()).toEqual([
       expect.objectContaining({
         event: 'draft.trail_search',
@@ -466,7 +680,7 @@ describe('findAllTrailsUrl', () => {
     logged();
     const rounds = Array.from({ length: MAX_ROUNDS }, (_, i) => replying(search(`q${i}`)));
     const chooses = tools([...rounds, replying(choose(STAIRS))], { q1: [result(STAIRS)] });
-    expect(await findAllTrailsUrl(DRAGON, chooses)).toBe(STAIRS);
+    expect(await linkFound(DRAGON, chooses)).toBe(STAIRS);
     const modes = chooses.gemini.mock.calls.map(
       (c) =>
         (c[0] as { toolConfig: { functionCallingConfig: { mode: string } } }).toolConfig
@@ -475,7 +689,7 @@ describe('findAllTrailsUrl', () => {
     expect(modes).toEqual([...rounds.map(() => 'AUTO'), 'ANY']);
     // A last reply that searches anyway ends it, unsearched.
     const keeps = tools([...rounds, replying(search('more'))], { q1: [result(STAIRS)] });
-    expect(await findAllTrailsUrl(DRAGON, keeps)).toBeNull();
+    expect(await linkFound(DRAGON, keeps)).toBeNull();
     expect(keeps.search.mock.calls.flat()).toEqual(['q0', 'q1', 'q2']);
   });
 
@@ -491,7 +705,7 @@ describe('findAllTrailsUrl', () => {
     const t = tools([replying(...many, ...odd), replying(choose(STAIRS))], {
       q0: [result(STAIRS)],
     });
-    expect(await findAllTrailsUrl(DRAGON, t)).toBe(STAIRS);
+    expect(await linkFound(DRAGON, t)).toBe(STAIRS);
     expect(t.search).toHaveBeenCalledTimes(MAX_SEARCHES);
     const sent = t.gemini.mock.calls[1]?.[0] as {
       contents: { parts: { functionResponse: { name: unknown; response: unknown } }[] }[];
@@ -556,6 +770,130 @@ describe('findAllTrailsUrl', () => {
     ]);
   });
 
+  it('offers the pick and up to three others Gemini named, each a page a search returned', async () => {
+    const events = logged();
+    const page = (slug: string) => `https://www.alltrails.com/trail/us/california/${slug}`;
+    const found = ['a', 'b', 'c', 'd', 'e'].map((x) =>
+      result(page(x), `Trail ${x.toUpperCase()} | AllTrails`, `Near ${x}`),
+    );
+    const t = tools(
+      [
+        replying(search('trails')),
+        replying({
+          name: 'choose_trail',
+          args: {
+            url: page('a'),
+            others: [
+              page('a'), // the pick again
+              `${page('b')}?ref=x`,
+              page('never-returned'),
+              42,
+              page('b'), // again
+              page('c'),
+              page('d'),
+              page('e'), // past three
+            ],
+          },
+        }),
+      ],
+      { trails: found },
+    );
+    const answer = await findAllTrailsUrl(DRAGON, t);
+    expect(answer).toEqual({
+      url: page('a'),
+      options: [
+        option(page('a'), 'Trail A', 'Near a'),
+        option(page('b'), 'Trail B', 'Near b'),
+        option(page('c'), 'Trail C', 'Near c'),
+        option(page('d'), 'Trail D', 'Near d'),
+      ],
+    });
+    expect(events()[0]).toEqual(expect.objectContaining({ others: 3, with: NONE }));
+  });
+
+  it('offers the others when Gemini picked none, and none when it named none', async () => {
+    const events = logged();
+    const pick = (args: unknown) =>
+      findAllTrailsUrl(
+        DRAGON,
+        tools(
+          [replying(search('dragon mountain stairs')), replying({ name: 'choose_trail', args })],
+          STAIRS_FOUND,
+        ),
+      );
+    expect(await pick({ others: [STAIRS] })).toEqual({
+      url: null,
+      options: [option(STAIRS, 'Dragon Mountain Stairs', 'Milpitas')],
+    });
+    for (const args of [{}, { others: 'x' }, { others: null }, null]) {
+      expect(await pick(args), JSON.stringify(args)).toEqual({ url: null, options: [] });
+    }
+    // A search Gemini answered without choosing offers nothing either.
+    const text = { candidates: [{ content: { role: 'model', parts: [{ text: STAIRS }] } }] };
+    expect(
+      await findAllTrailsUrl(
+        DRAGON,
+        tools([replying(search('dragon mountain stairs')), text], STAIRS_FOUND),
+      ),
+    ).toEqual({ url: null, options: [] });
+    expect(events()[0]).toEqual(expect.objectContaining({ others: 1, kept: false }));
+  });
+
+  it('offers each trail with what its page gave, counts what came, and keeps Gemini to the words', async () => {
+    const events = logged();
+    const IMG = 'https://images.alltrails.com/stairs.jpg';
+    const OWN =
+      'Head out on this 0.9-mile out-and-back trail near Milpitas. Elevation gain 583 ft. 128 reviews.';
+    const full = {
+      document: {
+        derivedStructData: {
+          link: STAIRS,
+          title: 'Dragon Mountain Stairs',
+          snippets: [{ snippet: 'Milpitas' }],
+          pagemap: {
+            metatags: [{ 'og:image': IMG, 'og:description': OWN }],
+            aggregaterating: [{ ratingvalue: '4.6', reviewcount: '1,204' }],
+          },
+        },
+      },
+    };
+    const t = tools([replying(search('dragon mountain stairs')), replying(choose(STAIRS))], {
+      'dragon mountain stairs': [full, result(OTHER)],
+    });
+    expect((await findAllTrailsUrl(DRAGON, t))?.options).toEqual([
+      {
+        url: STAIRS,
+        title: 'Dragon Mountain Stairs',
+        description: OWN,
+        image: IMG,
+        rating: 4.6,
+        reviews: 1204,
+        miles: 0.9,
+        feet: 583,
+      },
+    ]);
+    expect(events()[0]).toEqual(
+      expect.objectContaining({
+        results: 2,
+        with: { image: 1, ownDescription: 1, rating: 1, reviews: 1, miles: 1, feet: 1 },
+      }),
+    );
+    // Gemini reads names and snippets, not pictures or numbers.
+    const sent = t.gemini.mock.calls[1]?.[0] as {
+      contents: { parts: { functionResponse: { response: { results: object[] } } }[] }[];
+    };
+    expect(sent.contents[2]?.parts[0]?.functionResponse.response.results[0]).toEqual({
+      url: STAIRS,
+      title: 'Dragon Mountain Stairs',
+      snippet: 'Milpitas',
+    });
+  });
+
+  it('tells Gemini to name the others it might have meant', () => {
+    expect(TRAIL_SEARCH_PROMPT).toMatch(/up to three other results/);
+    expect(MAX_OTHERS).toBe(3);
+  });
+
   it('says which step failed after a search that worked', async () => {
     const events = logged();
     const replies = [replying(search('x'))];
@@ -565,7 +903,7 @@ describe('findAllTrailsUrl', () => {
       ),
       search: vi.fn(() => Promise.resolve({ results: [] })),
     };
-    expect(await findAllTrailsUrl(DRAGON, t)).toBeUndefined();
+    expect(await linkFound(DRAGON, t)).toBeUndefined();
     expect(events()).toEqual([
       expect.objectContaining({ event: 'draft.trail_search_failed', step: 'gemini', status: 500 }),
     ]);

@@ -26,6 +26,7 @@ import { DuplicateNotice } from './DuplicateNotice';
 import { lookupAllTrails } from '../lib/alltrails';
 import { sentenceCase } from '../lib/activityLabels';
 import { generateActivity, type GeneratedFields } from '../lib/generateActivity';
+import { TrailPicker, type TrailOption } from './TrailPicker';
 
 interface Props {
   onClose: () => void;
@@ -146,6 +147,8 @@ export function AddActivity({
   // details in by hand instead of a dead end.
   const [draftsUsed, setDraftsUsed] = useState(false);
   const [draft, setDraft] = useState<Activity | null>(editActivity ?? null);
+  // The trails the draft's AllTrails search found to choose from (#6).
+  const [trailOptions, setTrailOptions] = useState<TrailOption[]>([]);
   // A suggestion held back for what it lacks: said until it lacks nothing,
   // following the fields as they're filled in.
   const [heldBack, setHeldBack] = useState(false);
@@ -193,6 +196,7 @@ export function AddActivity({
       return;
     }
     setError(null);
+    setTrailOptions([]);
     setStep('generating');
     try {
       const g: GeneratedFields = await generateActivity(title.trim(), notes.trim());
@@ -233,6 +237,7 @@ export function AddActivity({
         parentId: suggest ? undefined : g.parentId,
       };
       setDraft(activity);
+      setTrailOptions(g.allTrailsOptions ?? []);
       setStep('review');
       void lookAlikes(activity);
     } catch (e) {
@@ -319,6 +324,7 @@ export function AddActivity({
   function backToForm() {
     // What the review step said was about the review step.
     setError(null);
+    setTrailOptions([]);
     setHeldBack(false);
     clearTimeout(recheck.current);
     checks.current += 1; // drop any answer still on its way
@@ -453,6 +459,7 @@ export function AddActivity({
             mode={mode}
             suggest={suggest}
             users={users}
+            trailOptions={trailOptions}
             onChange={changeDraft}
             onBack={mode === 'edit' ? onClose : backToForm}
             onSave={() => void save()}
@@ -684,6 +691,7 @@ function ReviewStep({
   mode,
   suggest,
   users,
+  trailOptions,
   onChange,
   onBack,
   onSave,
@@ -697,6 +705,7 @@ function ReviewStep({
   mode: 'create' | 'edit';
   suggest: boolean;
   users: readonly string[];
+  trailOptions: readonly TrailOption[];
   onChange: (a: Activity) => void;
   onBack: () => void;
   onSave: () => void;
@@ -925,6 +934,21 @@ function ReviewStep({
             className={inputCls}
           />
         </Field>
+        <TrailPicker
+          url={draft.allTrailsUrl}
+          options={trailOptions}
+          onChoose={(trail) =>
+            // Its own numbers, as far as the search had them: the ones the
+            // draft had were another trail's.
+            onChange({
+              ...draft,
+              allTrailsUrl: trail.url,
+              allTrailsRating: trail.rating,
+              hikeDistanceMiles: trail.miles,
+              hikeElevationFeet: trail.feet,
+            })
+          }
+        />
         {/* Rating, distance, and elevation are fetched from AllTrails on save
             when the URL changes — there are no manual inputs for them. A
             suggestion isn't saved, so there's no refresh to promise. */}
