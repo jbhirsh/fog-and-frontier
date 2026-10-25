@@ -56,5 +56,9 @@
       }
     },
     "cellWidth": 420
+  },
+  "review": {
+    "instructions": ".github/claude-review.md",
+    "skip": ["src/gql/**", "shared/isoRegions.ts"]
   }
 }
