@@ -1,14 +1,7 @@
-# Turn on GitHub's auto-merge for each of Dependabot's npm PRs.
-#
-# Dependabot can't enable auto-merge on its own PRs, so this does it once, as
-# the PR opens. GitHub then merges the PR only when branch protection on main
-# is satisfied: every required check green and every review thread resolved.
-# So a Claude Review finding holds the bump until claude-autofix (or a person)
-# fixes and resolves it, and anything red keeps it open. Branch protection is
-# the gate; keep it listing every check a PR runs.
-#
-# npm only. The Actions token can't merge a PR that edits .github/workflows,
-# so bumps from the github-actions ecosystem are merged by hand.
+# Turn on GitHub's auto-merge for each of Dependabot's npm PRs, as it opens.
+# The policy, and why branch protection on main is the gate, is in the
+# action (jbhirsh/ci dependabot-merge/action.yml); this file holds the
+# trigger and the job.
 name: Dependabot Auto-Merge
 
 on:
@@ -23,6 +16,7 @@ permissions: {}
 jobs:
   auto-merge:
     name: Enable auto-merge
+    # The action checks this too; filtering here saves starting a runner.
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]'
       && startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/')
@@ -33,8 +27,4 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Enable auto-merge (squash)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-        run: gh pr merge --auto --squash "$PR_URL"
+      - uses: jbhirsh/ci/dependabot-merge@main
