@@ -3,8 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { execute } = vi.hoisted(() => ({ execute: vi.fn() }));
 vi.mock('./_db.js', () => ({ db: () => ({ execute }) }));
 
-const { PARENT_RADIUS_METERS, checkParent, hasSubItems, matchParent, parentIdOf, releaseSubItems } =
-  await import('./_parents.js');
+const {
+  PARENT_RADIUS_METERS,
+  checkParent,
+  hasSubItems,
+  matchParent,
+  parentIdOf,
+  parkName,
+  releaseSubItems,
+} = await import('./_parents.js');
 
 type Q = { sql: string; args: unknown[] };
 
@@ -306,9 +313,125 @@ describe('matchParent', () => {
     ).toBe('first');
   });
 
-  it('matches nothing without a park name', () => {
+  it('matches nothing without a park name, unless the draft’s own name holds one', () => {
     for (const partOf of [undefined, null, 7, '', '   ']) {
       expect(matchParent({ ...CHIMNEY, partOf }, [POINT_REYES]), String(partOf)).toBeNull();
+    }
+  });
+
+  it('matches a saved park the draft’s own name holds whole, when Gemini named none', () => {
+    const CASTLE_ROCK = {
+      id: 'castle-rock',
+      name: 'Castle Rock State Park',
+      lat: 37.2306,
+      lng: -122.0957,
+    };
+    const bouldering = { name: 'Bouldering at Castle Rock State Park', lat: 37.2318, lng: -122.1 };
+    expect(matchParent(bouldering, [POINT_REYES, CASTLE_ROCK])).toBe('castle-rock');
+    // Only held whole: most of its words isn't enough without a name from Gemini.
+    expect(matchParent({ ...bouldering, name: 'Castle Rock State' }, [CASTLE_ROCK])).toBeNull();
+    expect(
+      matchParent({ ...bouldering, name: 'Bouldering at Castle Rock State' }, [CASTLE_ROCK]),
+    ).toBeNull();
+    expect(
+      matchParent({ ...bouldering, name: 'Bouldering at Castle Rock' }, [CASTLE_ROCK]),
+    ).toBeNull();
+    // Nor one word.
+    expect(
+      matchParent({ ...bouldering, name: 'Castle bouldering' }, [
+        { ...CASTLE_ROCK, name: 'Castle' },
+      ]),
+    ).toBeNull();
+    // Nor a park too far away to be it.
+    expect(matchParent({ ...bouldering, lat: 40.5 }, [CASTLE_ROCK])).toBeNull();
+    // Only a park the name places it in, not one it merely holds.
+    const MUIR = { id: 'muir-woods', name: 'Muir Woods', lat: 37.8912, lng: -122.5719 };
+    const near = { lat: 37.89, lng: -122.57 };
+    for (const name of [
+      'Muir Woods Trading Company',
+      'Muir Woods National Monument',
+      'Muir Woods',
+      'Lunch near Muir Woods',
+    ]) {
+      expect(matchParent({ ...near, name }, [MUIR]), name).toBeNull();
+    }
+    for (const name of [
+      'Redwood loop in Muir Woods',
+      'Cathedral Grove at the Muir Woods',
+      'Fern Creek inside Muir Woods National Monument',
+      'Bohemian Grove within Muir Woods',
+      'Trees OF MUIR WOODS',
+    ]) {
+      expect(matchParent({ ...near, name }, [MUIR]), name).toBe('muir-woods');
+    }
+    // The park itself, drafted, is still no part of itself.
+    expect(
+      matchParent({ ...bouldering, name: 'Castle Rock State Park' }, [CASTLE_ROCK]),
+    ).toBeNull();
+  });
+
+  it('matches the park Gemini named even when its answer ran on past the name', () => {
+    expect(
+      matchParent(
+        {
+          ...CHIMNEY,
+          partOf: 'Point Reyes National Seashore   allTrailsUrl: "https://www.alltrails.com/x',
+        },
+        [POINT_REYES],
+      ),
+    ).toBe('point-reyes-seashore');
+  });
+});
+
+describe('parkName', () => {
+  it('keeps the name Gemini gave, trimmed', () => {
+    expect(parkName('  Point Reyes National Seashore ')).toBe('Point Reyes National Seashore');
+    expect(parkName("Fushimi Inari-taisha's grounds")).toBe("Fushimi Inari-taisha's grounds");
+  });
+
+  it('cuts an answer that ran on past the name', () => {
+    for (const ran of [
+      'Point Reyes National Seashore   allTrailsUrl: "https://www.alltrails.com/x", notes: "No dogs"',
+      'Point Reyes National Seashore allTrailsUrl: https://www.alltrails.com/x',
+      'Point Reyes National Seashore", "notes": "No dogs',
+      'Point Reyes National Seashore "notes',
+      'Point Reyes National Seashore\nnotes: No dogs',
+      'Point Reyes National Seashore\tx',
+      'Point Reyes National Seashore\r\n',
+    ]) {
+      expect(parkName(ran), ran).toBe('Point Reyes National Seashore');
+    }
+  });
+
+  it('takes a name Gemini quoted', () => {
+    expect(parkName('"Point Reyes National Seashore"')).toBe('Point Reyes National Seashore');
+    expect(parkName('“Point Reyes National Seashore”')).toBe('Point Reyes National Seashore');
+    expect(parkName('‘Muir Woods’ ')).toBe('Muir Woods');
+    expect(parkName("'Muir Woods'")).toBe('Muir Woods');
+    // An apostrophe of the name's own stays.
+    expect(parkName("Fushimi Inari-taisha's grounds")).toBe("Fushimi Inari-taisha's grounds");
+  });
+
+  it('keeps a colon of the name’s own', () => {
+    for (const name of [
+      'Santa Cruz Mountains: Big Basin Redwoods State Park',
+      'Lake Tahoe Basin: Desolation Wilderness',
+      'Muir Woods: A National Monument',
+    ]) {
+      expect(parkName(name), name).toBe(name);
+    }
+    // Only the draft's own fields end it.
+    expect(parkName('Point Reyes National Seashore notes: No dogs')).toBe(
+      'Point Reyes National Seashore',
+    );
+    expect(parkName('Point Reyes National Seashore partOf : x')).toBe(
+      'Point Reyes National Seashore',
+    );
+  });
+
+  it('gives nothing for a non-name', () => {
+    for (const value of [undefined, null, 7, '', '   ', '""', '" "']) {
+      expect(parkName(value), String(value)).toBeNull();
     }
   });
 });

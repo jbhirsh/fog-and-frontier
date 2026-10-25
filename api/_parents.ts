@@ -69,21 +69,52 @@ export interface ParentCandidate {
   parentId?: string | null;
 }
 
+// Where a run-on answer leaves the name: a quote, a line break, a run of
+// spaces, or one of the draft's other fields by name, then a colon.
+const RUN_ON =
+  /["\n\r\t]|\s{2,}|\s(?:name|shortDescription|longDescription|category|region|parkType|city|lat|lng|duration|durationDetail|difficulty|dogFriendly|hikeDistanceMiles|hikeElevationFeet|cuisine|priceRange|costTier|hours|reservationUrl|menuUrl|dietary|allTrailsUrl|notes|partOf)\s*:/;
+
+/**
+ * The park name Gemini gave (`partOf`), or null. An answer can run on past
+ * the name into the fields that follow ("Point Reyes National Seashore
+ * allTrailsUrl: …"), so it's cut at the first sign of that: a quote, a line
+ * break, a run of spaces, or one of the draft's own field names and a
+ * colon. A colon of the name's own ("Santa Cruz Mountains: Big Basin")
+ * stays.
+ */
+export function parkName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  // A name Gemini quoted is still the name.
+  const [name = ''] = value
+    .trim()
+    .replace(/^["'“‘]+/, '')
+    .split(RUN_ON);
+  return name.trim().replace(/["'”’]+$/, '') || null;
+}
+
+// What a name says it's in, at or of: "Bouldering at Castle Rock State
+// Park" is at Castle Rock State Park. Nothing for a name that says none.
+function placeIn(name: string): string {
+  return /\b(?:at|in|of|inside|within)\s+(?:the\s+)?(.+)$/i.exec(name)?.[1] ?? '';
+}
+
 /**
  * The saved park a drafted activity is part of (#269), from the park's name
  * as Gemini gave it (`partOf`): a catalog activity with that name, most
  * of its words, or a name it holds whole, within reach of the draft's pin, that isn't part of anything
  * itself. The closest name wins, then the nearest. A draft that is the park
- * itself has no parent.
+ * itself has no parent. With no park named, a saved park its own name
+ * places it in, whole ("Bouldering at Castle Rock State Park"), is still
+ * its park; one its name merely holds ("Muir Woods Trading Company") isn't.
  */
 export function matchParent(
   draft: { name: string; lat: number; lng: number; partOf?: unknown },
   catalog: readonly ParentCandidate[],
 ): string | null {
-  if (typeof draft.partOf !== 'string') return null;
-  const words = nameWords(draft.partOf);
+  const named = parkName(draft.partOf);
+  const words = nameWords(named ?? placeIn(draft.name));
   const own = nameWords(draft.name).join(' ');
-  if (words.join(' ') === own) return null;
+  if (named !== null && words.join(' ') === own) return null;
   let best: { id: string; overlap: number; meters: number } | null = null;
   for (const place of catalog) {
     if (place.parentId) continue;
@@ -91,9 +122,10 @@ export function matchParent(
     if (theirs.join(' ') === own) continue;
     // A saved name of two words or more that Gemini's holds whole ("Muir
     // Woods" in "Muir Woods National Monument") is a match too, though
-    // ranked below a closer name.
+    // ranked below a closer name. Held whole is the only match for a park
+    // the draft's own name places it in.
     const held = theirs.length >= 2 && theirs.every((w) => words.includes(w));
-    const shared = wordOverlap(words, theirs);
+    const shared = named === null ? 0 : wordOverlap(words, theirs);
     const overlap = held ? Math.max(shared, PARENT_NAME_OVERLAP) : shared;
     if (overlap < PARENT_NAME_OVERLAP) continue;
     const meters = distanceMeters(draft, place);

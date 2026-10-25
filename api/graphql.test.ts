@@ -1828,9 +1828,17 @@ describe('Gemini ops', () => {
     it('names none when Gemini gives no park, or one that isn’t saved', async () => {
       for (const partOf of [undefined, 'Golden Gate National Recreation Area']) {
         setup({ catalog: [{ id: PARK.id, j: JSON.stringify(PARK) }] });
+        const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+        info.mockClear();
         stubFetch(geminiText(JSON.stringify({ ...DRAFT, partOf })));
         const r = await run(PARENTED, { i: { title: 'Point Reyes Lighthouse' } }, OWNER);
         expect((r.data?.generateActivity as { activity: Row }).activity.parentId).toBeNull();
+        const logged = info.mock.calls
+          .map((c) => JSON.parse(String(c[0])) as Row)
+          .filter((e) => e.event === 'draft.parent');
+        expect(logged).toEqual([
+          expect.objectContaining({ partOf: partOf ?? null, matched: false }),
+        ]);
       }
     });
 
@@ -1848,6 +1856,38 @@ describe('Gemini ops', () => {
       expect(r.data?.generateActivity).toEqual({
         activity: { name: 'Point Reyes Lighthouse', parentId: null },
       });
+    });
+    it('names the saved park even when Gemini’s answer ran on past its name', async () => {
+      setup({ catalog: [{ id: PARK.id, j: JSON.stringify(PARK) }] });
+      const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+      const partOf = 'Point Reyes National Seashore   allTrailsUrl: "https://www.alltrails.com/x';
+      stubFetch(geminiText(JSON.stringify({ ...DRAFT, partOf })));
+      const r = await run(PARENTED, { i: { title: 'Point Reyes Lighthouse' } }, OWNER);
+      expect((r.data?.generateActivity as { activity: Row }).activity.parentId).toBe(PARK.id);
+      // Logged with the name it matched on.
+      const logged = info.mock.calls
+        .map((c) => JSON.parse(String(c[0])) as Row)
+        .filter((e) => e.event === 'draft.parent');
+      expect(logged).toEqual([
+        expect.objectContaining({ partOf: 'Point Reyes National Seashore', matched: true }),
+      ]);
+    });
+
+    it('names the saved park the draft’s own name holds, when Gemini names none', async () => {
+      setup({ catalog: [{ id: PARK.id, j: JSON.stringify(PARK) }] });
+      const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+      info.mockClear();
+      stubFetch(
+        geminiText(
+          JSON.stringify({ ...DRAFT, name: 'Tide pools of Point Reyes National Seashore' }),
+        ),
+      );
+      const r = await run(PARENTED, { i: { title: 'Point Reyes tide pools' } }, OWNER);
+      expect((r.data?.generateActivity as { activity: Row }).activity.parentId).toBe(PARK.id);
+      const logged = info.mock.calls
+        .map((c) => JSON.parse(String(c[0])) as Row)
+        .filter((e) => e.event === 'draft.parent');
+      expect(logged).toEqual([expect.objectContaining({ partOf: null, matched: true })]);
     });
   });
 

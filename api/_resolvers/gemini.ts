@@ -5,12 +5,12 @@ import {
   type TrailTools,
 } from '../_allTrailsSearch.js';
 import { findCoverImage } from '../_coverImage.js';
-import { matchParent } from '../_parents.js';
+import { matchParent, parkName } from '../_parents.js';
 import { toRegion } from '../_regions.js';
 import { badGateway, badInput, forbidden } from '../_gqlError.js';
 import { claimAssist, releaseAssist } from '../_assistBudget.js';
 import { isSavableUrl, LINK_HOSTS } from '../_links.js';
-import { logServerError } from '../_log.js';
+import { logEvent, logServerError } from '../_log.js';
 import { requireOwnerCtx, requireUserCtx, type GqlContext } from '../_gqlContext.js';
 import { HOME_BASE } from '../_home.js';
 import { catalogActivities } from './catalog.js';
@@ -218,7 +218,7 @@ const ACTIVITY_SCHEMA = {
     partOf: {
       type: 'string',
       description:
-        'The official name of the park, seashore, recreation area, monument or forest the activity lies inside, e.g. "Point Reyes National Seashore". Omit if it is not inside one, or is that park itself.',
+        'The official name of the park, seashore, recreation area, monument or forest the activity lies inside, e.g. "Point Reyes National Seashore", including for an activity named after it ("Bouldering at Castle Rock State Park" is in "Castle Rock State Park"). Omit only when the activity is the park itself, or is not inside one.',
     },
   },
   required: ACTIVITY_REQUIRED_FIELDS,
@@ -263,7 +263,7 @@ Rules:
 - Only give a URL (allTrailsUrl, reservationUrl, menuUrl) that you found in your search results or the user's links; never construct one. Give the page's own address, never a vertexaisearch.cloud.google.com redirect.
 - For a hike or walk, look for its AllTrails listing before leaving "allTrailsUrl" out. AllTrails lists trails rather than places, so search it by every name the place goes by (its common English name and any local or translated one) and by the route or feature it's known for (for example "… Stairs", "… Trail", "… Loop"), and give the alltrails.com/trail/ page of the route that best matches the activity.
 - Coordinates: provide best-known lat/lng for the activity (the trailhead, the restaurant, the park entrance).
-- "partOf": when the activity is inside a larger park, national seashore, recreation area, monument or forest, give that place's official name as its managers write it (Chimney Rock Trail is part of "Point Reyes National Seashore"; Mist Trail of "Yosemite National Park"). Omit it when the activity is that park itself, or isn't inside one.
+- "partOf": when the activity is inside a larger park, national seashore, recreation area, monument or forest, give that place's official name as its managers write it (Chimney Rock Trail is part of "Point Reyes National Seashore"; Mist Trail of "Yosemite National Park"). An activity named for its park ("Bouldering at Castle Rock State Park") is inside it all the same. Omit it only when the activity is the park itself (a draft of "Castle Rock State Park"), or isn't inside one.
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
 - "duration" should reflect realistic round-trip time from ${HOME_BASE} including driving.
 - "shortDescription" should be vivid and specific, not generic, with the specifics taken from your sources.
@@ -310,10 +310,9 @@ function trailTools(apiKey: string, searchKey: string): TrailTools {
 }
 
 // The saved park a draft is part of (#269), matched from the name Gemini
-// gave it. No catalog to match against (the eval has no database) means no
-// parent, never a failed draft.
+// gave it, or else from its own name. No catalog to match against (the eval
+// has no database) means no parent, never a failed draft.
 async function draftParent(draft: { name: string; lat: number; lng: number; partOf: unknown }) {
-  if (typeof draft.partOf !== 'string') return null;
   try {
     const catalog = (await catalogActivities()).map((a) => {
       const coords = (a.location as { coords: { lat: number; lng: number } }).coords;
@@ -324,7 +323,9 @@ async function draftParent(draft: { name: string; lat: number; lng: number; part
         parentId: a.parentId as string | null,
       };
     });
-    return matchParent(draft, catalog);
+    const parentId = matchParent(draft, catalog);
+    logEvent('draft.parent', { partOf: draft.partOf, matched: parentId !== null });
+    return parentId;
   } catch {
     return null;
   }
@@ -471,6 +472,8 @@ async function generateActivity(
   // A region it named outside the list (#274) is dropped, for the form to
   // ask for, rather than failing a draft that was billed.
   parsed.region = toRegion(parsed.region);
+  // Just the park's name, should Gemini's answer have run on past it.
+  parsed.partOf = parkName(parsed.partOf);
   for (const [field, values] of Object.entries(OPTIONAL_GENERATED_ENUMS)) {
     const v = parsed[field];
     if (v !== undefined && v !== null && !values.includes(v as string)) {
