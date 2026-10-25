@@ -20,6 +20,13 @@
         "src/test/**"
       ]
     },
-    "sweep": { "shards": 4, "timeoutMinutes": 90 }
+    "sweep": {
+      "shards": 4,
+      "timeoutMinutes": 90
+    }
+  },
+  "visuals": {
+    "ui": ["src/**/*.{tsx,css}"],
+    "notUi": ["**/*.test.tsx", "src/test/**"]
   }
 }
