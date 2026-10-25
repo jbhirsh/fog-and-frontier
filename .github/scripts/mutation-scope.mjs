@@ -2,7 +2,7 @@
 // the PR changed (one path per line on stdin) that stryker.config.json's
 // `mutate` globs cover, narrowed to the lines it changed (below). A `!` glob
 // excludes, as in Stryker. Reading the globs from the config keeps the PR
-// scope and the weekly full sweep in step, so there is no second copy of the
+// scope and the monthly full sweep in step, so there is no second copy of the
 // file list to drift.
 //
 //   git diff --name-only --diff-filter=d origin/main...HEAD \
