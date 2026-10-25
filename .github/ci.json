@@ -31,5 +31,17 @@
   },
   "audit": {
     "graph": ["src", "api"]
+  },
+  "readme-screenshots": {
+    "shows": [
+      "src/**",
+      "index.html",
+      "public/**",
+      "scripts/readme-screenshots.ts",
+      "scripts/pr-gif.ts",
+      "scripts/pr-gif-cli.ts"
+    ],
+    "ignore": ["**/*.test.{ts,tsx}", "src/test/**"],
+    "source": "a local production build reading production's catalog and photos (scripts/readme-screenshots.ts)"
   }
 }
