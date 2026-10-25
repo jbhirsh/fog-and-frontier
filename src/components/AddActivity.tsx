@@ -89,14 +89,23 @@ const PRICE_RANGES: PriceRange[] = ['$', '$$', '$$$', '$$$$'];
 // the derived fields so we don't keep stale data. When it's unchanged,
 // pass through untouched. `previousUrl` is the URL on the activity before
 // the user opened the editor — undefined in create mode means anything
-// non-empty triggers a lookup.
+// non-empty triggers a lookup. `knownUrl` is a trail whose three numbers
+// the draft's AllTrails search already gave (#6): while the URL is still
+// that one and all three are there, the lookup, a paid call, is skipped.
 async function refreshTrailDetails(
   draft: Activity,
   previousUrl: string | undefined,
+  knownUrl?: string,
 ): Promise<Activity> {
   const next = (draft.allTrailsUrl ?? '').trim();
   const prev = (previousUrl ?? '').trim();
   if (next === prev) return draft;
+  const known =
+    next === knownUrl &&
+    draft.allTrailsRating !== undefined &&
+    draft.hikeDistanceMiles !== undefined &&
+    draft.hikeElevationFeet !== undefined;
+  if (known) return { ...draft, allTrailsUrl: next };
   if (!next) {
     return {
       ...draft,
@@ -113,6 +122,19 @@ async function refreshTrailDetails(
     allTrailsRating: fresh.allTrailsRating,
     hikeDistanceMiles: fresh.hikeDistanceMiles,
     hikeElevationFeet: fresh.hikeElevationFeet,
+  };
+}
+
+// A draft with a trail's link and its own numbers, as far as the search
+// had them: what it lacks is cleared, since the draft's were another
+// trail's, or Gemini's guess.
+function withTrailNumbers(draft: Activity, trail: TrailOption): Activity {
+  return {
+    ...draft,
+    allTrailsUrl: trail.url,
+    allTrailsRating: trail.rating,
+    hikeDistanceMiles: trail.miles,
+    hikeElevationFeet: trail.feet,
   };
 }
 
@@ -147,8 +169,10 @@ export function AddActivity({
   // details in by hand instead of a dead end.
   const [draftsUsed, setDraftsUsed] = useState(false);
   const [draft, setDraft] = useState<Activity | null>(editActivity ?? null);
-  // The trails the draft's AllTrails search found to choose from (#6).
+  // The trails the draft's AllTrails search found to choose from (#6), and
+  // the one whose numbers the draft now holds from it, if any.
   const [trailOptions, setTrailOptions] = useState<TrailOption[]>([]);
+  const [numbersFor, setNumbersFor] = useState<string>();
   // A suggestion held back for what it lacks: said until it lacks nothing,
   // following the fields as they're filled in.
   const [heldBack, setHeldBack] = useState(false);
@@ -197,6 +221,7 @@ export function AddActivity({
     }
     setError(null);
     setTrailOptions([]);
+    setNumbersFor(undefined);
     setStep('generating');
     try {
       const g: GeneratedFields = await generateActivity(title.trim(), notes.trim());
@@ -236,10 +261,23 @@ export function AddActivity({
         // so a suggestion doesn't carry one.
         parentId: suggest ? undefined : g.parentId,
       };
-      setDraft(activity);
+      // The picked trail's own numbers, where its page gave them, over the
+      // ones Gemini wrote down; where it gave none, Gemini's stand.
+      const picked = g.allTrailsOptions?.find((o) => o.url === g.allTrailsUrl);
+      const numbered: Activity = {
+        ...activity,
+        allTrailsRating: picked?.rating ?? activity.allTrailsRating,
+        hikeDistanceMiles: picked?.miles ?? activity.hikeDistanceMiles,
+        hikeElevationFeet: picked?.feet ?? activity.hikeElevationFeet,
+      };
+      setDraft(numbered);
       setTrailOptions(g.allTrailsOptions ?? []);
+      // Known only when its page gave all three; a gap Gemini filled is a guess.
+      const complete =
+        picked?.rating !== undefined && picked.miles !== undefined && picked.feet !== undefined;
+      setNumbersFor(complete ? picked.url : undefined);
       setStep('review');
-      void lookAlikes(activity);
+      void lookAlikes(numbered);
     } catch (e) {
       if (suggest && appCodeOf(e) === 'assist_limit') {
         setDraftsUsed(true);
@@ -325,6 +363,7 @@ export function AddActivity({
     // What the review step said was about the review step.
     setError(null);
     setTrailOptions([]);
+    setNumbersFor(undefined);
     setHeldBack(false);
     clearTimeout(recheck.current);
     checks.current += 1; // drop any answer still on its way
@@ -351,7 +390,9 @@ export function AddActivity({
     setError(null);
     let finalDraft = draft;
     try {
-      if (!suggest) finalDraft = await refreshTrailDetails(draft, editActivity?.allTrailsUrl);
+      if (!suggest) {
+        finalDraft = await refreshTrailDetails(draft, editActivity?.allTrailsUrl, numbersFor);
+      }
       if (mode === 'create') {
         const found = await lookAlikes(finalDraft);
         if (unacknowledgedHigh(found, acknowledged).length > 0) {
@@ -460,6 +501,10 @@ export function AddActivity({
             suggest={suggest}
             users={users}
             trailOptions={trailOptions}
+            onChooseTrail={(trail) => {
+              changeDraft(withTrailNumbers(draft, trail));
+              setNumbersFor(trail.url);
+            }}
             onChange={changeDraft}
             onBack={mode === 'edit' ? onClose : backToForm}
             onSave={() => void save()}
@@ -692,6 +737,7 @@ function ReviewStep({
   suggest,
   users,
   trailOptions,
+  onChooseTrail,
   onChange,
   onBack,
   onSave,
@@ -706,6 +752,7 @@ function ReviewStep({
   suggest: boolean;
   users: readonly string[];
   trailOptions: readonly TrailOption[];
+  onChooseTrail: (trail: TrailOption) => void;
   onChange: (a: Activity) => void;
   onBack: () => void;
   onSave: () => void;
@@ -934,21 +981,7 @@ function ReviewStep({
             className={inputCls}
           />
         </Field>
-        <TrailPicker
-          url={draft.allTrailsUrl}
-          options={trailOptions}
-          onChoose={(trail) =>
-            // Its own numbers, as far as the search had them: the ones the
-            // draft had were another trail's.
-            onChange({
-              ...draft,
-              allTrailsUrl: trail.url,
-              allTrailsRating: trail.rating,
-              hikeDistanceMiles: trail.miles,
-              hikeElevationFeet: trail.feet,
-            })
-          }
-        />
+        <TrailPicker url={draft.allTrailsUrl} options={trailOptions} onChoose={onChooseTrail} />
         {/* Rating, distance, and elevation are fetched from AllTrails on save
             when the URL changes — there are no manual inputs for them. A
             suggestion isn't saved, so there's no refresh to promise. */}
