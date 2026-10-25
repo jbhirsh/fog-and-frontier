@@ -1,57 +1,40 @@
 name: Gemini eval
 
-# Output-quality eval for the Gemini resolver (issue #122). Makes 23 paid
-# resolver calls (and, for each hike, a short AllTrails search: a few
-# ungrounded Gemini turns and Agent Search queries) plus up to 17 judge
-# calls (search-grounded gemini-3.8-flash) per run, so it only grades when the AI code
-# (the resolver, the api/ files the prompts and grading read, the eval
-# harness) changes, and never a draft:
-#   - when a PR opens ready for review, is reopened, or a draft is marked
-#     ready, if the PR touches the AI code;
-#   - on a later push to a ready PR, unless the AI code is as it was at the
-#     head of this workflow's last finished run on the PR and that run
-#     passed (a failed, errored or cancelled grade is graded again);
-#   - on manual dispatch, always.
-# .github/scripts/eval-should-grade.mjs makes the call. A change to this
-# workflow alone doesn't grade (it changes when the eval runs, not what it
-# grades); dispatch it by hand after one to check the run still works.
-# Grading every push of any PR touching the schema or auth context, as it
-# used to, hit the project's monthly spend cap. No schedule (paid calls).
-# Skips green on forks / when the secret is unset.
+# Output-quality eval for the Gemini resolver (issue #122). Paid calls, so
+# it runs only when asked: Actions → Gemini eval → Run workflow, on the
+# branch to grade, with how much to grade:
+#   - hikes:  the 7 hikes graded on their AllTrails link, no judge calls
+#             (the cheapest: for the AllTrails search, parks, the trail picker's data)
+#   - parks:  the 8 drafts graded on the park they're in (or none), no
+#             judge calls
+#   - drafts: every draft, no judge calls
+#   - full:   every case, judged (for a change to Gemini's prompt or model)
+# It used to run on pushes to ready PRs that touched the AI code, and hit
+# the project's monthly spend cap. No schedule (paid calls). Skips green
+# when the secret is unset. Each run's log ends with what it used.
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "api/_resolvers/gemini.ts"
-      # The AllTrails search's prompt and tools.
-      - "api/_allTrailsSearch.ts"
-      # HOME_BASE goes into the prompts; the eval matches _gqlError's codes.
-      - "api/_home.ts"
-      - "api/_gqlError.ts"
-      - "eval/**"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: How much to grade
+        type: choice
+        default: hikes
+        options: [hikes, parks, drafts, full]
 
 concurrency:
-  # A new push cancels a run still grading the old head; a cancelled run
-  # doesn't count as passed, so the new run grades instead of skipping.
+  # A second run on the branch cancels one still grading.
   group: eval-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   eval:
-    # Drafts never call Gemini; marking one ready does.
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
-    # Grounded calls are slower than the old memory-only ones: the 23 cases
-    # run four at a time with a 120 s cap each (a hike's AllTrails search,
-    # capped at 45 s, runs within its case's), plus up to 17 judge calls
-    # with a 120 s cap each.
+    # A full run: the 26 cases four at a time with a 120 s cap each (a
+    # hike's AllTrails search, capped at 45 s, runs within its case's),
+    # plus up to 19 judge calls with a 120 s cap each.
     timeout-minutes: 60
     permissions:
       contents: read
-      # To read this workflow's earlier runs on the PR.
-      actions: read
     # Secrets can't be referenced in `if:` conditions, so surface the key as a
     # job-level env var and gate the paid steps on a step output derived from it.
     env:
@@ -73,32 +56,9 @@ jobs:
       - name: Checkout
         if: steps.key.outputs.present == 'true'
         uses: actions/checkout@v7
-        with:
-          # Full history, to diff a push against the commit before it.
-          fetch-depth: 0
-
-      # The paths filter above admits every push to a PR whose diff touches
-      # the AI code; the script narrows that down (see the header above).
-      # Node comes with the runner; the script needs no dependencies.
-      - name: Decide whether to grade
-        id: grade
-        if: steps.key.outputs.present == 'true'
-        env:
-          ACTION: ${{ github.event.action }}
-          DRAFT: ${{ github.event.pull_request.draft }}
-          BASE_REF: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          AFTER: ${{ github.event.pull_request.head.sha }}
-          WORKFLOW_FILE: eval.yml
-          GITHUB_TOKEN: ${{ github.token }}
-        run: >-
-          node .github/scripts/eval-should-grade.mjs
-          api/_resolvers/gemini.ts api/_allTrailsSearch.ts api/_home.ts api/_gqlError.ts eval
-          >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
-        if: steps.grade.outputs.run == 'true'
+        if: steps.key.outputs.present == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -106,15 +66,24 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install deps
-        if: steps.grade.outputs.run == 'true'
+        if: steps.key.outputs.present == 'true'
         run: npm ci
 
       - name: Run output-quality eval
-        if: steps.grade.outputs.run == 'true'
-        run: npm run eval
+        if: steps.key.outputs.present == 'true'
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          case "$MODE" in
+            hikes) npm run eval -- --hikes --no-judge ;;
+            parks) npm run eval -- --parks --no-judge ;;
+            drafts) npm run eval -- --feature generateActivity --no-judge ;;
+            full) npm run eval ;;
+            *) echo "::error::unknown mode: $MODE"; exit 1 ;;
+          esac
 
       - name: Upload eval results
-        if: always() && steps.grade.outputs.run == 'true'
+        if: always() && steps.key.outputs.present == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: eval-results-${{ github.run_id }}

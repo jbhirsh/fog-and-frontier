@@ -25,6 +25,7 @@ import {
 } from './checks.js';
 import { judgeDescriptions, judgeDiscoverEvents, judgeRealPlace } from './judge.js';
 import { withEvents } from './events.js';
+import { renderUsage, usageOf, type CaseUsage } from './usage.js';
 import { mapPool } from './pool.js';
 import { buildResults, renderScorecard, writeResults } from './report.js';
 import {
@@ -49,6 +50,12 @@ const CTX: GqlContext = { caller: { email: 'eval@local', role: 'owner' } };
 interface CliOptions {
   only: string[] | null;
   feature: Feature | null;
+  /** only the hikes graded on their AllTrails link */
+  hikes: boolean;
+  /** only the drafts graded on the park they're in, or none */
+  parks: boolean;
+  /** skip the judge calls, which search too: about 40% of a full run */
+  judge: boolean;
   threshold: number;
   /** how many cases run at once */
   concurrency: number;
@@ -62,6 +69,9 @@ const DEFAULT_CONCURRENCY = 4;
 function parseArgs(argv: string[]): CliOptions {
   let only: string[] | null = null;
   let feature: Feature | null = null;
+  let hikes = false;
+  let parks = false;
+  let judge = true;
   let threshold = DEFAULT_THRESHOLD;
   let concurrency = DEFAULT_CONCURRENCY;
 
@@ -84,6 +94,12 @@ function parseArgs(argv: string[]): CliOptions {
       const value = argv[++i];
       if (!value) exitConfig('--feature requires a value');
       feature = value as Feature;
+    } else if (arg === '--hikes') {
+      hikes = true;
+    } else if (arg === '--parks') {
+      parks = true;
+    } else if (arg === '--no-judge') {
+      judge = false;
     } else if (arg === '--threshold') {
       threshold = Number(argv[++i]);
     } else if (arg === '--concurrency') {
@@ -105,7 +121,7 @@ function parseArgs(argv: string[]): CliOptions {
   ) {
     exitConfig(`unknown feature: ${feature}`);
   }
-  return { only, feature, threshold, concurrency };
+  return { only, feature, hikes, parks, judge, threshold, concurrency };
 }
 
 function exitConfig(message: string): never {
@@ -266,9 +282,17 @@ function resolvedCheck(outcome: ResolverOutcome): CheckResult {
   };
 }
 
+// A judge left out of a run (--no-judge): no verdict either way.
+const unjudged = (name: string): CheckResult => ({
+  name,
+  status: 'skipped',
+  detail: 'not judged (--no-judge)',
+});
+
 async function gradeCase(
   goldenCase: GoldenCase,
-): Promise<{ checks: CheckResult[]; output: unknown }> {
+  judge: boolean,
+): Promise<{ checks: CheckResult[]; output: unknown; events: Record<string, unknown>[] }> {
   const { result: outcome, events } = await withEvents(goldenCase.id, () =>
     callResolver(goldenCase),
   );
@@ -286,7 +310,7 @@ async function gradeCase(
           goldenCase.expect.graceful.ifReturned?.judgeRealPlace &&
           noFailures(checks)
         ) {
-          checks.push(await judgeRealPlace(outcome.value));
+          checks.push(judge ? await judgeRealPlace(outcome.value) : unjudged('judge:real-place'));
         }
         break;
       }
@@ -298,7 +322,9 @@ async function gradeCase(
       // the case; the verdict can't change.
       if (goldenCase.expect.judgeDescriptions && noFailures(checks)) {
         const context = `Requested activity: ${goldenCase.input.title}. Known facts: ${goldenCase.notes}`;
-        checks.push(await judgeDescriptions(outcome.value, context));
+        checks.push(
+          judge ? await judgeDescriptions(outcome.value, context) : unjudged('judge:descriptions'),
+        );
       }
       break;
     }
@@ -320,10 +346,12 @@ async function gradeCase(
       );
       if (noFailures(checks)) {
         checks.push(
-          await judgeDiscoverEvents(
-            outcome.value,
-            goldenCase.expect.judgeEvents.minPlausibleFraction,
-          ),
+          judge
+            ? await judgeDiscoverEvents(
+                outcome.value,
+                goldenCase.expect.judgeEvents.minPlausibleFraction,
+              )
+            : unjudged('judge:events'),
         );
       }
       break;
@@ -336,7 +364,7 @@ async function gradeCase(
       break;
     }
   }
-  return { checks, output };
+  return { checks, output, events };
 }
 
 function noFailures(checks: CheckResult[]): boolean {
@@ -373,17 +401,29 @@ async function main(): Promise<void> {
     cases = cases.filter((c) => wanted.has(c.id));
   }
   if (options.feature) cases = cases.filter((c) => c.feature === options.feature);
+  if (options.hikes) {
+    cases = cases.filter((c) => c.feature === 'generateActivity' && 'allTrailsTrails' in c.expect);
+  }
+  if (options.parks) {
+    cases = cases.filter((c) => c.feature === 'generateActivity' && 'partOf' in c.expect);
+  }
   if (cases.length === 0) exitConfig('no cases selected');
 
   console.log(
-    `Gemini output-quality eval — ${cases.length} case(s), ${options.concurrency} at a time, threshold ${options.threshold * 100}%`,
+    `Gemini output-quality eval — ${cases.length} case(s), ${options.concurrency} at a time, threshold ${options.threshold * 100}%${options.judge ? '' : ', no judge calls'}`,
   );
   console.log(`Golden set: ${goldenSet._meta.status}\n`);
 
   const startedAt = new Date().toISOString();
+  const usages: CaseUsage[] = [];
   const results: CaseResult[] = await mapPool(cases, options.concurrency, async (goldenCase) => {
     const start = Date.now();
-    const { checks, output } = await gradeCase(goldenCase);
+    const { checks, output, events } = await gradeCase(goldenCase, options.judge);
+    usages.push({
+      events,
+      judgeCalls: checks.filter((c) => c.name.startsWith('judge:') && c.status !== 'skipped')
+        .length,
+    });
     if (goldenCase.expectedFailure) {
       checks.push({
         name: 'expected-failure',
@@ -410,6 +450,7 @@ async function main(): Promise<void> {
     startedAt,
   });
   console.log(`\n${renderScorecard(evalResults)}`);
+  console.log(`\n${renderUsage(usageOf(usages))}\n`);
   writeResults(path.join(EVAL_DIR, 'results.json'), evalResults);
   console.log(`Results written to eval/results.json`);
 
