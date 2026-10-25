@@ -1,48 +1,23 @@
-# Mutation testing (StrykerJS). Line coverage only proves code ran; mutation
-# testing proves the tests actually *assert* on behavior by mutating the source
-# and checking a test fails.
+# Mutation testing (StrykerJS), from the shared tooling in jbhirsh/ci: what
+# runs and why is in its mutation/action.yml (pull requests) and
+# .github/workflows/mutation-sweep.yml (the monthly sweep); this app's
+# settings are the `mutation` key of .github/ci.json.
 #
-# Two placements (the pattern from jbhirsh/BoardGames and jbhirsh/sift):
-#   - Pull requests: mutate only the lines the PR added or changed in the
-#     in-scope files it touched (a file new to the branch, or one whose test
-#     changed, whole) — fast, targeted feedback on exactly the code under
-#     review. A PR that changes no mutable source (data, docs, pictures,
-#     styles, other workflows) skips Stryker, and the job still reports
-#     success. One of those that touches what Stryker's own setup rests on
-#     (its config, Vitest's config and setup file, tsconfig, the
-#     dependencies, patches/, this workflow and its scripts: WIRING in
-#     mutation-scope.mjs) runs a small smoke scope instead, so a broken
-#     setup still shows at PR time.
-#   - Monthly schedule (+ manual dispatch): full sweep as a drift sensor,
-#     catching test erosion PR-scoped runs can't see (e.g. a test refactor
-#     weakening assertions for untouched code). PRs mutate only the lines
-#     they change, so what's left for it is drift from helpers, data and
-#     dependencies; once a month is enough.
-#
-# PR runs are incremental (Stryker's --incremental): each run caches its
-# results per PR, and the next push restores them, so only mutants whose code
-# or covering tests changed run again; the rest keep their earlier result. A
-# PR's first run has no cache and tests its whole scope. Stryker diffs each
-# mutant's own code and the test files that cover it, nothing they import, so
-# the cache key also hashes the inputs every result depends on (dependencies,
-# patches/, the Stryker and Vitest config, the shared test helpers in
-# src/test): a change there misses the cache and starts the PR over. A change
-# that reaches a mutant only through another module isn't detected; the
-# monthly sweep, which never reuses results, is the backstop for that.
-#
-# Both gate on the `break` threshold in stryker.config.json, a PR on the
-# score of the code it changed. The files in scope are its `mutate` globs
-# (the files the 80% per-file coverage gate measures, minus its documented
-# coverage backlog); .github/scripts/mutation-scope.mjs reads those globs,
-# so the PR scope can't drift from the full sweep's. Stryker exits nonzero
-# after writing the report, so the report is still uploaded for diagnosis.
+#   - Pull requests: the lines the PR changed (a new file, or one whose test
+#     changed, whole), gated on stryker.config.json's `break`. Its `mutate`
+#     globs are the files the 80% per-file coverage gate measures, minus the
+#     coverage backlog (src/test/mutationScope.test.ts keeps them in step).
+#     Each PR starts from its own last results only, and a change to what
+#     every result depends on (`cache.restartOn`) starts it over.
+#     Mutation Tests (Stryker) is a required check: keep the job's name.
+#   - Monthly (+ manual): the full sweep, in parallel shards, a drift sensor
+#     for what PR runs can't see (helpers, data, dependencies).
 name: Mutation
 
 on:
   # No `paths:` filter: a workflow skipped by path filtering never reports,
   # which would leave a required check pending forever. A PR with nothing to
-  # mutate skips the Stryker steps instead (their `if:` checks the scope
-  # step's `run` output), and a job whose steps were skipped still succeeds.
+  # mutate skips Stryker's steps instead, and the job still reports.
   pull_request:
     branches: [main]
   schedule:
@@ -56,8 +31,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Run GitHub's bundled JavaScript actions on the Node 24 runtime (mirrors
-  # ci.yml).
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
@@ -66,117 +39,13 @@ permissions:
 jobs:
   mutation:
     name: Mutation Tests (Stryker)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v7
-        with:
-          # Full history so PR runs can diff against the base branch.
-          fetch-depth: 0
+      - uses: jbhirsh/ci/mutation@main
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-
-      - run: npm ci
-
-      # --diff-filter=d drops deletions: a removed file must not be passed to
-      # --mutate. mutation-scope.mjs also drops a file whose change is
-      # formatting only (its base version, run through Prettier, is what the
-      # PR has), so a reformat doesn't make this a full sweep, and names each
-      # block of lines an edited file adds or changes as `file:first-last`
-      # (a new file, or one whose test changed, whole); it reads the base
-      # from BASE_REF. The list is one comma-joined line, so it fits
-      # $GITHUB_OUTPUT as is. When it's empty, `--wiring` says whether the PR
-      # touched Stryker's setup (deletions included): if so the smoke scope
-      # runs, else `run=false` skips every later PR step.
-      - name: Determine mutation scope
-        id: scope
-        if: github.event_name == 'pull_request'
-        # Context values enter as an env var, not a ${{ }} splice inside
-        # `run:`, so the shell treats them as data, never as script text.
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -o pipefail
-          MUTATE=$(git diff --name-only --diff-filter=d "origin/${BASE_REF}"...HEAD \
-            | node .github/scripts/mutation-scope.mjs)
-          if [ -z "$MUTATE" ]; then
-            WIRING=$(git diff --name-only "origin/${BASE_REF}"...HEAD \
-              | node .github/scripts/mutation-scope.mjs --wiring)
-            if [ "$WIRING" != true ]; then
-              echo "No mutable source or Stryker setup changed: nothing to mutate, so Stryker is skipped."
-              echo "run=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "No mutable files changed, but Stryker's setup did; running the smoke scope."
-            MUTATE="src/lib/viewMode.ts,src/lib/mapBounds.ts"
-          fi
-          echo "Mutating: $MUTATE"
-          echo "mutate=$MUTATE" >> "$GITHUB_OUTPUT"
-          echo "run=true" >> "$GITHUB_OUTPUT"
-
-      # Most recent results from an earlier run of this PR, if any; restoring
-      # by prefix picks the newest. Caches are scoped to the PR, so another
-      # PR's results never leak in. (A PR's own commits can write this cache,
-      # so a dropped commit could leave forged results behind; the monthly
-      # sweep would catch that.)
-      - name: Restore incremental results
-        id: incremental
-        if: github.event_name == 'pull_request' && steps.scope.outputs.run == 'true'
-        uses: actions/cache/restore@v6
-        with:
-          path: reports/stryker-incremental.json
-          key: stryker-incremental-${{ hashFiles('package-lock.json', 'patches/**', 'stryker.config.json', 'vite.config.ts', 'src/test/**') }}-pr${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            stryker-incremental-${{ hashFiles('package-lock.json', 'patches/**', 'stryker.config.json', 'vite.config.ts', 'src/test/**') }}-pr${{ github.event.pull_request.number }}-
-
-      # Stryker carries every file in the incremental file into its report and
-      # score, in scope or not, and every earlier mutant outside the lines it
-      # mutates, so drop what this run doesn't mutate: a file or line the PR
-      # no longer changes must not keep failing it, and an earlier push's
-      # well-tested code must not lift new code over the threshold.
-      # mutation-incremental.mjs keeps only the files in scope and, of a file
-      # named by lines, the mutants on them.
-      - name: Limit incremental results to this run's scope
-        if: steps.scope.outputs.run == 'true' && steps.incremental.outputs.cache-matched-key != ''
-        env:
-          MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
-        run: node .github/scripts/mutation-incremental.mjs reports/stryker-incremental.json "$MUTATE_SCOPE"
-
-      - name: Run Stryker (changed lines)
-        id: stryker
-        if: github.event_name == 'pull_request' && steps.scope.outputs.run == 'true'
-        env:
-          MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
-        run: npx stryker run --incremental --mutate "$MUTATE_SCOPE"
-
-      # Saved even when the run trips the break threshold: its results are
-      # still right, and the next push only re-runs what it changes. (When
-      # Stryker fails before writing results, this re-saves the restored file,
-      # which is harmless.) A cache key can't be overwritten, so each run saves
-      # under its own.
-      - name: Save incremental results
-        if: ${{ !cancelled() && steps.stryker.outcome != 'skipped' && hashFiles('reports/stryker-incremental.json') != '' }}
-        uses: actions/cache/save@v6
-        with:
-          path: reports/stryker-incremental.json
-          key: ${{ steps.incremental.outputs.cache-primary-key }}
-
-      - name: Run Stryker (full sweep)
-        if: github.event_name != 'pull_request'
-        run: npx stryker run
-
-      # always(): when a run trips the break threshold, Stryker exits nonzero
-      # after writing the report — that report is exactly what's needed to
-      # diagnose the failure, so upload it anyway. Not on a PR that skipped
-      # Stryker: there is no report, and if-no-files-found would fail the job.
-      - name: Upload mutation report
-        if: always() && (github.event_name != 'pull_request' || steps.scope.outputs.run == 'true')
-        uses: actions/upload-artifact@v7
-        with:
-          name: mutation-report
-          path: reports/mutation
-          if-no-files-found: error
-          retention-days: 30
+  sweep:
+    name: Mutation sweep
+    if: github.event_name != 'pull_request'
+    uses: jbhirsh/ci/.github/workflows/mutation-sweep.yml@main
