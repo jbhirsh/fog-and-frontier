@@ -21,7 +21,7 @@
       ]
     },
     "sweep": {
-      "shards": 4,
+      "shards": 8,
       "timeoutMinutes": 90
     }
   },
