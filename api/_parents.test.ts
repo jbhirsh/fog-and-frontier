@@ -10,6 +10,7 @@ const {
   matchParent,
   parentIdOf,
   parkName,
+  parkNames,
   releaseSubItems,
 } = await import('./_parents.js');
 
@@ -165,6 +166,45 @@ describe('matchParent', () => {
     expect(
       matchParent({ ...CHIMNEY, partOf: 'Point Reyes National Seashore' }, [YOSEMITE, POINT_REYES]),
     ).toBe('point-reyes-seashore');
+  });
+
+  it('matches whichever place of a list is the saved park, in either order', () => {
+    const GGNRA = {
+      id: 'ggnra',
+      name: 'Golden Gate National Recreation Area',
+      lat: 37.8,
+      lng: -122.47,
+    };
+    const ride = { name: 'Presidio bike ride', lat: 37.7989, lng: -122.4662 };
+    for (const partOf of [
+      'Golden Gate National Recreation Area, Presidio of San Francisco',
+      'Presidio of San Francisco, Golden Gate National Recreation Area',
+    ]) {
+      expect(matchParent({ ...ride, partOf }, [GGNRA]), partOf).toBe('ggnra');
+    }
+    // A listed place that is the draft itself is set aside, not taken as
+    // the draft being the park.
+    expect(
+      matchParent(
+        {
+          ...ride,
+          name: 'Presidio of San Francisco',
+          partOf: 'Presidio of San Francisco, Golden Gate National Recreation Area',
+        },
+        [GGNRA],
+      ),
+    ).toBe('ggnra');
+    // Naming only itself, the draft is the park: no parent.
+    expect(
+      matchParent(
+        {
+          ...ride,
+          name: 'Golden Gate National Recreation Area',
+          partOf: 'Golden Gate National Recreation Area',
+        },
+        [GGNRA],
+      ),
+    ).toBeNull();
   });
 
   it('matches a saved name of two words or more that Gemini’s holds whole', () => {
@@ -410,6 +450,49 @@ describe('parkName', () => {
     expect(parkName("'Muir Woods'")).toBe('Muir Woods');
     // An apostrophe of the name's own stays.
     expect(parkName("Fushimi Inari-taisha's grounds")).toBe("Fushimi Inari-taisha's grounds");
+  });
+
+  it('keeps the first of a list of parks', () => {
+    for (const [list, first] of [
+      [
+        'Golden Gate National Recreation Area, Presidio of San Francisco',
+        'Golden Gate National Recreation Area',
+      ],
+      ['Point Reyes National Seashore; Phillip Burton Wilderness', 'Point Reyes National Seashore'],
+      ['"Yosemite National Park", Stanislaus National Forest', 'Yosemite National Park'],
+      ['Big Basin Redwoods State Park,', 'Big Basin Redwoods State Park'],
+    ]) {
+      expect(parkName(list), list).toBe(first);
+    }
+    // Empty places in a list are skipped; nothing at all is no park.
+    expect(parkName(', Presidio of San Francisco')).toBe('Presidio of San Francisco');
+    expect(parkName(' , ; ')).toBeNull();
+  });
+
+  it('lists every place named, in order, for matching', () => {
+    expect(parkNames(' Presidio of San Francisco , Golden Gate National Recreation Area;')).toEqual(
+      ['Presidio of San Francisco', 'Golden Gate National Recreation Area'],
+    );
+    // A closing quote still ends the answer, list and all.
+    expect(parkNames('"Presidio of San Francisco", Golden Gate')).toEqual([
+      'Presidio of San Francisco',
+    ]);
+    expect(parkNames('Point Reyes National Seashore')).toEqual(['Point Reyes National Seashore']);
+    expect(parkNames(null)).toEqual([]);
+    expect(parkNames('')).toEqual([]);
+  });
+
+  it('keeps a comma inside the name’s own brackets', () => {
+    for (const name of [
+      'Golden Gate National Recreation Area (Marin Headlands, Fort Baker)',
+      'Point Reyes [Drakes Estero, Limantour] National Seashore',
+    ]) {
+      expect(parkName(name), name).toBe(name);
+    }
+    // A comma after the brackets close still ends the name.
+    expect(parkName('Lake Tahoe (Nevada side), Sand Harbor')).toBe('Lake Tahoe (Nevada side)');
+    // A stray closing bracket doesn't hide a comma after it.
+    expect(parkName('Muir Woods), Mount Tamalpais')).toBe('Muir Woods)');
   });
 
   it('keeps a colon of the name’s own', () => {
