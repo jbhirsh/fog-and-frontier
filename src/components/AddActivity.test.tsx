@@ -397,6 +397,122 @@ describe('AddActivity — other trails found (#6)', () => {
   });
 });
 
+describe('AddActivity — a trail’s numbers from its search (#6)', () => {
+  const T = 'https://www.alltrails.com/trail/us/california/';
+  const PICK = {
+    url: `${T}alamere-falls`,
+    title: 'Alamere Falls',
+    description: '',
+    rating: 4.7,
+    miles: 8.4,
+    feet: 1640,
+  };
+  const OTHER = { url: `${T}wildcat-camp`, title: 'Wildcat Camp', description: '' };
+  const generated: GeneratedFields = {
+    name: 'Alamere Falls',
+    shortDescription: 'A tidefall',
+    category: 'hiking',
+    region: 'north-bay',
+    city: 'Bolinas',
+    lat: 37.93,
+    lng: -122.75,
+    duration: 'Full Day',
+    allTrailsUrl: PICK.url,
+    hikeDistanceMiles: 9,
+    hikeElevationFeet: 1500,
+  };
+
+  async function draft(g: GeneratedFields) {
+    generateSpy.mockResolvedValue(g);
+    lookupSpy.mockResolvedValue({
+      allTrailsRating: 4.1,
+      hikeDistanceMiles: 7,
+      hikeElevationFeet: 900,
+    });
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Alamere Falls');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: /Save activity/ });
+  }
+  async function saved() {
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    return (saveSpy.mock.calls[0] as [Activity])[0];
+  }
+
+  it('saves the pick’s own numbers without looking them up again', async () => {
+    await draft({ ...generated, allTrailsOptions: [PICK, OTHER] });
+    expect(await saved()).toMatchObject({
+      allTrailsUrl: PICK.url,
+      allTrailsRating: 4.7,
+      hikeDistanceMiles: 8.4,
+      hikeElevationFeet: 1640,
+    });
+    expect(lookupSpy).not.toHaveBeenCalled();
+  });
+
+  it('looks them up when the pick’s page gave only some', async () => {
+    await draft({ ...generated, allTrailsOptions: [{ ...PICK, feet: undefined }] });
+    expect(await saved()).toMatchObject({ allTrailsRating: 4.1, hikeDistanceMiles: 7 });
+    expect(lookupSpy).toHaveBeenCalledWith(PICK.url);
+  });
+
+  it('keeps Gemini’s numbers where the pick has none, for the lookup to replace', async () => {
+    await draft({
+      ...generated,
+      allTrailsOptions: [{ ...PICK, miles: undefined, feet: undefined }],
+    });
+    // On the card: the rating the search had, the rest as Gemini wrote it.
+    lookupSpy.mockRejectedValue(new Error('lookup down'));
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    expect(lookupSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes another trail’s numbers when it’s chosen, and saves them as they are', async () => {
+    const BEAR = {
+      ...OTHER,
+      url: `${T}bear-valley`,
+      title: 'Bear Valley',
+      rating: 4.6,
+      miles: 13.4,
+      feet: 2034,
+    };
+    await draft({ ...generated, allTrailsOptions: [PICK, BEAR] });
+    await userEvent.click(screen.getByRole('button', { name: /Not the right trail/ }));
+    await userEvent.click(screen.getByText('Bear Valley'));
+    expect(await saved()).toMatchObject({
+      allTrailsUrl: BEAR.url,
+      allTrailsRating: 4.6,
+      hikeDistanceMiles: 13.4,
+      hikeElevationFeet: 2034,
+    });
+    expect(lookupSpy).not.toHaveBeenCalled();
+  });
+
+  it('looks up a trail chosen without all its numbers, or one typed over it', async () => {
+    await draft({ ...generated, allTrailsOptions: [PICK, OTHER] });
+    await userEvent.click(screen.getByRole('button', { name: /Not the right trail/ }));
+    await userEvent.click(screen.getByText('Wildcat Camp'));
+    expect(await saved()).toMatchObject({ allTrailsUrl: OTHER.url, hikeDistanceMiles: 7 });
+    expect(lookupSpy).toHaveBeenCalledWith(OTHER.url);
+  });
+
+  it('looks up a link typed over the pick', async () => {
+    await draft({ ...generated, allTrailsOptions: [PICK] });
+    const field = screen.getByLabelText('AllTrails URL');
+    await userEvent.clear(field);
+    await userEvent.type(field, `${T}somewhere-else`);
+    expect(await saved()).toMatchObject({ hikeDistanceMiles: 7 });
+    expect(lookupSpy).toHaveBeenCalledWith(`${T}somewhere-else`);
+  });
+
+  it('looks up as before when there was no search', async () => {
+    await draft(generated);
+    expect(await saved()).toMatchObject({ hikeDistanceMiles: 7, hikeElevationFeet: 900 });
+    expect(lookupSpy).toHaveBeenCalledWith(PICK.url);
+  });
+});
+
 describe('AddActivity — cover credit (#36)', () => {
   const credit = 'Photo: Jo, CC BY-SA 4.0, via Wikimedia Commons';
   const generated: GeneratedFields = {
