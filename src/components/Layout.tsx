@@ -5,10 +5,13 @@ import { useOwner } from '../lib/useOwner';
 
 function navClass({ isActive }: { isActive: boolean }) {
   // Active state carries a non-color cue (underline + weight) as well as color,
-  // so it's distinguishable without relying on hue alone (WCAG 1.4.1).
+  // so it's distinguishable without relying on hue alone (WCAG 1.4.1). The
+  // hit area reaches past the text, a finger's height, without making the
+  // header any taller.
+  const hit = "relative before:absolute before:-inset-x-xs before:-inset-y-sm before:content-['']";
   return isActive
-    ? 'text-secondary font-semibold underline decoration-2 underline-offset-[6px] transition-colors'
-    : 'text-on-surface-variant font-medium hover:text-secondary transition-colors';
+    ? `${hit} text-secondary font-semibold underline decoration-2 underline-offset-[6px] transition-colors`
+    : `${hit} text-on-surface-variant font-medium hover:text-secondary transition-colors`;
 }
 
 function NavSeparator() {
@@ -146,7 +149,7 @@ export function Layout() {
       {/* The catalog/split view (#4) owns the full page scroll Airbnb-style, so
           the footer is suppressed there; other pages keep it. */}
       {pathname !== '/' && (
-        <footer className="mt-xl w-full bg-primary py-xl">
+        <footer className="mt-md w-full bg-primary pt-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] md:mt-xl md:py-xl">
           <div className="mx-auto flex max-w-screen-2xl flex-col items-center justify-between gap-md px-margin md:flex-row">
             <div className="font-display text-headline-md font-bold text-on-primary">
               Fog and Frontier

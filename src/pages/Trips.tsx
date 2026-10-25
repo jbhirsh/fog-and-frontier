@@ -29,7 +29,7 @@ export function Trips() {
 
   return (
     <>
-      <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin md:py-xl">
+      <section className="border-b border-outline-variant/20 bg-surface-container-low py-md px-margin md:py-xl">
         <div className="mx-auto flex max-w-screen-2xl flex-wrap items-baseline justify-between gap-md">
           <div>
             <h1 className="font-display text-headline-lg text-primary md:text-display">Trips</h1>
@@ -55,7 +55,7 @@ export function Trips() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-screen-2xl py-xl px-margin">
+      <section className="mx-auto max-w-screen-2xl py-md px-margin md:py-xl">
         {isLoading ? (
           <div className="text-center text-on-surface-variant">Loading…</div>
         ) : error ? (
@@ -63,7 +63,7 @@ export function Trips() {
             Couldn&apos;t load trips. Try again in a moment.
           </div>
         ) : trips.length === 0 ? (
-          <div className="space-y-md py-xl text-center">
+          <div className="space-y-md py-lg text-center md:py-xl">
             <p className="font-body-lg text-on-surface-variant">
               {isOwner
                 ? 'No trips yet — plan one.'

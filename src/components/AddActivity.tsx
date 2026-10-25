@@ -445,7 +445,7 @@ export function AddActivity({
         aria-label={
           mode === 'edit' ? 'Edit activity' : suggest ? 'Suggest activity' : 'Add activity'
         }
-        className="relative max-h-[95dvh] w-full max-w-2xl overflow-y-auto bg-surface-container-lowest shadow-2xl md:rounded-xl"
+        className="relative max-h-[95dvh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-surface-container-lowest shadow-2xl md:rounded-xl"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant/30 bg-surface-container-lowest p-md">
           <h2 className="font-display text-headline-md text-primary">
@@ -555,7 +555,7 @@ function SentStep({ onDone }: { onDone: () => void }) {
   const sentId = useId();
   useEffect(() => done.current?.focus(), []);
   return (
-    <div className="space-y-md px-md py-xl text-center">
+    <div className="space-y-md px-md pt-xl pb-[calc(var(--spacing-xl)+env(safe-area-inset-bottom))] text-center">
       {/* The glyph leaves 4px empty on its left and 1.3px on its right, so a
           centred box draws it 1.3px right of centre; shifted back by half
           the difference, its ink is centred instead. */}
@@ -625,7 +625,7 @@ function FormStep({
         e.preventDefault();
         onSubmit();
       }}
-      className="space-y-md p-md"
+      className="space-y-md p-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))]"
     >
       <p className="font-body-md text-on-surface-variant">
         {suggest
@@ -716,7 +716,7 @@ function FormStep({
 
 function GeneratingStep({ title }: { title: string }) {
   return (
-    <div className="space-y-md px-md py-xl text-center">
+    <div className="space-y-md px-md pt-xl pb-[calc(var(--spacing-xl)+env(safe-area-inset-bottom))] text-center">
       <div className="mx-auto size-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       <div className="font-body-lg text-on-surface">
         Researching <span className="font-bold">{title}</span>…
@@ -1130,7 +1130,9 @@ function ReviewStep({
 
       {error && <div className="font-body-md text-error">{error}</div>}
 
-      <div className="flex justify-between gap-sm pt-sm">
+      {/* Pinned to the bottom of the dialog, so Save is in reach from
+          anywhere in a long draft, above the iPhone's home indicator. */}
+      <div className="sticky bottom-0 z-10 -mx-md -mb-md flex justify-between gap-sm border-t border-outline-variant/30 bg-surface-container-lowest px-md pt-sm pb-[calc(var(--spacing-sm)+env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={onBack}

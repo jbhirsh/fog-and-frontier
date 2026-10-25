@@ -205,7 +205,7 @@ export function Explore() {
 
   return (
     <>
-      <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin md:py-xl lg:py-24">
+      <section className="border-b border-outline-variant/20 bg-surface-container-low py-md px-margin md:py-xl lg:py-24">
         <div className="mx-auto max-w-4xl space-y-md text-center">
           <h1 className="font-display text-headline-lg text-primary md:text-display">Explore</h1>
           <p className="mx-auto max-w-2xl font-body-lg text-body-lg text-on-surface-variant">
@@ -250,12 +250,12 @@ export function Explore() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-screen-2xl py-xl px-margin">
+      <section className="mx-auto max-w-screen-2xl py-md px-margin md:py-xl">
         {loading && <LoadingState />}
         {!loading && error && <ErrorState message={error} onRetry={() => void discover()} />}
         {!loading && !error && !events && <EmptyHero isOwner={isOwner} />}
         {!loading && !error && events && events.length === 0 && (
-          <div className="py-xl text-center text-on-surface-variant">
+          <div className="py-lg text-center text-on-surface-variant md:py-xl">
             Nothing surfaced for that window. Try a different range.
           </div>
         )}
