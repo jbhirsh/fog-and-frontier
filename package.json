@@ -34,7 +34,7 @@
     "regions:gen": "node --experimental-strip-types scripts/gen-regions.ts",
     "links:check": "node scripts/check-links.mjs",
     "instagram:check": "node --experimental-strip-types scripts/instagram-check.ts",
-    "gif": "node --experimental-strip-types scripts/pr-gif-cli.ts",
+    "gif": "node scripts/gif.mjs",
     "cards": "node --experimental-strip-types scripts/card-copy.ts",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",

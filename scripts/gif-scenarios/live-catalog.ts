@@ -6,7 +6,7 @@
 // refuses it.
 
 import type { Page } from '@playwright/test';
-import { LIVE_GRAPHQL } from '../pr-gif.ts';
+import { LIVE_GRAPHQL } from '../live-site.ts';
 
 /** Fields production lacks, and what each activity reads for them. */
 export type NewFields = Record<string, (activity: { id: string }) => unknown>;

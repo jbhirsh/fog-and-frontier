@@ -3,7 +3,7 @@
 //
 //   node --experimental-strip-types scripts/readme-screenshots.ts capture <out dir>
 //
-// capture builds this checkout as scripts/pr-gif-cli.ts builds "after": a
+// capture builds this checkout as a PR GIF's "after" is built (scripts/local-build.ts): a
 // local production build in the test mode (for the owner flag Explore
 // needs), served by `vite preview`, reading production's catalog over the
 // visual tests' stub (liveSite) and production's photos through its image
@@ -20,8 +20,8 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ChildProcess } from 'node:child_process';
 import type { Page } from '@playwright/test';
-import { build, serve, stopServers } from './pr-gif-cli.ts';
-import { PRODUCTION, cachePhotos, describeFailed, liveSite, waitForPhotos } from './pr-gif.ts';
+import { build, serve, stopServers } from './local-build.ts';
+import { PRODUCTION, cachePhotos, describeFailed, liveSite, waitForPhotos } from './live-site.ts';
 
 export const SHOTS_DIR = 'docs/screenshots';
 

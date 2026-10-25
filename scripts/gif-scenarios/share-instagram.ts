@@ -1,7 +1,7 @@
 // Sharing an Instagram reel to the app (#6), on a phone: the reel is read,
 // its places listed, and one added through the usual dialog.
 //
-//   node --experimental-strip-types scripts/pr-gif-cli.ts scripts/gif-scenarios/share-instagram.ts --dir <PR number> --after-only
+//   npm run gif -- scripts/gif-scenarios/share-instagram.ts --dir <PR number> --after-only
 //
 // The post card is a real reel, as the reader reads it, and the draft's
 // cover is the real lookup's (findCoverImage, as generateActivity does it).
@@ -14,7 +14,7 @@ import type { Page } from '@playwright/test';
 import { findCoverImage } from '../../api/_coverImage.ts';
 import { parseInstagramUrl, readInstagramPost } from '../../api/_instagram.ts';
 import { mockApis, signIn } from '../../tests/visual/helpers';
-import { click, glide, type Scenario } from '../pr-gif.ts';
+import type { Scenario } from '../gif-types.ts';
 
 const REEL = 'https://www.instagram.com/reel/Ddl9QKSv0D7/';
 
@@ -138,15 +138,15 @@ const scenario: Scenario = {
     });
     await stubGemini(page, post.imageUrl ?? null, cover);
   },
-  async ready(page) {
+  async ready(page, gif) {
     await page.getByRole('status').waitFor();
     await page.evaluate(() => document.fonts.ready);
-    await glide(page, { x: 300, y: 600 }, 0);
+    await gif.glide(page, { x: 300, y: 600 }, 0);
   },
-  async run(page) {
+  async play(page, gif) {
     await page.getByRole('heading', { name: '2 places in this post' }).waitFor({ timeout: 10_000 });
     await page.waitForTimeout(1200);
-    await click(page, page.getByRole('button', { name: 'Add Off the Grid: Treasure Island' }), {
+    await gif.click(page, page.getByRole('button', { name: 'Add Off the Grid: Treasure Island' }), {
       ms: 700,
     });
     await page.getByRole('button', { name: /Save activity/ }).waitFor({ timeout: 10_000 });

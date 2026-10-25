@@ -2,13 +2,13 @@
 // description longer than one line: cut off before, wrapped to show all of
 // it after.
 //
-//   node --experimental-strip-types scripts/pr-gif-cli.ts scripts/gif-scenarios/review-short-description.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/review-short-description.ts --dir <PR number>
 //
 // Gemini's draft is stubbed (its key is only on the deployment), with the
 // cover the real lookup finds (findCoverImage, as generateActivity does).
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
-import { click, glide, type Scenario } from '../pr-gif.ts';
+import type { Scenario } from '../gif-types.ts';
 import { liveCatalog } from './live-catalog.ts';
 import { stubDraft } from './stub-draft.ts';
 
@@ -54,23 +54,23 @@ const scenario: Scenario = {
     await liveCatalog(page, { sourceUrl: () => null });
     await stubDraft(page, DRAFT, 1200);
   },
-  async ready(page) {
+  async ready(page, gif) {
     await page.getByRole('button', { name: 'Add activity' }).first().waitFor();
     await page.evaluate(() => document.fonts.ready);
-    await glide(page, { x: 300, y: 400 }, 0);
+    await gif.glide(page, { x: 300, y: 400 }, 0);
   },
-  async run(page) {
+  async play(page, gif) {
     await page.waitForTimeout(400);
-    await click(page, page.getByRole('button', { name: 'Add activity' }).first(), { ms: 600 });
+    await gif.click(page, page.getByRole('button', { name: 'Add activity' }).first(), { ms: 600 });
     await page.getByLabel('Title').waitFor();
-    await click(page, page.getByLabel('Title'), { ms: 400 });
+    await gif.click(page, page.getByLabel('Title'), { ms: 400 });
     await page.keyboard.type('Castle Rock State Park', { delay: 40 });
     await page.waitForTimeout(300);
-    await click(page, page.getByRole('button', { name: /Generate/ }), { ms: 500 });
+    await gif.click(page, page.getByRole('button', { name: /Generate/ }), { ms: 500 });
     await page.getByLabel('Short description').waitFor({ timeout: 10_000 });
     await page.waitForTimeout(500);
     const box = (await page.getByLabel('Short description').boundingBox())!;
-    await glide(page, { x: box.x + box.width - 40, y: box.y + box.height / 2 }, 600);
+    await gif.glide(page, { x: box.x + box.width - 40, y: box.y + box.height / 2 }, 600);
     await page.waitForTimeout(2000);
   },
 };

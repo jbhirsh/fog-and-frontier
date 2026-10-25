@@ -79,3 +79,6 @@ links.md
 # The card copy backfill's review file (npm run cards, #295): catalog copy
 # for an owner to read, not code.
 card-copy.review.json
+
+# GIFs recorded for PRs (npm run gif)
+/pr-gif

@@ -38,10 +38,23 @@
       "index.html",
       "public/**",
       "scripts/readme-screenshots.ts",
-      "scripts/pr-gif.ts",
-      "scripts/pr-gif-cli.ts"
+      "scripts/live-site.ts",
+      "scripts/local-build.ts"
     ],
     "ignore": ["**/*.test.{ts,tsx}", "src/test/**"],
     "source": "a local production build reading production's catalog and photos (scripts/readme-screenshots.ts)"
+  },
+  "gif": {
+    "setup": "scripts/gif-setup.ts",
+    "scenarios": "scripts/gif-scenarios",
+    "scale": 2,
+    "host": "localhost",
+    "build": {
+      "mode": "test",
+      "env": {
+        "VERCEL_ENV": "production"
+      }
+    },
+    "cellWidth": 420
   }
 }

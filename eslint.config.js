@@ -200,8 +200,9 @@ export default defineConfig([
   },
 
   // TypeScript tooling scripts, run with `node --experimental-strip-types`
-  // (scripts/pr-gif.ts records GIFs for PR descriptions). Node, plus the DOM
-  // for code handed to a browser page. Type-aware via tsconfig.scripts.json.
+  // (scripts/live-site.ts sets up production's data for pictures of the
+  // app). Node, plus the DOM for code handed to a browser page. Type-aware
+  // via tsconfig.scripts.json.
   {
     files: ['scripts/**/*.ts'],
     extends: [

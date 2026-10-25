@@ -2,7 +2,7 @@
 // an owner drafts Alamere Falls, finds its trail drawn under the AllTrails
 // URL field, opens "Not the right trail?" and selects another.
 //
-//   node --experimental-strip-types scripts/pr-gif-cli.ts scripts/gif-scenarios/trail-picker.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/trail-picker.ts --dir <PR number>
 //
 // Gemini's draft is stubbed (its key is only on the deployment), and with it
 // the trails its search found: their names and addresses are AllTrails'
@@ -11,7 +11,7 @@
 // address; on the branch it's a card, with the others to choose from.
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
-import { click, glide, scroll, type Scenario } from '../pr-gif.ts';
+import type { Scenario } from '../gif-types.ts';
 import { draftActivity, readyToAdd, stubDraft } from './stub-draft.ts';
 
 const T = 'https://www.alltrails.com/trail/us/california/';
@@ -98,39 +98,39 @@ const scenario: Scenario = {
     await stubDraft(page, DRAFT, 1000, { cover: false });
   },
   ready: readyToAdd,
-  async run(page) {
-    await draftActivity(page, 'Alamere Falls');
+  async play(page, gif) {
+    await draftActivity(page, gif, 'Alamere Falls');
 
     // Down the review to the AllTrails URL field, by just as far as it is,
     // the pointer high enough that the map under the field never passes
     // under it (the wheel would zoom the map instead).
     const field = page.getByLabel('AllTrails URL');
-    await glide(page, { x: 500, y: 200 }, 400);
-    await scroll(page, (await field.boundingBox())!.y - 150);
+    await gif.glide(page, { x: 500, y: 200 }, 400);
+    await gif.scroll(page, (await field.boundingBox())!.y - 150);
     await page.waitForTimeout(1200);
 
     // Main: the address is all there is.
     const others = page.getByRole('button', { name: /Not the right trail/ });
     if ((await others.count()) === 0) {
       const box = (await field.boundingBox())!;
-      await glide(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, 600);
+      await gif.glide(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, 600);
       await page.waitForTimeout(2500);
       return;
     }
 
     // Branch: the card, then the others, and another selected.
     await page.waitForTimeout(800);
-    await click(page, others, { ms: 600 });
+    await gif.click(page, others, { ms: 600 });
     await page.waitForTimeout(1200);
-    await scroll(page, 220);
+    await gif.scroll(page, 220);
     await page.waitForTimeout(600);
-    await click(page, page.getByText('Wildcat Camp Trail to Alamere Falls'), { ms: 700 });
+    await gif.click(page, page.getByText('Wildcat Camp Trail to Alamere Falls'), { ms: 700 });
     await page.waitForTimeout(1200);
-    await click(page, page.getByRole('button', { name: 'Done ▴' }), { ms: 600 });
+    await gif.click(page, page.getByRole('button', { name: 'Done ▴' }), { ms: 600 });
     await page.waitForTimeout(400);
     // Back up to the card, now the trail selected.
-    await glide(page, { x: 500, y: 200 }, 500);
-    await scroll(page, (await field.boundingBox())!.y - 150);
+    await gif.glide(page, { x: 500, y: 200 }, 500);
+    await gif.scroll(page, (await field.boundingBox())!.y - 150);
     await page.waitForTimeout(1800);
   },
 };
