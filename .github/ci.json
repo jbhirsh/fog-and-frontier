@@ -28,5 +28,8 @@
   "visuals": {
     "ui": ["src/**/*.{tsx,css}"],
     "notUi": ["**/*.test.tsx", "src/test/**"]
+  },
+  "audit": {
+    "graph": ["src", "api"]
   }
 }
