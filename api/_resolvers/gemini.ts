@@ -435,7 +435,8 @@ async function generateActivity(
         systemInstruction: { parts: [{ text: GENERATE_SYSTEM_PROMPT }] },
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
         tools: GROUNDING_TOOLS,
-        generationConfig: jsonConfig(ACTIVITY_SCHEMA, 'medium'),
+        // Low: a draft is a lookup, not a puzzle, and thinking is billed and waited on.
+        generationConfig: jsonConfig(ACTIVITY_SCHEMA, 'low'),
       }),
       signal,
     });
