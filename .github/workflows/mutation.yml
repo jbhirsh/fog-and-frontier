@@ -3,11 +3,12 @@
 # and checking a test fails.
 #
 # Two placements (the pattern from jbhirsh/BoardGames and jbhirsh/sift):
-#   - Pull requests: mutate only the in-scope files the PR touched — fast,
-#     targeted feedback on exactly the code under review. A PR that changes
-#     no mutable source (data, docs, styles, workflows, a dependency bump)
-#     runs a small smoke scope instead, so the Stryker wiring stays validated
-#     and the check always reports.
+#   - Pull requests: mutate only the lines the PR added or changed in the
+#     in-scope files it touched (a file new to the branch, or one whose test
+#     changed, whole) — fast, targeted feedback on exactly the code under
+#     review. A PR that changes no mutable source (data, docs, styles,
+#     workflows, a dependency bump) runs a small smoke scope instead, so the
+#     Stryker wiring stays validated and the check always reports.
 #   - Weekly schedule (+ manual dispatch): full sweep as a drift sensor,
 #     catching test erosion PR-scoped runs can't see (e.g. a test refactor
 #     weakening assertions for untouched code).
@@ -23,12 +24,12 @@
 # that reaches a mutant only through another module isn't detected; the
 # weekly sweep, which never reuses results, is the backstop for that.
 #
-# Both gate on the `break` threshold in stryker.config.json. The files in
-# scope are its `mutate` globs (the files the 80% per-file coverage gate measures,
-# minus its documented coverage backlog); .github/scripts/mutation-scope.mjs
-# reads those globs, so the PR scope can't drift from the full sweep's.
-# Stryker exits nonzero after writing the report, so the report is still
-# uploaded for diagnosis.
+# Both gate on the `break` threshold in stryker.config.json, a PR on the
+# score of the code it changed. The files in scope are its `mutate` globs
+# (the files the 80% per-file coverage gate measures, minus its documented
+# coverage backlog); .github/scripts/mutation-scope.mjs reads those globs,
+# so the PR scope can't drift from the full sweep's. Stryker exits nonzero
+# after writing the report, so the report is still uploaded for diagnosis.
 name: Mutation
 
 on:
@@ -73,8 +74,11 @@ jobs:
       # --diff-filter=d drops deletions: a removed file must not be passed to
       # --mutate. mutation-scope.mjs also drops a file whose change is
       # formatting only (its base version, run through Prettier, is what the
-      # PR has), so a reformat doesn't make this a full sweep; it reads the
-      # base from BASE_REF.
+      # PR has), so a reformat doesn't make this a full sweep, and names each
+      # block of lines an edited file adds or changes as `file:first-last`
+      # (a new file, or one whose test changed, whole); it reads the base
+      # from BASE_REF. The list is one comma-joined line, so it fits
+      # $GITHUB_OUTPUT as is.
       - name: Determine mutation scope
         id: scope
         if: github.event_name == 'pull_request'
@@ -108,20 +112,19 @@ jobs:
             stryker-incremental-${{ hashFiles('package-lock.json', 'patches/**', 'stryker.config.json', 'vite.config.ts', 'src/test/**') }}-pr${{ github.event.pull_request.number }}-
 
       # Stryker carries every file in the incremental file into its report and
-      # score, in scope or not, so drop the files this run doesn't mutate: a
-      # file the PR no longer changes must not keep failing it, and an earlier
-      # push's well-tested files must not lift a new file over the threshold.
+      # score, in scope or not, and every earlier mutant outside the lines it
+      # mutates, so drop what this run doesn't mutate: a file or line the PR
+      # no longer changes must not keep failing it, and an earlier push's
+      # well-tested code must not lift new code over the threshold.
+      # mutation-incremental.mjs keeps only the files in scope and, of a file
+      # named by lines, the mutants on them.
       - name: Limit incremental results to this run's scope
         if: steps.incremental.outputs.cache-matched-key != ''
         env:
           MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
-        run: |
-          jq --arg scope "$MUTATE_SCOPE" \
-            '($scope | split(",")) as $keep | .files |= with_entries(select(.key as $f | $keep | index($f)))' \
-            reports/stryker-incremental.json > reports/stryker-incremental.tmp
-          mv reports/stryker-incremental.tmp reports/stryker-incremental.json
+        run: node .github/scripts/mutation-incremental.mjs reports/stryker-incremental.json "$MUTATE_SCOPE"
 
-      - name: Run Stryker (changed files)
+      - name: Run Stryker (changed lines)
         id: stryker
         if: github.event_name == 'pull_request'
         env:
