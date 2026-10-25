@@ -26,8 +26,13 @@ const app = (
   </ApolloProvider>
 );
 
+// Clerk is still on its development instance (a production one needs a domain
+// of our own), which tags its menus "Development mode". Hide the tag: it means
+// nothing to the people signing in.
+const clerkAppearance = { layout: { unsafe_disableDevelopmentModeWarnings: true } };
+
 const tree = publishableKey ? (
-  <ClerkProvider publishableKey={publishableKey}>
+  <ClerkProvider publishableKey={publishableKey} appearance={clerkAppearance}>
     <ClerkAuthProvider>{app}</ClerkAuthProvider>
   </ClerkProvider>
 ) : (
