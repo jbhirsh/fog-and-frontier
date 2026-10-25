@@ -177,17 +177,29 @@ checks a specific the way the resolver found it rather than from memory.
 
 ```sh
 vercel env pull .env.local   # provides GEMINI_API_KEY
-npm run eval
+npm run eval                          # every case, judged
+npm run eval -- --hikes --no-judge    # the 7 hikes graded on their AllTrails link, unjudged
+npm run eval -- --parks --no-judge    # the 8 drafts graded on their park (or none), unjudged
+npm run eval -- --feature generateActivity --no-judge   # every draft, unjudged
 ```
 
-It makes 24 paid resolver calls (`gemini-3.8-flash`, most with a few Google
-searches) plus up to 16 judge calls (also grounded `gemini-3.8-flash`) per
-run — judges are skipped once a mechanical check has already failed a case,
-so most runs use fewer. On 2.5 a run cost about $0.25 (26 CI runs made up most of a $6.59
-month). Grounding makes it dearer — search results and fetched pages bill as
-input tokens, though the first 5,000 searches a month are free — so expect
-up to a dollar. It is **not** part of `npm test`: it's opt-in because it costs
-money and hits the network.
+`--no-judge` leaves out the judge calls, about 40% of a full run's cost,
+for a change that can't affect the descriptions they grade (a judge is a
+second grounded call per case). Run with them when Gemini's prompt or model
+changes. Each run ends with its **usage**: drafts, the Google and AllTrails
+searches they ran, judge calls, the drafts' tokens, where a draft's time went (Gemini's
+answer, then its cover, trail and park), and roughly what its searches cost
+past Google's free ones.
+
+A full run has 26 cases, 22 of them paid Gemini calls (`gemini-3.8-flash`,
+most with a few Google searches), plus up to 19 judge calls (also grounded
+`gemini-3.8-flash`); judges are skipped once a mechanical check has already
+failed a case. Each Google search is billed on its own, at about $14 per
+1,000 past the month's first 5,000, and each AllTrails search at about $4
+per 1,000, so a full run costs about $2, `--no-judge` about $1 and
+`--hikes --no-judge` well under that: the usage lines say what a run spent.
+It is **not** part of `npm test`: it's opt-in because it costs money and hits
+the network.
 
 Cases run **four at a time** (`EVAL_CONCURRENCY` or `--concurrency` sets
 another number; `1` runs them one after another), since each one waits
@@ -203,21 +215,15 @@ denominator** so flaky infra can't fail the quality gate — but if they collaps
 too much of the set, the run is reported **inconclusive** and exits non-zero
 below an **80% graded floor**.
 
-**CI.** `.github/workflows/eval.yml` grades only when the AI code — the
-Gemini resolver (`api/_resolvers/gemini.ts`), its AllTrails
-search (`api/_allTrailsSearch.ts`), the `api/_home.ts` and
-`api/_gqlError.ts` it and the harness read, or `eval/**` — changes, and never a draft: when a PR opens ready for review, is reopened, or
-a draft is marked ready, if the PR touches the AI code; and on a later push
-to a ready PR, unless the AI code is as it was when the workflow last
-finished a run on the PR and that run passed. So rebasing on, or merging in,
-a `main` that moved doesn't re-grade, but a push after a failed, errored or
-cancelled grade does.
-`.github/scripts/eval-should-grade.mjs` makes the call. A manual dispatch
-always grades; use one after changing the workflow itself, which doesn't
-grade on its own. It used to run on every push to any PR that
-touched the schema or the auth context too, which most feature PRs do, and
-that ran into the project's monthly spend cap. There's no schedule (the calls
-are paid), and it **skips green** when `GEMINI_API_KEY` is absent
+**CI.** `.github/workflows/eval.yml` runs only when asked: from the
+Actions tab's **Run workflow** button, on the branch to grade, choosing
+`hikes` or `parks` (the cheapest, unjudged), `drafts` (every draft, unjudged) or
+`full` (every case, judged). It used to run on its own, on pushes to ready
+PRs that touched the AI code, and that ran into the project's monthly
+spend cap more than once while one PR was worked on. Grade a PR once, when its AI changes are settled, and only as
+much as the change can affect; a change that can't reach Gemini's answers
+(the form, say) needs no run at all. There's no schedule (the calls are
+paid), and it **skips green** when `GEMINI_API_KEY` is absent
 (forks, or the secret unset), so it never blocks contributors who can't make the
 calls. Hikes are searched for on AllTrails only when the
 `AGENT_SEARCH_API_KEY` secret is set too.
