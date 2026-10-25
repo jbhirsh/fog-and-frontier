@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SHOTS, SHOTS_DIR, main } from './readme-screenshots';
-import { pngSize } from './pr-gif';
+import { pngSize } from './local-build';
 
 describe('SHOTS', () => {
   const readme = readFileSync('README.md', 'utf8');

@@ -2,7 +2,7 @@
 // draft could only file under a California area before, and finds its real
 // region by typing it.
 //
-//   node --experimental-strip-types scripts/pr-gif-cli.ts scripts/gif-scenarios/region-anywhere.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/region-anywhere.ts --dir <PR number>
 //
 // Gemini's draft is stubbed (its key is only on the deployment), filed under
 // SoCal as main's region list forced, with the cover the real lookup finds.
@@ -10,7 +10,7 @@
 // nearer; on the branch it's a search over every region in the world.
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
-import { click, glide, scroll, type Scenario } from '../pr-gif.ts';
+import type { Scenario } from '../gif-types.ts';
 import { draftActivity, readyToAdd, stubDraft } from './stub-draft.ts';
 
 const DRAFT = {
@@ -55,8 +55,8 @@ const scenario: Scenario = {
     await stubDraft(page, DRAFT, 1000);
   },
   ready: readyToAdd,
-  async run(page) {
-    await draftActivity(page, 'Fushimi Inari');
+  async play(page, gif) {
+    await draftActivity(page, gif, 'Fushimi Inari');
 
     // Down the review to Region.
     // Main's menu takes in its label's text and its options', so it's found by
@@ -65,18 +65,18 @@ const scenario: Scenario = {
     for (let i = 0; i < 6; i++) {
       const box = await region.boundingBox();
       if (box && box.y > 200 && box.y < 520) break;
-      await scroll(page, 220);
+      await gif.scroll(page, 220);
       await page.waitForTimeout(250);
     }
     const box = (await region.boundingBox())!;
-    await glide(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, 600);
+    await gif.glide(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, 600);
     await page.waitForTimeout(800);
 
     if ((await region.evaluate((el) => el.tagName)) === 'SELECT') {
       // Main: a menu of West Coast areas, SoCal the nearest it has. A native
       // menu opens outside the page, where no recording sees it, so it's
       // shown open in place: every option it has, at once.
-      await click(page, region, { ms: 300 });
+      await gif.click(page, region, { ms: 300 });
       await region.evaluate((el) => {
         const menu = el as HTMLSelectElement;
         menu.size = menu.options.length;
@@ -86,11 +86,11 @@ const scenario: Scenario = {
       await page.waitForTimeout(3500);
       return;
     }
-    await click(page, region, { ms: 300 });
+    await gif.click(page, region, { ms: 300 });
     await page.waitForTimeout(600);
     await page.keyboard.type('kyo', { delay: 160 });
     await page.waitForTimeout(900);
-    await click(page, page.getByRole('option', { name: 'Kyoto, Japan' }), { ms: 500 });
+    await gif.click(page, page.getByRole('option', { name: 'Kyoto, Japan' }), { ms: 500 });
     await page.waitForTimeout(1800);
   },
 };

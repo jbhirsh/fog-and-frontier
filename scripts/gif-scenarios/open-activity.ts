@@ -1,7 +1,7 @@
 // Opening an activity from the catalog, then a few keys: an example scenario
-// for scripts/pr-gif-cli.ts, and a starting point for a PR's own.
+// for `npm run gif` (scripts/gif.mjs), and a starting point for a PR's own.
 //
-//   node --experimental-strip-types scripts/pr-gif-cli.ts scripts/gif-scenarios/open-activity.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/open-activity.ts --dir <PR number>
 //
 // Recorded on local builds of main and the branch, reading production's
 // catalog and photos. setup stubs the API for anything production can't
@@ -9,7 +9,7 @@
 // tests/visual/helpers.ts).
 
 import { mockApis } from '../../tests/visual/helpers';
-import { click, glide, scroll, type Scenario } from '../pr-gif.ts';
+import type { Scenario } from '../gif-types.ts';
 
 const scenario: Scenario = {
   name: 'open-activity',
@@ -21,17 +21,17 @@ const scenario: Scenario = {
   async setup(page) {
     await mockApis(page);
   },
-  async ready(page) {
+  async ready(page, gif) {
     await page.locator('[data-activity-id]').first().waitFor();
     await page.evaluate(() => document.fonts.ready);
     // Start where the first move will be seen.
-    await glide(page, { x: 550, y: 420 }, 0);
+    await gif.glide(page, { x: 550, y: 420 }, 0);
   },
-  async run(page) {
+  async play(page, gif) {
     await page.waitForTimeout(400);
-    await click(page, page.locator('[data-activity-id]').first(), { ms: 700 });
+    await gif.click(page, page.locator('[data-activity-id]').first(), { ms: 700 });
     await page.waitForTimeout(900);
-    await scroll(page, 300);
+    await gif.scroll(page, 300);
     await page.waitForTimeout(500);
     await page.keyboard.press('Tab');
     await page.waitForTimeout(500);

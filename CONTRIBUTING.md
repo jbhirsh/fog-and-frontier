@@ -187,7 +187,7 @@ Actions only reads `.github/workflows/` there):
   edits. Pictures show the app as production does (real catalog, photos,
   fonts and map), never the visual tests' blank fixtures. For a GIF, write a
   scenario (the mouse and keyboard steps; see `scripts/gif-scenarios/` and
-  the rules in `scripts/pr-gif.ts`) and run
+  the rules in jbhirsh/ci's `gif/moves.mjs`) and run
   `npm run gif -- scripts/gif-scenarios/<flow>.ts --dir <PR number>`. It
   records local production builds of `main` and the branch, reading
   production's data and photos, with the pointer and keys drawn in, at real
