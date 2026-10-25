@@ -98,6 +98,12 @@ describe('reading reviews', () => {
     expect(screen.getByLabelText('3 out of 5 stars')).toBeInTheDocument();
   });
 
+  it('names an author by the first name the server gave', async () => {
+    renderReviews([seed({ authorEmail: 'jessicabhirsh@example.com', authorName: 'Jessica' })]);
+    expect(await screen.findByText('Jessica')).toBeInTheDocument();
+    expect(screen.queryByText('Jessicabhirsh')).toBeNull();
+  });
+
   it('marks the signed-in owner’s own review', async () => {
     renderReviews([seed(), TARUN]);
     await screen.findByText('Jess');

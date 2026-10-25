@@ -140,6 +140,7 @@ export const ACTIVITY_REVIEWS_QUERY = graphql(`
       __typename
       activityId
       authorEmail
+      authorName
       rating
       note
       createdAt
@@ -433,6 +434,7 @@ export const SAVE_ACTIVITY_REVIEW = graphql(`
         __typename
         activityId
         authorEmail
+        authorName
         rating
         note
         createdAt

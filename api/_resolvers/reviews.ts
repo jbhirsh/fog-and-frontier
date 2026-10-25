@@ -13,6 +13,7 @@ export const MAX_NOTE_LENGTH = 2000;
 type ReviewShape = {
   activityId: string;
   authorEmail: string;
+  authorName: string | null;
   rating: number | null;
   note: string | null;
   createdAt: number;
@@ -64,6 +65,7 @@ export function mapReviewRow(row: Record<string, unknown>): ReviewShape | null {
   return {
     activityId,
     authorEmail,
+    authorName: typeof row.display_name === 'string' && row.display_name ? row.display_name : null,
     rating: asNumberOrNull(row.rating),
     note: typeof row.note === 'string' ? row.note : null,
     createdAt,
@@ -71,14 +73,23 @@ export function mapReviewRow(row: Record<string, unknown>): ReviewShape | null {
   };
 }
 
+// The author's first name, unless another account has it too: then none, so
+// the two are named from their emails and told apart, as everywhere else.
+const UNIQUE_NAME = `CASE WHEN (SELECT COUNT(*) FROM users o WHERE o.display_name = u.display_name) = 1
+              THEN u.display_name END AS display_name`;
+
 // Public read of every review. Two owners over a personal catalog is a small
 // result set, and one query keeps the client cache trivially consistent (same
 // shape as `completed`). Revisit if the catalog grows a lot.
 async function activityReviews() {
+  // With each author's first name (their users row), so a review reads
+  // "Jessica" to everyone, signed in or not.
   const rs = await db().execute(
-    `SELECT activity_id, author_email, rating, note, created_at, updated_at
-       FROM activity_reviews
-      ORDER BY updated_at DESC`,
+    `SELECT r.activity_id, r.author_email, r.rating, r.note, r.created_at, r.updated_at,
+            ${UNIQUE_NAME}
+       FROM activity_reviews r
+       LEFT JOIN users u ON u.email = r.author_email
+      ORDER BY r.updated_at DESC`,
   );
   const out: ReviewShape[] = [];
   for (const row of rs.rows) {
@@ -118,9 +129,11 @@ async function saveActivityReview(
     args: [activityId, caller.email, rating, note, now, now],
   });
   const rs = await db().execute({
-    sql: `SELECT activity_id, author_email, rating, note, created_at, updated_at
-            FROM activity_reviews
-           WHERE activity_id = ? AND author_email = ?`,
+    sql: `SELECT r.activity_id, r.author_email, r.rating, r.note, r.created_at, r.updated_at,
+                 ${UNIQUE_NAME}
+            FROM activity_reviews r
+            LEFT JOIN users u ON u.email = r.author_email
+           WHERE r.activity_id = ? AND r.author_email = ?`,
     args: [activityId, caller.email],
   });
   const stored = rs.rows[0] ? mapReviewRow(rs.rows[0]) : null;
@@ -128,6 +141,7 @@ async function saveActivityReview(
     review: stored ?? {
       activityId,
       authorEmail: caller.email,
+      authorName: caller.firstName ?? null,
       rating,
       note,
       createdAt: now,

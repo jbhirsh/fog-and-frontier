@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { authorLabel, formatReviewDate } from '../lib/activityReviews';
+import { formatReviewDate } from '../lib/activityReviews';
+import { usePersonLabel } from '../lib/people';
 import { gqlErrorInfo } from '../lib/gqlError';
 import { sentenceCase } from '../lib/activityLabels';
 import { glyphBleed } from '../lib/iconMetrics';
@@ -33,6 +34,7 @@ function without(record: Record<string, string>, key: string): Record<string, st
 // catalog (credited to them) or reject. Owner-only, like the server's
 // pendingSuggestions; renders nothing until something is waiting.
 export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onRevealed }: Props) {
+  const authorLabel = usePersonLabel();
   const headingId = useId();
   const section = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);

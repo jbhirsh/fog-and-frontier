@@ -57,6 +57,7 @@ describe('getCallerStatusFromToken', () => {
     expect(await getCallerStatusFromToken('xxx')).toEqual({
       state: 'non_owner',
       email: 'rando@example.com',
+      firstName: null,
     });
   });
 
@@ -69,6 +70,7 @@ describe('getCallerStatusFromToken', () => {
     expect(await getCallerStatusFromToken('xxx')).toEqual({
       state: 'owner',
       email: 'owner@example.com',
+      firstName: null,
     });
   });
 
@@ -101,6 +103,7 @@ describe('getCallerStatusFromToken', () => {
     expect(await getCallerStatusFromToken('xxx')).toEqual({
       state: 'owner',
       email: 'owner@example.com',
+      firstName: null,
     });
   });
 });
@@ -127,7 +130,7 @@ describe('getCurrentUserFromToken', () => {
     execute.mockResolvedValueOnce({ rows: [] });
 
     const result = await getCurrentUserFromToken('xxx');
-    expect(result).toEqual({ email: 'owner@example.com', role: 'owner' });
+    expect(result).toEqual({ email: 'owner@example.com', role: 'owner', firstName: null });
     expect(execute).toHaveBeenCalledOnce();
     const callArg = execute.mock.calls[0]?.[0] as { sql: string; args: unknown[] };
     expect(callArg.sql).toContain("'owner'");
@@ -144,8 +147,125 @@ describe('getCurrentUserFromToken', () => {
     });
 
     const result = await getCurrentUserFromToken('yyy');
-    expect(result).toEqual({ email: 'editor@example.com', role: 'editor' });
+    expect(result).toEqual({ email: 'editor@example.com', role: 'editor', firstName: null });
     expect(execute).not.toHaveBeenCalled();
+  });
+  it('takes the account’s first name, trimmed, or none', async () => {
+    for (const [given, want] of [
+      ['  Tarun ', 'Tarun'],
+      ['', null],
+      ['   ', null],
+      [null, null],
+      [undefined, null],
+      ['x'.repeat(80), 'x'.repeat(50)],
+    ] as const) {
+      verifyToken.mockResolvedValueOnce({ sub: 'user_1' });
+      getUser.mockResolvedValueOnce({
+        primaryEmailAddressId: 'eid_1',
+        emailAddresses: [{ id: 'eid_1', emailAddress: 'rando@example.com' }],
+        firstName: given,
+      });
+      expect(await getCallerStatusFromToken('xxx'), String(given)).toEqual({
+        state: 'non_owner',
+        email: 'rando@example.com',
+        firstName: want,
+      });
+    }
+  });
+
+  it('stores an owner’s first name, keeping the stored one when Clerk has none', async () => {
+    verifyToken.mockResolvedValueOnce({ sub: 'user_123' });
+    getUser.mockResolvedValueOnce({
+      primaryEmailAddressId: 'eid_1',
+      emailAddresses: [{ id: 'eid_1', emailAddress: 'owner@example.com' }],
+      firstName: 'Jessica',
+    });
+    execute.mockResolvedValueOnce({ rows: [] });
+    await getCurrentUserFromToken('xxx');
+    const { sql, args } = execute.mock.calls[0]?.[0] as { sql: string; args: unknown[] };
+    expect(args).toEqual(['owner@example.com', 'Jessica', expect.any(Number)]);
+    expect(sql).toContain('display_name = COALESCE(excluded.display_name, users.display_name)');
+  });
+
+  it('gives an editor’s existing row their first name, once per instance, never a new row', async () => {
+    const signIn = (email: string, firstName: string) => {
+      verifyToken.mockResolvedValueOnce({ sub: 'user_456' });
+      getUser.mockResolvedValueOnce({
+        primaryEmailAddressId: 'eid_2',
+        emailAddresses: [{ id: 'eid_2', emailAddress: email }],
+        firstName,
+      });
+    };
+    execute.mockResolvedValue({ rows: [], rowsAffected: 1 });
+    signIn('named@example.com', 'Tarun');
+    expect(await getCurrentUserFromToken('yyy')).toEqual({
+      email: 'named@example.com',
+      role: 'editor',
+      firstName: 'Tarun',
+    });
+    expect(execute).toHaveBeenCalledOnce();
+    const { sql, args } = execute.mock.calls[0]?.[0] as { sql: string; args: unknown[] };
+    expect(sql).toBe('UPDATE users SET display_name = ? WHERE email = ?');
+    expect(args).toEqual(['Tarun', 'named@example.com']);
+    // The same name again writes nothing; a changed one writes again.
+    signIn('named@example.com', 'Tarun');
+    await getCurrentUserFromToken('yyy');
+    expect(execute).toHaveBeenCalledOnce();
+    signIn('named@example.com', 'Taru');
+    await getCurrentUserFromToken('yyy');
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('tries an editor with no row yet again after a while, not on every request', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const signIn = () => {
+        verifyToken.mockResolvedValueOnce({ sub: 'user_789' });
+        getUser.mockResolvedValueOnce({
+          primaryEmailAddressId: 'eid_3',
+          emailAddresses: [{ id: 'eid_3', emailAddress: 'suggester@example.com' }],
+          firstName: 'Sam',
+        });
+      };
+      execute.mockResolvedValueOnce({ rows: [], rowsAffected: 0 });
+      signIn();
+      await getCurrentUserFromToken('zzz');
+      // No row: the next requests write nothing for ten minutes.
+      signIn();
+      await getCurrentUserFromToken('zzz');
+      vi.advanceTimersByTime(9 * 60 * 1000);
+      signIn();
+      await getCurrentUserFromToken('zzz');
+      expect(execute).toHaveBeenCalledOnce();
+      // An owner has since accepted their suggestion, which made the row.
+      vi.advanceTimersByTime(2 * 60 * 1000);
+      execute.mockResolvedValueOnce({ rows: [], rowsAffected: 1 });
+      signIn();
+      await getCurrentUserFromToken('zzz');
+      expect(execute).toHaveBeenCalledTimes(2);
+      // Landed: not tried again, however long after.
+      vi.advanceTimersByTime(60 * 60 * 1000);
+      signIn();
+      await getCurrentUserFromToken('zzz');
+      expect(execute).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('serves an editor’s request even when writing their name fails', async () => {
+    verifyToken.mockResolvedValueOnce({ sub: 'user_999' });
+    getUser.mockResolvedValueOnce({
+      primaryEmailAddressId: 'eid_4',
+      emailAddresses: [{ id: 'eid_4', emailAddress: 'flaky@example.com' }],
+      firstName: 'Flo',
+    });
+    execute.mockRejectedValueOnce(new Error('turso 503'));
+    expect(await getCurrentUserFromToken('www')).toEqual({
+      email: 'flaky@example.com',
+      role: 'editor',
+      firstName: 'Flo',
+    });
   });
 });
 
@@ -185,6 +305,7 @@ describe('owner gate: token verification', () => {
     expect(await getCallerStatusFromToken('xxx')).toEqual({
       state: 'owner',
       email: 'owner@example.com',
+      firstName: null,
     });
     expect(verifyToken).toHaveBeenCalledWith('xxx', { secretKey: 'sk_test_dummy' });
   });
@@ -268,11 +389,13 @@ describe('owner gate: configuration', () => {
     expect(await auth.getCallerStatusFromToken('xxx')).toEqual({
       state: 'owner',
       email: 'second@example.com',
+      firstName: null,
     });
     signInAs('first@example.com');
     expect(await auth.getCallerStatusFromToken('xxx')).toEqual({
       state: 'owner',
       email: 'first@example.com',
+      firstName: null,
     });
   });
 

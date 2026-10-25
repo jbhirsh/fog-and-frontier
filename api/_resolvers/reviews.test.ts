@@ -88,7 +88,7 @@ beforeEach(() => {
       table.delete(key(args[0] as string, args[1] as string));
       return Promise.resolve({ rows: [] });
     }
-    if (/WHERE activity_id = \? AND author_email = \?/.test(sql)) {
+    if (/WHERE (r\.)?activity_id = \? AND (r\.)?author_email = \?/.test(sql)) {
       const row = table.get(key(args[0] as string, args[1] as string));
       return Promise.resolve({ rows: row ? [row] : [] });
     }
@@ -195,6 +195,30 @@ describe('Query.activityReviews (public)', () => {
     });
     const rows = list(await run(LIST));
     expect(rows).toEqual([expect.objectContaining({ activityId: 'a2', rating: null, note: null })]);
+  });
+  it('names each author by their first name, joined from their account, or not at all', async () => {
+    const row = { activity_id: 'a1', rating: 5, created_at: 1, updated_at: 1 };
+    execute.mockResolvedValueOnce({
+      rows: [
+        { ...row, author_email: 'jess@example.com', display_name: 'Jessica' },
+        { ...row, author_email: 'tarun@example.com', display_name: null },
+        { ...row, author_email: 'x@example.com', display_name: '' },
+      ],
+    });
+    const res = await run('query { activityReviews { authorEmail authorName } }', {}, null);
+    expect(res.data?.activityReviews).toEqual([
+      { authorEmail: 'jess@example.com', authorName: 'Jessica' },
+      { authorEmail: 'tarun@example.com', authorName: null },
+      { authorEmail: 'x@example.com', authorName: null },
+    ]);
+    const sql = (execute.mock.calls.at(-1)?.[0] as string | { sql: string }) ?? '';
+    expect(typeof sql === 'string' ? sql : sql.sql).toMatch(
+      /LEFT JOIN users u ON u\.email = r\.author_email/,
+    );
+    // A first name another account shares is left out, so they stay apart.
+    expect(typeof sql === 'string' ? sql : sql.sql).toContain(
+      'CASE WHEN (SELECT COUNT(*) FROM users o WHERE o.display_name = u.display_name) = 1',
+    );
   });
 });
 

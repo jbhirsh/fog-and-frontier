@@ -22,6 +22,7 @@ function review(over: Partial<ActivityReview> = {}): ActivityReview {
     __typename: 'ActivityReview',
     activityId: 'a1',
     authorEmail: 'jess@example.com',
+    authorName: null,
     rating: 5,
     note: 'Worth the early start.',
     createdAt: '2026-03-01T00:00:00.000Z',

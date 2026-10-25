@@ -3,7 +3,6 @@ import { useState } from 'react';
 import {
   MAX_NOTE_LENGTH,
   MAX_RATING,
-  authorLabel,
   deleteActivityReview,
   findOwnReview,
   formatReviewDate,
@@ -12,6 +11,7 @@ import {
   validateDraft,
   type ActivityReview,
 } from '../lib/activityReviews';
+import { usePersonLabel } from '../lib/people';
 import { useOwner } from '../lib/useOwner';
 import { InlineError } from './InlineError';
 
@@ -88,12 +88,13 @@ function ReviewCard({
   isOwn?: boolean;
   onEdit?: () => void;
 }) {
+  const personLabel = usePersonLabel();
   return (
     <article className="space-y-xs rounded-lg bg-surface-container-low p-md">
       <div className="flex flex-wrap items-center justify-between gap-sm">
         <div className="flex items-center gap-sm">
           <span className="font-body-md font-bold text-on-surface">
-            {authorLabel(review.authorEmail)}
+            {review.authorName ?? personLabel(review.authorEmail)}
             {isOwn && <span className="font-body-sm text-on-surface-variant"> (you)</span>}
           </span>
           {review.rating != null && <StarDisplay rating={review.rating} />}

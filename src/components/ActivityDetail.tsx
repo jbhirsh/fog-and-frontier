@@ -8,7 +8,7 @@ import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
 import { directionsUrl, isApplePlatform } from '../lib/directions';
-import { authorLabel } from '../lib/activityReviews';
+import { usePersonLabel } from '../lib/people';
 import { costStat } from '../lib/cost';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import { glyphBleed } from '../lib/iconMetrics';
@@ -692,6 +692,7 @@ function Contributors({
   emails: readonly string[];
   onShow?: (email: string) => void;
 }) {
+  const authorLabel = usePersonLabel();
   return (
     <div className="flex items-center gap-xs">
       <span className="material-symbols-outlined text-icon-md">person</span>

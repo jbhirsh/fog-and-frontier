@@ -1,3 +1,4 @@
+import { authorLabel } from '../lib/activityReviews';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { TripActivityCard } from '../components/TripActivityCard';
@@ -745,7 +746,7 @@ function VoteBreakdown({ trip, tripActivityId }: { trip: Trip; tripActivityId: s
           >
             {r.value === 1 ? 'thumb_up' : 'thumb_down'}
           </span>
-          {r.display_name ?? r.email}
+          {r.display_name ?? authorLabel(r.email)}
           {r.leftTrip && <span className="italic opacity-70">&nbsp;(left trip)</span>}
         </span>
       ))}

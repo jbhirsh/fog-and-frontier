@@ -40,8 +40,8 @@ export function findOwnReview(
   return rows.find((r) => r.authorEmail.toLowerCase() === lower) ?? null;
 }
 
-// Display name from the owner's email — Clerk owns real display names and the
-// `users` row keeps them null, so the local part is what we have.
+// A name from someone's email, for anyone whose first name we don't have
+// (src/lib/people.ts names people by it when the server has it).
 // 'jess.hirsh+trips@example.com' -> 'Jess Hirsh'. A local part with nothing
 // nameable in it ('', '+tag', '._') falls back to the raw email.
 export function authorLabel(email: string): string {

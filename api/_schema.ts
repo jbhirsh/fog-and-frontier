@@ -151,6 +151,8 @@ export const typeDefs = /* GraphQL */ `
   type ActivityReview {
     activityId: ID!
     authorEmail: String!
+    "The author's first name, from their account; null until they've signed in since names were kept."
+    authorName: String
     rating: Int
     note: String
     createdAt: DateTimeISO!

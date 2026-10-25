@@ -1,5 +1,6 @@
 import type { TripMember, TripInvite } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
+import { authorLabel } from '../lib/activityReviews';
 
 type Props = {
   members: TripMember[];
@@ -43,7 +44,7 @@ export function MembersStrip({
             className="inline-flex items-center gap-xs rounded-full bg-surface-variant px-sm py-xs font-body-md text-on-surface-variant"
           >
             <span>
-              {member.display_name ?? member.email}
+              {member.display_name ?? authorLabel(member.email)}
               {isOwnChip && <span className="ml-xs text-on-surface-variant/60">· You</span>}
             </span>
             {member.is_creator && (

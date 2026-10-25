@@ -59,6 +59,20 @@ describe('MembersStrip', () => {
     }
   });
 
+  it('names a member with no display name from their email, not the email itself', () => {
+    render(
+      <MembersStrip
+        {...defaultProps()}
+        members={[
+          CREATOR,
+          { ...MEMBER, email: 'tarunkhubchandani@example.com', display_name: null },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Tarunkhubchandani')).toBeInTheDocument();
+    expect(screen.queryByText('tarunkhubchandani@example.com')).toBeNull();
+  });
+
   it('renders the Creator badge on the creator chip', () => {
     render(<MembersStrip {...defaultProps()} />);
     expect(screen.getByText('Creator')).toBeInTheDocument();

@@ -34,7 +34,7 @@ const OWNER = { email: 'owner@example.com', role: 'owner' as const };
 const EDITOR = { email: 'editor@example.com', role: 'editor' as const };
 const OUTSIDER = { email: 'outsider@example.com', role: 'editor' as const };
 
-type Caller = { email: string; role: 'owner' | 'editor' } | null;
+type Caller = { email: string; role: 'owner' | 'editor'; firstName?: string | null } | null;
 
 type SingleResult = {
   data?: Record<string, unknown> | null;
@@ -3541,6 +3541,27 @@ describe('Mutation.claimInvite', () => {
       typeof c[0] === 'string' ? c[0] : (c[0] as { sql: string }).sql,
     );
     expect(sqls.some((s) => /INSERT OR IGNORE INTO trip_members/.test(s))).toBe(true);
+  });
+
+  it('names the new account from its first name, or leaves the name it has', async () => {
+    for (const [caller, name] of [
+      [{ ...EDITOR, firstName: 'Tarun' }, 'Tarun'],
+      [EDITOR, null],
+    ] as const) {
+      setup({ invite, members: new Set([OWNER.email]) });
+      await run(
+        'mutation($i: ClaimInviteInput!){ claimInvite(input:$i){ tripId } }',
+        { i: { inviteToken: 'tok' } },
+        caller,
+      );
+      const upsert = execute.mock.calls
+        .map((c) => c[0] as { sql?: string; args?: unknown[] })
+        .findLast((c) => c.sql?.includes('INSERT INTO users'));
+      expect(upsert?.args?.slice(0, 2)).toEqual([EDITOR.email, name]);
+      expect(upsert?.sql).toContain(
+        'display_name = COALESCE(excluded.display_name, users.display_name)',
+      );
+    }
   });
 
   it('idempotent when already a member', async () => {

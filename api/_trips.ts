@@ -518,20 +518,23 @@ export async function removeTripMember(tripId: string, email: string): Promise<v
 // Upsert any account's users row (used at invite-claim time, where a non-owner
 // editor account is created for the first time, and when a suggestion is
 // accepted, #73). Role is owner if the email is in the allow-list, else
-// editor — and never downgrades an existing owner.
-export function upsertUserStatement(email: string): InStatement {
+// editor — and never downgrades an existing owner. The first name, when the
+// account's own request gives it, is its display name; none keeps the stored
+// one (an accepted suggester's comes with their next sign-in).
+export function upsertUserStatement(email: string, firstName: string | null = null): InStatement {
   const role: UserRole = getOwnerEmails().has(email) ? 'owner' : 'editor';
   return {
     sql: `INSERT INTO users (email, display_name, created_at, role)
-          VALUES (?, NULL, ?, ?)
-          ON CONFLICT(email) DO UPDATE SET role =
-            CASE WHEN users.role = 'owner' THEN 'owner' ELSE excluded.role END`,
-    args: [email, Date.now(), role],
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(email) DO UPDATE SET
+            role = CASE WHEN users.role = 'owner' THEN 'owner' ELSE excluded.role END,
+            display_name = COALESCE(excluded.display_name, users.display_name)`,
+    args: [email, firstName, Date.now(), role],
   };
 }
 
-export async function upsertUser(email: string): Promise<void> {
-  await db().execute(upsertUserStatement(email));
+export async function upsertUser(email: string, firstName: string | null = null): Promise<void> {
+  await db().execute(upsertUserStatement(email, firstName));
 }
 
 export type UserSummary = { email: string; display_name: string | null };
@@ -1258,7 +1261,7 @@ export async function claimInvite(token: string, user: CurrentUser): Promise<str
     await deleteInviteByToken(invite.trip_id, token);
     return invite.trip_id;
   }
-  await upsertUser(user.email);
+  await upsertUser(user.email, user.firstName ?? null);
   await addTripMember(invite.trip_id, user.email, invite.invited_by_email);
   await deleteInviteByToken(invite.trip_id, token);
   return invite.trip_id;

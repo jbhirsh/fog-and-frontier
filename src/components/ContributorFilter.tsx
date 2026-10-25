@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { authorLabel } from '../lib/activityReviews';
+import { usePersonLabel } from '../lib/people';
 import { useAddPicker } from '../lib/useAddPicker';
 import { FilterPill } from './FilterPill';
 import { glyphBleed } from '../lib/iconMetrics';
@@ -17,6 +17,7 @@ interface Props {
 // account added it. The chips come first so a new one lands where the
 // picker was, in view even in the sideways-scrolling mobile row.
 export function ContributorFilter({ options, selected, onChange }: Props) {
+  const authorLabel = usePersonLabel();
   const rest = options.filter((e) => !selected.includes(e));
   // Where focus goes once a change lands: a chip's email, '' for the picker.
   // A removed chip, or the picker after its last name, unmounts under focus,
