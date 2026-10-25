@@ -89,7 +89,7 @@ export function TripMap({ trip }: Props) {
             );
           })}
         </div>
-        <label className="ml-auto inline-flex items-center gap-xs font-body-md text-sm text-on-surface-variant">
+        <label className="ml-auto inline-flex min-h-11 items-center gap-xs font-body-md text-sm text-on-surface-variant md:min-h-0">
           <input
             type="checkbox"
             checked={showAll}

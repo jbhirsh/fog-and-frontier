@@ -459,7 +459,7 @@ export function TripDetail() {
           }
         />
       ) : (
-        <section className="mx-auto max-w-screen-2xl space-y-lg py-lg px-margin">
+        <section className="mx-auto max-w-screen-2xl space-y-md py-md px-margin md:space-y-lg md:py-lg">
           <TripMap trip={trip} />
 
           <div className="flex flex-wrap items-center justify-between gap-md">
@@ -632,19 +632,21 @@ function VotingView({
 }) {
   const candidates = trip.activities;
   return (
-    <section className="mx-auto max-w-screen-2xl space-y-lg py-lg px-margin">
-      <div className="rounded-xl border border-outline-variant/20 bg-tertiary-container/40 px-md py-sm font-body-md text-on-surface-variant">
+    <section className="mx-auto max-w-screen-2xl space-y-md py-md px-margin md:space-y-lg md:py-lg">
+      <div className="rounded-xl border border-outline-variant/20 bg-primary-fixed/50 px-md py-sm font-body-md text-on-surface">
         Voting is open — react to each candidate. Scheduling unlocks once the trip creator finalizes
         voting.
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-md">
         <h2 className="font-headline-md text-headline-md text-on-surface">Candidates</h2>
-        <div className="flex items-center gap-sm">
+        {/* Each label on one line: side by side where they fit, else each
+            the full width on its own row. */}
+        <div className="flex w-full flex-wrap gap-sm sm:w-auto">
           <button
             type="button"
             onClick={onAddFromCurated}
-            className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 px-md py-sm font-body-md text-on-surface-variant hover:bg-surface-variant"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-xs rounded-full border border-outline-variant/40 px-md py-sm font-body-md whitespace-nowrap text-on-surface-variant hover:bg-surface-variant sm:flex-none"
           >
             <span
               className="material-symbols-outlined text-icon-md"
@@ -665,7 +667,7 @@ function VotingView({
                   ? 'Add candidates before finalizing'
                   : undefined
             }
-            className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-xs rounded-full bg-primary px-md py-sm font-body-md whitespace-nowrap text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
           >
             <span className="material-symbols-outlined text-icon-md">how_to_vote</span>
             Finalize voting
@@ -936,7 +938,7 @@ function TripHeader({
   const editTooltip = isPast ? 'This trip is past' : undefined;
 
   return (
-    <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin">
+    <section className="border-b border-outline-variant/20 bg-surface-container-low pt-sm px-margin pb-md md:py-lg">
       <div className="mx-auto flex max-w-screen-2xl flex-wrap items-start justify-between gap-md">
         <div className="space-y-xs">
           <Link to="/trips" className="text-body-sm text-on-surface-variant underline">
@@ -951,7 +953,9 @@ function TripHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-sm">
+        {/* Under the title on a phone, kept to the right so the menu
+            opens within the screen. */}
+        <div className="ml-auto flex items-center gap-sm">
           {isPast ? (
             <span className="rounded-full bg-surface-variant px-sm py-xs font-label-caps text-label-caps text-on-surface-variant">
               {trip.marked_past_at
@@ -974,7 +978,7 @@ function TripHeader({
             type="button"
             onClick={onEdit}
             title={isPast ? 'Past trip — only cover and description are editable' : editTooltip}
-            className="rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-on-surface-variant hover:bg-surface-variant"
+            className="inline-flex min-h-11 items-center rounded-full border border-outline-variant/40 px-md font-body-md text-sm text-on-surface-variant hover:bg-surface-variant md:min-h-9 md:px-sm"
           >
             Edit
           </button>
@@ -987,12 +991,13 @@ function TripHeader({
               }}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
-              className="inline-flex size-9 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
+              aria-label="More trip actions"
+              className="inline-flex size-11 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant md:size-9"
             >
               <span className="material-symbols-outlined">more_horiz</span>
             </button>
             {menuOpen && (
-              <div className="absolute right-0 z-10 mt-xs w-56 overflow-hidden rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg">
+              <div className="absolute right-0 z-10 mt-xs w-56 max-w-[calc(100vw-2*var(--spacing-gutter))] overflow-hidden rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg">
                 {!isPast && !isVoting && (
                   <MenuItem
                     onClick={() => {
@@ -1102,7 +1107,7 @@ function DaySection({
         setDragOver(false);
         onDropOnDay(e);
       }}
-      className={`space-y-sm rounded-xl border-2 p-md transition-colors ${
+      className={`space-y-sm rounded-xl border-2 p-sm transition-colors md:p-md ${
         dragOver
           ? 'border-primary bg-primary-fixed/40'
           : 'border-outline-variant/30 bg-surface-container-low'
@@ -1183,7 +1188,7 @@ function UnscheduledPanel({
           onClick={onAddFromCurated}
           disabled={isPast}
           title={isPast ? PAST_TOOLTIP : undefined}
-          className="rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-on-surface-variant hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-11 items-center rounded-full border border-outline-variant/40 px-md font-body-md text-sm text-on-surface-variant hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60 md:min-h-9 md:px-sm"
         >
           + Add
         </button>
@@ -1424,7 +1429,7 @@ function ModalShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-margin">
+    <div className="fixed inset-0 z-50 flex items-center justify-center py-md px-margin">
       <button
         type="button"
         aria-label="Close dialog"
@@ -1435,7 +1440,7 @@ function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative w-full max-w-2xl space-y-md rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl"
+        className="relative max-h-[calc(100dvh-2*var(--spacing-md))] w-full max-w-2xl space-y-md overflow-y-auto overscroll-contain rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-md shadow-xl md:p-lg"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
         {children}
