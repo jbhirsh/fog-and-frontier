@@ -41,6 +41,13 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Autofix triggers
+        # Every pull-request workflow must wake Claude autofix or be exempt
+        # in .github/ci.json (jbhirsh/ci's autofix/check-triggers.mjs says
+        # why), so a new one can't be left out of claude-autofix.yml.
+        if: github.event_name == 'pull_request'
+        uses: jbhirsh/ci/autofix/check-triggers@main
+
       - name: Lint
         run: npm run lint
 
