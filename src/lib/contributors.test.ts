@@ -18,4 +18,11 @@ describe('contributorsLabel', () => {
     expect(contributorsLabel(['a@example.com', 'b@example.com', 'c@example.com'])).toBe('A, B +1');
     expect(contributorsLabel(['a@x.com', 'b@x.com', 'c@x.com', 'd@x.com'])).toBe('A, B +2');
   });
+
+  it('names people as the label given says', () => {
+    const label = (email: string) => (email === 'tarunkhubchandani@x.com' ? 'Tarun' : 'Someone');
+    expect(contributorsLabel(['tarunkhubchandani@x.com', 'j@x.com', 'k@x.com'], label)).toBe(
+      'Tarun, Someone +1',
+    );
+  });
 });

@@ -67,10 +67,13 @@ function completedRows(completed: CompletedSeed[]) {
   }));
 }
 
-export type ReviewSeed = Omit<ActivityReviewRow, '__typename'>;
+// A seeded review's author has no name unless the test gives one.
+export type ReviewSeed = Omit<ActivityReviewRow, '__typename' | 'authorName'> & {
+  authorName?: string | null;
+};
 
 function reviewRows(reviews: ReviewSeed[]) {
-  return reviews.map((r) => ({ __typename: 'ActivityReview' as const, ...r }));
+  return reviews.map((r) => ({ __typename: 'ActivityReview' as const, authorName: null, ...r }));
 }
 
 export type ApolloRenderOptions = Omit<RenderOptions, 'wrapper'> & {

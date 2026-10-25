@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { authorLabel } from '../lib/activityReviews';
+import { usePersonLabel } from '../lib/people';
 import { useAddPicker } from '../lib/useAddPicker';
 
 interface Props {
@@ -18,6 +18,7 @@ const MAX_CONTRIBUTORS = 10;
 // No free text: the server only credits accounts with a `users` row. The
 // last chip can't be removed, since a credited activity keeps at least one.
 export function ContributorsField({ value, users, onChange }: Props) {
+  const authorLabel = usePersonLabel();
   const rest =
     value.length < MAX_CONTRIBUTORS ? users.filter((email) => !value.includes(email)) : [];
   // Where focus goes once a change lands: a chip's remove button by email,

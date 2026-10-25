@@ -4,8 +4,14 @@ import { authorLabel } from './activityReviews';
 // names, then a count of the rest ("Tarun, Jessica +1"). Null when there is
 // no one to credit, which is always the case for a signed-out visitor (the
 // server doesn't send them the list).
-export function contributorsLabel(emails: readonly string[] | undefined): string | null {
+export function contributorsLabel(
+  emails: readonly string[] | undefined,
+  label: (email: string) => string = authorLabel,
+): string | null {
   if (!emails || emails.length === 0) return null;
-  const names = emails.slice(0, 2).map(authorLabel).join(', ');
+  const names = emails
+    .slice(0, 2)
+    .map((email) => label(email))
+    .join(', ');
   return emails.length > 2 ? `${names} +${emails.length - 2}` : names;
 }

@@ -40,7 +40,17 @@ function client() {
 // #50 AC. Clerk/network failures collapse to `anon` since we can't trust the
 // identity — same conservative posture as the prior boolean helper.
 export type CallerStatus =
-  { state: 'anon' } | { state: 'non_owner'; email: string } | { state: 'owner'; email: string };
+  | { state: 'anon' }
+  | { state: 'non_owner'; email: string; firstName: string | null }
+  | { state: 'owner'; email: string; firstName: string | null };
+
+// The account's first name as Clerk has it (from Google, or as typed at
+// sign-up), for showing people as "Tarun" rather than their email. Null when
+// there is none.
+function firstNameOf(user: { firstName?: string | null }): string | null {
+  const name = typeof user.firstName === 'string' ? user.firstName.trim() : '';
+  return name ? name.slice(0, 50) : null;
+}
 
 // Token-core: resolve a caller from a raw Bearer token string (no req object).
 // The GraphQL context (api/_gqlContext.ts) extracts the token from the request
@@ -59,19 +69,28 @@ export async function getCallerStatusFromToken(token: string | null): Promise<Ca
   }
 
   let email: string | null;
+  let firstName: string | null;
   try {
     const user = await client().users.getUser(userId);
     const primary = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
     email = primary?.emailAddress.trim().toLowerCase() ?? null;
+    firstName = firstNameOf(user);
   } catch {
     return { state: 'anon' };
   }
 
   if (!email) return { state: 'anon' };
-  return ownerEmails.has(email) ? { state: 'owner', email } : { state: 'non_owner', email };
+  return ownerEmails.has(email)
+    ? { state: 'owner', email, firstName }
+    : { state: 'non_owner', email, firstName };
 }
 
-export type CurrentUser = { email: string; role: UserRole };
+export type CurrentUser = {
+  email: string;
+  role: UserRole;
+  /** The account's first name, for the `users` row a claimed invite creates. */
+  firstName?: string | null;
+};
 
 // Identifies any authenticated account — owner OR editor — and upserts a row
 // into `users` so the account is discoverable (invite picker) and its role
@@ -91,14 +110,54 @@ export async function getCurrentUserFromToken(token: string | null): Promise<Cur
   // Google sign-in seed a row and pollute the global invite-picker
   // autocomplete (#51 c4), which is meant to list owners + invitees only.
   // The upsert also keeps `role` correct if an editor is later promoted into
-  // OWNER_EMAILS. display_name stays null — Clerk owns it.
+  // OWNER_EMAILS, and `display_name` the account's first name from Clerk, so
+  // people show as "Tarun" rather than their email (a name Clerk has none
+  // for keeps the one stored).
   if (role === 'owner') {
     await db().execute({
       sql: `INSERT INTO users (email, display_name, created_at, role)
-            VALUES (?, NULL, ?, 'owner')
-            ON CONFLICT(email) DO UPDATE SET role = 'owner'`,
-      args: [email, Date.now()],
+            VALUES (?, ?, ?, 'owner')
+            ON CONFLICT(email) DO UPDATE SET
+              role = 'owner',
+              display_name = COALESCE(excluded.display_name, users.display_name)`,
+      args: [email, status.firstName, Date.now()],
     });
+  } else if (status.firstName && !nameSynced(email, status.firstName)) {
+    await syncEditorName(email, status.firstName);
   }
-  return { email, role };
+  return { email, role, firstName: status.firstName };
+}
+
+// The first name last written for each editor in this instance, or tried
+// for an account with no row yet, until when it needn't be tried again.
+const namesSynced = new Map<string, { name: string; until: number }>();
+
+// How long a name with no row to land in waits before it's tried again: a row
+// an accepted suggestion creates gets it within this, and a signed-in account
+// with no row doesn't write on every request.
+const NO_ROW_RETRY_MS = 10 * 60 * 1000;
+
+function nameSynced(email: string, firstName: string): boolean {
+  const synced = namesSynced.get(email);
+  return synced?.name === firstName && synced.until > Date.now();
+}
+
+// An editor's row, which only an invite claim or an accepted suggestion
+// creates, takes their first name too; never a new row. Remembered once it
+// lands, so a signed-in editor's requests on a warm instance don't each
+// write; with no row yet, it's tried again after a while. A failed write
+// leaves the name for the next request rather than failing this one.
+async function syncEditorName(email: string, firstName: string): Promise<void> {
+  try {
+    const rs = await db().execute({
+      sql: 'UPDATE users SET display_name = ? WHERE email = ?',
+      args: [firstName, email],
+    });
+    namesSynced.set(email, {
+      name: firstName,
+      until: rs.rowsAffected > 0 ? Infinity : Date.now() + NO_ROW_RETRY_MS,
+    });
+  } catch {
+    // Named from their email until a later request writes it.
+  }
 }
