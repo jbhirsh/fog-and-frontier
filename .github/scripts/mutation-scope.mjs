@@ -32,12 +32,45 @@
 // since a weakened test can let any of its mutants survive; so does every
 // file when BASE_REF isn't set.
 //
-// Prints nothing when no changed file is in scope; the workflow then runs
-// its smoke scope instead.
+// Prints nothing when no changed file is in scope. The workflow then skips
+// Stryker, unless the PR touches what Stryker's own setup rests on (WIRING,
+// below): that runs a small smoke scope, so a broken setup still shows at PR
+// time. A smoke run everywhere cost a full install and dry run on every PR
+// that changes only pictures, docs or other workflows, and held up bot PRs'
+// auto-merge.
+//
+//   git diff --name-only origin/main...HEAD \
+//     | node .github/scripts/mutation-scope.mjs --wiring
+//
+// prints `true` or `false`: whether any changed file is one WIRING names.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { matchesGlob } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+/**
+ * The files Stryker's own setup rests on, as globs: its config, the Vitest
+ * config and the setup file it names (`test.setupFiles`), the TypeScript
+ * configs, the dependencies and their patches, this workflow and its
+ * scripts (with their tests). A change to one can break a run however little
+ * source it mutates, so a PR touching one runs the smoke scope.
+ */
+export const WIRING = [
+  'stryker.config.json',
+  'vite.config.ts',
+  'src/test/setup.ts',
+  'tsconfig*.json',
+  'package.json',
+  'package-lock.json',
+  'patches/**',
+  '.github/workflows/mutation.yml',
+  '.github/scripts/mutation-*.mjs',
+];
+
+/** Whether any of the `changed` paths is one WIRING names. */
+export function wiringChanged(changed) {
+  return changed.some((file) => WIRING.some((glob) => matchesGlob(file, glob)));
+}
 
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 
@@ -159,10 +192,19 @@ export async function gitReaders(baseRef) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { mutate } = JSON.parse(readFileSync('stryker.config.json', 'utf8'));
   const changed = readFileSync(0, 'utf8').split('\n').filter(Boolean);
-  const readers = process.env.BASE_REF
-    ? await gitReaders(process.env.BASE_REF)
-    : { readBase: () => null, readHead: () => null, format: async () => null, ranges: () => null };
-  process.stdout.write((await scope(changed, { mutate, ...readers })).join(','));
+  if (process.argv.includes('--wiring')) {
+    process.stdout.write(`${wiringChanged(changed)}\n`);
+  } else {
+    const { mutate } = JSON.parse(readFileSync('stryker.config.json', 'utf8'));
+    const readers = process.env.BASE_REF
+      ? await gitReaders(process.env.BASE_REF)
+      : {
+          readBase: () => null,
+          readHead: () => null,
+          format: async () => null,
+          ranges: () => null,
+        };
+    process.stdout.write((await scope(changed, { mutate, ...readers })).join(','));
+  }
 }

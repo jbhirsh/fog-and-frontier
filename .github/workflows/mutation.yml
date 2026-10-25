@@ -6,9 +6,13 @@
 #   - Pull requests: mutate only the lines the PR added or changed in the
 #     in-scope files it touched (a file new to the branch, or one whose test
 #     changed, whole) — fast, targeted feedback on exactly the code under
-#     review. A PR that changes no mutable source (data, docs, styles,
-#     workflows, a dependency bump) runs a small smoke scope instead, so the
-#     Stryker wiring stays validated and the check always reports.
+#     review. A PR that changes no mutable source (data, docs, pictures,
+#     styles, other workflows) skips Stryker, and the job still reports
+#     success. One of those that touches what Stryker's own setup rests on
+#     (its config, Vitest's config and setup file, tsconfig, the
+#     dependencies, patches/, this workflow and its scripts: WIRING in
+#     mutation-scope.mjs) runs a small smoke scope instead, so a broken
+#     setup still shows at PR time.
 #   - Monthly schedule (+ manual dispatch): full sweep as a drift sensor,
 #     catching test erosion PR-scoped runs can't see (e.g. a test refactor
 #     weakening assertions for untouched code). PRs mutate only the lines
@@ -36,7 +40,9 @@ name: Mutation
 
 on:
   # No `paths:` filter: a workflow skipped by path filtering never reports,
-  # which would leave a required check pending forever.
+  # which would leave a required check pending forever. A PR with nothing to
+  # mutate skips the Stryker steps instead (their `if:` checks the scope
+  # step's `run` output), and a job whose steps were skipped still succeeds.
   pull_request:
     branches: [main]
   schedule:
@@ -82,7 +88,9 @@ jobs:
       # block of lines an edited file adds or changes as `file:first-last`
       # (a new file, or one whose test changed, whole); it reads the base
       # from BASE_REF. The list is one comma-joined line, so it fits
-      # $GITHUB_OUTPUT as is.
+      # $GITHUB_OUTPUT as is. When it's empty, `--wiring` says whether the PR
+      # touched Stryker's setup (deletions included): if so the smoke scope
+      # runs, else `run=false` skips every later PR step.
       - name: Determine mutation scope
         id: scope
         if: github.event_name == 'pull_request'
@@ -91,14 +99,23 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
+          set -o pipefail
           MUTATE=$(git diff --name-only --diff-filter=d "origin/${BASE_REF}"...HEAD \
             | node .github/scripts/mutation-scope.mjs)
           if [ -z "$MUTATE" ]; then
-            echo "No mutable files changed; running the smoke scope to validate the Stryker wiring."
+            WIRING=$(git diff --name-only "origin/${BASE_REF}"...HEAD \
+              | node .github/scripts/mutation-scope.mjs --wiring)
+            if [ "$WIRING" != true ]; then
+              echo "No mutable source or Stryker setup changed: nothing to mutate, so Stryker is skipped."
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "No mutable files changed, but Stryker's setup did; running the smoke scope."
             MUTATE="src/lib/viewMode.ts,src/lib/mapBounds.ts"
           fi
           echo "Mutating: $MUTATE"
           echo "mutate=$MUTATE" >> "$GITHUB_OUTPUT"
+          echo "run=true" >> "$GITHUB_OUTPUT"
 
       # Most recent results from an earlier run of this PR, if any; restoring
       # by prefix picks the newest. Caches are scoped to the PR, so another
@@ -107,7 +124,7 @@ jobs:
       # sweep would catch that.)
       - name: Restore incremental results
         id: incremental
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.scope.outputs.run == 'true'
         uses: actions/cache/restore@v6
         with:
           path: reports/stryker-incremental.json
@@ -123,14 +140,14 @@ jobs:
       # mutation-incremental.mjs keeps only the files in scope and, of a file
       # named by lines, the mutants on them.
       - name: Limit incremental results to this run's scope
-        if: steps.incremental.outputs.cache-matched-key != ''
+        if: steps.scope.outputs.run == 'true' && steps.incremental.outputs.cache-matched-key != ''
         env:
           MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
         run: node .github/scripts/mutation-incremental.mjs reports/stryker-incremental.json "$MUTATE_SCOPE"
 
       - name: Run Stryker (changed lines)
         id: stryker
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.scope.outputs.run == 'true'
         env:
           MUTATE_SCOPE: ${{ steps.scope.outputs.mutate }}
         run: npx stryker run --incremental --mutate "$MUTATE_SCOPE"
@@ -153,9 +170,10 @@ jobs:
 
       # always(): when a run trips the break threshold, Stryker exits nonzero
       # after writing the report — that report is exactly what's needed to
-      # diagnose the failure, so upload it anyway.
+      # diagnose the failure, so upload it anyway. Not on a PR that skipped
+      # Stryker: there is no report, and if-no-files-found would fail the job.
       - name: Upload mutation report
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || steps.scope.outputs.run == 'true')
         uses: actions/upload-artifact@v7
         with:
           name: mutation-report
