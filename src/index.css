@@ -166,9 +166,11 @@
   background-position: right 9px center;
 }
 
+/* Clear of a landscape iPhone's notch, now the page reaches the screen's
+   edges (viewport-fit=cover). */
 @utility px-margin {
-  padding-left: max(24px, 5vw);
-  padding-right: max(24px, 5vw);
+  padding-left: max(24px, 5vw, env(safe-area-inset-left));
+  padding-right: max(24px, 5vw, env(safe-area-inset-right));
 }
 
 /* In the components layer, so a utility on an icon (text-body-md, leading-*,

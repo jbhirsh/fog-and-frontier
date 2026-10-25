@@ -126,7 +126,7 @@ export function RegionPicker({ label, value, onChange, className }: Props) {
           className={className}
         />
         {open && (
-          <div className="absolute inset-x-0 top-full z-10 mt-xs rounded-md border border-outline-variant bg-surface-container-lowest shadow-lg">
+          <div className="absolute inset-x-0 top-full z-20 mt-xs rounded-md border border-outline-variant bg-surface-container-lowest shadow-lg">
             <ul id={listId} role="listbox" aria-label={label} className="max-h-64 overflow-y-auto">
               {matches.map((option, i) => (
                 <li

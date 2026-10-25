@@ -927,7 +927,7 @@ export function CuratedAdventures() {
 
   const filterToolbar = (
     <section
-      className={`z-40 border-b border-outline-variant/20 bg-surface px-gutter py-sm backdrop-blur-xl ${
+      className={`z-40 border-b border-outline-variant/20 bg-surface py-sm px-margin backdrop-blur-xl ${
         view === 'list' ? 'md:sticky md:top-20' : ''
       }`}
     >
@@ -935,7 +935,7 @@ export function CuratedAdventures() {
         {renderFilterChips(true)}
         {/* View toggle + trip actions: their own row below the filters on
             mobile, right-aligned inline on desktop. */}
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-sm md:ml-auto md:flex-nowrap md:justify-end">
+        <div className="flex shrink-0 flex-wrap items-center justify-start gap-sm md:ml-auto md:flex-nowrap md:justify-end">
           {/* Split only exists at lg+, so the segmented control does too;
               below it, a floating "Show map" button (below) opens the
               full-screen map and the sheet's "Hide map" closes it (#96). */}
@@ -1078,7 +1078,7 @@ export function CuratedAdventures() {
               page's own scrollbar moves the cards while the map stays pinned —
               no separate inner scrollbar. */}
             <div
-              className={`px-gutter py-md ${selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''}`}
+              className={`py-md px-margin ${selectionMode && selectedForTrip.size > 0 ? 'pb-32' : ''}`}
             >
               {listHeader}
               {listContent}
@@ -1105,7 +1105,7 @@ export function CuratedAdventures() {
         <>
           {filterToolbar}
           <section
-            className={`mx-auto max-w-screen-2xl px-gutter py-md ${
+            className={`mx-auto max-w-screen-2xl py-md px-margin ${
               selectionMode && selectedForTrip.size > 0 ? 'pb-32' : showMapButton ? 'pb-24' : ''
             }`}
           >
@@ -1119,7 +1119,7 @@ export function CuratedAdventures() {
         <button
           type="button"
           onClick={showMobileMap}
-          className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90"
+          className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90"
         >
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
@@ -1133,7 +1133,7 @@ export function CuratedAdventures() {
       )}
 
       {selectionMode && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/30 bg-surface/95 px-gutter py-md backdrop-blur-xl">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/30 bg-surface/95 pt-md px-margin pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] backdrop-blur-xl">
           <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-md">
             <div className="font-body-md text-on-surface">
               {targetTrip ? (
@@ -1151,11 +1151,11 @@ export function CuratedAdventures() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-md">
+            <div className="ml-auto flex items-center gap-md">
               <button
                 type="button"
                 onClick={clearSelection}
-                className="font-body-md text-on-surface-variant"
+                className="min-h-11 px-xs font-body-md text-on-surface-variant"
               >
                 Cancel
               </button>
@@ -1170,7 +1170,7 @@ export function CuratedAdventures() {
                 }}
                 disabled={selectedForTrip.size === 0 || submittingTarget || overBulkCap}
                 title={overBulkCap ? `Pick at most ${MAX_BULK_ADD}` : undefined}
-                className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-11 items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submittingTarget
                   ? 'Adding…'

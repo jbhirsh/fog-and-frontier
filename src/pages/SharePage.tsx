@@ -334,7 +334,9 @@ function SharedPost({ link }: { link: string }) {
 }
 
 function Page({ children }: { children: React.ReactNode }) {
-  return <section className="mx-auto max-w-2xl space-y-md py-lg px-margin">{children}</section>;
+  return (
+    <section className="mx-auto max-w-2xl space-y-md py-md px-margin md:py-lg">{children}</section>
+  );
 }
 
 function PostLink({ url }: { url: string }) {

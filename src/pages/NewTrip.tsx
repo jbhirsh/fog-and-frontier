@@ -93,7 +93,7 @@ export function NewTrip() {
   }
 
   return (
-    <section className="mx-auto max-w-2xl space-y-lg py-xl px-margin">
+    <section className="mx-auto max-w-2xl space-y-md py-md px-margin md:space-y-lg md:py-xl">
       <div className="space-y-xs">
         <Link to="/trips" className="text-body-sm text-on-surface-variant underline">
           ← Trips

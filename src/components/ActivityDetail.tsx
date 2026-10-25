@@ -288,7 +288,7 @@ export function ActivityDetail({
           aria-label={activity.name}
           ref={scrollRef}
           tabIndex={-1}
-          className={`relative max-h-[95dvh] w-full overflow-y-auto overscroll-contain bg-surface-container-lowest shadow-2xl focus:outline-none md:rounded-xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
+          className={`relative max-h-[95dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl bg-surface-container-lowest shadow-2xl focus:outline-none md:rounded-xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
         >
           <div className="relative aspect-video bg-surface-variant">
             <CoverImage
@@ -351,7 +351,7 @@ export function ActivityDetail({
               {activity.coverCredit}
             </p>
           )}
-          <div className="space-y-md p-md md:p-lg">
+          <div className="space-y-md p-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] md:p-lg">
             <TitleRow activity={activity} />
 
             {park && <PartOfPark park={park} onSelect={selectNearby} />}
