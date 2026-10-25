@@ -27,17 +27,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Subject length, body, fixup and merge-commit rules (jbhirsh/ci).
       - name: Commit messages
-        # Subject length, body, fixup and merge-commit rules from CLAUDE.md.
         if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: .github/scripts/check-commits.sh
+        uses: jbhirsh/ci/commits@main
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: 24
           cache: "npm"
           cache-dependency-path: package-lock.json
 
