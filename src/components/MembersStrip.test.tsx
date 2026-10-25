@@ -155,10 +155,10 @@ describe('MembersStrip', () => {
     expect(screen.queryByRole('button', { name: 'Leave trip' })).not.toBeInTheDocument();
   });
 
-  it('clicking + Invite calls onInvite', async () => {
+  it('clicking Invite calls onInvite', async () => {
     const onInvite = vi.fn();
     render(<MembersStrip {...defaultProps({ onInvite })} />);
-    await userEvent.click(screen.getByRole('button', { name: /\+ Invite/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Invite$/ }));
     expect(onInvite).toHaveBeenCalledTimes(1);
   });
 

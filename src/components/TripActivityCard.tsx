@@ -138,7 +138,7 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       title={tooltip}
-      className={`rounded-full border px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`inline-flex min-h-11 items-center rounded-full border px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 md:min-h-0 ${
         destructive
           ? 'border-error/40 text-error hover:bg-error-container'
           : 'border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant'

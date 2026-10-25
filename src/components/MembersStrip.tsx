@@ -59,9 +59,11 @@ export function MembersStrip({
                 disabled={removeDisabled}
                 title={removeDisabled ? 'Only the trip creator can remove members' : undefined}
                 aria-label={`Remove ${member.email}`}
-                className="inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 hover:text-on-surface-variant disabled:cursor-not-allowed disabled:opacity-40"
+                className="relative inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 before:absolute before:-inset-y-sm before:-right-sm before:left-0 before:content-[''] hover:text-on-surface-variant disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {/* Pulled out by the glyph's empty side, so the chip's insets match. */}
+                {/* Pulled out by the glyph's empty side, so the chip's insets
+                    match; the hit area reaches past it up, down and right for
+                    a finger, but never left over the name. */}
                 <span
                   className="material-symbols-outlined text-icon-sm"
                   style={{ marginRight: glyphBleed('close') }}
@@ -102,7 +104,7 @@ export function MembersStrip({
         <button
           type="button"
           onClick={onLeave}
-          className="rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-on-surface-variant hover:bg-surface-variant"
+          className="inline-flex min-h-11 items-center rounded-full border border-outline-variant/40 px-md font-body-md text-sm text-on-surface-variant hover:bg-surface-variant md:min-h-9 md:px-sm"
         >
           Leave trip
         </button>
@@ -112,9 +114,9 @@ export function MembersStrip({
       <button
         type="button"
         onClick={onInvite}
-        className="inline-flex items-center gap-xs rounded-full border border-outline-variant/40 px-sm py-xs font-body-md text-sm text-primary hover:bg-surface-variant"
+        className="inline-flex min-h-11 items-center gap-xs rounded-full border border-outline-variant/40 px-md font-body-md text-sm text-primary hover:bg-surface-variant md:min-h-9 md:px-sm"
       >
-        <span className="material-symbols-outlined text-icon-sm">person_add</span>+ Invite
+        <span className="material-symbols-outlined text-icon-sm">person_add</span>Invite
       </button>
     </div>
   );

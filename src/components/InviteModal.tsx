@@ -90,7 +90,7 @@ export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, bui
   const inviteLink = createdToken ? buildLink(createdToken) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-margin">
+    <div className="fixed inset-0 z-50 flex items-center justify-center py-md px-margin">
       <button
         type="button"
         aria-label="Close dialog"
@@ -101,7 +101,7 @@ export function InviteModal({ users, excludeEmails, onClose, onCreateInvite, bui
         role="dialog"
         aria-modal="true"
         aria-label="Invite to this trip"
-        className="relative w-full max-w-2xl space-y-md rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl"
+        className="relative max-h-[calc(100dvh-2*var(--spacing-md))] w-full max-w-2xl space-y-md overflow-y-auto overscroll-contain rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-md shadow-xl md:p-lg"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">Invite to this trip</h2>
 
