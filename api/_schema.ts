@@ -294,11 +294,28 @@ export const typeDefs = /* GraphQL */ `
     menuUrl: String
     dietary: [String!]
     allTrailsUrl: String
+    "The trails its AllTrails search found to choose from (#6), its pick first; null when there was no search."
+    allTrailsOptions: [TrailOption!]
     notes: String
     coverImage: String
     coverCredit: String
     "The saved park it's part of (#269), matched from the park Gemini named; null when none is saved."
     parentId: ID
+  }
+
+  "An AllTrails trail page a search returned: its name, description, and what its page gave the search of its picture and numbers."
+  type TrailOption {
+    url: String!
+    title: String!
+    description: String!
+    image: String
+    "Its AllTrails rating, 0–5."
+    rating: Float
+    "How many ratings that is."
+    reviews: Int
+    miles: Float
+    "Elevation gain, in feet."
+    feet: Int
   }
 
   input CoordsInput {

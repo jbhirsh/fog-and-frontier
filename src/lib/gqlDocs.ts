@@ -395,6 +395,16 @@ export const GENERATE_ACTIVITY = graphql(`
         menuUrl
         dietary
         allTrailsUrl
+        allTrailsOptions {
+          url
+          title
+          description
+          image
+          rating
+          reviews
+          miles
+          feet
+        }
         notes
         coverImage
         coverCredit

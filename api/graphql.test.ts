@@ -2213,6 +2213,31 @@ describe('Gemini ops', () => {
       ]);
     });
 
+    it('returns the trails it found to choose from, its pick first', async () => {
+      const OPTIONED =
+        'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { allTrailsUrl allTrailsOptions { url title description image } } } }';
+      setup();
+      trailEvents();
+      stubGemini([answer(HIKE), searching, choosing(STAIRS)]);
+      const r = await run(OPTIONED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+      expect(r.data?.generateActivity).toEqual({
+        activity: {
+          allTrailsUrl: STAIRS,
+          allTrailsOptions: [
+            { url: STAIRS, title: 'Dragon Mountain Stairs', description: '', image: null },
+          ],
+        },
+      });
+      // No search, no options.
+      setup();
+      vi.stubEnv('AGENT_SEARCH_API_KEY', '');
+      stubGemini([answer({ ...HIKE, allTrailsUrl: OTHER })]);
+      const unsearched = await run(OPTIONED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
+      expect(unsearched.data?.generateActivity).toEqual({
+        activity: { allTrailsUrl: OTHER, allTrailsOptions: null },
+      });
+    });
+
     it('gives the draft 90 seconds, then the search 45 in all', async () => {
       setup();
       const timeout = vi.spyOn(AbortSignal, 'timeout');

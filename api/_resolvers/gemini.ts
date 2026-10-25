@@ -576,7 +576,11 @@ async function generateActivity(
       : undefined,
     draftParent({ ...place, partOf: parsed.partOf }),
   ]);
-  if (trail !== undefined) parsed.allTrailsUrl = trail;
+  // The search's pick, and the trails to choose from should it be wrong.
+  if (trail !== undefined) {
+    parsed.allTrailsUrl = trail.url;
+    parsed.allTrailsOptions = trail.options;
+  }
   parsed.parentId = parentId;
   if (cover) {
     parsed.coverImage = cover.url;

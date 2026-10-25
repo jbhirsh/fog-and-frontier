@@ -11,7 +11,7 @@
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
 import { click, glide, scroll, type Scenario } from '../pr-gif.ts';
-import { stubDraft } from './stub-draft.ts';
+import { draftActivity, readyToAdd, stubDraft } from './stub-draft.ts';
 
 const DRAFT = {
   name: 'Fushimi Inari Taisha',
@@ -54,21 +54,9 @@ const scenario: Scenario = {
     await signIn(page);
     await stubDraft(page, DRAFT, 1000);
   },
-  async ready(page) {
-    await page.getByRole('button', { name: 'Add activity' }).first().waitFor();
-    await page.evaluate(() => document.fonts.ready);
-    await glide(page, { x: 500, y: 400 }, 0);
-  },
+  ready: readyToAdd,
   async run(page) {
-    await page.waitForTimeout(400);
-    await click(page, page.getByRole('button', { name: 'Add activity' }).first(), { ms: 600 });
-    await page.getByLabel('Title').waitFor();
-    await click(page, page.getByLabel('Title'), { ms: 400 });
-    await page.keyboard.type('Fushimi Inari', { delay: 40 });
-    await page.waitForTimeout(300);
-    await click(page, page.getByRole('button', { name: /Generate/ }), { ms: 500 });
-    await page.getByLabel('Short description').waitFor({ timeout: 10_000 });
-    await page.waitForTimeout(600);
+    await draftActivity(page, 'Fushimi Inari');
 
     // Down the review to Region.
     // Main's menu takes in its label's text and its options', so it's found by
