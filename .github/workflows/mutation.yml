@@ -9,9 +9,11 @@
 #     review. A PR that changes no mutable source (data, docs, styles,
 #     workflows, a dependency bump) runs a small smoke scope instead, so the
 #     Stryker wiring stays validated and the check always reports.
-#   - Weekly schedule (+ manual dispatch): full sweep as a drift sensor,
+#   - Monthly schedule (+ manual dispatch): full sweep as a drift sensor,
 #     catching test erosion PR-scoped runs can't see (e.g. a test refactor
-#     weakening assertions for untouched code).
+#     weakening assertions for untouched code). PRs mutate only the lines
+#     they change, so what's left for it is drift from helpers, data and
+#     dependencies; once a month is enough.
 #
 # PR runs are incremental (Stryker's --incremental): each run caches its
 # results per PR, and the next push restores them, so only mutants whose code
@@ -22,7 +24,7 @@
 # patches/, the Stryker and Vitest config, the shared test helpers in
 # src/test): a change there misses the cache and starts the PR over. A change
 # that reaches a mutant only through another module isn't detected; the
-# weekly sweep, which never reuses results, is the backstop for that.
+# monthly sweep, which never reuses results, is the backstop for that.
 #
 # Both gate on the `break` threshold in stryker.config.json, a PR on the
 # score of the code it changed. The files in scope are its `mutate` globs
@@ -38,7 +40,9 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 6 * * 1"
+    # 06:00 UTC on the 1st. Not "the first Monday": GitHub's cron ORs the
+    # day-of-month and day-of-week fields, so that would run every Monday.
+    - cron: "0 6 1 * *"
   workflow_dispatch:
 
 concurrency:
@@ -99,7 +103,7 @@ jobs:
       # Most recent results from an earlier run of this PR, if any; restoring
       # by prefix picks the newest. Caches are scoped to the PR, so another
       # PR's results never leak in. (A PR's own commits can write this cache,
-      # so a dropped commit could leave forged results behind; the weekly
+      # so a dropped commit could leave forged results behind; the monthly
       # sweep would catch that.)
       - name: Restore incremental results
         id: incremental
