@@ -8,6 +8,7 @@ import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
 import { BottomSheet } from '../components/BottomSheet';
+import { CompactFilters } from '../components/CompactFilters';
 import { ContributorFilter } from '../components/ContributorFilter';
 import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
@@ -46,6 +47,14 @@ interface OpenPark {
 }
 import { rowEnd, useGridColumns } from '../lib/useGridColumns';
 import { categoryOptionLabel } from '../lib/activityLabels';
+import {
+  CATEGORY_OPTIONS,
+  DISTANCE_LIMITS,
+  DURATION_OPTIONS,
+  PARK_TYPE_LABELS,
+  PARK_TYPE_OPTIONS,
+  type FilterValues,
+} from '../lib/catalogFilterOptions';
 
 type TargetTrip = { id: string; title: string };
 
@@ -53,55 +62,6 @@ type LocationState = {
   target_trip_id?: string;
   target_trip_title?: string;
 } | null;
-
-// "Within N mi of you / of San Jose" (#66): the radius is measured from the
-// visitor when they shared their location, else from home.
-const DISTANCE_LIMITS = [25, 50, 100, 250];
-
-const DURATION_OPTIONS: ('Any' | Duration)[] = [
-  'Any',
-  '1-2 Hours',
-  '2-3 Hours',
-  'Half Day',
-  'Full Day',
-  'Weekend',
-  'Multi-Day',
-];
-
-const CATEGORY_OPTIONS: ('Any' | Category)[] = [
-  'Any',
-  'hiking',
-  'cycling',
-  'water',
-  'food',
-  'culture',
-  'scenic',
-  'climbing',
-  'camping',
-  'other',
-];
-
-const PARK_TYPE_OPTIONS: ('Any' | ParkType)[] = [
-  'Any',
-  'national',
-  'state',
-  'regional',
-  'county',
-  'city',
-  'private',
-  'none',
-];
-
-const PARK_TYPE_LABELS: Record<'Any' | ParkType, string> = {
-  Any: 'Any park type',
-  national: 'National park',
-  state: 'State park',
-  regional: 'Regional park',
-  county: 'County park',
-  city: 'City park',
-  private: 'Private land',
-  none: 'Not in a park',
-};
 
 // A list card's root element by activity id (cards carry data-activity-id).
 function cardElement(id: string): Element | null {
@@ -225,6 +185,35 @@ export function CuratedAdventures() {
   }, [selectedContributors, setContributors]);
   function changeContributors(next: string[]) {
     setSearchParams((prev) => withContributors(prev, next), { replace: true });
+  }
+  // The phone's filter sheet and chips change any filters at once ("Clear
+  // all" sets them all), the URL-sourced ones in a single history entry.
+  const filterValues: FilterValues = {
+    maxDistance,
+    duration,
+    category,
+    parkType,
+    dogOnly,
+    freeOnly,
+    completedOnly,
+    contributors: selectedContributors,
+  };
+  function changeFilters(patch: Partial<FilterValues>) {
+    if (patch.maxDistance !== undefined) setMaxDistance(patch.maxDistance);
+    if (patch.duration !== undefined) setDuration(patch.duration);
+    if (patch.category !== undefined) setCategory(patch.category);
+    if (patch.parkType !== undefined) setParkType(patch.parkType);
+    if (patch.dogOnly !== undefined) setDogOnly(patch.dogOnly);
+    if (patch.freeOnly !== undefined) setFreeOnly(patch.freeOnly);
+    const { completedOnly: completed, contributors } = patch;
+    if (completed === undefined && contributors === undefined) return;
+    setSearchParams(
+      (prev) => {
+        const next = completed === undefined ? prev : withCompletedOnly(prev, completed);
+        return contributors === undefined ? next : withContributors(next, contributors);
+      },
+      { replace: true },
+    );
   }
   // Completion overrides, so "Completed only" agrees with the badges.
   const overrides = useOverrides();
@@ -768,19 +757,31 @@ export function CuratedAdventures() {
   // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
   // scrolls beneath it); in Split it sits above the page-scrolled columns; in
   // Map it's the fixed top row of a viewport-height flex column (below).
-  // The filter chips, shared by the toolbar and the mobile map's sheet (#96).
-  // On mobile they stay on one line that scrolls horizontally, so the toolbar
-  // stays short (wrapping there pushed the map far down the page). On desktop
-  // they wrap instead: the scrollbar is hidden, so a chip past the edge (e.g.
-  // "Completed only" at 1280px) was unreachable in practice.
-  // In the toolbar the chips' box dissolves from md up (`contents`), so the
-  // chips and the view/trip actions wrap as one row: kept in two columns, the
-  // chips wrapped in what was left beside the actions, stranding one on a
-  // line of its own. The mobile map's sheet keeps the box.
+  // The filter chips, shared by the toolbar and the mobile map's sheet (#96),
+  // from md up; a phone gets one Filters button instead (`compactFilters`),
+  // since a row of seven pickers scrolling sideways was too much there. They
+  // wrap: a chip past the edge of a scrolling row (e.g. "Completed only" at
+  // 1280px) was unreachable in practice.
+  // In the toolbar the chips' box dissolves (`contents`), so the chips and
+  // the view/trip actions wrap as one row: kept in two columns, the chips
+  // wrapped in what was left beside the actions, stranding one on a line of
+  // its own. The mobile map's sheet keeps the box.
+  const compactFilters = (
+    <CompactFilters
+      className="md:hidden"
+      values={filterValues}
+      onChange={changeFilters}
+      // What the list shows: on the mobile map, the places in view.
+      count={visibleResults.length}
+      originName={origin.name}
+      showFree={anyFree || freeOnly}
+      contributorOptions={isSignedIn ? contributorChoices : []}
+    />
+  );
   const renderFilterChips = (inToolbar: boolean) => (
     <div
-      className={`-my-1 flex scrollbar-none items-center gap-sm overflow-x-auto px-0.5 py-1 md:min-w-0 md:flex-1 md:flex-wrap md:overflow-visible [&::-webkit-scrollbar]:hidden ${
-        inToolbar ? 'md:contents' : ''
+      className={`hidden min-w-0 flex-1 flex-wrap items-center gap-sm ${
+        inToolbar ? 'md:contents' : 'md:flex'
       }`}
     >
       <FilterPill
@@ -931,11 +932,12 @@ export function CuratedAdventures() {
         view === 'list' ? 'md:sticky md:top-20' : ''
       }`}
     >
-      <div className="mx-auto flex max-w-screen-2xl flex-col gap-sm md:flex-row md:flex-wrap md:items-center">
+      <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-sm">
+        {compactFilters}
         {renderFilterChips(true)}
-        {/* View toggle + trip actions: their own row below the filters on
-            mobile, right-aligned inline on desktop. */}
-        <div className="flex shrink-0 flex-wrap items-center justify-start gap-sm md:ml-auto md:flex-nowrap md:justify-end">
+        {/* View toggle + trip actions: right-aligned, beside the Filters
+            button on a phone and after the filter chips on wider screens. */}
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-sm md:flex-nowrap">
           {/* Split only exists at lg+, so the segmented control does too;
               below it, a floating "Show map" button (below) opens the
               full-screen map and the sheet's "Hide map" closes it (#96). */}
@@ -944,6 +946,7 @@ export function CuratedAdventures() {
           {isSignedIn && (
             <button
               type="button"
+              aria-label={selectionMode ? 'Cancel select' : 'Select for trip'}
               onClick={() => {
                 if (selectionMode) {
                   clearSelection();
@@ -965,7 +968,11 @@ export function CuratedAdventures() {
               >
                 {selectionMode ? 'close' : 'check_box'}
               </span>
-              {selectionMode ? 'Cancel select' : 'Select for trip'}
+              {/* Shortened on a phone, to fit beside the Filters button; the
+                  label keeps the whole name. The button's gap spaces the
+                  words, and the span's space keeps them apart in its text. */}
+              {selectionMode ? 'Cancel' : 'Select'}
+              <span className="hidden md:inline">{selectionMode ? ' select' : ' for trip'}</span>
             </button>
           )}
           {/* Owners add; any other signed-in account suggests one for the
@@ -974,6 +981,7 @@ export function CuratedAdventures() {
             <button
               type="button"
               onClick={() => setAdding(true)}
+              aria-label={isOwner ? 'Add activity' : 'Suggest activity'}
               className="inline-flex h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm whitespace-nowrap text-on-primary transition-opacity hover:opacity-90"
             >
               <span
@@ -988,7 +996,8 @@ export function CuratedAdventures() {
               >
                 {isOwner ? 'add' : 'lightbulb'}
               </span>
-              {isOwner ? 'Add activity' : 'Suggest activity'}
+              {isOwner ? 'Add' : 'Suggest'}
+              <span className="hidden md:inline"> activity</span>
             </button>
           )}
         </div>
@@ -1038,7 +1047,10 @@ export function CuratedAdventures() {
             {/* The toolbar isn't shown on the mobile map, so the sheet
                 carries its filter chips: otherwise active filters would
                 narrow the pins with no way to see or change them here. */}
-            <div className="pb-sm">{renderFilterChips(false)}</div>
+            <div className="flex flex-wrap items-center gap-sm pb-sm">
+              {compactFilters}
+              {renderFilterChips(false)}
+            </div>
             {/* The toolbar that shows a failed catalog read elsewhere isn't
                 here, and a failed read must not pass for an empty catalog. */}
             {loadError && (

@@ -31,6 +31,23 @@ test.describe('visual regression — mobile', () => {
     });
   });
 
+  test('curated list — filters on, as chips under the Filters button', async ({ page }) => {
+    await page.goto('/?completed=1');
+    await waitForVisualReady(page);
+    await assertNoHorizontalOverflow(page);
+    await expect(page).toHaveScreenshot('curated-mobile-filters-on.png', { fullPage: false });
+  });
+
+  test('curated list — the Filters sheet', async ({ page }) => {
+    await page.goto('/');
+    await waitForVisualReady(page);
+    await page.getByRole('button', { name: /^Filters/ }).click();
+    await page.getByRole('dialog', { name: 'Filters' }).waitFor();
+    // Past the sheet's rise.
+    await page.waitForTimeout(400);
+    await expect(page).toHaveScreenshot('curated-mobile-filter-sheet.png', { fullPage: false });
+  });
+
   test('explore empty state', async ({ page }) => {
     // Explore is owner-only (#111): a non-owner is redirected home, so flip
     // the dev/test-only override before boot to snapshot the owner view.
