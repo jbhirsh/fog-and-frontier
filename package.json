@@ -113,6 +113,10 @@
     "vitest": "^5.0.2",
     "vitest-axe": "^0.1.0"
   },
+  "//overrides": [
+    "eslint-plugin-import and eslint-plugin-jsx-a11y -> eslint: $eslint: neither has a release whose peer range includes ESLint 10. Delete each once one does (or move import to eslint-plugin-import-x, which already supports 10).",
+    "@vercel/cli-config -> zod ^4.6.6: lifts zod past GHSA-mrhx-c7xc-m3w5, which fails CI's npm audit, since every release of @vercel/cli-config (pulled in by @vercel/blob) pins zod 4.1.11. Delete it once a release pins a fixed zod."
+  ],
   "overrides": {
     "eslint-plugin-import": {
       "eslint": "$eslint"
