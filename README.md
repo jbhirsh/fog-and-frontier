@@ -228,8 +228,12 @@ paid), and it **skips green** when `GEMINI_API_KEY` is absent
 calls. Hikes are searched for on AllTrails only when the
 `AGENT_SEARCH_API_KEY` secret is set too.
 
-**Golden set status.** The golden set is **DRAFT — pending owner review**; each
-case cites the provenance of its expected coordinates/data and an as-of date.
+**Golden set status.** The golden set was **reviewed on 2026-10-25** (#280):
+each case was checked against the source its notes cite, and corrected where
+it had drifted (two pins, a city and a region that accepted too much, stale
+fees and stats, and a nonsense title one letter from a real place). Each case
+cites the provenance of its expected coordinates/data and an as-of date;
+review it again when a case's place changes.
 
 **Known limitations.** The plausibility judge is Gemini grading Gemini (both
 3.8 Flash). Its rubric was calibrated during owner review (2026-07-10) after

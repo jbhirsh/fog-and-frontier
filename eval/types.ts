@@ -160,10 +160,12 @@ export type GoldenCase = GenerateCase | AlltrailsCase | DiscoverCase | TripSugge
 
 export interface GoldenSet {
   _meta: {
-    /** stays "DRAFT — pending owner review" until the repo owner verifies */
+    /** whether, and when, the owner has reviewed the cases' expectations */
     status: string;
     coordinateSources: string;
     authoredAt: string;
+    /** when the cases were last reviewed against their sources */
+    reviewedAt?: string;
   };
   cases: GoldenCase[];
 }

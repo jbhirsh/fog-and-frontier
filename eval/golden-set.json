@@ -1,8 +1,9 @@
 {
   "_meta": {
-    "status": "DRAFT — pending owner review",
+    "status": "Reviewed 2026-10-25 (#280): each case checked against the source its notes cite",
     "coordinateSources": "each case's notes field cites its authority",
-    "authoredAt": "2026-07-09"
+    "authoredAt": "2026-07-09",
+    "reviewedAt": "2026-10-25"
   },
   "cases": [
     {
@@ -28,10 +29,11 @@
           "us/california/alamere-falls-and-wildcat-camp-via-bear-valley-trail",
           "us/california/wildcat-camp-trail-to-alamere-falls",
           "us/california/alamere-falls-to-glen-camp-via-beach",
-          "us/california/alamere-falls-via-olema-valley-bolema-lake-ranch-coast-trail--2"
+          "us/california/alamere-falls-via-olema-valley-bolema-lake-ranch-coast-trail--2",
+          "us/california/alamere-falls-and-pelican-hill-via-stewart-glen-and-coast-loop"
         ]
       },
-      "notes": "Point Reyes National Seashore (north Marin). Coords centered on the Palomarin trailhead (NPS Palomarin Trailhead page, 37.934/-122.7468); the falls themselves sit ~4 km NW (NPS Alamere Falls page, 37.9537/-122.7835), so a 15 km tolerance covers whichever point the model returns. parkType national = National Seashore. City intentionally omitted (Bolinas vs Point Reyes Station vs 'Point Reyes' all defensible). Source: nps.gov/pore; as of 2026-07-09. AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, the Alamere Falls routes it lists from Palomarin, Bear Valley, Wildcat Camp and Olema Valley, checked with the AllTrails connector on 2026-10-24."
+      "notes": "Point Reyes National Seashore (north Marin). Coords centered on the Palomarin trailhead (NPS Palomarin Trailhead page, 37.934/-122.7468); the falls themselves sit ~4 km NW (NPS Alamere Falls page, 37.9537/-122.7835), so a 15 km tolerance covers whichever point the model returns. parkType national = National Seashore. City intentionally omitted (Bolinas vs Point Reyes Station vs 'Point Reyes' all defensible). Source: nps.gov/pore; as of 2026-07-09. AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, the Alamere Falls routes it lists from Palomarin, Bear Valley, Wildcat Camp, Olema Valley, and Pelican Hill by the Stewart and Glen trails, checked with the AllTrails connector on 2026-10-24 and 2026-10-25."
     },
     {
       "id": "gen-elkhorn-slough-kayak",
@@ -65,7 +67,7 @@
         "category": ["hiking"],
         "region": ["east-bay"],
         "parkType": ["regional"],
-        "city": ["Fremont", "Milpitas"],
+        "city": ["Fremont"],
         "geo": {
           "lat": 37.5044,
           "lng": -121.9083,
@@ -82,7 +84,7 @@
           "us/california/sunol-wilderness-to-mission-peak"
         ]
       },
-      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14). AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, the Mission Peak routes it lists from Stanford Avenue, Ohlone College, Hidden Valley, Peak Meadow and Sunol, checked with the AllTrails connector on 2026-10-24."
+      "notes": "Mission Peak Regional Preserve, managed by EBRPD → parkType regional. Coords centered on the Stanford Avenue staging area (37°30'15.74\"N 121°54'29.98\"W → 37.5044/-121.9083, per AllTrails / EBRPD trailhead data); the summit sits ~3 km NE, covered by the 12 km tolerance. Source: ebparks.org/parks/mission-peak; as of 2026-07-09. costTier: free at the Stanford Ave staging area, $4 at the Ohlone College lot, so free or $ (ebparks.org/parks/mission; as of 2026-10-14). AllTrails link: a hike drafted without one, or with another trail, fails; accepted are, as AllTrails lists them, the Mission Peak routes it lists from Stanford Avenue, Ohlone College, Hidden Valley, Peak Meadow and Sunol, checked with the AllTrails connector on 2026-10-24. City: Fremont only; EBRPD places the preserve there, and Milpitas reaches it only through Ed Levin (ebparks.org/parks/mission-peak; as of 2026-10-25)."
     },
     {
       "id": "gen-lands-end",
@@ -163,13 +165,13 @@
         "region": ["north-bay"],
         "parkType": ["national"],
         "geo": {
-          "lat": 37.897,
-          "lng": -122.5817,
+          "lat": 37.8919,
+          "lng": -122.5708,
           "toleranceKm": 10
         },
         "costTier": ["$", "$$"]
       },
-      "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.897/-122.5817 (Wikipedia infobox / NPS). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09. costTier: $15 entry + $9 parking reservation per car, ~$19.50 each for two → $; $$ accepted for a model that counts the car alone (nps.gov/muwo/planyourvisit/fees.htm; as of 2026-10-14)."
+      "notes": "Muir Woods National Monument, Marin County → parkType national, region north-bay. category accepts hiking OR scenic (old-growth redwood walk). Coords: 37.8919/-122.5708 (Wikipedia infobox; as of 2026-10-25). City omitted (Mill Valley vs 'Muir Woods'). Source: nps.gov/muwo; as of 2026-07-09. costTier: $15 entry + $10 parking reservation per car, $20 each for two → $ (gomuirwoods.com/parking; as of 2026-10-25); $$ accepted for a model that counts the car alone (nps.gov/muwo/planyourvisit/fees.htm; as of 2026-10-14)."
     },
     {
       "id": "gen-duartes-tavern",
@@ -204,7 +206,7 @@
         "judgeDescriptions": true,
         "category": ["scenic"],
         "region": ["central-coast"],
-        "city": ["Pebble Beach", "Monterey", "Pacific Grove"],
+        "city": ["Pebble Beach", "Monterey", "Pacific Grove", "Carmel-by-the-Sea", "Carmel"],
         "geo": {
           "lat": 36.5848,
           "lng": -121.9651,
@@ -212,7 +214,7 @@
         },
         "costTier": ["$"]
       },
-      "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the three towns the loop touches. As of 2026-07-09. costTier $: ~$11-12 per vehicle at the gate, $ split or not (travel guides; the official rate varies year to year; as of 2026-10-14)."
+      "notes": "Scenic coastal loop through Pebble Beach → category scenic (system prompt: 'scenic for drives/lookouts'), region central-coast. parkType omitted — privately managed by Pebble Beach Co.; model may say 'private' or omit, so it is not graded. Coords: 36.5848/-121.9651 (Wikipedia '17-Mile Drive'). 20 km tolerance (a 17-mile loop; the model may return any gate or midpoint). City accepts the towns the loop touches or has a gate in: Pebble Beach, Monterey, Pacific Grove and Carmel (Wikipedia lists a Carmel gate; added 2026-10-25). As of 2026-07-09. costTier $: $12.50 per vehicle at the gate, $ split or not (pebblebeach.com/17-mile-drive; as of 2026-10-25)."
     },
     {
       "id": "gen-cannon-beach",
@@ -273,13 +275,13 @@
         "parkType": ["state"],
         "city": ["Los Gatos", "Saratoga"],
         "geo": {
-          "lat": 37.2316,
-          "lng": -122.1169,
+          "lat": 37.2306,
+          "lng": -122.0957,
           "toleranceKm": 15
         },
         "partOf": ["Castle Rock State Park"]
       },
-      "notes": "Castle Rock STATE Park on the Skyline crest → parkType state, category climbing (sandstone bouldering). Region ambiguous across the Santa Cruz Mtns crest (south-bay / peninsula / central-coast) — all accepted. Coords: 37.2316/-122.1169, 15000 Skyline Blvd (Wikipedia 'Castle Rock State Park (California)'). Mailing city is Los Gatos; the park is between Los Gatos and Saratoga, so both accepted. As of 2026-07-09."
+      "notes": "Castle Rock STATE Park on the Skyline crest → parkType state, category climbing (sandstone bouldering). Region ambiguous across the Santa Cruz Mtns crest (south-bay / peninsula / central-coast): the park spans Santa Clara, San Mateo and Santa Cruz counties, so all accepted. Coords: 37.2306/-122.0957, the Wikipedia 'Castle Rock State Park (California)' infobox (as of 2026-10-25; the earlier 37.2316/-122.1169 was ~1.9 km off it). Mailing city is Los Gatos; the park is between Los Gatos and Saratoga, so both accepted. As of 2026-07-09."
     },
     {
       "id": "gen-dragon-mountain-share",
@@ -292,7 +294,7 @@
       "expect": {
         "judgeDescriptions": true,
         "category": ["hiking"],
-        "region": ["south-bay", "east-bay"],
+        "region": ["south-bay"],
         "city": ["Milpitas"],
         "geo": {
           "lat": 37.4524,
@@ -304,7 +306,7 @@
           "us/california/dragon-mountain-trail-2"
         ]
       },
-      "notes": "The first real share (#6): a reel listing nine Bay Area hikes, drafted as the share page seeds it (place name and city as the title; the post's link and caption as notes). Thiên Long Sơn, a private Vietnamese Buddhist monastery in the hills above Milpitas whose 450-step 'Stairway to Heaven' is the hike. Its first draft came back with no AllTrails link although AllTrails lists it twice: 'Dragon Mountain Stairs' (trailhead 17 m from the drafted pin; 0.9 mi, 583 ft) and 'Dragon Mountain Trail' (2.8 mi, 1,066 ft), checked with AllTrails' own search on 2026-10-24. A prompt rule alone (search AllTrails by every name) still missed it on its first graded run; the AllTrails search (api/_allTrailsSearch.ts), which searches AllTrails itself, is what's meant to find it. Coords: the drafted pin, 37.4524/-121.8505, at the Stairs trailhead. Region: Milpitas sits on the South Bay / East Bay line (gen-mission-peak files it under east-bay), so either. parkType not graded: private grounds, which the model may call 'private' or omit."
+      "notes": "The first real share (#6): a reel listing nine Bay Area hikes, drafted as the share page seeds it (place name and city as the title; the post's link and caption as notes). Thiên Long Sơn (Dragon Mountain Park, 3215 Calaveras Rd), Vietnamese Buddhist grounds in the hills above Milpitas whose stairway (about 250 ft of steps, per Weekend Sherpa) is the hike. Its first draft came back with no AllTrails link although AllTrails lists it twice: 'Dragon Mountain Stairs' (trailhead 17 m from the drafted pin; 0.9 mi, 583 ft) and 'Dragon Mountain Trail' (2.8 mi, 1,066 ft), checked with AllTrails' own search on 2026-10-24. A prompt rule alone (search AllTrails by every name) still missed it on its first graded run; the AllTrails search (api/_allTrailsSearch.ts), which searches AllTrails itself, is what's meant to find it. Coords: the drafted pin, 37.4524/-121.8505, at the Stairs trailhead. Region: south-bay; Milpitas is in Santa Clara County (east-bay dropped 2026-10-25, when gen-mission-peak stopped accepting Milpitas). parkType not graded: private grounds, which the model may call 'private' or omit."
     },
     {
       "id": "gen-pinnacles-camping",
@@ -351,7 +353,7 @@
       "feature": "generateActivity",
       "kind": "adversarial",
       "input": {
-        "title": "xqzzt blorf paddleworth ceremony"
+        "title": "xqzzt blorf vrennikund ceremony"
       },
       "expect": {
         "graceful": {
@@ -360,9 +362,9 @@
         }
       },
       "expectedFailure": {
-        "reason": "ACTIVITY_SCHEMA forces all required fields with no refusal affordance, so the model fabricates a record for nonsense input; known gap, candidate follow-up issue"
+        "reason": "ACTIVITY_SCHEMA forces all required fields with no refusal affordance, so the model drafts something for nonsense input rather than declining; #281 would let it decline"
       },
-      "notes": "Pure-nonsense title with no real-world referent. The IDEAL behavior is to refuse (surface BAD_GATEWAY via the parity guard), so ifReturned=null means 'returning any object at all fails'. But the responseSchema marks name/category/region/lat/lng/etc. as required with no 'unknown' escape hatch, so gemini-2.5-flash almost always hallucinates a plausible-looking Bay Area record instead of erroring — hence expectedFailure. A predicted failure scores as pass and is reported as a KNOWN FINDING; an unexpected pass (the model learned to refuse) flags that the golden set needs review. No coordinates to cite. As of 2026-07-09."
+      "notes": "Pure-nonsense title with no real-world referent. The IDEAL behavior is to refuse (surface BAD_GATEWAY), so ifReturned=null means 'returning any object at all fails'. But the response schema marks name/category/region/lat/lng/etc. as required with no way to decline, so the model drafts a record instead of erroring, hence expectedFailure. A predicted failure scores as pass and is reported as a KNOWN FINDING; an unexpected pass (the model learned to refuse) flags that the golden set needs review. No coordinates to cite. As of 2026-07-09; on 2026-10-25 gemini-3.8-flash matched the old title's 'paddleworth' to a real church in Paddlesworth, Kent, so the title's made-up word is now one with no near match (vrennikund). #281 would add the refusal."
     },
     {
       "id": "gen-abroad-fushimi-inari",
@@ -514,7 +516,7 @@
           }
         }
       },
-      "notes": "Real AllTrails page — the slug 'alamere-falls-via-coast-trail-from-palomarin-trailhead' appears verbatim in AllTrails' own search-result listing ('5,257 Reviews'). Published stats: 13.7 mi round trip, ~1,900 ft gain, 4.8★. Bounds set generously (distance 11–16, elevation 900–2600) to absorb source variance in the reported gain; rating nullable. Source: AllTrails search snippet; as of 2026-07-09."
+      "notes": "Real AllTrails page — the slug 'alamere-falls-via-coast-trail-from-palomarin-trailhead' appears verbatim in AllTrails' own search-result listing ('5,847 Reviews' as of 2026-10-25). Published stats: 13.8 mi round trip, 1,771 ft gain (2026-10-25; ~1,900 ft as of 2026-07-09), 4.8★. Bounds set generously (distance 11–16, elevation 900–2600) to absorb source variance in the reported gain; rating nullable. Source: AllTrails search snippet; as of 2026-07-09."
     },
     {
       "id": "at-unknown-trail",
