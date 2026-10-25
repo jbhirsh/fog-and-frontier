@@ -291,10 +291,8 @@ function trailTools(apiKey: string, searchKey: string): TrailTools {
       body: JSON.stringify(body),
       signal,
     });
-    if (!r.ok) {
-      await r.body?.cancel();
-      throw new HttpError(r.status);
-    }
+    // What a refusal says (a bad request, a quota) is what explains it.
+    if (!r.ok) throw new HttpError(r.status, (await r.text()).slice(0, 300));
     return r.json();
   };
   return {
@@ -307,6 +305,54 @@ function trailTools(apiKey: string, searchKey: string): TrailTools {
         contentSearchSpec: { snippetSpec: { returnSnippet: true } },
       }),
   };
+}
+
+// How long a draft's Gemini request may take, answer included. Drafts that
+// search and read pages take a while, so this only stops one that hangs:
+// each logs its time (draft.generated), so the limit can follow what they
+// take.
+const DRAFT_TIMEOUT_MS = 90_000;
+
+type GeminiDraft = Parameters<typeof responseText>[0] & {
+  candidates?: {
+    finishReason?: unknown;
+    groundingMetadata?: { webSearchQueries?: unknown };
+    urlContextMetadata?: { urlMetadata?: unknown };
+  }[];
+  usageMetadata?: Record<string, unknown>;
+};
+
+// A draft request that ran out of time, as an error to try again; any other
+// failure as it was.
+function timedOut(err: unknown, started: number): unknown {
+  if ((err as { name?: unknown } | null)?.name !== 'TimeoutError') return err;
+  logEvent('draft.timed_out', { ms: Date.now() - started });
+  return badGateway('the draft took too long; try again');
+}
+
+const count = (list: unknown) => (Array.isArray(list) ? list.length : 0);
+
+// What a draft's Gemini answer cost in time: what it searched for, how many
+// pages it read, its tokens (thinking ones are much of the wait), and why it
+// stopped. One line, written after the answer, so it adds nothing to it.
+function logDraft(data: GeminiDraft, ms: number) {
+  const candidate = data.candidates?.[0];
+  const queries: unknown = candidate?.groundingMetadata?.webSearchQueries;
+  const usage = data.usageMetadata;
+  logEvent('draft.generated', {
+    ms,
+    queries: Array.isArray(queries)
+      ? (queries as unknown[]).filter((q): q is string => typeof q === 'string')
+      : [],
+    pagesRead: count(candidate?.urlContextMetadata?.urlMetadata),
+    tokens: {
+      prompt: usage?.promptTokenCount,
+      tools: usage?.toolUsePromptTokenCount,
+      thinking: usage?.thoughtsTokenCount,
+      output: usage?.candidatesTokenCount,
+    },
+    finish: candidate?.finishReason,
+  });
 }
 
 // The saved park a draft is part of (#269), matched from the name Gemini
@@ -375,6 +421,11 @@ async function generateActivity(
 
   const userPrompt = notes ? `Title: ${title}\n\nUser notes/links:\n${notes}` : `Title: ${title}`;
 
+  const started = Date.now();
+  // One limit for the request and its answer, so a draft that hangs fails in
+  // time to try again rather than leaving the form waiting (one ran past two
+  // minutes in the eval).
+  const signal = AbortSignal.timeout(DRAFT_TIMEOUT_MS);
   let r: Response;
   try {
     r = await fetch(`${ENDPOINT}?key=${apiKey}`, {
@@ -386,15 +437,17 @@ async function generateActivity(
         tools: GROUNDING_TOOLS,
         generationConfig: jsonConfig(ACTIVITY_SCHEMA, 'medium'),
       }),
+      signal,
     });
   } catch (err) {
     await giveBack();
-    throw err;
+    throw timedOut(err, started);
   }
 
   if (!r.ok) {
     await giveBack();
-    const text = await r.text();
+    // What it said, if it says it in time; the refusal is the error either way.
+    const text = await r.text().catch(() => '');
     logServerError(new Error(`gemini request failed: ${r.status}`), {
       route: ROUTE,
       method: 'POST',
@@ -404,7 +457,16 @@ async function generateActivity(
     throw badGateway('gemini request failed');
   }
 
-  const text = responseText((await r.json()) as Parameters<typeof responseText>[0]);
+  let data: GeminiDraft;
+  try {
+    data = (await r.json()) as GeminiDraft;
+  } catch (err) {
+    // Gemini answered (and billed), so the draft stays counted.
+    throw timedOut(err, started);
+  }
+  const geminiMs = Date.now() - started;
+  logDraft(data, geminiMs);
+  const text = responseText(data);
   if (!text) {
     logServerError(new Error('no content in gemini response'), {
       route: ROUTE,
@@ -520,6 +582,10 @@ async function generateActivity(
     parsed.coverImage = cover.url;
     parsed.coverCredit = cover.credit;
   }
+  // Where the draft's time went: Gemini's answer, then the cover, trail and
+  // park lookups, which run together.
+  const ms = Date.now() - started;
+  logEvent('draft.timing', { ms, geminiMs, lookupsMs: ms - geminiMs });
 
   return { activity: parsed };
 }

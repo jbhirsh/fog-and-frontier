@@ -1707,6 +1707,186 @@ describe('Gemini ops', () => {
     expect(givenBack()).toHaveLength(0);
   });
 
+  // The info lines a draft logged, by event.
+  function infoEvents() {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    info.mockClear();
+    return (event: string) =>
+      info.mock.calls.map((c) => JSON.parse(String(c[0])) as Row).filter((e) => e.event === event);
+  }
+  const CASTLE_ROCK = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    category: 'scenic',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.2,
+    lng: -122.1,
+    duration: 'Half Day',
+  };
+  const TIMED_OUT = () =>
+    Promise.reject(Object.assign(new Error('aborted'), { name: 'TimeoutError' }));
+
+  it('generateActivity: gives a draft 90 seconds, then gives it back and says to try again', async () => {
+    setup();
+    const events = infoEvents();
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const fetchMock = vi.fn<(url: string, init?: { signal?: unknown }) => Promise<never>>(() =>
+      TIMED_OUT(),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors?.[0]?.message).toBe('the draft took too long; try again');
+    expect(code(r)).toBe('BAD_GATEWAY');
+    expect(timeout.mock.calls).toEqual([[90_000]]);
+    const made = (timeout.mock.results[0] as { value: unknown } | undefined)?.value;
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(made);
+    // No answer came, so the draft is given back.
+    expect(givenBack()).toHaveLength(1);
+    const [timedOut] = events('draft.timed_out');
+    // Time taken, not a clock reading.
+    expect(timedOut?.ms).toBeGreaterThanOrEqual(0);
+    expect(timedOut?.ms).toBeLessThan(60_000);
+    timeout.mockRestore();
+  });
+
+  it("generateActivity: a refusal whose message doesn't come in time is still the refusal", async () => {
+    setup();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false, status: 503, text: TIMED_OUT })),
+    );
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors?.[0]?.message).toBe('gemini request failed');
+    expect(givenBack()).toHaveLength(1);
+  });
+
+  it('generateActivity: a draft that runs out of time mid-answer stays spent', async () => {
+    setup();
+    infoEvents();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true, status: 200, json: TIMED_OUT })),
+    );
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors?.[0]?.message).toBe('the draft took too long; try again');
+    expect(givenBack()).toHaveLength(0);
+  });
+
+  it('generateActivity: a request that fails without an error is no time-out', async () => {
+    setup();
+    const events = infoEvents();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    // A rejection with nothing, as a broken fetch might give.
+    const nothing = { then: (_: unknown, reject: (reason: unknown) => void) => reject(null) };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => nothing as unknown as Promise<Response>),
+    );
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors).toBeDefined();
+    expect(events('draft.timed_out')).toEqual([]);
+  });
+
+  it('generateActivity: any other failure reading the answer is no time-out', async () => {
+    setup();
+    const events = infoEvents();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.reject(new SyntaxError('bad body')),
+        }),
+      ),
+    );
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, EDITOR);
+    expect(r.errors?.[0]?.message).not.toBe('the draft took too long; try again');
+    expect(events('draft.timed_out')).toEqual([]);
+  });
+
+  it('generateActivity: logs what the draft searched, read and spent, and where its time went', async () => {
+    setup();
+    const events = infoEvents();
+    stubFetch({
+      candidates: [
+        {
+          content: { parts: [{ text: JSON.stringify(CASTLE_ROCK) }] },
+          finishReason: 'STOP',
+          groundingMetadata: { webSearchQueries: ['castle rock state park', 7, 'fees'] },
+          urlContextMetadata: { urlMetadata: [{}, {}] },
+        },
+      ],
+      usageMetadata: {
+        promptTokenCount: 100,
+        toolUsePromptTokenCount: 50,
+        thoughtsTokenCount: 900,
+        candidatesTokenCount: 300,
+      },
+    });
+    // A clock that moves 100 ms each time it's read.
+    let now = 1_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => (now += 100));
+    const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    const [generated] = events('draft.generated');
+    expect(generated).toEqual(
+      expect.objectContaining({
+        queries: ['castle rock state park', 'fees'],
+        pagesRead: 2,
+        tokens: { prompt: 100, tools: 50, thinking: 900, output: 300 },
+        finish: 'STOP',
+      }),
+    );
+    const [timing] = events('draft.timing');
+    expect(timing?.geminiMs).toBe(generated?.ms);
+    expect(timing?.geminiMs).toBeGreaterThan(0);
+    expect(timing?.lookupsMs).toBeGreaterThan(0);
+    expect(timing?.ms).toBe((timing?.geminiMs as number) + (timing?.lookupsMs as number));
+    // Time taken, not a clock reading.
+    expect(timing?.ms).toBeLessThan(60_000);
+  });
+
+  it('generateActivity: logs a draft Gemini answered with nothing', async () => {
+    for (const body of [{}, { candidates: [] }]) {
+      setup();
+      const events = infoEvents();
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      stubFetch(body);
+      const r = await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+      expect(r.errors?.[0]?.message).toBe('no content in gemini response');
+      expect(events('draft.generated')).toEqual([
+        expect.objectContaining({ queries: [], pagesRead: 0, tokens: {} }),
+      ]);
+    }
+  });
+
+  it('generateActivity: logs a draft without search or token details as none', async () => {
+    setup();
+    const events = infoEvents();
+    stubFetch(geminiText(JSON.stringify(CASTLE_ROCK)));
+    await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(events('draft.generated')).toEqual([
+      expect.objectContaining({ queries: [], pagesRead: 0, tokens: {} }),
+    ]);
+    stubFetch({
+      candidates: [
+        {
+          content: { parts: [{ text: JSON.stringify(CASTLE_ROCK) }] },
+          groundingMetadata: { webSearchQueries: 'castle rock' },
+          urlContextMetadata: { urlMetadata: {} },
+        },
+      ],
+    });
+    await run(DRAFT, { i: { title: 'Castle Rock' } }, OWNER);
+    expect(events('draft.generated')[1]).toEqual(
+      expect.objectContaining({ queries: [], pagesRead: 0 }),
+    );
+  });
+
   it("generateActivity: owners aren't counted", async () => {
     setup({ assistLeft: false });
     stubCastleRock();
@@ -2033,13 +2213,13 @@ describe('Gemini ops', () => {
       ]);
     });
 
-    it('gives the search 45 seconds in all', async () => {
+    it('gives the draft 90 seconds, then the search 45 in all', async () => {
       setup();
       const timeout = vi.spyOn(AbortSignal, 'timeout');
       trailEvents();
       stubGemini([answer(HIKE), choosing()]);
       await run(LINKED, { i: { title: 'Dragon Mountain Peak' } }, OWNER);
-      expect(timeout.mock.calls).toEqual([[45_000]]);
+      expect(timeout.mock.calls).toEqual([[90_000], [45_000]]);
       timeout.mockRestore();
     });
 
@@ -2069,10 +2249,20 @@ describe('Gemini ops', () => {
         [
           [{ ok: false, body: { error: 'overloaded' } }],
           undefined,
-          { step: 'gemini', status: 503 },
+          { step: 'gemini', status: 503, detail: '{"error":"overloaded"}' },
         ],
         [[timedOut], undefined, { step: 'gemini', error: 'TimeoutError' }],
-        [[searching], { ok: false, body: {} }, { step: 'search', status: 503 }],
+        [[searching], { ok: false, body: {} }, { step: 'search', status: 503, detail: '{}' }],
+        // Only the start of a long refusal.
+        [
+          [searching],
+          { ok: false, body: { error: 'x'.repeat(400) } },
+          {
+            step: 'search',
+            status: 503,
+            detail: JSON.stringify({ error: 'x'.repeat(400) }).slice(0, 300),
+          },
+        ],
         [[searching], new TypeError('fetch failed'), { step: 'search', error: 'TypeError' }],
       ];
       for (const [answers, searchFails, logged] of cases) {

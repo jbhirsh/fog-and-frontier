@@ -30,9 +30,12 @@ export interface DraftedHike {
 export const AGENT_SEARCH_URL =
   'https://discoveryengine.googleapis.com/v1/projects/gen-lang-client-0818068083/locations/global/collections/default_collection/engines/alltrails-search_1792884407396/servingConfigs/default_search:searchLite';
 
-/** A request that was answered with an error status. */
+/** A request that was answered with an error status, and the start of what it said. */
 export class HttpError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly detail = '',
+  ) {
     super(`HTTP ${status}`);
     this.name = 'HttpError';
   }
@@ -231,6 +234,7 @@ export async function findAllTrailsUrl(
           ms: ms(),
           queries,
           results: found.size,
+          pick: chosen,
           chosen: chosen !== null,
           kept: kept !== null,
         });
@@ -253,7 +257,7 @@ export async function findAllTrailsUrl(
     logEvent('draft.trail_search_failed', {
       step,
       ...(err instanceof HttpError
-        ? { status: err.status }
+        ? { status: err.status, detail: err.detail }
         : { error: err instanceof Error ? err.name : 'Error' }),
       ms: ms(),
     });

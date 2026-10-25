@@ -252,7 +252,13 @@ describe('HttpError', () => {
   it('names the status it failed with', () => {
     const err = new HttpError(503);
     expect(err).toBeInstanceOf(Error);
-    expect([err.name, err.message, err.status]).toEqual(['HttpError', 'HTTP 503', 503]);
+    expect([err.name, err.message, err.status, err.detail]).toEqual([
+      'HttpError',
+      'HTTP 503',
+      503,
+      '',
+    ]);
+    expect(new HttpError(400, 'bad query').detail).toBe('bad query');
   });
 });
 
@@ -350,6 +356,7 @@ describe('findAllTrailsUrl', () => {
         ms: 250,
         queries: ['dragon mountain stairs'],
         results: 1,
+        pick: STAIRS,
         chosen: true,
         kept: true,
       },
@@ -510,7 +517,9 @@ describe('findAllTrailsUrl', () => {
       });
     expect(await failing(() => Promise.reject(new HttpError(503)))).toBeUndefined();
     const searching = () => Promise.resolve(replying(search('x')));
-    expect(await failing(searching, () => Promise.reject(new HttpError(400)))).toBeUndefined();
+    expect(
+      await failing(searching, () => Promise.reject(new HttpError(400, 'Datastore not ready'))),
+    ).toBeUndefined();
     expect(
       await failing(searching, () => Promise.reject(new TypeError('fetch failed'))),
     ).toBeUndefined();
@@ -528,8 +537,14 @@ describe('findAllTrailsUrl', () => {
     }
     const ms = expect.any(Number) as number;
     expect(events()).toEqual([
-      { event: 'draft.trail_search_failed', step: 'gemini', status: 503, ms },
-      { event: 'draft.trail_search_failed', step: 'search', status: 400, ms },
+      { event: 'draft.trail_search_failed', step: 'gemini', status: 503, detail: '', ms },
+      {
+        event: 'draft.trail_search_failed',
+        step: 'search',
+        status: 400,
+        detail: 'Datastore not ready',
+        ms,
+      },
       { event: 'draft.trail_search_failed', step: 'search', error: 'TypeError', ms },
       { event: 'draft.trail_search_failed', step: 'gemini', error: 'Error', ms },
       ...Array.from({ length: 5 }, () => ({
