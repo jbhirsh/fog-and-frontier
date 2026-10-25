@@ -3,7 +3,14 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { addedRanges, formatOnly, mutateEntries, scope, subjects } from './mutation-scope.mjs';
+import {
+  addedRanges,
+  formatOnly,
+  mutateEntries,
+  scope,
+  subjects,
+  wiringChanged,
+} from './mutation-scope.mjs';
 
 // A fake repository: base and head contents, a "formatter" that collapses
 // runs of spaces, standing in for Prettier, and the lines each file changed
@@ -189,6 +196,48 @@ describe('mutateEntries', () => {
   });
 });
 
+describe('wiringChanged', () => {
+  it("is true for a change to anything Stryker's setup rests on", () => {
+    for (const file of [
+      'stryker.config.json',
+      'vite.config.ts',
+      'src/test/setup.ts',
+      'tsconfig.json',
+      'tsconfig.app.json',
+      'package.json',
+      'package-lock.json',
+      'patches/@stryker-mutator+vitest-runner+10.0.0.patch',
+      '.github/workflows/mutation.yml',
+      '.github/scripts/mutation-scope.mjs',
+      '.github/scripts/mutation-scope.test.mjs',
+      '.github/scripts/mutation-incremental.mjs',
+      '.github/scripts/mutation-incremental.test.mjs',
+    ]) {
+      expect(wiringChanged(['README.md', file]), file).toBe(true);
+    }
+  });
+
+  it('is false for pictures, docs, other workflows and scripts, and source', () => {
+    expect(
+      wiringChanged([
+        'docs/screenshots/catalog.png',
+        'README.md',
+        'CLAUDE.md',
+        '.github/workflows/ci.yml',
+        '.github/scripts/pr-visuals.mjs',
+        'src/test/render.tsx',
+        'src/lib/viewMode.ts',
+        'api/tsconfig.json',
+        'scripts/package.json',
+      ]),
+    ).toBe(false);
+  });
+
+  it('is false for nothing', () => {
+    expect(wiringChanged([])).toBe(false);
+  });
+});
+
 // A throwaway repository, its PR branch a commit on the base. No GIT_*
 // variable from outside reaches git (a hook's would point it at this
 // repository), nor the user's git config (signing, hooks, aliases).
@@ -257,5 +306,19 @@ describe('command line, against a base in git', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('command line, --wiring', () => {
+  const script = path.resolve('.github/scripts/mutation-scope.mjs');
+  const run = (input) =>
+    spawnSync(process.execPath, [script, '--wiring'], { input, encoding: 'utf8' });
+
+  it("prints whether the changed files touch Stryker's setup", () => {
+    const touched = run('docs/a.png\npackage-lock.json\n');
+    expect(touched.status).toBe(0);
+    expect(touched.stdout).toBe('true\n');
+    expect(run('docs/a.png\nsrc/lib/viewMode.ts\n').stdout).toBe('false\n');
+    expect(run('').stdout).toBe('false\n');
   });
 });
