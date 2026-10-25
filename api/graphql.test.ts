@@ -2580,7 +2580,7 @@ describe('Gemini ops', () => {
   // Each Gemini call is grounded (Google Search + URL context), asks for JSON
   // against a schema, and leaves Gemini 3's temperature at its default.
   it.each([
-    ['generateActivity', GENERATE, { i: { title: 'Castle Rock' } }, 'medium', 'name'],
+    ['generateActivity', GENERATE, { i: { title: 'Castle Rock' } }, 'low', 'name'],
     [
       'alltrailsLookup',
       'mutation($i: AlltrailsLookupInput!){ alltrailsLookup(input:$i){ lookup { allTrailsRating } } }',
