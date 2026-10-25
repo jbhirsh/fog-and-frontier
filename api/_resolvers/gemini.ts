@@ -218,7 +218,7 @@ const ACTIVITY_SCHEMA = {
     partOf: {
       type: 'string',
       description:
-        'The official name of the park, seashore, recreation area, monument or forest the activity lies inside, e.g. "Point Reyes National Seashore", including for an activity named after it ("Bouldering at Castle Rock State Park" is in "Castle Rock State Park"). Omit only when the activity is the park itself, or is not inside one.',
+        'The official name of the one park, seashore, recreation area, monument or forest the activity lies inside, e.g. "Point Reyes National Seashore", including for an activity named after it ("Bouldering at Castle Rock State Park" is in "Castle Rock State Park"). One name, never a list: inside several, the one that manages the land, as parkType does. Omit only when the activity is the park itself, or is not inside one.',
     },
   },
   required: ACTIVITY_REQUIRED_FIELDS,
@@ -263,7 +263,7 @@ Rules:
 - Only give a URL (allTrailsUrl, reservationUrl, menuUrl) that you found in your search results or the user's links; never construct one. Give the page's own address, never a vertexaisearch.cloud.google.com redirect.
 - For a hike or walk, look for its AllTrails listing before leaving "allTrailsUrl" out. AllTrails lists trails rather than places, so search it by every name the place goes by (its common English name and any local or translated one) and by the route or feature it's known for (for example "… Stairs", "… Trail", "… Loop"), and give the alltrails.com/trail/ page of the route that best matches the activity.
 - Coordinates: provide best-known lat/lng for the activity (the trailhead, the restaurant, the park entrance).
-- "partOf": when the activity is inside a larger park, national seashore, recreation area, monument or forest, give that place's official name as its managers write it (Chimney Rock Trail is part of "Point Reyes National Seashore"; Mist Trail of "Yosemite National Park"). An activity named for its park ("Bouldering at Castle Rock State Park") is inside it all the same. Omit it only when the activity is the park itself (a draft of "Castle Rock State Park"), or isn't inside one.
+- "partOf": when the activity is inside a larger park, national seashore, recreation area, monument or forest, give that place's official name as its managers write it (Chimney Rock Trail is part of "Point Reyes National Seashore"; Mist Trail of "Yosemite National Park"). Name one place, never a list: an activity inside several (the Presidio, within the Golden Gate National Recreation Area) takes the one that manages the land, the same one "parkType" describes. An activity named for its park ("Bouldering at Castle Rock State Park") is inside it all the same. Omit it only when the activity is the park itself (a draft of "Castle Rock State Park"), or isn't inside one.
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
 - "duration" should reflect realistic round-trip time from ${HOME_BASE} including driving.
 - "shortDescription" should be vivid and specific, not generic, with the specifics taken from your sources.
