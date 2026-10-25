@@ -1,0 +1,25 @@
+{
+  "mutation": {
+    "wiring": [
+      "vite.config.ts",
+      "src/test/setup.ts",
+      "tsconfig*.json",
+      "package.json",
+      "package-lock.json",
+      "patches/**",
+      ".github/workflows/mutation.yml"
+    ],
+    "smoke": ["src/lib/viewMode.ts", "src/lib/mapBounds.ts"],
+    "cache": {
+      "restoreMain": false,
+      "restartOn": [
+        "package-lock.json",
+        "patches/**",
+        "stryker.config.json",
+        "vite.config.ts",
+        "src/test/**"
+      ]
+    },
+    "sweep": { "shards": 4, "timeoutMinutes": 90 }
+  }
+}
