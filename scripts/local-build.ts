@@ -9,13 +9,6 @@ import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 
-/** owner/name from a remote URL: GitHub's own, or a proxy's that ends in them. */
-export function repoFromRemote(url: string): string {
-  const match = /[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(url.trim());
-  if (!match) throw new Error(`can't tell the repository from ${url}; set REPO_URL`);
-  return `${match[1]}/${match[2]}`;
-}
-
 /** The width and height of a PNG, from its header. */
 export function pngSize(png: Uint8Array): { width: number; height: number } {
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);

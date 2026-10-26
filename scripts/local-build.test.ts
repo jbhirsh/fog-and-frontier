@@ -1,23 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createServer } from 'node:net';
-import { freePort, pngSize, repoFromRemote } from './local-build';
-
-describe('repoFromRemote', () => {
-  it.each([
-    'https://github.com/jbhirsh/fog-and-frontier',
-    'https://github.com/jbhirsh/fog-and-frontier.git',
-    'https://github.com/jbhirsh/fog-and-frontier/',
-    'git@github.com:jbhirsh/fog-and-frontier.git',
-    'http://127.0.0.1:41799/git/jbhirsh/fog-and-frontier',
-    '  https://github.com/jbhirsh/fog-and-frontier\n',
-  ])('reads owner/name from %s', (url) => {
-    expect(repoFromRemote(url)).toBe('jbhirsh/fog-and-frontier');
-  });
-
-  it('asks for --repo when it can’t tell', () => {
-    expect(() => repoFromRemote('not a url')).toThrow('set REPO_URL');
-  });
-});
+import { freePort, pngSize } from './local-build';
 
 describe('pngSize', () => {
   it('reads a PNG’s width and height from its header', () => {
