@@ -8,21 +8,15 @@
 
 import { mockApis } from '../../tests/visual/helpers';
 import { click, glide, type Scenario } from '../pr-gif.ts';
+import { PHONE, catalogReady } from './phone.ts';
 
 const scenario: Scenario = {
   name: 'filters-sheet',
-  path: '/',
-  viewport: { width: 390, height: 844 },
-  clip: { x: 0, y: 0, width: 390, height: 844 },
-  width: 390,
+  ...PHONE,
   async setup(page) {
     await mockApis(page);
   },
-  async ready(page) {
-    await page.locator('[data-activity-id]').first().waitFor();
-    await page.evaluate(() => document.fonts.ready);
-    await glide(page, { x: 200, y: 520 }, 0);
-  },
+  ready: catalogReady,
   async run(page) {
     await page.waitForTimeout(600);
     const filters = page.getByRole('button', { name: /^Filters/ });

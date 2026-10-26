@@ -45,6 +45,7 @@ type Props = {
  */
 export function BottomSheet({ snap, onSnapChange, header, children, label }: Props) {
   const hintId = useId();
+  const sheetRef = useRef<HTMLElement>(null);
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   // Live pixel height while dragging; `null` at rest (the snap's CSS height).
   const [liveHeight, setLiveHeight] = useState<number | null>(null);
@@ -72,7 +73,10 @@ export function BottomSheet({ snap, onSnapChange, header, children, label }: Pro
       // listeners below still track the gesture.
     }
     suppressClickRef.current = false;
-    const heights = snapHeights(window.innerHeight);
+    // The screen above the phone's tab bar (#289), where the sheet sits: its
+    // bottom edge, once it's laid out (jsdom lays nothing out).
+    const rect = sheetRef.current?.getBoundingClientRect();
+    const heights = snapHeights(rect && rect.height > 0 ? rect.bottom : window.innerHeight);
     const startY = event.clientY;
     // The sheet sits at its rest height whenever no drag is in progress.
     const startHeight = heights[snap];
@@ -134,9 +138,11 @@ export function BottomSheet({ snap, onSnapChange, header, children, label }: Pro
   // overlaps the header and the grabber must stay on top so it can always be
   // dragged back down. The detail dialog (z-[1000]) still opens above it.
   return (
+    // Above a phone's tab bar (#289), which keeps the home indicator clear.
     <section
+      ref={sheetRef}
       aria-label={label}
-      className="fixed inset-x-0 bottom-0 z-60 flex flex-col rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-(--tab-bar) z-60 flex flex-col rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl max-md:pb-0"
       style={{
         height: dragging ? `${liveHeight}px` : SNAP_CSS[snap],
         transition:

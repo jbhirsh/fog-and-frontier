@@ -181,7 +181,11 @@ test.describe('visual regression — mobile', () => {
     });
     await page.goto('/');
     await waitForVisualReady(page);
-    await page.getByRole('button', { name: /Add activity/ }).click();
+    // A phone's Add is in its tab bar (#289).
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('button', { name: 'Add', exact: true })
+      .click();
     const dialog = page.getByRole('dialog', { name: 'Add activity' });
     await dialog.waitFor();
     await waitForVisualReady(page);
@@ -197,7 +201,11 @@ test.describe('visual regression — mobile', () => {
     await stubGenerateActivity(page);
     await page.goto('/');
     await waitForVisualReady(page);
-    await page.getByRole('button', { name: /Add activity/ }).click();
+    // A phone's Add is in its tab bar (#289).
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('button', { name: 'Add', exact: true })
+      .click();
     await page.getByRole('dialog', { name: 'Add activity' }).waitFor();
     await page.getByLabel('Title').fill('Test Adventure');
     await page.getByRole('button', { name: /Generate/ }).click();

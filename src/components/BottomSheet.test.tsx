@@ -83,7 +83,7 @@ describe('BottomSheet', () => {
 
   it('sizes itself to the snap position and animates between positions', () => {
     render(<Host initial="half" />);
-    expect(sheet().style.height).toBe('52dvh');
+    expect(sheet().style.height).toBe('calc((100dvh - var(--tab-bar)) * 0.52)');
     expect(sheet().style.transition).toContain('height 0.3s');
   });
 
@@ -105,7 +105,7 @@ describe('BottomSheet', () => {
 
     await userEvent.click(grabber());
     expect(onSnapChange).toHaveBeenLastCalledWith('half');
-    expect(sheet().style.height).toBe('52dvh');
+    expect(sheet().style.height).toBe('calc((100dvh - var(--tab-bar)) * 0.52)');
     await userEvent.click(grabber());
     expect(onSnapChange).toHaveBeenLastCalledWith('full');
     await userEvent.click(grabber());
@@ -180,7 +180,27 @@ describe('BottomSheet', () => {
 
     expect(onSnapChange).toHaveBeenCalledTimes(1);
     expect(onSnapChange).toHaveBeenCalledWith('half');
-    expect(sheet().style.height).toBe('52dvh');
+    expect(sheet().style.height).toBe('calc((100dvh - var(--tab-bar)) * 0.52)');
+  });
+
+  it('measures its rest heights from the screen above the phone’s tab bar (#289)', () => {
+    const onSnapChange = vi.fn();
+    render(<Host onSnapChange={onSnapChange} />);
+    // Laid out above a 56px tab bar: its bottom edge at 712, not the
+    // window's 768, so half is 370 and full 641.
+    vi.spyOn(sheet(), 'getBoundingClientRect').mockReturnValue({
+      bottom: 712,
+      height: 112,
+    } as DOMRect);
+    // 112 + 418 = 530: nearer full (641) than half (370) above the bar,
+    // where the whole window (half 399, full 691) would say half.
+    drag(grabber(), 282);
+    expect(onSnapChange).toHaveBeenCalledWith('full');
+  });
+
+  it('sits above the phone’s tab bar, which keeps the home indicator clear (#289)', () => {
+    render(<Host />);
+    expect(sheet()).toHaveClass('bottom-(--tab-bar)', 'max-md:pb-0');
   });
 
   it('snaps to full after a long drag up', () => {
@@ -248,7 +268,7 @@ describe('BottomSheet', () => {
     render(<Host />);
     drag(grabber(), 500);
     fireEvent.pointerMove(window, { clientY: 100 });
-    expect(sheet().style.height).toBe('52dvh');
+    expect(sheet().style.height).toBe('calc((100dvh - var(--tab-bar)) * 0.52)');
     // Every listener the gesture added is gone, the cancel one included.
     for (const type of ['pointermove', 'pointerup', 'pointercancel']) {
       expect(remove).toHaveBeenCalledWith(type, expect.any(Function));
