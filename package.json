@@ -35,6 +35,7 @@
     "links:check": "node scripts/check-links.mjs",
     "instagram:check": "node --experimental-strip-types scripts/instagram-check.ts",
     "gif": "node --experimental-strip-types scripts/pr-gif-cli.ts",
+    "cards": "node --experimental-strip-types scripts/card-copy.ts",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "eval": "TZ=America/Los_Angeles tsx eval/run-eval.ts"
