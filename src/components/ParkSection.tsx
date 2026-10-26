@@ -100,7 +100,7 @@ export function ParkSection({ park, children, gridClass, onViewPark, onClose }: 
           </span>
         </button>
       </div>
-      <div className={`grid gap-gutter ${gridClass}`}>{children}</div>
+      <div className={`grid gap-x-sm gap-y-md md:gap-gutter ${gridClass}`}>{children}</div>
     </section>
   );
 }
