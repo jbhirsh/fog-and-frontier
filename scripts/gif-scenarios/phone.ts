@@ -2,7 +2,7 @@
 // catalog's first cards drawn in their fonts before recording starts.
 
 import type { Page } from '@playwright/test';
-import { glide } from '../pr-gif.ts';
+import type { Gif } from '../gif-types.ts';
 
 export const PHONE = {
   path: '/',
@@ -12,8 +12,8 @@ export const PHONE = {
 };
 
 /** Ready once the catalog's cards and fonts are in, the pointer mid-screen. */
-export async function catalogReady(page: Page): Promise<void> {
+export async function catalogReady(page: Page, gif: Gif): Promise<void> {
   await page.locator('[data-activity-id]').first().waitFor();
   await page.evaluate(() => document.fonts.ready);
-  await glide(page, { x: 200, y: 520 }, 0);
+  await gif.glide(page, { x: 200, y: 520 }, 0);
 }
