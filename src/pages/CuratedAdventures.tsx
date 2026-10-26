@@ -493,21 +493,19 @@ export function CuratedAdventures() {
     document.getElementById(parkBarId(id))?.focus();
   }, [opened]);
 
-  // Narrower grid in Split (the list shares the row with the map) and in the
-  // mobile map's sheet (two cards a row only once there's room for them) than
-  // in the full-width List layout.
+  // A phone's cards go two to a row (#290), in the list and the mobile map's
+  // sheet. Split (lg and up) is narrower than the full-width List layout,
+  // since the list shares the row with the map.
   const gridColsClass =
     view === 'split'
       ? 'grid-cols-1 xl:grid-cols-2'
       : view === 'map'
-        ? 'grid-cols-1 sm:grid-cols-2'
-        : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+        ? 'grid-cols-2'
+        : 'grid-cols-2 lg:grid-cols-3';
   // An open park's hikes and stops sit smaller, one more to a row. (The
   // mobile map's sheet is never wide enough for Split's third column.)
   const parkGridClass =
-    view === 'list'
-      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-      : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3';
+    view === 'list' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 xl:grid-cols-3';
 
   function card(a: Activity) {
     return (
@@ -594,7 +592,7 @@ export function CuratedAdventures() {
       </div>
     ) : (
       <>
-        <div ref={gridRef} className={`grid gap-gutter ${gridColsClass}`}>
+        <div ref={gridRef} className={`grid gap-x-sm gap-y-md md:gap-gutter ${gridColsClass}`}>
           {gridItems}
         </div>
         {remaining > 0 && (

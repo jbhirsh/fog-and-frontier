@@ -8,6 +8,7 @@ import { usePersonLabel } from '../lib/people';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import { glyphBleed } from '../lib/iconMetrics';
 import { CoverImage } from './CoverImage';
+import { DogIcon } from './DogIcon';
 
 // Pill label per category. The glyph comes from the shared CATEGORY_ICON, so
 // the pill, the cover fallback and the map pin always agree.
@@ -120,7 +121,7 @@ export function ActivityCard({
         {/* Image-led cover. Selected/focus states live on the image, not a
             card border — there is no card chrome around the whole thing. */}
         <div
-          className={`relative aspect-3/2 overflow-hidden rounded-[18px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-hover:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 motion-reduce:transition-none ${
+          className={`relative aspect-4/3 overflow-hidden rounded-[14px] bg-surface-variant outline outline-offset-2 outline-primary transition-[outline-width,box-shadow] duration-200 group-hover:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-hover:outline-2 group-focus-visible:shadow-[0_10px_30px_rgba(0,30,55,0.18)] group-focus-visible:outline-2 motion-reduce:transition-none md:aspect-3/2 md:rounded-[18px] ${
             selected || highlighted
               ? 'shadow-[0_10px_30px_rgba(0,30,55,0.18)] outline-2'
               : 'outline-0'
@@ -132,11 +133,12 @@ export function ActivityCard({
             className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transform-none motion-reduce:transition-none"
             src={activity.coverImage}
             loading="lazy"
-            // One, two or three to a row (narrower beside the map).
-            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+            // Two to a row on a phone (#290), up to three wider.
+            sizes="(min-width: 1024px) 33vw, 50vw"
           />
-          {/* Category tag — frosted pill, navy label, accent icon. */}
-          <span className="absolute top-sm left-sm inline-flex h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm font-label-caps text-label-caps text-primary backdrop-blur-sm">
+          {/* Category tag — frosted pill, navy label, accent icon. A phone's
+              card leaves it out for room (#290). */}
+          <span className="absolute top-sm left-sm hidden h-7 items-center gap-xs rounded-full bg-surface-container-lowest/90 px-sm font-label-caps text-label-caps text-primary backdrop-blur-sm md:inline-flex">
             <span
               className="material-symbols-outlined text-secondary"
               aria-hidden="true"
@@ -146,9 +148,39 @@ export function ActivityCard({
             </span>
             {categoryLabel}
           </span>
+          {/* On a phone the facts ride on the photo (#290): Free at the top
+              left (while not selecting, when the check is there), and the
+              time, distance and rating along the bottom, over a shade that
+              keeps them legible on any photo. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-linear-to-t from-black/70 to-transparent md:hidden"
+          />
+          {activity.costTier === 'free' && !selectionMode && (
+            <span className="absolute top-base left-base rounded-full bg-surface-container-lowest/95 px-base text-[11.5px] leading-[22px] font-semibold text-[#1b6b3a] md:hidden">
+              Free
+            </span>
+          )}
+          <span className="absolute inset-x-[9px] bottom-[7px] flex flex-wrap items-center justify-between gap-x-base text-[12px] font-semibold text-white md:hidden">
+            <span>
+              {activity.duration} · {formatMiles(distance)} mi
+            </span>
+            {activity.allTrailsRating != null && (
+              <span className="inline-flex items-center gap-0.5">
+                <span
+                  className="material-symbols-outlined"
+                  aria-hidden="true"
+                  style={{ fontSize: 12, fontVariationSettings: "'FILL' 1" }}
+                >
+                  star
+                </span>
+                {activity.allTrailsRating.toFixed(1)}
+              </span>
+            )}
+          </span>
           {selectionMode && (
             <div
-              className={`absolute bottom-sm left-sm flex size-8 items-center justify-center rounded-full border-2 ${
+              className={`absolute top-base left-base flex size-8 items-center justify-center rounded-full border-2 md:top-auto md:bottom-sm md:left-sm ${
                 selected
                   ? 'border-primary bg-primary text-on-primary'
                   : 'border-outline-variant/60 bg-surface-container-lowest/90 text-on-surface-variant'
@@ -169,13 +201,22 @@ export function ActivityCard({
         </div>
         {/* Body sits on the page background — no card surface. Flex column so
             the meta row pins to the bottom and rows stay equal height. */}
-        <div className="flex flex-1 flex-col px-xs pt-sm">
+        <div className="flex flex-1 flex-col px-0.5 pt-base md:px-xs md:pt-sm">
           <div className="flex items-center justify-between gap-sm">
-            <h3 className="min-w-0 flex-1 truncate text-[16px] font-semibold tracking-[-0.015em] text-on-surface transition-colors group-hover:text-primary-container">
-              {activity.name}
+            {/* A phone's card shows the name whole, wrapping, or its shorter
+                card name (#295); never an ellipsis. */}
+            <h3 className="min-w-0 flex-1 text-[15px] leading-snug font-semibold tracking-[-0.015em] text-on-surface transition-colors group-hover:text-primary-container md:truncate md:text-[16px] md:leading-normal">
+              {activity.cardName ? (
+                <>
+                  <span className="md:hidden">{activity.cardName}</span>
+                  <span className="hidden md:inline">{activity.name}</span>
+                </>
+              ) : (
+                activity.name
+              )}
             </h3>
             {activity.allTrailsRating != null && (
-              <span className="flex shrink-0 items-center gap-xs text-body-sm font-semibold text-on-surface">
+              <span className="hidden shrink-0 items-center gap-xs text-body-sm font-semibold text-on-surface md:flex">
                 <span
                   className="material-symbols-outlined"
                   aria-hidden="true"
@@ -187,8 +228,17 @@ export function ActivityCard({
               </span>
             )}
           </div>
-          <p className="mt-xs text-body-sm text-on-surface-variant">{activity.shortDescription}</p>
-          <div className="mt-auto flex flex-wrap items-center gap-sm pt-sm text-body-sm text-on-surface-variant">
+          {/* A phone's card has its card line (#295), shown whole, in the
+              short description's place, and its facts on the photo. */}
+          {activity.cardLine && (
+            <p className="mt-0.5 text-[13px] leading-snug text-on-surface-variant md:hidden">
+              {activity.cardLine}
+            </p>
+          )}
+          <p className="mt-xs hidden text-body-sm text-on-surface-variant md:block">
+            {activity.shortDescription}
+          </p>
+          <div className="mt-auto hidden flex-wrap items-center gap-sm pt-sm text-body-sm text-on-surface-variant md:flex">
             <span className="flex items-center gap-xs">
               <span
                 className="material-symbols-outlined"
@@ -224,7 +274,7 @@ export function ActivityCard({
           </div>
           {/* Signed-in only: the server sends no contributors otherwise (#9). */}
           {contributors && (
-            <p className="mt-xs truncate text-body-sm text-on-surface-variant">
+            <p className="mt-xs hidden truncate text-body-sm text-on-surface-variant md:block">
               Contributed by {contributors}
             </p>
           )}
@@ -238,12 +288,23 @@ export function ActivityCard({
         overflow the card. Other badges keep their own corners: category tag
         (top-left), photo-count (bottom-right), selection check (bottom-left).
       */}
-      {(completed || actionSlot) && (
-        <div className="absolute top-sm right-sm z-10 flex flex-col items-end gap-xs">
+      {(completed || actionSlot || activity.dogFriendly) && (
+        <div className="absolute top-base right-base z-10 flex flex-col items-end gap-xs md:top-sm md:right-sm">
+          {/* Dogs welcome, on a phone's card only (#290); none when they aren't. */}
+          {activity.dogFriendly && (
+            <span
+              role="img"
+              aria-label="Dogs welcome"
+              className="inline-flex size-7.5 items-center justify-center rounded-full bg-surface-container-lowest/95 text-primary md:hidden"
+            >
+              <DogIcon size={20} />
+            </span>
+          )}
           {completed && (
             // The category tag's twin: the same 28px pill and 15px icon, so
             // the two sit level across the top of the photo.
-            <div className="inline-flex h-7 items-center gap-xs rounded-full bg-primary-fixed px-sm text-primary">
+            // On a phone, the check alone (#290).
+            <div className="inline-flex h-7 items-center gap-xs rounded-full bg-primary-fixed px-1.5 text-primary md:px-sm">
               <span
                 className="material-symbols-outlined"
                 aria-hidden="true"
@@ -251,7 +312,8 @@ export function ActivityCard({
               >
                 check_circle
               </span>
-              <span className="font-label-caps text-label-caps">COMPLETED</span>
+              <span className="hidden font-label-caps text-label-caps md:inline">COMPLETED</span>
+              <span className="sr-only md:hidden">Completed</span>
             </div>
           )}
           {actionSlot}
