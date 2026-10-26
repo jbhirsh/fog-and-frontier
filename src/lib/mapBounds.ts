@@ -191,6 +191,23 @@ export function fitPaddingFor(
 }
 
 /**
+ * Whether a point, in the map's pixels, sits inside the padded part of a map
+ * of `size`: where a pan to show it with that padding wouldn't move.
+ */
+export function isInsidePadding(
+  point: { x: number; y: number },
+  size: { x: number; y: number },
+  pad: { top: number; bottom: number; side: number },
+): boolean {
+  return (
+    point.x >= pad.side &&
+    point.x <= size.x - pad.side &&
+    point.y >= pad.top &&
+    point.y <= size.y - pad.bottom
+  );
+}
+
+/**
  * Small generic debounce. Delays invoking `fn` until `delay` ms have elapsed
  * since the last call — used to recompute the bounds filter only after the map
  * settles (~400 ms after the final pan/zoom). The returned function exposes a

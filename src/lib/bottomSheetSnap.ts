@@ -13,10 +13,11 @@ export type SheetSnap = 'peek' | 'half' | 'full';
 /** Rest heights in pixels for one viewport height. */
 export type SnapHeights = Record<SheetSnap, number>;
 
-// Pixel twins of SNAP_CSS below: peek is 7rem at the 16px root size, and the
+// Pixel twins of SNAP_CSS below: peek is 4.5rem at the 16px root size (the
+// grabber and the header's one row, and no more, #291), and the
 // fractions match the half and full heights, of the screen above the phone's
 // tab bar (#289).
-const PEEK_PX = 112;
+const PEEK_PX = 72;
 const HALF_FRACTION = 0.52;
 const FULL_FRACTION = 0.9;
 
@@ -27,7 +28,7 @@ const FULL_FRACTION = 0.9;
  * equivalent the drag math works in.
  */
 export const SNAP_CSS: Record<SheetSnap, string> = {
-  peek: '7rem',
+  peek: '4.5rem',
   half: 'calc((100dvh - var(--tab-bar)) * 0.52)',
   full: 'calc((100dvh - var(--tab-bar)) * 0.9)',
 };

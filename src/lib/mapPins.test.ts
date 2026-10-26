@@ -4,11 +4,15 @@ import {
   MINOR_PIN_MILES,
   cartoTileUrl,
   glyphPin,
+  groupPin,
+  homePin,
+  MARKER_REACH_PX,
   hasNearPinInView,
   isMinorPin,
   minorPin,
   pinZIndex,
 } from './mapPins';
+import { GROUP_RADIUS_PX } from './pinGroups';
 
 const BASE = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
@@ -128,6 +132,79 @@ describe('minorPin', () => {
     expect(icon.options.iconSize).toEqual([24, 24]);
     expect(icon.options.iconAnchor).toEqual([12, 12]);
     expect(icon.options.popupAnchor).toEqual([0, -7]);
+  });
+});
+
+describe('groupPin', () => {
+  it('draws the count in a navy circle sized by it, named for a screen reader', () => {
+    const icon = groupPin(12, '12 places, zoom in');
+    expect(icon.options.html).toMatch(
+      /<span aria-hidden="true"[^>]*font-size:14px[^>]*>12<\/span>/,
+    );
+    expect(icon.options.html).toContain('<span class="sr-only">12 places, zoom in</span>');
+    expect(icon.options.html).toContain('background:#001e37');
+    expect(icon.options.html).toContain('width:42px;height:42px');
+    expect(icon.options.html).toContain('border:2px solid #fff');
+    expect(icon.options.iconSize).toEqual([42, 42]);
+    expect(icon.options.iconAnchor).toEqual([21, 21]);
+    expect(icon.options.className).toBe('glyph-pin pin-group');
+  });
+
+  it('rings a highlighted group in blue, the same size', () => {
+    const icon = groupPin(12, '', { highlighted: true });
+    expect(icon.options.html).toContain('border:3px solid #0ea5e9');
+    expect(icon.options.iconSize).toEqual([42, 42]);
+  });
+
+  it('sets a three-figure count smaller, to fit', () => {
+    expect(groupPin(99, '').options.html).toContain('font-size:14px');
+    expect(groupPin(100, '').options.html).toContain('font-size:11px');
+  });
+
+  it('draws a group of far places small and muted', () => {
+    const icon = groupPin(30, '', { minor: true });
+    expect(icon.options.html).toContain('background:#64748b');
+    expect(icon.options.html).toContain('width:24px;height:24px');
+    expect(icon.options.html).toContain('font-size:11px');
+    expect(icon.options.iconSize).toEqual([24, 24]);
+  });
+});
+
+describe('homePin', () => {
+  it('is the plain house pin with nothing beside it', () => {
+    const icon = homePin('#dc2626', 0);
+    expect(icon.options.html).toBe(glyphPin('#dc2626', { icon: 'home' }).options.html);
+    expect(icon.options.className).toBe('glyph-pin');
+  });
+
+  it('badges the house with the count of places beside it, named, the same size', () => {
+    const icon = homePin('#dc2626', 3, 'Home, 3 places beside it, zoom in');
+    expect(icon.options.html).toContain('>home</span>');
+    expect(icon.options.html).toContain('background:#dc2626');
+    expect(icon.options.html).toMatch(/aria-hidden="true"[^>]*background:#001e37[^>]*>3<\/span>/);
+    expect(icon.options.html).toContain('top:-3px;right:-3px');
+    expect(icon.options.html).toContain(
+      '<span class="sr-only">Home, 3 places beside it, zoom in</span>',
+    );
+    expect(icon.options.iconSize).toEqual([30, 30]);
+    expect(icon.options.iconAnchor).toEqual([15, 15]);
+    expect(icon.options.className).toBe('glyph-pin pin-group');
+  });
+
+  it('turns the badge blue when highlighted', () => {
+    expect(homePin('#dc2626', 3, '', { highlighted: true }).options.html).toMatch(
+      /background:#0ea5e9[^>]*>3<\/span>/,
+    );
+  });
+});
+
+describe('MARKER_REACH_PX', () => {
+  it('is the farthest a marker reaches: a group at its widest', () => {
+    expect(MARKER_REACH_PX).toBe(23);
+  });
+
+  it('keeps any two markers apart at the grouping radius', () => {
+    expect(2 * MARKER_REACH_PX).toBeLessThanOrEqual(GROUP_RADIUS_PX);
   });
 });
 

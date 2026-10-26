@@ -18,7 +18,7 @@ describe('SNAP_CSS', () => {
   it('fixes peek and sizes half and full to the dynamic viewport', () => {
     // Of the screen above the phone's tab bar (#289), none from md up.
     expect(SNAP_CSS).toEqual({
-      peek: '7rem',
+      peek: '4.5rem',
       half: 'calc((100dvh - var(--tab-bar)) * 0.52)',
       full: 'calc((100dvh - var(--tab-bar)) * 0.9)',
     });
@@ -27,12 +27,12 @@ describe('SNAP_CSS', () => {
 
 describe('snapHeights', () => {
   it('matches SNAP_CSS in pixels for an 800px viewport', () => {
-    expect(snapHeights(800)).toEqual({ peek: 112, half: 416, full: 720 });
+    expect(snapHeights(800)).toEqual({ peek: 72, half: 416, full: 720 });
   });
 
   it('rounds the fractional heights to whole pixels', () => {
     // 0.52 * 845 = 439.4 and 0.9 * 845 = 760.5.
-    expect(snapHeights(845)).toEqual({ peek: 112, half: 439, full: 761 });
+    expect(snapHeights(845)).toEqual({ peek: 72, half: 439, full: 761 });
   });
 });
 
