@@ -38,3 +38,27 @@ export function glyphBleed(icon: string): string {
   const em = ICON_SIDE_BEARING[icon] ?? 0;
   return em ? `-${em}em` : '0';
 }
+
+// Where a Material Symbols glyph looks centred, from the middle of its box,
+// in em, for a pin's circle (#291): three-quarters of the way from the
+// middle of its ink's box to its ink's centre of mass, which is where the
+// eye puts it (a mountain's wide base sits low, the fork and knife's tines
+// high). Measured at 18 and 22px; the rest sit within a hundredth of an em.
+export const ICON_OPTICAL_OFFSET: Readonly<Record<string, { x: number; y: number }>> = {
+  check: { x: 0, y: 0.014 },
+  directions_walk: { x: 0, y: 0.015 },
+  forest: { x: -0.01, y: 0.023 },
+  home: { x: 0, y: 0.027 },
+  landscape: { x: 0.012, y: 0.068 },
+  museum: { x: 0, y: 0.038 },
+  pedal_bike: { x: 0, y: 0.049 },
+  restaurant: { x: 0, y: -0.06 },
+  terrain: { x: 0.012, y: 0.068 },
+  water: { x: 0, y: 0.026 },
+};
+
+/** A transform that moves `icon` to where it looks centred ('' if it's there already). */
+export function glyphNudge(icon: string): string {
+  const off = ICON_OPTICAL_OFFSET[icon];
+  return off ? `transform:translate(${-off.x}em,${-off.y}em);` : '';
+}

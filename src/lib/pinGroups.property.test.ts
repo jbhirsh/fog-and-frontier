@@ -96,6 +96,8 @@ describe('groupPins, for any pins', () => {
       fc.property(fc.integer({ min: 0, max: 100_000 }), (count) => {
         expect(groupSize(count)).toBeLessThanOrEqual(GROUP_MAX_SIZE);
         expect(groupSize(count)).toBeLessThan(GROUP_RADIUS_PX);
+        // Even, so its middle sits on a pixel's edge.
+        expect(groupSize(count) % 2).toBe(0);
       }),
     );
   });

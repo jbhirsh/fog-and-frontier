@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ICON_SIDE_BEARING, glyphBleed } from './iconMetrics';
+import { ICON_OPTICAL_OFFSET, ICON_SIDE_BEARING, glyphBleed, glyphNudge } from './iconMetrics';
 import { CATEGORY_ICON } from './mapPins';
 
 describe('glyphBleed', () => {
@@ -44,6 +44,27 @@ describe('glyphBleed', () => {
   it('covers every category glyph', () => {
     for (const icon of Object.values(CATEGORY_ICON)) {
       expect(ICON_SIDE_BEARING).toHaveProperty(icon);
+    }
+  });
+});
+
+describe('glyphNudge (#291)', () => {
+  it('moves a glyph to where it looks centred, by its measured offset', () => {
+    // A mountain's wide base sits low: up and a touch left.
+    expect(glyphNudge('landscape')).toBe('transform:translate(-0.012em,-0.068em);');
+    // The fork and knife's tines sit high: down.
+    expect(glyphNudge('restaurant')).toBe('transform:translate(0em,0.06em);');
+  });
+
+  it('leaves a glyph that already looks centred alone', () => {
+    expect(glyphNudge('explore')).toBe('');
+    expect(glyphNudge('not_an_icon')).toBe('');
+  });
+
+  it('keeps every offset small, a nudge rather than a move', () => {
+    for (const { x, y } of Object.values(ICON_OPTICAL_OFFSET)) {
+      expect(Math.abs(x)).toBeLessThan(0.1);
+      expect(Math.abs(y)).toBeLessThan(0.1);
     }
   });
 });

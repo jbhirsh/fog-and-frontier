@@ -2,6 +2,7 @@ import L from 'leaflet';
 import type { Category } from '../data/types';
 import { isWithinBounds, type MapBounds } from './mapBounds';
 import { GROUP_MAX_SIZE, groupSize } from './pinGroups';
+import { glyphNudge } from './iconMetrics';
 
 // Shared map surface styling for every Leaflet map in the app (the standalone
 // `/map`, each trip's `TripMap`, and the #4 split view later). Keep the basemap
@@ -109,20 +110,29 @@ const PIN_SIZE = 30;
 const PIN_SIZE_HIGHLIGHTED = 40;
 
 // A glyph pin's markup, which homePin wraps with its badge.
+// A count or a pin's number: the app's text face (its 600 weight, which the
+// page loads), trimmed to the digits' height, so they sit in the middle of
+// the circle rather than a pixel high, as a line box's room for descenders
+// would put them.
+const COUNT_STYLE =
+  'font-weight:600;line-height:1;color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif;text-box:trim-both cap alphabetic;';
+
 function glyphPinHtml(color: string, glyph: PinGlyph, opts: PinOptions = {}): string {
   const { highlighted = false } = opts;
   const size = highlighted ? PIN_SIZE_HIGHLIGHTED : PIN_SIZE;
-  const iconFontSize = highlighted ? 22 : 17;
+  // Whole pixels, the circle less its border leaving an even margin around
+  // the glyph, so it lands on the pixel grid rather than blurring across it.
+  const iconFontSize = highlighted ? 22 : 18;
   const textFontSize = highlighted ? 16 : 13;
-  const border = highlighted ? 3 : 2.5;
+  const border = highlighted ? 3 : 2;
   const shadow = highlighted
     ? '0 4px 12px rgba(0,0,0,0.45),0 0 0 0.5px rgba(0,0,0,0.08)'
     : '0 1px 4px rgba(0,0,0,0.30),0 0 0 0.5px rgba(0,0,0,0.06)';
 
   const inner =
     'icon' in glyph
-      ? `<span class="material-symbols-outlined" style="font-size:${iconFontSize}px;color:#fff;font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20;">${glyph.icon}</span>`
-      : `<span style="font-size:${textFontSize}px;font-weight:700;line-height:1;color:#fff;font-family:system-ui,-apple-system,sans-serif;">${glyph.text}</span>`;
+      ? `<span class="material-symbols-outlined" style="font-size:${iconFontSize}px;color:#fff;font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20;${glyphNudge(glyph.icon)}">${glyph.icon}</span>`
+      : `<span style="font-size:${textFontSize}px;${COUNT_STYLE}">${glyph.text}</span>`;
 
   return `<div style="
     width:${size}px;height:${size}px;
@@ -213,9 +223,6 @@ export const MARKER_REACH_PX = Math.max(
 function label(text: string): string {
   return `<span class="sr-only">${text}</span>`;
 }
-
-const COUNT_STYLE =
-  'font-weight:700;line-height:1;color:#fff;font-family:system-ui,-apple-system,sans-serif;';
 
 /** A group of pins drawn as one circle with its count, sized by it, named by `name`. */
 export function groupPin(

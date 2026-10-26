@@ -75,8 +75,9 @@ describe('groupPins', () => {
 describe('groupSize', () => {
   it('grows with the count, and stops at its widest', () => {
     expect(groupSize(2)).toBe(34);
-    expect(groupSize(4)).toBe(37);
-    expect(groupSize(16)).toBe(43);
+    expect(groupSize(4)).toBe(38);
+    expect(groupSize(8)).toBe(40);
+    expect(groupSize(16)).toBe(44);
     expect(groupSize(1000)).toBe(GROUP_MAX_SIZE);
     expect(groupSize(0)).toBe(34);
   });

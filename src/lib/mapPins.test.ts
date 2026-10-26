@@ -41,6 +41,17 @@ describe('glyphPin', () => {
     expect(icon.options.html).toContain('material-symbols-outlined');
     expect(icon.options.html).toContain('landscape');
     expect(icon.options.html).toContain('background:#0ea5e9');
+    // Whole pixels, so the glyph lands on the pixel grid (#291): the 26px
+    // inside the border leaves 4px around an 18px glyph.
+    expect(icon.options.html).toContain('border:2px solid #fff');
+    expect(icon.options.html).toContain('font-size:18px');
+  });
+
+  it('nudges a glyph whose ink sits off the middle back to it', () => {
+    expect(glyphPin('#0ea5e9', { icon: 'restaurant' }).options.html).toContain(
+      'transform:translate(0em,0.06em);',
+    );
+    expect(glyphPin('#0ea5e9', { icon: 'explore' }).options.html).not.toContain('transform');
   });
 
   it('renders a text glyph larger when highlighted', () => {
@@ -49,6 +60,10 @@ describe('glyphPin', () => {
     expect(icon.options.popupAnchor).toEqual([0, -22]);
     expect(icon.options.html).toContain('>3</span>');
     expect(icon.options.html).not.toContain('material-symbols-outlined');
+    expect(icon.options.html).toContain('border:3px solid #fff');
+    // Set in the app's face, trimmed to the digits so they sit mid-circle.
+    expect(icon.options.html).toContain('font-family:Inter,');
+    expect(icon.options.html).toContain('text-box:trim-both cap alphabetic');
   });
 });
 
@@ -154,6 +169,12 @@ describe('groupPin', () => {
     const icon = groupPin(12, '', { highlighted: true });
     expect(icon.options.html).toContain('border:3px solid #0ea5e9');
     expect(icon.options.iconSize).toEqual([42, 42]);
+  });
+
+  it('sets its count trimmed to the digits, so it sits mid-circle', () => {
+    expect(groupPin(12, '').options.html).toMatch(
+      /font-size:14px;[^"]*text-box:trim-both cap alphabetic[^"]*">12<\/span>/,
+    );
   });
 
   it('sets a three-figure count smaller, to fit', () => {
