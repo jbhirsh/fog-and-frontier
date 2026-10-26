@@ -143,6 +143,17 @@ describe('Curated Adventures — view modes (#93)', () => {
     expect(screen.queryByRole('button', { name: 'Show map' })).not.toBeInTheDocument();
   });
 
+  it("ends the mobile map at a phone's tab bar (#289)", () => {
+    renderAt('/?view=map');
+    // The legend and attribution sit a set height above the map's foot,
+    // clear of the peeking sheet, which itself sits on the tab bar.
+    expect(screen.getByTestId('activity-map').parentElement).toHaveClass(
+      'fixed',
+      'top-0',
+      'bottom-(--tab-bar)',
+    );
+  });
+
   it('filters the mobile map from the chips in its sheet', async () => {
     renderAt('/?view=map');
     expect(screen.getByTestId('activity-map')).toHaveTextContent('map:1');

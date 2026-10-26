@@ -16,7 +16,12 @@ const HEIGHTS: SnapHeights = { peek: 100, half: 400, full: 700 };
 
 describe('SNAP_CSS', () => {
   it('fixes peek and sizes half and full to the dynamic viewport', () => {
-    expect(SNAP_CSS).toEqual({ peek: '7rem', half: '52dvh', full: '90dvh' });
+    // Of the screen above the phone's tab bar (#289), none from md up.
+    expect(SNAP_CSS).toEqual({
+      peek: '7rem',
+      half: 'calc((100dvh - var(--tab-bar)) * 0.52)',
+      full: 'calc((100dvh - var(--tab-bar)) * 0.9)',
+    });
   });
 });
 

@@ -61,6 +61,8 @@ type TargetTrip = { id: string; title: string };
 type LocationState = {
   target_trip_id?: string;
   target_trip_title?: string;
+  // The phone's Add or Suggest tab (#289) asks for the dialog.
+  add?: boolean;
 } | null;
 
 // A list card's root element by activity id (cards carry data-activity-id).
@@ -145,13 +147,8 @@ export function CuratedAdventures() {
   // already pairs the list and the map side by side.
   const mobileMap = view === 'map' && !isLg;
   // The sheet starts collapsed so the map is the prominent surface the user
-  // just asked for; "Show map" re-collapses it so a previous full-height drag
-  // doesn't bury the map next time.
+  // just asked for, and collapses again each time the map opens (below).
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
-  function showMobileMap() {
-    setSheetSnap('peek');
-    setView('map');
-  }
 
   // Free-text search now lives in the global header (#4 mockup) and is shared
   // via the `?q=` param; mirror it into the catalog filter state.
@@ -236,6 +233,20 @@ export function CuratedAdventures() {
     setRevealQueue(true);
   }
   const [adding, setAdding] = useState(false);
+  // The phone's Add or Suggest tab (#289) arrives with `add` in the state:
+  // open the dialog once, and drop the ask so a reload or Back doesn't
+  // open it again.
+  const addAsked = isSignedIn || isOwner ? incomingState?.add === true : false;
+  const [prevAddKey, setPrevAddKey] = useState<string | null>(null);
+  if (addAsked && prevAddKey !== location.key) {
+    setPrevAddKey(location.key);
+    setAdding(true);
+  }
+  useEffect(() => {
+    if (addAsked) {
+      void navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    }
+  }, [addAsked, location.pathname, location.search, navigate]);
   const [selectionMode, setSelectionMode] = useState(acceptTarget);
   const [selectedForTrip, setSelectedForTrip] = useState<Set<string>>(() => new Set());
   const [tripDialogOpen, setTripDialogOpen] = useState(false);
@@ -279,14 +290,19 @@ export function CuratedAdventures() {
   }
 
   // The mobile map's sheet (#96) sits above the selection bar and the trip
-  // dialog, and "Show map" steps aside while selecting. A selection can only
-  // reach the mobile map by the window narrowing mid-select (Map at lg+, then
-  // an iPad turned to portrait), so end it there rather than leave the bar
-  // buried with card taps still toggling selection.
+  // dialog, and "Show map" steps aside while selecting, as the selection bar
+  // covers a phone's tab bar (#289). A selection can only reach the mobile
+  // map by the window narrowing mid-select (Map at lg+, then an iPad turned
+  // to portrait), so end it there rather than leave the bar buried with card
+  // taps still toggling selection. However the map opens, its sheet starts
+  // at peek, so a previous full-height drag doesn't bury it.
   const [prevMobileMap, setPrevMobileMap] = useState(mobileMap);
   if (prevMobileMap !== mobileMap) {
     setPrevMobileMap(mobileMap);
-    if (mobileMap) clearSelection();
+    if (mobileMap) {
+      clearSelection();
+      setSheetSnap('peek');
+    }
   }
 
   async function handleAddToTarget() {
@@ -334,6 +350,14 @@ export function CuratedAdventures() {
   // filters. `null` = inactive (never moved, or "Clear bounds"). The map keeps
   // plotting `results` (as parks, #269, below); only the list narrows.
   const [bounds, setBounds] = useState<MapBounds | null>(null);
+  // Leaving the phone's map by a tab (#289) drops its area filter, as Hide
+  // map did: the list shouldn't stay narrowed to a map no longer shown.
+  // A tablet turned to landscape keeps it: the map is still shown, at lg.
+  const [prevMobileMapForBounds, setPrevMobileMapForBounds] = useState(mobileMap);
+  if (prevMobileMapForBounds !== mobileMap) {
+    setPrevMobileMapForBounds(mobileMap);
+    if (!mobileMap && view !== 'map') setBounds(null);
+  }
   // Linked card↔pin state (#94), lifted here since both the list and the map are
   // rendered in this component.
   //   - `hoveredId` drives the highlighted pin (a hovered/focused card).
@@ -617,10 +641,19 @@ export function CuratedAdventures() {
   const listHeader = (
     <div className="mb-md space-y-sm">
       <div>
-        <h1 className="font-display text-headline-md text-primary">Curated Adventures</h1>
-        <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
-          {results.length} place{results.length === 1 ? '' : 's'} · sorted by distance from{' '}
-          {origin.label}
+        {/* A phone's tab bar says where this is (#289): the heading stays
+            for screen readers, and the count takes one short line. */}
+        <h1 className="sr-only font-display text-headline-md text-primary md:not-sr-only">
+          Curated Adventures
+        </h1>
+        <p className="font-body-sm text-body-sm text-on-surface-variant md:mt-xs">
+          <span className="md:hidden">
+            {results.length} place{results.length === 1 ? '' : 's'} near {origin.name}
+          </span>
+          <span className="hidden md:inline">
+            {results.length} place{results.length === 1 ? '' : 's'} · sorted by distance from{' '}
+            {origin.label}
+          </span>
         </p>
       </div>
       {isOwner && (
@@ -705,7 +738,8 @@ export function CuratedAdventures() {
             clearBounds();
             setView('list');
           }}
-          className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-variant"
+          // A phone leaves by its Places tab (#289).
+          className="hidden h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-variant md:inline-flex"
         >
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
@@ -980,7 +1014,8 @@ export function CuratedAdventures() {
               type="button"
               onClick={() => setAdding(true)}
               aria-label={isOwner ? 'Add activity' : 'Suggest activity'}
-              className="inline-flex h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm whitespace-nowrap text-on-primary transition-opacity hover:opacity-90"
+              // A phone adds from its tab bar (#289).
+              className="hidden h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm whitespace-nowrap text-on-primary transition-opacity hover:opacity-90 md:inline-flex"
             >
               <span
                 className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
@@ -1022,8 +1057,10 @@ export function CuratedAdventures() {
         // translucent app header, and the list rides over it in a draggable
         // sheet. No filter toolbar competes for the height: the sheet header
         // carries the exit and the count, and its body the filter chips.
+        // It ends at a phone's tab bar (#289), so the legend, attribution
+        // and fit padding, all measured from its foot, clear the sheet.
         <>
-          <div className="fixed inset-0 z-0">
+          <div className="fixed inset-x-0 top-0 bottom-(--tab-bar) z-0">
             <ActivityMap
               fullBleed
               activities={mapActivities}
@@ -1116,7 +1153,7 @@ export function CuratedAdventures() {
           {filterToolbar}
           <section
             className={`mx-auto max-w-screen-2xl py-md px-margin ${
-              selectionMode && selectedForTrip.size > 0 ? 'pb-32' : showMapButton ? 'pb-24' : ''
+              selectionMode && selectedForTrip.size > 0 ? 'pb-32' : showMapButton ? 'md:pb-24' : ''
             }`}
           >
             {listHeader}
@@ -1128,8 +1165,9 @@ export function CuratedAdventures() {
       {showMapButton && (
         <button
           type="button"
-          onClick={showMobileMap}
-          className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90"
+          onClick={() => setView('map')}
+          // A phone has its Map tab instead (#289); a tablet keeps this.
+          className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 z-40 hidden -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90 md:inline-flex"
         >
           <span
             className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
@@ -1143,7 +1181,9 @@ export function CuratedAdventures() {
       )}
 
       {selectionMode && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/30 bg-surface/95 pt-md px-margin pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] backdrop-blur-xl">
+        // Over a phone's tab bar (#289) while selecting, as a phone's select
+        // mode does, so its Map tab can't end the selection (below).
+        <div className="fixed inset-x-0 bottom-0 z-46 border-t border-outline-variant/30 bg-surface/95 pt-md px-margin pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] backdrop-blur-xl">
           <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-md">
             <div className="font-body-md text-on-surface">
               {targetTrip ? (

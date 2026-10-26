@@ -199,6 +199,18 @@
   }
 }
 
+/* The phone's tab bar (#289): how tall it is, home indicator included, for
+   the page, the selection bar and the map's list sheet to keep clear of.
+   None from md up, where there's no bar. */
+:root {
+  --tab-bar: calc(3.5rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 48rem) {
+  :root {
+    --tab-bar: 0px;
+  }
+}
+
 html,
 body {
   height: 100%;

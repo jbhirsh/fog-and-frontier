@@ -186,6 +186,7 @@ describe('a park’s hikes and stops in the list (#269)', () => {
 
   it('counts every place, nested or not', () => {
     renderList();
-    expect(screen.getByText(/4 places/)).toBeInTheDocument();
+    expect(screen.getByText(/4 places · sorted/)).toBeInTheDocument();
+    expect(screen.getByText(/4 places near/)).toBeInTheDocument();
   });
 });
