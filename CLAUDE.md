@@ -21,7 +21,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run test:visual` — Playwright visual regression: the desktop pages in Chromium, Firefox and WebKit (`desktop`, `desktop-firefox`, `desktop-webkit`) and the mobile ones on an iPhone (WebKit), each against its own Linux baselines. Baselines come from CI, not a laptop (fonts differ): run `visual.yml` by hand with `update_snapshots` on the branch, which commits them there.
 - `npm run db:snapshot` / `db:seed-preview` — Turso helpers in `scripts/`. The catalog lives only in Turso; there is no static seed.
 - `npm run cards -- draft` / `cards -- save` — card copy (#295) for places saved without it: Gemini drafts a review file, an owner edits it, then saves it to production.
-- `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/pr-gif-cli.ts`; below, "Show UI changes in the PR").
+- `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/gif.mjs`, which runs jbhirsh/ci's `gif` tool; below, "Show UI changes in the PR").
 - `npm run regions:gen` — regenerate `shared/isoRegions.ts` from ISO 3166 (Debian's `iso-codes` package, `apt install iso-codes`), when a new release adds or renames regions.
 - `npm run links:check` — audit every outbound link in the live catalog (#68): dead links fail it, bot-blocked ones (AllTrails) are listed for checking by hand. Runs weekly in `links.yml`.
 - `npm run instagram:check` — read a few known public Instagram posts the way sharing does (#6), failing when Instagram's pages no longer give what the reader needs. Runs weekly in `instagram.yml`.
@@ -135,6 +135,18 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
 
 ## Conventions
 
+- **CI tooling is shared** with sift and BoardGames in
+  [jbhirsh/ci](https://github.com/jbhirsh/ci), run from its `main` (no
+  version pin): mutation testing, Claude Review and autofix, PR GIFs, PR
+  visuals, the commit check, the weekly audit, the README screenshot bot,
+  Dependabot auto-merge and the secret and SAST scans. The workflows here
+  keep their triggers and job names (the required checks) and call it; this
+  repo's settings for each tool are its key in `.github/ci.json`, and how a
+  tool works is in its headers there. Change a tool in jbhirsh/ci (cloned
+  beside this repo as `../ci`), never by copying it back here. A new
+  pull-request workflow goes in `claude-autofix.yml`'s trigger list, or in
+  `.github/ci.json`'s `autofix.exempt` with its reason; CI's autofix
+  trigger check fails a PR that does neither.
 - Vercel function handlers: Node-style `(req, res)` — Web API style hangs in `vercel dev`.
 - **Tests ship with the code.** Any new resolver, reducer, or pure util needs its own unit test; run `npm run test:coverage` before pushing (CI enforces an 80% per-file gate — plain `vitest run` skips it). The coverage backlog in `vite.config.ts` (pre-gate files excluded from it) may only shrink: `src/test/coverageBacklog.test.ts` pins it to an explicit list and fails when a file is added (write tests instead), when one leaves the backlog without leaving the pinned list too (delete it there, so the pin ratchets down), or when an entry names a file that no longer exists. Tests are pure logic or RTL — no real network, DB, or browser. Multi-write DB paths get a test asserting a single `db().batch(stmts, 'write')` (see `transitionToPast`/`createTrip`/`patchTrip`).
 - **Property tests fuzz the pure helpers** (`fast-check`, in
@@ -144,7 +156,7 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   each test states what must hold for all of it (never throws, reads back
   what it wrote, stays in range). A failure prints its seed and the smallest
   counterexample; fix the code, or the property if it claimed too much.
-- **Mutation testing checks the assertions.** `mutation.yml` mutates the lines a PR adds or changes in the files it touches (the `mutate` globs in `stryker.config.json`, read by `.github/scripts/mutation-scope.mjs`, which names each changed block `file:first-last` from `git diff -U0` against the merge base; a file new to the branch is mutated whole, and one that only lost lines not at all; a changed test counts as a change to the whole file it covers, since a weakened test can let any of its mutants survive; and a file whose change is formatting only, its base version run through Prettier being byte for byte the PR's, counts as no change, so a reformat isn't a full sweep) and fails below the `break` score; a monthly sweep covers everything. A PR that changes no mutable source skips Stryker, the required check still passing, unless it touches what Stryker's setup rests on (`WIRING` in `mutation-scope.mjs`: its config, `vite.config.ts` and the test setup file, `tsconfig*.json`, `package.json`, the lockfile, `patches/`, `mutation.yml` and the mutation scripts), which runs a small smoke scope so a broken setup still shows. PR runs are incremental: each caches its results for the PR, so a later push re-runs only the mutants whose code or tests changed; `.github/scripts/mutation-incremental.mjs` first narrows the restored results to the run's files and lines, so the score is the changed code's alone. A change to the lockfile, `patches/`, the Stryker or Vite config, or `src/test/` starts the PR over; a change that reaches a mutant only through an import isn't detected, which the monthly sweep backstops. A surviving mutant means a missing assertion: add the test, or delete the code if it can never matter. The globs mirror the coverage scope in `vite.config.ts`, backlog included, and `src/test/mutationScope.test.ts` fails if the two drift apart. `patches/` holds a `patch-package` fix that makes Stryker's vitest runner name tests the way Vitest 5 matches them (stryker-js#6210); the runner is pinned to 10.0.0 so a release can't break it. Delete the patch and unpin once a Stryker release carries the fix.
+- **Mutation testing checks the assertions.** A PR's run mutates only the lines it changed in the files the `mutate` globs in `stryker.config.json` cover, and fails below the `break` score; a monthly sweep (8 parallel shards) covers everything. `mutation.yml` calls jbhirsh/ci's `mutation` tool, whose module headers say what counts as a change, when Stryker is skipped and how results are cached; this repo's settings for it are the `mutation` key of `.github/ci.json`. A surviving mutant means a missing assertion: add the test, or delete the code if it can never matter. The globs mirror the coverage scope in `vite.config.ts`, backlog included, and `src/test/mutationScope.test.ts` fails if the two drift apart. `patches/` holds a `patch-package` fix that makes Stryker's vitest runner name tests the way Vitest 5 matches them (stryker-js#6210); the runner is pinned to 10.0.0 so a release can't break it. Delete the patch and unpin once a Stryker release carries the fix.
 - **Prettier formats everything** (code, CSS, Markdown, YAML, JSON); ESLint
   checks correctness only, and `eslint-config-prettier`, last in the flat
   config, turns off any rule that would argue with it. CI's "Format
@@ -181,9 +193,8 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   noisy commits (fixups, reverts, "address review") into a clean history before
   opening or updating a PR. Linear history (rebase, not merge). Amend or squash
   your own feature branch freely before it merges, but never amend, rebase, or
-  force-push `main`. CI's commit-message step (`.github/scripts/check-commits.sh`)
-  fails a PR on a subject over 72 chars, a missing body, a fixup/"oops" commit
-  or a merge commit.
+  force-push `main`. CI's commit-message step (jbhirsh/ci's `commits`)
+  enforces the shape.
 - **The weekly audit sweeps the whole repo** (`weekly-audit.yml`, Monday
   06:00 UTC with the other sweeps, or by hand): knip (`knip.json`: unused
   files, exports, types and dependencies, and used ones `package.json`
@@ -191,8 +202,8 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   parallel test cases are meant to read alike), lychee (every Markdown
   link, local file and `#anchor`), and a dependency-cruiser graph of
   `src/` and `api/` as an artifact. Each finding keeps one issue labelled
-  `weekly-audit` (`.github/scripts/tracking-issue.mjs`, counts from
-  `audit-report.mjs`), updated each week and closed once clean; the run
+  `weekly-audit` (jbhirsh/ci's `audit` workflow), updated each week and
+  closed once clean; the run
   stays green unless a tool breaks. Run `npx knip` and `npx jscpd` before
   pushing a refactor: both are expected to report nothing, so a finding
   is fixed, not left for the issue (an unused export goes; a genuine
@@ -205,18 +216,14 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   screenshots share one branch (below). The one other branch is the bot's,
   `bot/readme-screenshots` (next).
 - **The README's screenshots keep themselves current.** On a push to
-  `main` where the UI (`src/` outside tests, `index.html`, `public/`)
-  changed since the workflow's last finished run, `readme-screenshots.yml`
-  retakes `docs/screenshots/` with `scripts/readme-screenshots.ts`: a local
-  production build reading production's catalog and photos, as
-  `npm run gif` records (so the map shows OpenStreetMap's tiles, not
-  CARTO's, whose key only Vercel has). A file is replaced only when over 0.5% of its
-  pixels changed, and any that were open one PR from
-  `bot/readme-screenshots`, set to squash-merge itself once its checks
-  pass; if none changed, an open bot PR is closed as stale, and pushes that
-  don't touch the UI bring it up to date with `main`. Capturing (npm, the
-  build, Playwright) runs in a job with a read-only token; only the job
-  that pushes holds `BOT_PR_TOKEN`, and it runs no npm. Add a screenshot to
+  `main` that changed what they show (the `readme-screenshots` key of
+  `.github/ci.json`), `readme-screenshots.yml` retakes `docs/screenshots/`
+  with `scripts/readme-screenshots.ts`: a local production build reading
+  production's catalog and photos, as `npm run gif` records (so the map
+  shows OpenStreetMap's tiles, not CARTO's, whose key only Vercel has).
+  jbhirsh/ci's `readme-screenshots` tool decides which differ enough to
+  replace and keeps the one bot PR from `bot/readme-screenshots`; its
+  headers say how. Add a screenshot to
   the README and to `SHOTS` together (a test holds them equal).
   `BOT_PR_TOKEN` is a fine-grained token with Contents and Pull requests
   write on this repo: GitHub runs no checks on a PR the Actions token
@@ -235,7 +242,8 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   a `vercel.json` with `{"git":{"deploymentEnabled":false}}`, so it costs no
   deploy. (Older PRs' pictures, once on `pr-screenshots/<topic>` branches, now
   live there under `<topic>/`.) The
-  `PR visuals` check (`.github/scripts/pr-visuals.mjs`) fails a UI change with
+  `PR visuals` check (jbhirsh/ci's `visuals`; what counts as UI is the
+  `visuals` key of `.github/ci.json`) fails a UI change with
   no picture unless "No visible UI change" is ticked; Claude Review asks for a
   GIF when motion changes.
   Pictures show the app exactly as production does: the real catalog, photos,
@@ -246,14 +254,15 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   production's image CDN; owner-only screens the same way, signed in through
   the test flags. Record GIFs with
   `npm run gif -- <scenario.ts> --dir <PR number>`
-  (`scripts/pr-gif-cli.ts`): it builds both, records the scenario
-  (`scripts/gif-scenarios/`) against each with the pointer and keys drawn in,
-  at the speed the page moved, commits the GIFs to `screenshots` and prints
-  the Before/After table. `scripts/pr-gif.ts`'s header has the
-  rules for writing a scenario: its `glide`, `click`, `drag` and `scroll`,
-  which go by the clock, with pauses, never `locator.click()` or a bare
-  `page.mouse`; the pointer kept in frame; ending on a pause. Check a few
-  frames, and the long ones, before publishing.
+  (`scripts/gif.mjs`, which runs jbhirsh/ci's `gif` tool with this repo's
+  live-site setup, `scripts/gif-setup.ts`): it builds both, records the
+  scenario (`scripts/gif-scenarios/`) against each with the pointer and keys
+  drawn in, at the speed the page moved, commits the GIFs to `screenshots`
+  and prints the Before/After table. A scenario's `play(page, gif)` moves
+  with `gif.glide`, `click`, `drag` and `scroll`, which go by the clock, with
+  pauses, never `locator.click()` or a bare `page.mouse` (the rules are in
+  jbhirsh/ci's `gif/moves.mjs`); the pointer kept in frame; ending on a
+  pause. Check a few frames, and the long ones, before publishing.
 - **Review before raising a PR.** Review the full diff (e.g. a review subagent
   reading it) before opening the PR — review gates PR creation, rather than
   opening first and reviewing after.
