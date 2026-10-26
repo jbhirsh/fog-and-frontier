@@ -47,6 +47,8 @@ export const ACTIVITIES_QUERY = graphql(`
       menuUrl
       dietary
       sourceUrl
+      cardLine
+      cardName
       completed
       completedDate
       notes
@@ -224,6 +226,8 @@ export const TRIP_QUERY = graphql(`
           menuUrl
           dietary
           sourceUrl
+          cardLine
+          cardName
           completed
           completedDate
           notes
@@ -376,6 +380,8 @@ export const GENERATE_ACTIVITY = graphql(`
         name
         shortDescription
         longDescription
+        cardLine
+        cardName
         category
         region
         parkType

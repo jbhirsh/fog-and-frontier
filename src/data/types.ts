@@ -59,6 +59,10 @@ export interface Activity {
   dietary?: string[];
   // Where it was found (#6): the Instagram post it was added from, say.
   sourceUrl?: string;
+  // What its card shows on a phone (#295), written to fit and shown whole: a
+  // line of at most 50 characters, and for a name over 40, a shorter one.
+  cardLine?: string;
+  cardName?: string;
   // The activity it's part of (#269): a park, for one of its hikes or stops.
   parentId?: string;
   completed?: boolean;

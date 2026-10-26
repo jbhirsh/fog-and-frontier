@@ -85,6 +85,7 @@ const baseActivity: Activity = {
   id: 'test-edit-activity',
   name: 'Original Name',
   shortDescription: 'Original short description.',
+  cardLine: 'A line that fits on a card.',
   longDescription: 'Original long description.',
   category: 'hiking',
   region: 'north-bay',
@@ -347,6 +348,7 @@ describe('AddActivity — edit mode', () => {
       id: 'test-edit-activity',
       name: 'Edited Name',
       shortDescription: 'Original short description.',
+      cardLine: 'A line that fits on a card.',
       completed: true,
       completedDate: '2025-10-12',
       notes: 'Original completion note.',
@@ -366,6 +368,7 @@ describe('AddActivity — other trails found (#6)', () => {
   const generated: GeneratedFields = {
     name: 'Alamere Falls',
     shortDescription: 'A tidefall',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'north-bay',
     city: 'Bolinas',
@@ -411,6 +414,7 @@ describe('AddActivity — a trail’s numbers from its search (#6)', () => {
   const generated: GeneratedFields = {
     name: 'Alamere Falls',
     shortDescription: 'A tidefall',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'north-bay',
     city: 'Bolinas',
@@ -518,6 +522,7 @@ describe('AddActivity — cover credit (#36)', () => {
   const generated: GeneratedFields = {
     name: 'Castle Rock',
     shortDescription: 'Ridgeline hike',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'south-bay',
     city: 'Los Gatos',
@@ -581,6 +586,7 @@ describe('AddActivity — contributors (#9)', () => {
   const generated: GeneratedFields = {
     name: 'Castle Rock',
     shortDescription: 'Ridgeline hike',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'south-bay',
     city: 'Los Gatos',
@@ -656,6 +662,7 @@ describe('AddActivity — cost (#85)', () => {
   const generated: GeneratedFields = {
     name: 'Castle Rock',
     shortDescription: 'Ridgeline hike',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'south-bay',
     city: 'Los Gatos',
@@ -701,11 +708,109 @@ describe('AddActivity — cost (#85)', () => {
   });
 });
 
+describe('AddActivity — card copy (#295)', () => {
+  const LONG_NAME = 'Castle Rock State Park (Saratoga Gap & Ridge Loop)';
+  const generated: GeneratedFields = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    cardLine: 'Sandstone boulders, oak woods, a falls overlook.',
+    category: 'hiking',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.23,
+    lng: -122.1,
+    duration: 'Half Day',
+  };
+
+  async function draft(fields: GeneratedFields) {
+    generateSpy.mockResolvedValue(fields);
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByLabelText('Card line');
+  }
+
+  function save() {
+    return userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+  }
+
+  it('carries the drafted card line, and saves it', async () => {
+    await draft(generated);
+    expect(screen.getByLabelText('Card line')).toHaveValue(
+      'Sandstone boulders, oak woods, a falls overlook.',
+    );
+    await save();
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].cardLine).toBe(
+      'Sandstone boulders, oak woods, a falls overlook.',
+    );
+  });
+
+  it('asks for a card name only for a name too long for a card', async () => {
+    await draft({ ...generated, name: LONG_NAME, cardName: 'Castle Rock State Park' });
+    expect(screen.getByLabelText('Card name')).toHaveValue('Castle Rock State Park');
+    await userEvent.clear(screen.getByLabelText('Name'));
+    await userEvent.type(screen.getByLabelText('Name'), 'Castle Rock');
+    // Still shown while it holds one, so it can be cleared.
+    expect(screen.getByLabelText('Card name')).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText('Card name'));
+    expect(screen.queryByLabelText('Card name')).not.toBeInTheDocument();
+  });
+
+  it('shows no card name for a name that fits', async () => {
+    await draft(generated);
+    expect(screen.queryByLabelText('Card name')).not.toBeInTheDocument();
+  });
+
+  it('won’t save a new place without a card line', async () => {
+    await draft({ ...generated, cardLine: undefined });
+    await save();
+    expect(screen.getByText('Add a card line before saving.')).toBeInTheDocument();
+    expect(saveSpy).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByLabelText('Card line'), 'Ridge loop with bay views.');
+    await save();
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+  });
+
+  it('won’t save a card line or a card name past its cap', async () => {
+    await draft({ ...generated, cardLine: 'x'.repeat(51) });
+    await save();
+    expect(screen.getByText('Shorten the card line to 50 characters.')).toBeInTheDocument();
+    expect(saveSpy).not.toHaveBeenCalled();
+    await userEvent.clear(screen.getByLabelText('Card line'));
+    await userEvent.type(screen.getByLabelText('Card line'), 'Ridge loop with bay views.');
+    await userEvent.clear(screen.getByLabelText('Name'));
+    await userEvent.type(screen.getByLabelText('Name'), LONG_NAME);
+    await userEvent.type(screen.getByLabelText('Card name'), 'y'.repeat(41));
+    await save();
+    expect(screen.getByText('Shorten the card name to 40 characters.')).toBeInTheDocument();
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('saves an edit of a place from before card lines without one', async () => {
+    render(
+      <AddActivity onClose={() => {}} editActivity={{ ...baseActivity, cardLine: undefined }} />,
+    );
+    await save();
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].cardLine).toBeUndefined();
+  });
+
+  it('clears a card line emptied by hand', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    await userEvent.clear(screen.getByLabelText('Card line'));
+    await save();
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].cardLine).toBeUndefined();
+  });
+});
+
 describe('AddActivity — a region from anywhere (#274)', () => {
   it('asks for one when the draft came without, and saves the one picked', async () => {
     generateSpy.mockResolvedValue({
       name: 'Navajo Loop',
       shortDescription: 'Down among the hoodoos',
+      cardLine: 'A line that fits on a card.',
       category: 'hiking',
       city: 'Bryce Canyon City',
       lat: 37.62,
@@ -749,6 +854,7 @@ describe('AddActivity — duplicates (#17)', () => {
   const generated: GeneratedFields = {
     name: 'Castle Rock',
     shortDescription: 'Ridgeline hike',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'south-bay',
     city: 'Los Gatos',
@@ -920,6 +1026,7 @@ describe('AddActivity — suggest mode (#73)', () => {
   const generated: GeneratedFields = {
     name: 'Castle Rock',
     shortDescription: 'Ridgeline hike',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'south-bay',
     city: 'Los Gatos',
@@ -1152,11 +1259,12 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
     expect(
       screen.getByText(
-        'Add a short description, a category, a region, a duration, a city and a pin on the map before sending.',
+        'Add a short description, a card line, a category, a region, a duration, a city and a pin on the map before sending.',
       ),
     ).toBeInTheDocument();
     await userEvent.clear(screen.getByLabelText('Name'));
     await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('Card line'), 'A line that fits on a card.');
     await choose();
     // The message follows the fields, without another Send.
     expect(
@@ -1174,18 +1282,20 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
   it('counts blank text as missing', async () => {
     await byHand();
     await userEvent.type(screen.getByLabelText('Short description'), '   ');
+    await userEvent.type(screen.getByLabelText('Card line'), '  ');
     await userEvent.type(screen.getByLabelText('City'), ' ');
     await choose();
     dropPin(37.23, -122.1);
     await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
     expect(
-      screen.getByText('Add a short description and a city before sending.'),
+      screen.getByText('Add a short description, a card line and a city before sending.'),
     ).toBeInTheDocument();
   });
 
   it('asks for each menu left unchosen', async () => {
     await byHand();
     await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('Card line'), 'A line that fits on a card.');
     await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
     dropPin(37.23, -122.1);
     await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
@@ -1218,6 +1328,7 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     suggestSpy.mockRejectedValueOnce(new Error('Network down'));
     await byHand();
     await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('Card line'), 'A line that fits on a card.');
     await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
     await choose();
     dropPin(37.23, -122.1);
@@ -1230,6 +1341,7 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
   it('goes through the same checks as a drafted one once filled in', async () => {
     await byHand();
     await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('Card line'), 'A line that fits on a card.');
     await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
     await choose();
     dropPin(37.23, -122.1);
@@ -1248,6 +1360,7 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     expect(sent).toMatchObject({
       name: 'Castle Rock',
       shortDescription: 'Ridgeline hike',
+      cardLine: 'A line that fits on a card.',
       category: 'hiking',
       region: 'south-bay',
       duration: 'Half Day',
@@ -1337,6 +1450,7 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     generateSpy.mockResolvedValue({
       name: 'Castle Rock',
       shortDescription: 'Ridgeline hike',
+      cardLine: 'A line that fits on a card.',
       category: 'hiking',
       region: 'south-bay',
       city: 'Los Gatos',
@@ -1358,6 +1472,7 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
   const generated: GeneratedFields = {
     name: 'Carson Falls',
     shortDescription: 'Tiered falls',
+    cardLine: 'A line that fits on a card.',
     category: 'hiking',
     region: 'north-bay',
     city: 'Fairfax',
@@ -1462,6 +1577,7 @@ describe('AddActivity — the park it’s part of (#269)', () => {
   const generated: GeneratedFields = {
     name: 'Test Lighthouse',
     shortDescription: 'An 1870 lighthouse',
+    cardLine: 'A line that fits on a card.',
     category: 'scenic',
     region: 'north-bay',
     city: 'Inverness',

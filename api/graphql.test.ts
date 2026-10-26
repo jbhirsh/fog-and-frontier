@@ -1121,6 +1121,60 @@ describe('costTier (#85)', () => {
     },
   );
 
+  it('saves card copy trimmed, an empty one as none (#295)', async () => {
+    setup();
+    const ok = await run(
+      SAVE,
+      {
+        i: {
+          id: 'a1',
+          activity: {
+            ...minimalActivity(),
+            cardLine: ' Ridge loop with bay views. ',
+            cardName: '',
+          },
+        },
+      },
+      OWNER,
+    );
+    expect(ok.errors).toBeUndefined();
+    expect(JSON.parse(executeWrites()[0]?.args[1] as string)).toMatchObject({
+      cardLine: 'Ridge loop with bay views.',
+      cardName: null,
+    });
+  });
+
+  it.each([
+    ['leaves it out keeps the stored copy', {}, 'Stored line.', 'Stored'],
+    ['clears it with null', { cardLine: null, cardName: null }, undefined, undefined],
+  ])('an edit that %s (#295)', async (_, given, line, name) => {
+    // A tab still on a bundle from before the fields sends neither.
+    setup({
+      snapshotJson: JSON.stringify({ id: 'a1', cardLine: 'Stored line.', cardName: 'Stored' }),
+    });
+    const ok = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), ...given } } },
+      OWNER,
+    );
+    expect(ok.errors).toBeUndefined();
+    const saved = JSON.parse(executeWrites()[0]?.args[1] as string) as Row;
+    expect(saved.cardLine ?? undefined).toBe(line);
+    expect(saved.cardName ?? undefined).toBe(name);
+  });
+
+  it('refuses card copy past its cap, writing nothing (#295)', async () => {
+    setup();
+    const refused = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), cardLine: 'x'.repeat(51) } } },
+      OWNER,
+    );
+    expect(code(refused)).toBe('BAD_USER_INPUT');
+    expect(refused.errors?.[0]?.message).toBe('cardLine must be at most 50 characters');
+    expect(executeWrites()).toEqual([]);
+  });
+
   it('refuses a tier outside the set, writing nothing', async () => {
     setup();
     const r = await run(
@@ -1968,6 +2022,70 @@ describe('Gemini ops', () => {
           activity: { name: 'Navajo Loop', region: null },
         });
       }
+    });
+  });
+
+  describe('generateActivity: a draft’s card copy (#295)', () => {
+    const DRAFT = {
+      name: 'Castle Rock State Park (Saratoga Gap & Ridge Loop)',
+      shortDescription: 'Sandstone boulders and oak woods on the ridge',
+      category: 'hiking',
+      region: 'south-bay',
+      city: 'Los Gatos',
+      lat: 37.2309,
+      lng: -122.0961,
+      duration: 'Half Day',
+    };
+    const CARD =
+      'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { cardLine cardName } } }';
+
+    it('keeps card copy that fits', async () => {
+      setup();
+      stubFetch(
+        geminiText(
+          JSON.stringify({
+            ...DRAFT,
+            cardLine: 'Sandstone boulders, oak woods, a falls overlook.',
+            cardName: 'Castle Rock State Park',
+          }),
+        ),
+      );
+      const r = await run(CARD, { i: { title: 'Castle Rock' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      expect(r.data?.generateActivity).toEqual({
+        activity: {
+          cardLine: 'Sandstone boulders, oak woods, a falls overlook.',
+          cardName: 'Castle Rock State Park',
+        },
+      });
+    });
+
+    it('drops card copy past its cap rather than cutting it', async () => {
+      setup();
+      stubFetch(
+        geminiText(
+          JSON.stringify({ ...DRAFT, cardLine: 'x'.repeat(51), cardName: 'y'.repeat(41) }),
+        ),
+      );
+      const r = await run(CARD, { i: { title: 'Castle Rock' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      expect(r.data?.generateActivity).toEqual({ activity: { cardLine: null, cardName: null } });
+    });
+
+    it('asks Gemini for a card line, and a card name only past 40 characters', async () => {
+      setup();
+      stubFetch(geminiText(JSON.stringify(DRAFT)));
+      await run(CARD, { i: { title: 'Castle Rock' } }, OWNER);
+      const call = vi
+        .mocked(fetch)
+        .mock.calls.find(([url]) => typeof url === 'string' && url.includes('generativelanguage'));
+      const body = JSON.parse(call?.[1]?.body as string) as {
+        systemInstruction: { parts: { text: string }[] };
+        generationConfig: { responseJsonSchema: { required: string[] } };
+      };
+      expect(body.generationConfig.responseJsonSchema.required).toContain('cardLine');
+      expect(body.systemInstruction.parts[0].text).toContain('at most 50 characters');
+      expect(body.systemInstruction.parts[0].text).toContain('over 40 characters');
     });
   });
 

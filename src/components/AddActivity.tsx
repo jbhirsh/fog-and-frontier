@@ -26,6 +26,8 @@ import { DuplicateNotice } from './DuplicateNotice';
 import { lookupAllTrails } from '../lib/alltrails';
 import { sentenceCase } from '../lib/activityLabels';
 import { generateActivity, type GeneratedFields } from '../lib/generateActivity';
+import { CARD_LINE_MAX, CARD_NAME_MAX, cardCopyProblem, needsCardName } from '../lib/cardCopy';
+import { CardCopyField } from './CardCopyField';
 import { TrailPicker, type TrailOption } from './TrailPicker';
 
 interface Props {
@@ -230,6 +232,8 @@ export function AddActivity({
         name: g.name,
         shortDescription: g.shortDescription,
         longDescription: g.longDescription,
+        cardLine: g.cardLine,
+        cardName: g.cardName,
         category: g.category,
         region: g.region ?? UNCHOSEN,
         parkType: g.parkType,
@@ -386,6 +390,16 @@ export function AddActivity({
       setError('Choose a region before saving.');
       return;
     }
+    // Shown whole on a card (#295), so it has to fit; the server agrees.
+    // Every new place gets a line; one saved before #295 gets its line from
+    // the backfill, so an edit doesn't ask for one.
+    const cardProblem =
+      cardCopyProblem(draft) ??
+      (mode === 'create' && !draft.cardLine?.trim() ? 'Add a card line before saving.' : null);
+    if (cardProblem) {
+      setError(cardProblem);
+      return;
+    }
     setSaving(true);
     setError(null);
     let finalDraft = draft;
@@ -532,6 +546,7 @@ function missingForSuggestion(a: Activity): string[] {
   const missing: string[] = [];
   if (!a.name.trim()) missing.push('a name');
   if (!a.shortDescription.trim()) missing.push('a short description');
+  if (!a.cardLine?.trim()) missing.push('a card line');
   if (!a.category) missing.push('a category');
   if (!a.region) missing.push('a region');
   if (!a.duration) missing.push('a duration');
@@ -804,6 +819,19 @@ function ReviewStep({
         />
       </Field>
 
+      {/* Only a name too long for a card asks for a shorter one (#295), or
+          one that already has it, so it can be cleared. */}
+      {(needsCardName(draft.name) || draft.cardName) && (
+        <CardCopyField
+          label="Card name"
+          hint="A shorter name for cards and the map, shown whole."
+          value={draft.cardName ?? ''}
+          max={CARD_NAME_MAX}
+          onChange={(v) => patch('cardName', v || undefined)}
+          className={inputCls}
+        />
+      )}
+
       <Field label="Short description">
         {/* Wrapped, and as tall as it is, so all of it can be read: one line
             hid most of a drafted one. Still one paragraph: a line break
@@ -815,6 +843,15 @@ function ReviewStep({
           className={`${inputCls} field-sizing-content resize-none`}
         />
       </Field>
+
+      <CardCopyField
+        label="Card line"
+        hint="What a phone's card says under the name, shown whole."
+        value={draft.cardLine ?? ''}
+        max={CARD_LINE_MAX}
+        onChange={(v) => patch('cardLine', v || undefined)}
+        className={inputCls}
+      />
 
       <Field label="Long description">
         <textarea

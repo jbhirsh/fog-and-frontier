@@ -10,6 +10,9 @@ export type GeneratedFields = Details & {
   name: string;
   shortDescription: string;
   longDescription?: string;
+  // Its card's copy (#295), each dropped by the server when it didn't fit.
+  cardLine?: string;
+  cardName?: string;
   category: Category;
   // None when Gemini named no region on the list (#274): the form asks.
   region?: Region;
@@ -30,6 +33,8 @@ function rowToGenerated(row: GeneratedActivityRow): GeneratedFields {
     name: row.name,
     shortDescription: row.shortDescription,
     longDescription: row.longDescription ?? undefined,
+    cardLine: row.cardLine ?? undefined,
+    cardName: row.cardName ?? undefined,
     category: row.category,
     region: (row.region as Region | null) ?? undefined,
     parkType: row.parkType ?? undefined,

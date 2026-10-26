@@ -58,6 +58,7 @@ function activityRecord(overrides: Record<string, unknown> = {}): Record<string,
     duration: '1-2 Hours',
     difficulty: 'moderate',
     dogFriendly: false,
+    cardLine: 'Sandstone boulders, oak woods, a falls overlook.',
     ...overrides,
   };
 }

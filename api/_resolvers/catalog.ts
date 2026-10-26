@@ -1,3 +1,4 @@
+import { checkCardCopy, withStoredCardCopy } from '../_cardCopy.js';
 import { db } from '../_db.js';
 import { badInput, conflict } from '../_gqlError.js';
 import { findDuplicates, freeId, type CatalogPlace } from '../_duplicates.js';
@@ -189,6 +190,8 @@ export function checkActivityInput(activity: ActivityInput): void {
   if (activity.sourceUrl != null && !isSavableUrl(activity.sourceUrl, null)) {
     throw badInput('sourceUrl must be a web address');
   }
+  // Written to fit a phone's card (#295), never cut short there.
+  checkCardCopy(activity);
 }
 
 /** Refuses a new activity with a high-confidence look-alike in the catalog (#17). */
@@ -256,12 +259,14 @@ async function saveActivity(
   const id = input.id;
   const row = await rowById(id);
   const contributors = await resolveContributors(row, input.activity.contributors, caller.email);
-  // Like contributors, an edit that leaves the park out keeps the stored
-  // one; null clears it.
-  const activity =
+  // Like contributors, an edit that leaves the park or the card copy (#295)
+  // out keeps the stored one; null clears it.
+  const activity = withStoredCardCopy(
     input.activity.parentId === undefined
       ? { ...input.activity, parentId: parentIdOf(row?.j) ?? undefined }
-      : input.activity;
+      : input.activity,
+    row?.j,
+  );
   const { stored, json } = storedJson(id, activity, contributors);
   await db().execute({
     sql: 'INSERT INTO a (id, j, t) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET j = excluded.j, t = excluded.t',
