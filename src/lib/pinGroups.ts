@@ -63,10 +63,14 @@ const GROUP_MIN_SIZE = 34;
 /** The widest a group's circle draws, under {@link GROUP_RADIUS_PX}. */
 export const GROUP_MAX_SIZE = 46;
 
-/** A group's circle, in pixels: wider the more it holds, up to {@link GROUP_MAX_SIZE}. */
+/**
+ * A group's circle, in pixels: wider the more it holds, up to
+ * {@link GROUP_MAX_SIZE}, and always even, so its middle falls on a pixel's
+ * edge and its count can be centred on a screen of one pixel per point.
+ */
 export function groupSize(count: number): number {
   const grown = GROUP_MIN_SIZE + 3 * Math.log2(Math.max(count, 2) / 2);
-  return Math.min(GROUP_MAX_SIZE, Math.round(grown));
+  return Math.min(GROUP_MAX_SIZE, 2 * Math.round(grown / 2));
 }
 
 /** A place's pin as the map has it: where it is, and whether it's a far dot (#109). */
