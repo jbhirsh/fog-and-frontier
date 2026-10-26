@@ -105,6 +105,8 @@ export type SnapshotShape = {
   menuUrl: string | null;
   dietary: string[] | null;
   sourceUrl: string | null;
+  cardLine: string | null;
+  cardName: string | null;
   completed: boolean | null;
   completedDate: string | null;
   notes: string | null;
@@ -143,6 +145,8 @@ export function coerceSnapshot(raw: unknown): SnapshotShape | null {
     menuUrl: str(r.menuUrl),
     dietary: strArray(r.dietary),
     sourceUrl: str(r.sourceUrl),
+    cardLine: str(r.cardLine),
+    cardName: str(r.cardName),
     completed: bool(r.completed),
     completedDate: isoDate(r.completedDate),
     notes: str(r.notes),

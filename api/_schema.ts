@@ -94,6 +94,10 @@ export const typeDefs = /* GraphQL */ `
     dietary: [String!]
     "Where it was found (#6): the Instagram post it was added from, say."
     sourceUrl: String
+    "Its card's line on a phone (#295): at most 50 characters, shown whole."
+    cardLine: String
+    "A shorter name for cards and pins (#295), for a name over 40 characters: at most 40."
+    cardName: String
     completed: Boolean
     completedDate: Date
     notes: String
@@ -135,6 +139,10 @@ export const typeDefs = /* GraphQL */ `
     dietary: [String!]
     "Where it was found (#6): the Instagram post it was added from, say."
     sourceUrl: String
+    "Its card's line on a phone (#295): at most 50 characters, shown whole."
+    cardLine: String
+    "A shorter name for cards and pins (#295), for a name over 40 characters: at most 40."
+    cardName: String
     completed: Boolean
     completedDate: Date
     notes: String
@@ -301,6 +309,10 @@ export const typeDefs = /* GraphQL */ `
     notes: String
     coverImage: String
     coverCredit: String
+    "Its card's line (#295), at most 50 characters; null when Gemini's didn't fit."
+    cardLine: String
+    "A shorter name for cards (#295), only for a name over 40 characters."
+    cardName: String
     "The saved park it's part of (#269), matched from the park Gemini named; null when none is saved."
     parentId: ID
   }
@@ -358,6 +370,10 @@ export const typeDefs = /* GraphQL */ `
     dietary: [String!]
     "Where it was found (#6): the Instagram post it was added from, say."
     sourceUrl: String
+    "Its card's line on a phone (#295): at most 50 characters, shown whole."
+    cardLine: String
+    "A shorter name for cards and pins (#295), for a name over 40 characters: at most 40."
+    cardName: String
     completed: Boolean
     completedDate: Date
     notes: String

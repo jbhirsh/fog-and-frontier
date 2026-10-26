@@ -4,6 +4,8 @@ import {
   HttpError,
   type TrailTools,
 } from '../_allTrailsSearch.js';
+import { CARD_LINE_MAX, CARD_NAME_MAX } from '../../shared/cardCopy.js';
+import { draftCardCopy } from '../_cardCopy.js';
 import { findCoverImage } from '../_coverImage.js';
 import { matchParent, parkName } from '../_parents.js';
 import { toRegion } from '../_regions.js';
@@ -127,6 +129,7 @@ export const ACTIVITY_REQUIRED_FIELDS = [
   'duration',
   'difficulty',
   'dogFriendly',
+  'cardLine',
 ] as const;
 
 const ACTIVITY_SCHEMA = {
@@ -140,6 +143,14 @@ const ACTIVITY_SCHEMA = {
     longDescription: {
       type: 'string',
       description: 'A 2-4 sentence paragraph with concrete details, history, or what to expect',
+    },
+    cardLine: {
+      type: 'string',
+      description: `What a phone's card shows under the name: at most ${CARD_LINE_MAX} characters, spaces included, one phrase`,
+    },
+    cardName: {
+      type: 'string',
+      description: `Only when "name" is over ${CARD_NAME_MAX} characters: a shorter form of it, at most ${CARD_NAME_MAX}`,
     },
     category: {
       type: 'string',
@@ -267,6 +278,8 @@ Rules:
 - "category" must reflect the dominant activity. "scenic" for drives/lookouts; "other" only if nothing else fits.
 - "duration" should reflect realistic round-trip time from ${HOME_BASE} including driving.
 - "shortDescription" should be vivid and specific, not generic, with the specifics taken from your sources.
+- "cardLine" is the place in a phrase for a phone's card, shown whole and never cut, so count: at most ${CARD_LINE_MAX} characters, spaces included (e.g. "Easy creek loop past a historic mineral spring."). Same rule as "shortDescription" for naming things.
+- "cardName" only when "name" is over ${CARD_NAME_MAX} characters: the name people would know it by, at most ${CARD_NAME_MAX} ("Castle Rock State Park" for "Castle Rock State Park (Saratoga Gap & Ridge Loop)"). Omit it otherwise.
 - In "shortDescription" and "longDescription", name a place or thing inside the activity (a grove, trail, viewpoint, landmark, dish, room) only if a source you found names it there. Describe anything you can't confirm in general terms instead; a vivid general line beats a specific name that turns out to belong somewhere else.
 - "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.
 - "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).
@@ -537,6 +550,11 @@ async function generateActivity(
   parsed.region = toRegion(parsed.region);
   // Just the park's name, should Gemini's answer have run on past it.
   parsed.partOf = parkName(parsed.partOf);
+  // Card copy that doesn't fit (#295) is dropped for the form to ask for,
+  // never cut short.
+  const card = draftCardCopy(parsed);
+  parsed.cardLine = card.cardLine;
+  parsed.cardName = card.cardName;
   for (const [field, values] of Object.entries(OPTIONAL_GENERATED_ENUMS)) {
     const v = parsed[field];
     if (v !== undefined && v !== null && !values.includes(v as string)) {
