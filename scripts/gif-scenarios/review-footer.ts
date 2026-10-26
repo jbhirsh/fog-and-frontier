@@ -2,13 +2,13 @@
 // main, Back and Save sit at the very end; on the branch they stay pinned to
 // the bottom of the dialog the whole way (#287).
 //
-//   node --experimental-strip-types scripts/pr-gif-cli.ts scripts/gif-scenarios/review-footer.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/review-footer.ts --dir <PR number>
 //
 // Gemini's draft is stubbed (its key is only on the deployment), with no
 // cover, so Commons isn't asked.
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
-import { glide, scroll, type Scenario } from '../pr-gif.ts';
+import type { Scenario } from '../gif-types.ts';
 import { draftActivity, stubDraft } from './stub-draft.ts';
 
 const DRAFT = {
@@ -55,18 +55,18 @@ const scenario: Scenario = {
     await signIn(page);
     await stubDraft(page, DRAFT, 800, { cover: false });
   },
-  async ready(page) {
+  async ready(page, gif) {
     await page.getByRole('button', { name: 'Add activity' }).first().waitFor();
     await page.evaluate(() => document.fonts.ready);
-    await glide(page, { x: 200, y: 420 }, 0);
+    await gif.glide(page, { x: 200, y: 420 }, 0);
   },
-  async run(page) {
-    await draftActivity(page, 'Alamere Falls');
+  async play(page, gif) {
+    await draftActivity(page, gif, 'Alamere Falls');
     // Down the whole draft, the pointer over the dialog, then a pause on
     // where Save is.
-    await glide(page, { x: 200, y: 420 }, 400);
+    await gif.glide(page, { x: 200, y: 420 }, 400);
     for (let i = 0; i < 6; i++) {
-      await scroll(page, 450);
+      await gif.scroll(page, 450);
       await page.waitForTimeout(500);
     }
     await page.waitForTimeout(1500);
