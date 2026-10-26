@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import type { Category } from '../data/types';
 import { isWithinBounds, type MapBounds } from './mapBounds';
+import { GROUP_MAX_SIZE, groupSize } from './pinGroups';
 
 // Shared map surface styling for every Leaflet map in the app (the standalone
 // `/map`, each trip's `TripMap`, and the #4 split view later). Keep the basemap
@@ -107,12 +108,8 @@ const PIN_SIZE = 30;
 // neighbours; the caller also lifts them with `zIndexOffset` so they sit above.
 const PIN_SIZE_HIGHLIGHTED = 40;
 
-// Circular "glyph" marker: a colored disc with a white border and a soft
-// shadow, holding a white glyph — replacing the old rotated teardrop. Color
-// still carries meaning (completion status / trip-day hue); only the shape and
-// treatment changed. Stays an `L.divIcon` so it's the same mechanism the maps
-// already use.
-export function glyphPin(color: string, glyph: PinGlyph, opts: PinOptions = {}): L.DivIcon {
+// A glyph pin's markup, which homePin wraps with its badge.
+function glyphPinHtml(color: string, glyph: PinGlyph, opts: PinOptions = {}): string {
   const { highlighted = false } = opts;
   const size = highlighted ? PIN_SIZE_HIGHLIGHTED : PIN_SIZE;
   const iconFontSize = highlighted ? 22 : 17;
@@ -127,7 +124,7 @@ export function glyphPin(color: string, glyph: PinGlyph, opts: PinOptions = {}):
       ? `<span class="material-symbols-outlined" style="font-size:${iconFontSize}px;color:#fff;font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20;">${glyph.icon}</span>`
       : `<span style="font-size:${textFontSize}px;font-weight:700;line-height:1;color:#fff;font-family:system-ui,-apple-system,sans-serif;">${glyph.text}</span>`;
 
-  const html = `<div style="
+  return `<div style="
     width:${size}px;height:${size}px;
     border-radius:9999px;
     background:${color};
@@ -135,7 +132,16 @@ export function glyphPin(color: string, glyph: PinGlyph, opts: PinOptions = {}):
     box-shadow:${shadow};
     display:flex;align-items:center;justify-content:center;
   ">${inner}</div>`;
+}
 
+// Circular "glyph" marker: a colored disc with a white border and a soft
+// shadow, holding a white glyph — replacing the old rotated teardrop. Color
+// still carries meaning (completion status / trip-day hue); only the shape and
+// treatment changed. Stays an `L.divIcon` so it's the same mechanism the maps
+// already use.
+export function glyphPin(color: string, glyph: PinGlyph, opts: PinOptions = {}): L.DivIcon {
+  const size = opts.highlighted ? PIN_SIZE_HIGHLIGHTED : PIN_SIZE;
+  const html = glyphPinHtml(color, glyph, opts);
   return L.divIcon({
     html,
     // Custom class so Leaflet's default `.leaflet-div-icon` white box/border is
@@ -170,5 +176,98 @@ export function minorPin(color: string): L.DivIcon {
     iconSize: [MINOR_HIT_SIZE, MINOR_HIT_SIZE],
     iconAnchor: [MINOR_HIT_SIZE / 2, MINOR_HIT_SIZE / 2],
     popupAnchor: [0, -(MINOR_DOT_SIZE / 2) - 2],
+  });
+}
+
+// A group's circle (#291): the app's navy, so it reads apart from the status
+// colors of single pins. A highlighted one (holding the card under the
+// pointer, #94) takes the to-do blue as its ring, staying the same size so
+// it can't grow into a neighbour. A group of only far places (#109) is a
+// small muted disc, stepping back as their dots do.
+const GROUP_COLOR = '#001e37';
+const GROUP_RING_HIGHLIGHTED = '#0ea5e9';
+const MINOR_GROUP_COLOR = '#64748b';
+const MINOR_GROUP_SIZE = 24;
+
+// Home's badge: a disc (a pill past one figure) tucked onto the house's
+// shoulder, inside the reach every marker keeps to.
+const BADGE_SIZE = 16;
+const BADGE_OUT = 3;
+
+/**
+ * The farthest any marker reaches from its point, in pixels: a highlighted
+ * pin's 40px disc, a group at its widest, home with its badge, a far dot's
+ * hit box. Twice this is at most GROUP_RADIUS_PX, the least distance between
+ * markers, so none overlap (#291).
+ */
+export const MARKER_REACH_PX = Math.max(
+  PIN_SIZE_HIGHLIGHTED / 2,
+  GROUP_MAX_SIZE / 2,
+  // The badge's far end-cap: its centre at the corner, plus its radius.
+  Math.hypot(PIN_SIZE / 2 + BADGE_OUT - BADGE_SIZE / 2, PIN_SIZE / 2 + BADGE_OUT - BADGE_SIZE / 2) +
+    BADGE_SIZE / 2,
+  MINOR_HIT_SIZE / 2,
+);
+
+// Text a screen reader reads for a marker whose visible content is a count.
+function label(text: string): string {
+  return `<span class="sr-only">${text}</span>`;
+}
+
+const COUNT_STYLE =
+  'font-weight:700;line-height:1;color:#fff;font-family:system-ui,-apple-system,sans-serif;';
+
+/** A group of pins drawn as one circle with its count, sized by it, named by `name`. */
+export function groupPin(
+  count: number,
+  name: string,
+  opts: PinOptions & { minor?: boolean } = {},
+): L.DivIcon {
+  const size = opts.minor ? MINOR_GROUP_SIZE : groupSize(count);
+  const ring = opts.highlighted ? `3px solid ${GROUP_RING_HIGHLIGHTED}` : '2px solid #fff';
+  const fontSize = opts.minor || count > 99 ? 11 : 14;
+  const html = `<div style="
+    width:${size}px;height:${size}px;
+    border-radius:9999px;
+    background:${opts.minor ? MINOR_GROUP_COLOR : GROUP_COLOR};
+    border:${ring};
+    box-shadow:0 2px 6px rgba(0,0,0,0.35);
+    display:flex;align-items:center;justify-content:center;
+  "><span aria-hidden="true" style="font-size:${fontSize}px;${COUNT_STYLE}">${count}</span>${label(name)}</div>`;
+  return L.divIcon({
+    html,
+    className: 'glyph-pin pin-group',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+/**
+ * Home's pin holding the places beside it at this zoom (#291): its house,
+ * with their count in a small navy badge at its shoulder, named by `name`.
+ * None beside it, it's the plain pin. Highlighted (a card beside it hovered,
+ * #94), the badge turns to-do blue.
+ */
+export function homePin(
+  color: string,
+  nearby: number,
+  name = '',
+  opts: PinOptions = {},
+): L.DivIcon {
+  const pin = glyphPin(color, { icon: 'home' });
+  if (nearby === 0) return pin;
+  const house = glyphPinHtml(color, { icon: 'home' });
+  const badge = `<span aria-hidden="true" style="
+    position:absolute;top:-${BADGE_OUT}px;right:-${BADGE_OUT}px;
+    min-width:${BADGE_SIZE}px;height:${BADGE_SIZE}px;padding:0 3px;box-sizing:border-box;
+    border-radius:9999px;background:${opts.highlighted ? GROUP_RING_HIGHLIGHTED : GROUP_COLOR};
+    border:1.5px solid #fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;${COUNT_STYLE}
+  ">${nearby}</span>`;
+  return L.divIcon({
+    ...pin.options,
+    html: `<div style="position:relative;">${house}${badge}${label(name)}</div>`,
+    className: 'glyph-pin pin-group',
   });
 }

@@ -139,18 +139,21 @@ export function BottomSheet({ snap, onSnapChange, header, children, label }: Pro
   // dragged back down. The detail dialog (z-[1000]) still opens above it.
   return (
     // Above a phone's tab bar (#289), which keeps the home indicator clear.
+    // Clipped to its height: at peek the list's padding can't shrink, and
+    // its top would spill over the tab bar.
     <section
       ref={sheetRef}
       aria-label={label}
-      className="fixed inset-x-0 bottom-(--tab-bar) z-60 flex flex-col rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl max-md:pb-0"
+      className="fixed inset-x-0 bottom-(--tab-bar) z-60 flex flex-col overflow-hidden rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl max-md:pb-0"
       style={{
         height: dragging ? `${liveHeight}px` : SNAP_CSS[snap],
         transition:
           dragging || reduceMotion ? 'none' : 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
       }}
     >
-      {/* A full-width, 48px-tall grab bar (the minimum touch target): the pill
-          alone is far too small to hit. */}
+      {/* A full-width grab bar, 28px tall (over the 24px a target needs):
+          the pill alone is far too small to hit, and the header beside it
+          drags too, so a taller bar would only leave the peek emptier. */}
       <button
         type="button"
         aria-label={`Resize list, currently ${snap}`}
@@ -158,7 +161,7 @@ export function BottomSheet({ snap, onSnapChange, header, children, label }: Pro
         onPointerDown={(event) => startDrag(event, true)}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        className="flex min-h-12 w-full shrink-0 cursor-grab touch-none flex-col items-center justify-center active:cursor-grabbing"
+        className="flex min-h-7 w-full shrink-0 cursor-grab touch-none flex-col items-center justify-center active:cursor-grabbing"
       >
         <span aria-hidden="true" className="h-1.5 w-10 rounded-full bg-on-surface-variant/30" />
       </button>

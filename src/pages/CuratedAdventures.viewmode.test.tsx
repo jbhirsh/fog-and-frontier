@@ -183,7 +183,7 @@ describe('Curated Adventures — view modes (#93)', () => {
   it('summarises the bounds filter in the sheet header, with a way to clear it', async () => {
     renderAt('/?view=map');
     await userEvent.click(screen.getByRole('button', { name: 'pan empty' }));
-    expect(sheet()).toHaveTextContent('Showing 0 in this area');
+    expect(sheet()).toHaveTextContent('0 places in this area');
     expect(within(sheet()).getByText('No activities in this area.')).toBeInTheDocument();
 
     await userEvent.click(within(sheet()).getByRole('button', { name: 'Clear bounds' }));

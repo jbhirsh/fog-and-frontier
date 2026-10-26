@@ -4,6 +4,7 @@ import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useDrivingMiles } from '../lib/drivingMiles';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityMap } from '../components/ActivityMap';
+import { PinCard } from '../components/PinCard';
 import { AddActivity } from '../components/AddActivity';
 import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
@@ -149,6 +150,8 @@ export function CuratedAdventures() {
   // The sheet starts collapsed so the map is the prominent surface the user
   // just asked for, and collapses again each time the map opens (below).
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
+  // The pin tapped on the mobile map, whose card shows over the sheet (#291).
+  const [pinCardId, setPinCardId] = useState<string | null>(null);
 
   // Free-text search now lives in the global header (#4 mockup) and is shared
   // via the `?q=` param; mirror it into the catalog filter state.
@@ -299,6 +302,7 @@ export function CuratedAdventures() {
   const [prevMobileMap, setPrevMobileMap] = useState(mobileMap);
   if (prevMobileMap !== mobileMap) {
     setPrevMobileMap(mobileMap);
+    setPinCardId(null);
     if (mobileMap) {
       clearSelection();
       setSheetSnap('peek');
@@ -431,6 +435,10 @@ export function CuratedAdventures() {
     if (!listShown) return results;
     return opened ? [...nested.top, ...opened.held] : nested.top;
   }, [listShown, nested, results, opened]);
+  // A pin's card goes once a filter takes its pin off the map.
+  const pinCard = pinCardId ? (mapActivities.find((a) => a.id === pinCardId) ?? null) : null;
+  // Stable, as the card's Escape listener depends on it.
+  const closePinCard = useCallback(() => setPinCardId(null), []);
   // The list as shown, which an activity opened from here steps through
   // (#64): the cards in order, with an open park's own after the last card
   // of its row, where its section sits, `shownCount` cards being rendered.
@@ -726,66 +734,6 @@ export function CuratedAdventures() {
   // it carries the way back to the list and the same count / bounds summary
   // the list header shows. The exit reads "Hide map" rather than "List"
   // because the sheet already is the list.
-  const mobileSheetHeader = (
-    <div className="flex items-center justify-between gap-sm">
-      {/* The way out, and beside it the owners' review count (#259). */}
-      <div className="flex shrink-0 items-center gap-xs">
-        <button
-          type="button"
-          // Drop the map-driven viewport filter on the way out: the full-width
-          // list shouldn't stay narrowed to a map the user can no longer see.
-          onClick={() => {
-            clearBounds();
-            setView('list');
-          }}
-          // A phone leaves by its Places tab (#289).
-          className="hidden h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-variant md:inline-flex"
-        >
-          <span
-            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 18, width: 18, height: 18 }}
-            aria-hidden="true"
-          >
-            close
-          </span>
-          Hide map
-        </button>
-        {reviewButton}
-      </div>
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex items-center gap-sm text-body-sm text-on-surface-variant"
-      >
-        {bounds ? (
-          <>
-            <span>
-              Showing <b className="text-on-surface">{visibleResults.length}</b> in this area
-            </span>
-            <button
-              type="button"
-              aria-label="Clear bounds"
-              // Drop the sheet to peek first, so the fit's flight (sized for a
-              // peeking sheet) isn't hidden behind it.
-              onClick={() => {
-                setSheetSnap('peek');
-                clearBounds();
-              }}
-              className="font-semibold text-secondary hover:underline"
-            >
-              Clear
-            </button>
-          </>
-        ) : (
-          <span>
-            <b className="text-on-surface">{results.length}</b> place
-            {results.length === 1 ? '' : 's'}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-
   // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
   // scrolls beneath it); in Split it sits above the page-scrolled columns; in
   // Map it's the fixed top row of a viewport-height flex column (below).
@@ -810,6 +758,84 @@ export function CuratedAdventures() {
       contributorOptions={isSignedIn ? contributorChoices : []}
     />
   );
+  // The mobile map's sheet header (#96), one row: a phone's Filters (#291),
+  // the way out from md up, the owners' review count (#259), and how many
+  // places the map holds, which at peek is the way up to the whole list.
+  function renderMobileSheetHeader() {
+    const count = bounds ? visibleResults.length : results.length;
+    const countText = (
+      <>
+        <b className="text-on-surface">{count}</b> place{count === 1 ? '' : 's'}
+        {bounds ? ' in this area' : ''}
+      </>
+    );
+    return (
+      <div className="flex flex-wrap items-center gap-x-sm gap-y-xs">
+        {compactFilters}
+        <button
+          type="button"
+          // Drop the map-driven viewport filter on the way out: the full-width
+          // list shouldn't stay narrowed to a map the user can no longer see.
+          onClick={() => {
+            clearBounds();
+            setView('list');
+          }}
+          // A phone leaves by its Places tab (#289).
+          className="hidden h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-variant md:inline-flex"
+        >
+          <span
+            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            style={{ fontSize: 18, width: 18, height: 18 }}
+            aria-hidden="true"
+          >
+            close
+          </span>
+          Hide map
+        </button>
+        {reviewButton}
+        <div
+          role="status"
+          aria-live="polite"
+          className="ml-auto flex items-center gap-sm text-body-sm text-on-surface-variant"
+        >
+          {sheetSnap === 'peek' ? (
+            <button
+              type="button"
+              aria-label={`${count} place${count === 1 ? '' : 's'}${bounds ? ' in this area' : ''}, see list`}
+              onClick={() => setSheetSnap('full')}
+              className="inline-flex h-9 items-center gap-0.5 rounded-full pr-xs pl-sm transition-colors hover:bg-surface-variant"
+            >
+              <span>{countText}</span>
+              <span
+                className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+                aria-hidden="true"
+              >
+                expand_less
+              </span>
+            </button>
+          ) : (
+            <span>{countText}</span>
+          )}
+          {bounds && (
+            <button
+              type="button"
+              aria-label="Clear bounds"
+              // Drop the sheet to peek first, so the fit's flight (sized for a
+              // peeking sheet) isn't hidden behind it.
+              onClick={() => {
+                setSheetSnap('peek');
+                clearBounds();
+              }}
+              className="font-semibold text-secondary hover:underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const renderFilterChips = (inToolbar: boolean) => (
     <div
       className={`hidden min-w-0 flex-1 flex-wrap items-center gap-sm ${
@@ -1065,25 +1091,43 @@ export function CuratedAdventures() {
               fullBleed
               activities={mapActivities}
               onSelect={(a) => openFromList(a.id)}
-              onActivate={handlePinActivate}
-              highlightedId={hoveredId}
+              // A tapped pin shows its card first (#291); the card opens it.
+              onActivate={(a) => {
+                setPinCardId(a.id);
+                setSheetSnap('peek');
+              }}
+              highlightedId={pinCard?.id ?? hoveredId}
               onPinHoverChange={(act) => setPinHoveredId(act?.id ?? null)}
               onBoundsChange={handleBoundsChange}
               fitSignal={fitSignal}
+              onMapTap={closePinCard}
+              keepInViewId={pinCard?.id ?? null}
             />
           </div>
           <h1 className="sr-only">Curated Adventures — map</h1>
+          {pinCard && (
+            <PinCard
+              // A card of its own per pin, so each takes focus as it opens.
+              key={pinCard.id}
+              activity={pinCard}
+              onClose={closePinCard}
+              onDetails={() => {
+                closePinCard();
+                handlePinActivate(pinCard);
+              }}
+            />
+          )}
           <BottomSheet
             snap={sheetSnap}
             onSnapChange={setSheetSnap}
             label="Activities on the map"
-            header={mobileSheetHeader}
+            header={renderMobileSheetHeader()}
           >
             {/* The toolbar isn't shown on the mobile map, so the sheet
                 carries its filter chips: otherwise active filters would
-                narrow the pins with no way to see or change them here. */}
-            <div className="flex flex-wrap items-center gap-sm pb-sm">
-              {compactFilters}
+                narrow the pins with no way to see or change them here. A
+                phone's Filters is in the header (above). */}
+            <div className="hidden flex-wrap items-center gap-sm pb-sm md:flex">
               {renderFilterChips(false)}
             </div>
             {/* The toolbar that shows a failed catalog read elsewhere isn't

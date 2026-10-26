@@ -4,6 +4,7 @@ import {
   activitiesBounds,
   createMoveGate,
   fitPaddingFor,
+  isInsidePadding,
   debounce,
   filterByBounds,
   isWithinBounds,
@@ -465,5 +466,23 @@ describe('fitPaddingFor', () => {
     expect(fitPaddingFor({ x: 0, y: 600 }, pad)).toBeNull();
     expect(fitPaddingFor({ x: 600, y: 0 }, pad)).toBeNull();
     expect(fitPaddingFor({ x: 1, y: 1 }, pad)).not.toBeNull();
+  });
+});
+
+describe('isInsidePadding', () => {
+  const size = { x: 400, y: 600 };
+  const pad = { top: 100, bottom: 200, side: 50 };
+
+  it('holds inside the padding, its edges included', () => {
+    expect(isInsidePadding({ x: 200, y: 300 }, size, pad)).toBe(true);
+    expect(isInsidePadding({ x: 50, y: 100 }, size, pad)).toBe(true);
+    expect(isInsidePadding({ x: 350, y: 400 }, size, pad)).toBe(true);
+  });
+
+  it('fails past any side of it', () => {
+    expect(isInsidePadding({ x: 49, y: 300 }, size, pad)).toBe(false);
+    expect(isInsidePadding({ x: 351, y: 300 }, size, pad)).toBe(false);
+    expect(isInsidePadding({ x: 200, y: 99 }, size, pad)).toBe(false);
+    expect(isInsidePadding({ x: 200, y: 401 }, size, pad)).toBe(false);
   });
 });

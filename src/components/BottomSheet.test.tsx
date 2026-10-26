@@ -6,7 +6,7 @@ import { BottomSheet } from './BottomSheet';
 import type { SheetSnap } from '../lib/bottomSheetSnap';
 
 // jsdom's window is 768px tall, so the rest heights the drag math uses are
-// peek 112, half 399 and full 691.
+// peek 72, half 399 and full 691.
 
 // A controlled host so the sheet's snap prop follows the changes it requests,
 // the way CuratedAdventures owns the snap state.
@@ -154,10 +154,10 @@ describe('BottomSheet', () => {
 
   it('follows the pointer while dragging, without animating', () => {
     render(<Host />);
-    // From peek (112px), 200px up.
+    // From peek (72px), 200px up.
     fireEvent.pointerDown(grabber(), { clientY: 700 });
     fireEvent.pointerMove(window, { clientY: 500 });
-    expect(sheet().style.height).toBe('312px');
+    expect(sheet().style.height).toBe('272px');
     expect(sheet().style.transition).toBe('none');
   });
 
@@ -173,7 +173,7 @@ describe('BottomSheet', () => {
     const onSnapChange = vi.fn();
     render(<Host onSnapChange={onSnapChange} />);
 
-    // 112 + 200 = 312 is nearest half (399), not peek.
+    // 72 + 200 = 272 is nearest half (399), not peek.
     drag(grabber(), 500);
     // The click the browser fires after a drag must not cycle as well.
     fireEvent.click(grabber());
@@ -190,17 +190,19 @@ describe('BottomSheet', () => {
     // window's 768, so half is 370 and full 641.
     vi.spyOn(sheet(), 'getBoundingClientRect').mockReturnValue({
       bottom: 712,
-      height: 112,
+      height: 72,
     } as DOMRect);
-    // 112 + 418 = 530: nearer full (641) than half (370) above the bar,
+    // 72 + 458 = 530: nearer full (641) than half (370) above the bar,
     // where the whole window (half 399, full 691) would say half.
-    drag(grabber(), 282);
+    drag(grabber(), 242);
     expect(onSnapChange).toHaveBeenCalledWith('full');
   });
 
   it('sits above the phone’s tab bar, which keeps the home indicator clear (#289)', () => {
     render(<Host />);
     expect(sheet()).toHaveClass('bottom-(--tab-bar)', 'max-md:pb-0');
+    // Nothing of the list spills over the tab bar at peek (#291).
+    expect(sheet()).toHaveClass('overflow-hidden');
   });
 
   it('snaps to full after a long drag up', () => {
@@ -215,7 +217,7 @@ describe('BottomSheet', () => {
     render(<Host onSnapChange={onSnapChange} />);
     drag(grabber(), 696);
     expect(onSnapChange).not.toHaveBeenCalled();
-    expect(sheet().style.height).toBe('7rem');
+    expect(sheet().style.height).toBe('4.5rem');
 
     fireEvent.click(grabber());
     expect(onSnapChange).toHaveBeenCalledWith('half');
@@ -254,11 +256,11 @@ describe('BottomSheet', () => {
     render(<Host onSnapChange={onSnapChange} />);
     drag(grabber(), 100, 'pointerCancel');
     expect(onSnapChange).not.toHaveBeenCalled();
-    expect(sheet().style.height).toBe('7rem');
+    expect(sheet().style.height).toBe('4.5rem');
 
     // The gesture is fully over: further moves do nothing, and a new one works.
     fireEvent.pointerMove(window, { clientY: 300 });
-    expect(sheet().style.height).toBe('7rem');
+    expect(sheet().style.height).toBe('4.5rem');
     drag(grabber(), 100);
     expect(onSnapChange).toHaveBeenCalledWith('full');
   });
@@ -341,7 +343,7 @@ describe('BottomSheet', () => {
     render(<Host onSnapChange={onSnapChange} />);
     drag(screen.getByRole('button', { name: 'Hide map' }), 100);
     expect(onSnapChange).not.toHaveBeenCalled();
-    expect(sheet().style.height).toBe('7rem');
+    expect(sheet().style.height).toBe('4.5rem');
   });
 
   it('drops an in-flight drag when it unmounts', () => {
