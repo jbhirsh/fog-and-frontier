@@ -3,13 +3,13 @@
 // overlap grouped into counts (#291), a group's tap flying in to split it,
 // and a tapped pin showing its card above the tab bar.
 //
-//   node --experimental-strip-types scripts/pr-gif-cli.ts scripts/gif-scenarios/map-groups.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/map-groups.ts --dir <PR number>
 //
 // Production's catalog, signed out.
 
 import type { Page } from '@playwright/test';
 import { mockApis } from '../../tests/visual/helpers';
-import { click, type Scenario } from '../pr-gif.ts';
+import type { Scenario } from '../gif-types.ts';
 import { PHONE, catalogReady } from './phone.ts';
 
 type Point = { x: number; y: number };
@@ -42,26 +42,26 @@ const scenario: Scenario = {
   async setup(page) {
     await mockApis(page);
   },
-  async ready(page) {
-    await catalogReady(page);
+  async ready(page, gif) {
+    await catalogReady(page, gif);
     await page.locator('.leaflet-marker-icon').nth(5).waitFor();
     await page.waitForTimeout(1500);
   },
-  async run(page) {
+  async play(page, gif) {
     await page.waitForTimeout(1500);
     const group = await widest(page, GROUP);
     if (group) {
-      await click(page, group, { ms: 800 });
+      await gif.click(page, group, { ms: 800 });
     } else {
       // Main has no groups: zoom in as far, by the + button.
       const zoomIn = page.getByRole('button', { name: 'Zoom in' });
-      await click(page, zoomIn, { ms: 800 });
+      await gif.click(page, zoomIn, { ms: 800 });
       await page.waitForTimeout(500);
-      await click(page, zoomIn, { ms: 300 });
+      await gif.click(page, zoomIn, { ms: 300 });
     }
     await page.waitForTimeout(1800);
     const pin = await widest(page, PIN);
-    if (pin) await click(page, pin, { ms: 800 });
+    if (pin) await gif.click(page, pin, { ms: 800 });
     await page.waitForTimeout(2200);
   },
 };
