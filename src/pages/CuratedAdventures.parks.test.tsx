@@ -79,8 +79,8 @@ describe('a park’s hikes and stops in the list (#269)', () => {
     expect(bar).toHaveAttribute('aria-controls', section.id);
     expect(within(section).getByText('Test Lighthouse')).toBeInTheDocument();
     expect(within(section).getByText('Test Chimney Rock')).toBeInTheDocument();
-    // List's wide grid: four across on a large screen.
-    expect(section.querySelector('.grid')).toHaveClass('lg:grid-cols-4');
+    // List's wide grid: five across on a large screen.
+    expect(section.querySelector('.grid')).toHaveClass('lg:grid-cols-5');
 
     await userEvent.click(
       within(section).getByRole('button', { name: "Close Test Seashore's hikes and stops" }),

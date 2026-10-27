@@ -109,7 +109,7 @@ describe('a park’s hikes and stops on the map (#269)', () => {
     const section = screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' });
     // Split's narrower grid: three across only on the widest screens.
     expect(section.querySelector('.grid')).toHaveClass('grid-cols-2', 'xl:grid-cols-3');
-    expect(section.querySelector('.grid')).not.toHaveClass('lg:grid-cols-4');
+    expect(section.querySelector('.grid')).not.toHaveClass('lg:grid-cols-5');
     const lighthouse = document.querySelector(`[data-activity-id="${LIGHTHOUSE.id}"]`);
     expect(lighthouse).not.toBeNull();
     expect(scrollIntoView.mock.contexts).toContain(lighthouse);

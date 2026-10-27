@@ -13,7 +13,7 @@ import { CompactFilters } from '../components/CompactFilters';
 import { ContributorFilter } from '../components/ContributorFilter';
 import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
-import { ParkBar, ParkSection } from '../components/ParkSection';
+import { ParkSection } from '../components/ParkSection';
 import { PendingSuggestions } from '../components/PendingSuggestions';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
@@ -125,8 +125,6 @@ export function CuratedAdventures() {
   // in a bottom sheet (#96).
   const [searchParams, setSearchParams] = useSearchParams();
   const isLg = useMediaQuery('(min-width: 1024px)');
-  // A park's hikes and stops: a stack on a phone, a bar wider up.
-  const phone = useMediaQuery('(max-width: 767.98px)');
   const viewParam = searchParams.get('view');
   const requestedView: ViewMode = isViewMode(viewParam) ? viewParam : isLg ? 'split' : 'list';
   // Split needs the two-column desktop layout; below `lg` there's no room, so
@@ -611,26 +609,18 @@ export function CuratedAdventures() {
       revealTo(i);
       setOpenPark((was) => (was === a.id ? null : a.id));
     };
-    // A park's card says how many of its hikes and stops the list holds: on
-    // a phone as a stack with their count on its photo, wider as a bar
-    // under it. Each opens the park's section.
-    const item = !held ? (
-      card(a)
-    ) : phone ? (
-      card(a, {
-        count: held.length,
-        open,
-        onToggle: toggle,
-        id: parkBarId(a.id),
-        controls: open ? parkSectionId(a.id) : undefined,
-        covers: held.slice(0, 2).map((h) => h.coverImage),
-      })
-    ) : (
-      <div key={a.id} className="flex flex-col gap-sm">
-        {card(a)}
-        <ParkBar park={a} count={held.length} open={open} onToggle={toggle} />
-      </div>
-    );
+    // A park's card is a stack, with how many of its hikes and stops the
+    // list holds on its photo, opening the park's section.
+    const item = !held
+      ? card(a)
+      : card(a, {
+          count: held.length,
+          open,
+          onToggle: toggle,
+          id: parkBarId(a.id),
+          controls: open ? parkSectionId(a.id) : undefined,
+          covers: held.slice(0, 2).map((h) => h.coverImage),
+        });
     return i === sectionAfter && section ? [item, section] : [item];
   });
 
