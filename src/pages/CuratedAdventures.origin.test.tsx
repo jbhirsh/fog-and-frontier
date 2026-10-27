@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '../test/render';
+import { render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route } from 'react-router-dom';
 import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
@@ -83,8 +83,9 @@ describe('Curated Adventures — distance origin (#66)', () => {
     renderAt(NEAR_SF);
     await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
     const dialog = await screen.findByRole('dialog');
-    const miles = formatMiles(distanceTo(NEAR_SF, NO_DRIVING_MILES, muirWoods), true);
-    expect(within(dialog).getByText(`${miles} mi from you`)).toBeInTheDocument();
+    // Measured from the same place as the list, which says where that is.
+    const miles = formatMiles(distanceTo(NEAR_SF, NO_DRIVING_MILES, muirWoods));
+    expect(dialog).toHaveTextContent(`${miles} mi away`);
   });
 
   it('shows, filters and details by road miles once they load', async () => {
@@ -99,6 +100,6 @@ describe('Curated Adventures — distance origin (#66)', () => {
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('20.0 mi from San Jose, CA')).toBeInTheDocument();
+    expect(dialog).toHaveTextContent('20 mi away');
   });
 });

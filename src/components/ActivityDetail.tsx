@@ -1,27 +1,20 @@
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Activity } from '../data/types';
-import { useDistanceOrigin } from '../lib/distanceOrigin';
-import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
 import { MAX_PHOTOS_PER_ACTIVITY, useActivityPhotos } from '../lib/userPhotos';
 import { useCompleted } from '../lib/userCompleted';
 import { deleteUserActivity, useAllActivities } from '../lib/userActivities';
 import { useOwner } from '../lib/useOwner';
-import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { usePersonLabel } from '../lib/people';
-import { costStat } from '../lib/cost';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useSwipe } from '../lib/swipe';
 import { useFocusTrap } from '../lib/focusTrap';
-import { NEARBY_RADIUS_MILES, nearbyByCategory } from '../lib/nearbyActivities';
+import { nearbyByCategory } from '../lib/nearbyActivities';
 import { ActivityReviews } from './ActivityReviews';
-import { ActivityTile } from './ActivityTile';
-import { ParkActivities, PartOfPark } from './ParkLinks';
 import { AddActivity } from './AddActivity';
 import { AddToTripDialog } from './AddToTripDialog';
 import { ClampedText, PhoneActions, PhoneCover, PhoneHeading, ParkPlaces } from './PlacePhone';
-import { NearbyHeading, NearbyList } from './NearbyList';
-import { CoverImage } from './CoverImage';
+import { NearbyList } from './NearbyList';
 import { InlineError } from './InlineError';
 import { sourceLabel } from '../lib/sharedPlaces';
 import { parkOf, subItemsOf } from '../lib/parks';
@@ -81,9 +74,6 @@ function ownsArrows(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(OWNS_ARROWS) !== null;
 }
 
-// The detail's cover fills its panel: the width of a phone, or at most 768px.
-const DETAIL_SIZES = '(min-width: 768px) 768px, 100vw';
-
 // A button over the phone's photo (#293): back, share.
 const OVER_PHOTO =
   'flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-container-lowest/95 text-on-surface shadow-[0_1px_4px_rgba(0,0,0,0.2)]';
@@ -129,9 +119,6 @@ export function ActivityDetail({
   const allActivities = useAllActivities();
   const { completed } = useCompleted(activity);
   const { isOwner, email } = useOwner();
-  // A phone lays the page out on its own (#293); everything wider keeps the
-  // dialog.
-  const phone = useMediaQuery('(max-width: 767.98px)');
   const [addingToTrip, setAddingToTrip] = useState(false);
   const {
     photos,
@@ -160,7 +147,6 @@ export function ActivityDetail({
       allActivities.filter((a) => !listed.has(a.id)),
     );
   }, [allActivities, activity, park, siblings, subItems]);
-  const nearbyIdPrefix = useId();
 
   function selectNearby(a: Activity) {
     setNote(null);
@@ -563,7 +549,7 @@ export function ActivityDetail({
       />
       {/* The track a sideways swipe moves: the panel, with its neighbours
           waiting beside it. */}
-      <div ref={trackRef} className="group/track relative w-full max-w-3xl">
+      <div ref={trackRef} className="group/track relative w-full max-w-144">
         <div
           role="dialog"
           aria-modal="true"
@@ -572,236 +558,88 @@ export function ActivityDetail({
           tabIndex={-1}
           className={`relative max-h-[95dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl bg-surface-container-lowest shadow-2xl focus:outline-none md:rounded-xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
         >
-          {phone ? (
-            <>
-              <PhoneCover activity={activity}>
-                <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
-                  <button type="button" onClick={onClose} aria-label="Back" className={OVER_PHOTO}>
-                    <span className="material-symbols-outlined" aria-hidden="true">
-                      arrow_back
-                    </span>
-                  </button>
-                  {stepper('')}
-                  <button
-                    type="button"
-                    onClick={() => void share()}
-                    aria-label="Share"
-                    className={OVER_PHOTO}
-                  >
-                    <span className="material-symbols-outlined" aria-hidden="true">
-                      ios_share
-                    </span>
-                  </button>
-                </div>
-              </PhoneCover>
-              {/* The page rises over the photo's foot. */}
-              <div className="relative -mt-5 space-y-md rounded-t-[22px] bg-surface-container-lowest px-md pt-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))]">
-                <PhoneHeading activity={activity} park={park} onOpenPark={selectNearby} />
-                <PhoneActions
-                  activity={activity}
-                  onTrip={email ? () => setAddingToTrip(true) : undefined}
-                />
-                {note && (
-                  <p role="status" className="text-body-sm text-on-surface-variant">
-                    {note}
-                  </p>
-                )}
-                <ClampedText
-                  // Shut again for the next place, which may swap in here.
-                  key={activity.id}
-                  text={activity.longDescription ?? activity.shortDescription}
-                />
-                {(activity.allTrailsUrl ||
-                  activity.hikeDistanceMiles != null ||
-                  activity.hikeElevationFeet != null) && <TrailRow activity={activity} />}
-                {restaurantInfo}
-                {notesBlock}
-                {sourceLink}
-                {activity.contributors && activity.contributors.length > 0 && (
-                  <div className="text-on-surface-variant">
-                    <Contributors emails={activity.contributors} onShow={onShowContributor} />
-                  </div>
-                )}
-                {reviewsBlock}
-                {subItems.length > 0 && (
-                  <ParkPlaces
-                    heading="Hikes & stops here"
-                    activities={subItems}
-                    onSelect={selectNearby}
-                  />
-                )}
-                {park && siblings.length > 0 && (
-                  <ParkPlaces
-                    heading={`Also in ${park.name}`}
-                    activities={siblings}
-                    onSelect={selectNearby}
-                  />
-                )}
-                {nearbyGroups.length > 0 && (
-                  <NearbyList
-                    groups={nearbyGroups}
-                    city={activity.location.city}
-                    onSelect={selectNearby}
-                  />
-                )}
-                {photosSection}
-                {ownerControls}
-                {activity.coverCredit && (
-                  // Commons covers are CC-licensed: credit author + license (#36).
-                  <p className="text-[12px] text-on-surface-variant">{activity.coverCredit}</p>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="relative aspect-video bg-surface-variant">
-                <CoverImage
-                  alt={activity.name}
-                  category={activity.category}
-                  src={activity.coverImage}
-                  className="size-full object-cover"
-                  glyphSize={64}
-                  sizes={DETAIL_SIZES}
-                />
-                {/* The sheet's grab handle on a phone: it can be swiped down. */}
-                <span
-                  aria-hidden="true"
-                  className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden"
-                />
-                {sequence && stepper('absolute top-sm left-sm')}
+          <>
+            <PhoneCover activity={activity}>
+              <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
+                <button type="button" onClick={onClose} aria-label="Back" className={OVER_PHOTO}>
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    arrow_back
+                  </span>
+                </button>
+                {stepper('')}
                 <button
                   type="button"
-                  onClick={onClose}
-                  aria-label="Close"
-                  className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest"
+                  onClick={() => void share()}
+                  aria-label="Share"
+                  className={OVER_PHOTO}
                 >
-                  <span className="material-symbols-outlined">close</span>
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    ios_share
+                  </span>
                 </button>
               </div>
-              {activity.coverCredit && (
-                // Commons covers are CC-licensed: credit author + license (#36).
-                <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
-                  {activity.coverCredit}
+            </PhoneCover>
+            {/* The page rises over the photo's foot. */}
+            <div className="relative -mt-5 space-y-md rounded-t-[22px] bg-surface-container-lowest px-md pt-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))]">
+              <PhoneHeading activity={activity} park={park} onOpenPark={selectNearby} />
+              <PhoneActions
+                activity={activity}
+                onTrip={email ? () => setAddingToTrip(true) : undefined}
+              />
+              {note && (
+                <p role="status" className="text-body-sm text-on-surface-variant">
+                  {note}
                 </p>
               )}
-              <div className="space-y-md p-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] md:p-lg">
-                <TitleRow activity={activity} />
-
-                {park && <PartOfPark park={park} onSelect={selectNearby} />}
-
-                <Facts activity={activity} onShowContributor={onShowContributor} />
-
-                {(activity.allTrailsUrl ||
-                  activity.hikeDistanceMiles ||
-                  activity.hikeElevationFeet) && (
-                  <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
-                    <div className="flex items-center justify-between gap-sm">
-                      <div className="font-label-caps text-label-caps text-on-surface-variant">
-                        TRAIL DETAILS
-                      </div>
-                      {activity.allTrailsRating != null && (
-                        <div className="flex items-center gap-xs text-secondary">
-                          <span
-                            className="material-symbols-outlined"
-                            style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}
-                          >
-                            star
-                          </span>
-                          <span className="font-headline-md text-headline-md">
-                            {activity.allTrailsRating.toFixed(1)}
-                          </span>
-                          <span className="font-body-md text-on-surface-variant">AllTrails</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-md text-on-surface-variant">
-                      {activity.hikeDistanceMiles != null && (
-                        <Stat icon="straighten" label={`${activity.hikeDistanceMiles} mi`} />
-                      )}
-                      {activity.hikeElevationFeet != null && (
-                        <Stat
-                          icon="terrain"
-                          label={`${activity.hikeElevationFeet.toLocaleString()} ft gain`}
-                        />
-                      )}
-                      {activity.allTrailsUrl && (
-                        <a
-                          href={activity.allTrailsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-auto inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-                        >
-                          View on AllTrails
-                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                            open_in_new
-                          </span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {restaurantInfo}
-                {notesBlock}
-                {sourceLink}
-                {reviewsBlock}
-                {subItems.length > 0 && (
-                  <ParkActivities
-                    heading="Hikes & stops here"
-                    activities={subItems}
-                    onSelect={selectNearby}
-                  />
-                )}
-                {park && siblings.length > 0 && (
-                  <ParkActivities
-                    heading={`Also in ${park.name}`}
-                    activities={siblings}
-                    onSelect={selectNearby}
-                  />
-                )}
-
-                {/* Nearby, grouped by category (#65). Hidden entirely when nothing
-                is within range: an empty "nothing nearby" panel on most remote
-                activities would be noise, not information. */}
-                {nearbyGroups.length > 0 && (
-                  <section className="space-y-sm">
-                    <h3 className="font-headline-md text-headline-md text-primary">
-                      Nearby — do at the same time
-                    </h3>
-                    <p className="font-body-sm text-on-surface-variant">
-                      Other activities within {NEARBY_RADIUS_MILES} miles of{' '}
-                      {activity.location.city}.
-                    </p>
-                    {nearbyGroups.map(({ category, items }) => {
-                      const headingId = `${nearbyIdPrefix}-${category}`;
-                      return (
-                        <section key={category} aria-labelledby={headingId} className="space-y-xs">
-                          <NearbyHeading id={headingId} category={category} />
-                          <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
-                            {items.map(({ activity: a, miles: m }) => (
-                              <ActivityTile
-                                key={a.id}
-                                activity={a}
-                                lines={[`${a.location.city} · ${m.toFixed(1)} mi away`, a.duration]}
-                                onSelect={selectNearby}
-                              />
-                            ))}
-                          </div>
-                        </section>
-                      );
-                    })}
-                  </section>
-                )}
-
-                {photosSection}
-                {ownerControls}
-              </div>
-            </>
-          )}
+              <ClampedText
+                // Shut again for the next place, which may swap in here.
+                key={activity.id}
+                text={activity.longDescription ?? activity.shortDescription}
+              />
+              {(activity.allTrailsUrl ||
+                activity.hikeDistanceMiles != null ||
+                activity.hikeElevationFeet != null) && <TrailRow activity={activity} />}
+              {restaurantInfo}
+              {notesBlock}
+              {sourceLink}
+              {activity.contributors && activity.contributors.length > 0 && (
+                <div className="text-on-surface-variant">
+                  <Contributors emails={activity.contributors} onShow={onShowContributor} />
+                </div>
+              )}
+              {reviewsBlock}
+              {subItems.length > 0 && (
+                <ParkPlaces
+                  heading="Hikes & stops here"
+                  activities={subItems}
+                  onSelect={selectNearby}
+                />
+              )}
+              {park && siblings.length > 0 && (
+                <ParkPlaces
+                  heading={`Also in ${park.name}`}
+                  activities={siblings}
+                  onSelect={selectNearby}
+                />
+              )}
+              {nearbyGroups.length > 0 && (
+                <NearbyList
+                  groups={nearbyGroups}
+                  city={activity.location.city}
+                  onSelect={selectNearby}
+                />
+              )}
+              {photosSection}
+              {ownerControls}
+              {activity.coverCredit && (
+                // Commons covers are CC-licensed: credit author + license (#36).
+                <p className="text-[12px] text-on-surface-variant">{activity.coverCredit}</p>
+              )}
+            </div>
+          </>
         </div>
         {sequence?.prevActivity && (
           <Peek
-            phone={phone}
             activity={sequence.prevActivity}
             side="prev"
             place={sequence.index}
@@ -810,7 +648,6 @@ export function ActivityDetail({
         )}
         {sequence?.nextActivity && (
           <Peek
-            phone={phone}
             activity={sequence.nextActivity}
             side="next"
             place={sequence.index + 2}
@@ -877,111 +714,9 @@ function Contributors({
 }
 
 /**
- * The name, with the completion toggle for owners or its status for everyone
- * else. Shared with the neighbours' previews, so a swipe's preview lines up
- * with what takes over.
- */
-function TitleRow({ activity }: { activity: Activity }) {
-  const { completed, toggle } = useCompleted(activity);
-  const { isOwner } = useOwner();
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-sm">
-      <h2 className="font-display text-headline-lg text-primary">{activity.name}</h2>
-      {isOwner ? (
-        <button
-          type="button"
-          onClick={toggle}
-          aria-pressed={completed}
-          className={`inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps transition-colors ${
-            completed
-              ? 'bg-primary-fixed text-primary hover:bg-primary-fixed-dim'
-              : 'bg-surface-variant text-on-surface-variant hover:bg-surface-container-high'
-          }`}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-            {completed ? 'check_circle' : 'radio_button_unchecked'}
-          </span>
-          {completed
-            ? `COMPLETED${activity.completedDate ? ` · ${activity.completedDate}` : ''}`
-            : 'MARK AS COMPLETED'}
-        </button>
-      ) : (
-        // Non-owners can't toggle completion (owner-gated mutation), but
-        // the completion *status* is a read worth keeping — render it as a
-        // static badge when the activity is completed, nothing otherwise.
-        completed && (
-          <span className="inline-flex min-h-11 items-center gap-xs rounded-full bg-primary-fixed px-md py-sm font-label-caps text-label-caps text-primary">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              check_circle
-            </span>
-            {`COMPLETED${activity.completedDate ? ` · ${activity.completedDate}` : ''}`}
-          </span>
-        )
-      )}
-    </div>
-  );
-}
-
-/**
- * The facts under the title and the description: shared by the detail and the
- * previews of its neighbours, so a swipe's preview matches what takes over.
- */
-function Facts({
-  activity,
-  onShowContributor,
-}: {
-  activity: Activity;
-  onShowContributor?: (email: string) => void;
-}) {
-  const origin = useDistanceOrigin();
-  const distance = useDistanceTo()(activity);
-  const directionsHref = directionsUrl(activity.location.coords, isApplePlatform());
-  return (
-    <>
-      <div className="flex flex-wrap gap-sm text-on-surface-variant md:gap-md">
-        <Stat icon="location_on" label={`${formatMiles(distance, true)} mi from ${origin.label}`} />
-        {/* A read: open to every visitor, not owner-gated (#87). */}
-        {directionsHref && (
-          <a
-            href={directionsHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            // 44px to tap, but the -10px margins keep it to the 24px of
-            // the facts beside it, so the rows below stay evenly spaced.
-            className="-my-2.5 inline-flex min-h-11 items-center gap-xs font-medium text-primary-container hover:underline"
-          >
-            <span className="material-symbols-outlined text-icon-md">directions</span>
-            Get directions
-          </a>
-        )}
-        <Stat icon="schedule" label={activity.durationDetail ?? activity.duration} />
-        {activity.difficulty && <Stat icon="trending_up" label={activity.difficulty} capitalize />}
-        {activity.parkType && activity.parkType !== 'none' && (
-          <Stat icon="forest" label={`${activity.parkType} park`} capitalize />
-        )}
-        <Stat icon="place" label={activity.location.city} />
-        {activity.dogFriendly && <Stat icon="pets" label="Dog friendly" />}
-        {activity.costTier && (
-          <Stat icon="confirmation_number" label={costStat(activity.costTier)} />
-        )}
-        {/* Signed-in only: the server sends no contributors otherwise (#9). */}
-        {activity.contributors && activity.contributors.length > 0 && (
-          <Contributors emails={activity.contributors} onShow={onShowContributor} />
-        )}
-      </div>
-
-      <p className="font-body-lg text-body-lg text-on-surface-variant">
-        {activity.longDescription ?? activity.shortDescription}
-      </p>
-    </>
-  );
-}
-
-/**
  * A neighbour in the list, beside the panel while it's swiped sideways: the
- * top of its own detail (cover, list position, title, facts, description),
- * drawn the same way, so the real one takes over in place when the step
- * lands. Hidden until a swipe moves the track; its cover loads anyway, ready
+ * top of its own page (photo, list position, name and facts), drawn the same
+ * way, so the real one takes over in place when the step lands. Hidden until a swipe moves the track; its cover loads anyway, ready
  * for the step.
  */
 function Peek({
@@ -989,15 +724,12 @@ function Peek({
   side,
   place,
   total,
-  phone,
 }: {
   activity: Activity;
   side: 'prev' | 'next';
   /** Its 1-based position in the list. */
   place: number;
   total: number;
-  /** Drawn as a phone's page (#293), as the detail it stands beside is. */
-  phone?: boolean;
 }) {
   const allActivities = useAllActivities();
   const steps = (where: string) => (
@@ -1024,51 +756,22 @@ function Peek({
         side === 'next' ? 'left-[calc(100%+16px)]' : 'right-[calc(100%+16px)]'
       }`}
     >
-      {phone ? (
-        <>
-          <PhoneCover activity={activity}>
-            <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
-              <span className={OVER_PHOTO}>
-                <span className="material-symbols-outlined">arrow_back</span>
-              </span>
-              {steps('')}
-              <span className={OVER_PHOTO}>
-                <span className="material-symbols-outlined">ios_share</span>
-              </span>
-            </div>
-          </PhoneCover>
-          <div className="relative -mt-5 rounded-t-[22px] bg-surface-container-lowest px-md pt-md">
-            <PhoneHeading activity={activity} park={parkOf(activity, allActivities)} />
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="relative aspect-video bg-surface-variant">
-            <CoverImage
-              alt=""
-              category={activity.category}
-              src={activity.coverImage}
-              className="size-full object-cover"
-              glyphSize={64}
-              sizes={DETAIL_SIZES}
-            />
-            <span className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden" />
-            {steps('absolute top-sm left-sm')}
-            <span className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm">
-              <span className="material-symbols-outlined">close</span>
+      <>
+        <PhoneCover activity={activity}>
+          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
+            <span className={OVER_PHOTO}>
+              <span className="material-symbols-outlined">arrow_back</span>
+            </span>
+            {steps('')}
+            <span className={OVER_PHOTO}>
+              <span className="material-symbols-outlined">ios_share</span>
             </span>
           </div>
-          {activity.coverCredit && (
-            <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
-              {activity.coverCredit}
-            </p>
-          )}
-          <div className="space-y-md p-md md:p-lg">
-            <TitleRow activity={activity} />
-            <Facts activity={activity} />
-          </div>
-        </>
-      )}
+        </PhoneCover>
+        <div className="relative -mt-5 rounded-t-[22px] bg-surface-container-lowest px-md pt-md">
+          <PhoneHeading activity={activity} park={parkOf(activity, allActivities)} />
+        </div>
+      </>
     </div>
   );
 }

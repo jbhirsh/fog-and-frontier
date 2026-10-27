@@ -102,9 +102,7 @@ describe('a park’s hikes and stops in the list (#269)', () => {
     const section = screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' });
     await userEvent.click(within(section).getByRole('button', { name: /Test Lighthouse/ }));
     expect(screen.getByTestId('path')).toHaveTextContent(`/activity/${LIGHTHOUSE.id}`);
-    await userEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }),
-    );
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Back' }));
 
     await userEvent.click(
       within(screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' })).getByRole(

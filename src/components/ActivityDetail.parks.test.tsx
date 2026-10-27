@@ -46,22 +46,23 @@ describe('a park’s hikes and stops on the detail page (#269)', () => {
   it('lists a park’s own, by name, and doesn’t offer them again as nearby', () => {
     render(<ActivityDetail activity={PARK} onClose={() => {}} />, { activities: ALL });
     const own = screen.getByRole('heading', { name: 'Hikes & stops here' }).closest('section')!;
-    const names = within(own)
-      .getAllByRole('button')
-      .map((b) => within(b).getByRole('img').getAttribute('alt'));
-    expect(names).toEqual(['Test Chimney Rock', 'Test Lighthouse']);
-    expect(within(own).getByText('Scenic')).toBeInTheDocument();
-    expect(within(own).getByText('Full Day')).toBeInTheDocument();
+    const rows = within(own).getAllByRole('button');
+    expect(rows.map((b) => b.textContent)).toEqual([
+      expect.stringMatching(/^Test Chimney Rock/),
+      expect.stringMatching(/^Test Lighthouse/),
+    ]);
+    // Its kind as a symbol, named for a screen reader, and its time.
+    expect(rows.some((b) => /Scenic, Full Day/.test(b.textContent ?? ''))).toBe(true);
     expect(screen.queryByRole('region', { name: 'Nearby hikes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Nearby scenic spots' })).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Nearby food' })).toBeInTheDocument();
-    // A park is part of nothing.
-    expect(screen.queryByRole('button', { name: /^Part of/ })).not.toBeInTheDocument();
+    // A park is part of nothing: no park beside its town.
+    expect(screen.queryByRole('button', { name: 'Test Seashore' })).not.toBeInTheDocument();
   });
 
   it('links a hike up to its park, and across to the park’s others', () => {
     render(<ActivityDetail activity={LIGHTHOUSE} onClose={() => {}} />, { activities: ALL });
-    expect(screen.getByRole('button', { name: /Part of Test Seashore/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Test Seashore' })).toBeInTheDocument();
     const others = screen
       .getByRole('heading', { name: 'Also in Test Seashore' })
       .closest('section')!;
@@ -79,7 +80,7 @@ describe('a park’s hikes and stops on the detail page (#269)', () => {
       <ActivityDetail activity={LIGHTHOUSE} onClose={() => {}} onSelectNearby={onSelectNearby} />,
       { activities: ALL },
     );
-    await userEvent.click(screen.getByRole('button', { name: /Part of Test Seashore/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Test Seashore' }));
     expect(onSelectNearby).toHaveBeenCalledWith(PARK);
     await userEvent.click(screen.getByRole('button', { name: /Test Chimney Rock/ }));
     expect(onSelectNearby).toHaveBeenCalledWith(CHIMNEY);
@@ -89,7 +90,7 @@ describe('a park’s hikes and stops on the detail page (#269)', () => {
     render(<ActivityDetail activity={TACOS} onClose={() => {}} />, {
       activities: [TACOS, muirWoods],
     });
-    expect(screen.queryByRole('button', { name: /^Part of/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Test Seashore' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: /Hikes & stops here|Also in/ }),
     ).not.toBeInTheDocument();
@@ -99,7 +100,7 @@ describe('a park’s hikes and stops on the detail page (#269)', () => {
     render(<ActivityDetail activity={LIGHTHOUSE} onClose={() => {}} />, {
       activities: [PARK, LIGHTHOUSE],
     });
-    expect(screen.getByRole('button', { name: /Part of Test Seashore/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Test Seashore' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /Also in/ })).not.toBeInTheDocument();
   });
 });

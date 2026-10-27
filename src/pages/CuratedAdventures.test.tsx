@@ -204,7 +204,7 @@ describe('Curated Adventures page', () => {
     expect(screen.getByTestId('path')).toHaveTextContent(`/activity/${muirWoods.id}`);
     expect(screen.getByTestId('search')).toBeEmptyDOMElement();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByTestId('path')).toHaveTextContent(/^\/$/);
     expect(screen.getByTestId('search')).toHaveTextContent('?q=muir');

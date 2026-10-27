@@ -62,7 +62,8 @@ export function PhoneCover({ activity, children }: { activity: Activity; childre
         src={activity.coverImage}
         className="size-full object-cover"
         glyphSize={56}
-        sizes="100vw"
+        // The page's width: a phone's, or the dialog's 576px (36rem).
+        sizes="(min-width: 576px) 576px, 100vw"
       />
       {children}
     </div>
