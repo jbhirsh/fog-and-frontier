@@ -10,22 +10,17 @@ import { useOwner } from '../lib/useOwner';
 import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { usePersonLabel } from '../lib/people';
 import { costStat } from '../lib/cost';
-import { CATEGORY_ICON } from '../lib/mapPins';
-import { glyphBleed } from '../lib/iconMetrics';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useSwipe } from '../lib/swipe';
 import { useFocusTrap } from '../lib/focusTrap';
-import {
-  NEARBY_GROUP_HEADING,
-  NEARBY_RADIUS_MILES,
-  nearbyByCategory,
-} from '../lib/nearbyActivities';
+import { NEARBY_RADIUS_MILES, nearbyByCategory } from '../lib/nearbyActivities';
 import { ActivityReviews } from './ActivityReviews';
 import { ActivityTile } from './ActivityTile';
 import { ParkActivities, PartOfPark } from './ParkLinks';
 import { AddActivity } from './AddActivity';
 import { AddToTripDialog } from './AddToTripDialog';
 import { ClampedText, PhoneActions, PhoneCover, PhoneHeading, SideRow } from './PlacePhone';
+import { NearbyHeading, NearbyList } from './NearbyList';
 import { CoverImage } from './CoverImage';
 import { InlineError } from './InlineError';
 import { sourceLabel } from '../lib/sharedPlaces';
@@ -166,15 +161,6 @@ export function ActivityDetail({
     );
   }, [allActivities, activity, park, siblings, subItems]);
   const nearbyIdPrefix = useId();
-  // A phone's Nearby is one row, nearest first.
-  const nearby = useMemo(
-    () =>
-      nearbyGroups
-        .flatMap((g) => g.items)
-        .sort((x, y) => x.miles - y.miles)
-        .map((n) => n.activity),
-    [nearbyGroups],
-  );
 
   function selectNearby(a: Activity) {
     setNote(null);
@@ -651,8 +637,12 @@ export function ActivityDetail({
                     onSelect={selectNearby}
                   />
                 )}
-                {nearby.length > 0 && (
-                  <SideRow heading="Nearby" activities={nearby} onSelect={selectNearby} />
+                {nearbyGroups.length > 0 && (
+                  <NearbyList
+                    groups={nearbyGroups}
+                    city={activity.location.city}
+                    onSelect={selectNearby}
+                  />
                 )}
                 {photosSection}
                 {ownerControls}
@@ -786,22 +776,7 @@ export function ActivityDetail({
                       const headingId = `${nearbyIdPrefix}-${category}`;
                       return (
                         <section key={category} aria-labelledby={headingId} className="space-y-xs">
-                          <h4
-                            id={headingId}
-                            className="flex items-center gap-xs font-label-caps text-label-caps text-on-surface-variant"
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="material-symbols-outlined"
-                              style={{
-                                fontSize: 16,
-                                marginLeft: glyphBleed(CATEGORY_ICON[category]),
-                              }}
-                            >
-                              {CATEGORY_ICON[category]}
-                            </span>
-                            {NEARBY_GROUP_HEADING[category]}
-                          </h4>
+                          <NearbyHeading id={headingId} category={category} />
                           <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
                             {items.map(({ activity: a, miles: m }) => (
                               <ActivityTile

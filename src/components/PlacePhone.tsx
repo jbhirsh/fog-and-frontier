@@ -271,7 +271,7 @@ export function SideRow({
   return (
     <section aria-label={heading} className="space-y-sm">
       <h3 className="text-body-md font-semibold text-on-surface">{heading}</h3>
-      <ul className="-mx-md flex snap-x scrollbar-none gap-sm overflow-x-auto px-md pb-xs">
+      <ul className="-mx-md flex snap-x scroll-px-md scrollbar-none gap-sm overflow-x-auto px-md pb-xs">
         {activities.map((a) => (
           <li key={a.id} className="w-35 shrink-0 snap-start">
             <button

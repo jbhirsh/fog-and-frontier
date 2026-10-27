@@ -341,24 +341,27 @@ describe('a place’s page on a phone (#293)', () => {
     expect(screen.queryByText(trailRow)).not.toBeInTheDocument();
   });
 
-  it('lists what’s nearby sideways, nearest first, each opening it', async () => {
+  it('lists what’s nearby by kind, nearest first, each saying where and how far', async () => {
     const { onSelectNearby } = show(HIKE);
     const nearby = screen.getByRole('region', { name: 'Nearby' });
-    const names = within(nearby)
-      .getAllByRole('button')
-      .map((b) => b.textContent);
-    expect(names).toEqual(['Trailside Tacos', 'Ridge Bakery (short)']);
-    await userEvent.click(within(nearby).getByRole('button', { name: 'Trailside Tacos' }));
+    expect(within(nearby).getByRole('heading', { name: 'Nearby' })).toBeInTheDocument();
+    expect(within(nearby).getByText(`Within 15 miles of ${HIKE.location.city}`)).toBeVisible();
+    const food = within(nearby).getByRole('region', { name: /Nearby food/ });
+    const rows = within(food).getAllByRole('button');
+    expect(rows.map((b) => b.textContent)).toEqual([
+      expect.stringMatching(/^Trailside Tacos.*Mill Valley, CA · \d+\.\d mi · /),
+      expect.stringMatching(/^Ridge Bakery \(short\)/),
+    ]);
+    await userEvent.click(rows[0]);
     expect(onSelectNearby).toHaveBeenCalledWith(expect.objectContaining({ id: TACOS.id }));
   });
 
   it('lists a park’s own, and a hike’s neighbours in its park, the same way', () => {
     show(PARK);
-    expect(
-      within(screen.getByRole('region', { name: 'Hikes & stops here' })).getByRole('button', {
-        name: 'Test Canopy Trail',
-      }),
-    ).toBeInTheDocument();
+    const row = screen.getByRole('region', { name: 'Hikes & stops here' });
+    expect(within(row).getByRole('button', { name: 'Test Canopy Trail' })).toBeInTheDocument();
+    // Snapped as it scrolls, a place stops at the page's margin, not the edge.
+    expect(within(row).getByRole('list')).toHaveClass('snap-x', 'scroll-px-md', 'px-md');
   });
 
   it('credits the cover at the foot of the page', () => {
