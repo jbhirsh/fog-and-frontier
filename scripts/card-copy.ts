@@ -26,8 +26,8 @@ import { createClient } from '@libsql/client';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { pathToFileURL } from 'node:url';
 import { CARD_LINE_MAX, CARD_NAME_MAX } from '../shared/cardCopy.ts';
+import { runAsScript } from './run-as-script.ts';
 
 /** The model the drafts use (api/_resolvers/gemini.ts's MODEL; a test holds them equal). */
 export const MODEL = 'gemini-3.8-flash';
@@ -372,9 +372,4 @@ export async function main(argv: readonly string[]): Promise<void> {
   throw new Error('usage: npm run cards -- draft [file] [--all] | save [file]');
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main(process.argv.slice(2)).catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exitCode = 1;
-  });
-}
+runAsScript(import.meta.url, main);
