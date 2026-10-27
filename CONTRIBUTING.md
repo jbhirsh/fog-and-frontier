@@ -219,15 +219,18 @@ thread):
 
 1. Read the failing check. A peer-dependency conflict or a changed API is
    usually one package's major.
-2. If that major needs real code changes, add an `ignore` entry for it
-   (`update-types: ["version-update:semver-major"]`) in `dependabot.yml` with a
-   comment saying why and when to remove it. Dependabot then regenerates the
-   group without it. Do the upgrade in its own PR.
+2. If that major waits on another package (a peer range that doesn't take it
+   yet), give it a `blocked-<package>` group in `dependabot.yml`, with a
+   comment naming what it waits on. It then gets a PR of its own, red until
+   that package catches up, and merges itself once green. If it needs real code
+   changes instead, do the upgrade in its own PR.
 3. Never fix a peer conflict with `legacy-peer-deps`; see the overrides note in
    `CLAUDE.md`.
 
-Standing ignores: **`graphql` majors**, until Apollo Server accepts graphql 17.
-Delete the ignore once it does.
+The blocked groups today are `blocked-graphql` (until Apollo Server accepts
+graphql 17) and `blocked-typescript` (until typescript-eslint and
+type-coverage take TypeScript 7). Their PRs staying red is expected; they
+aren't stuck.
 
 ## Product context lives in GitHub issues
 
