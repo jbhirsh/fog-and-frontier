@@ -41,8 +41,7 @@ ESLint runs type-checked (`tseslint.configs.recommendedTypeChecked`) with
 `jsx-a11y`, `import-x/no-cycle`, `no-floating-promises`, and `no-misused-promises`
 enabled. **Per project policy there are no rule suppressions** — no
 `eslint-disable`, no `@ts-ignore`/`@ts-expect-error`, and no downgrading a rule in
-config to make a violation pass. Fix the underlying code instead. (Many of the
-type-level fixes this policy forced are written up in `CALIBER_LEARNINGS.md`.)
+config to make a violation pass. Fix the underlying code instead.
 
 ### Four TypeScript projects
 
