@@ -23,27 +23,30 @@ updates:
       time: "06:00"
       timezone: Etc/UTC
     open-pull-requests-limit: 10
-    # Each ignore is majors only: minors and patches still flow. Without one,
-    # the grouped PR would keep offering a major that fails, holding every
-    # other bump with it.
-    ignore:
-      # graphql 17: @apollo/server 5.5.1 (and its @apollo/cache-control-types,
-      # server-gateway-interface and utils.* deps) still takes only graphql 16
-      # (peer "^16.11.0"), so with graphql@17.0.2 `npm ci` fails "ERESOLVE
-      # could not resolve ... peer graphql@"^16.11.0" from
-      # @apollo/server@5.5.1". Delete once Apollo Server accepts 17.
-      - dependency-name: graphql
-        update-types: ["version-update:semver-major"]
-      # TypeScript 7 (the native compiler) exports no compiler API, which the
-      # lint and type-coverage gates load: with typescript@7.0.2, ESLint stops
-      # on "typescript-eslint does not support TS 7.0" (8.72's peer range is
-      # <6.1.0) and type-coverage 2.30 on "needs the TypeScript compiler API
-      # (ts.createProgram), which typescript@7.0.2 does not export" (tsc -b,
-      # vite, vitest and codegen pass). Delete once typescript-eslint accepts
-      # TS 7, or run TS 7 beside the 6 API as sift and BoardGames do.
-      - dependency-name: typescript
-        update-types: ["version-update:semver-major"]
     groups:
+      # Majors that wait on another package, one group per package: each gets
+      # a PR of its own, red until that package catches up, then green, and
+      # auto-merge takes it, without waiting on another blocked major or
+      # holding the bumps in all-updates. (Dependabot puts an update in the
+      # first group that matches; these packages' minors and patches go on
+      # to all-updates.) Autofix leaves their red checks alone: jbhirsh/ci's
+      # autofix/action.yml passes over a branch matching
+      # dependabot/*/blocked-*, so keep the blocked- prefix.
+      #
+      # graphql 17: @apollo/server 5.5.1 (and its @apollo/* deps) still takes
+      # only graphql 16 (peer "^16.11.0"), so `npm ci` fails ERESOLVE with
+      # graphql@17.0.2.
+      blocked-graphql:
+        update-types: ["major"]
+        patterns: [graphql]
+      # TypeScript 7 (the native compiler) exports no compiler API, which the
+      # lint and type-coverage gates load: ESLint stops on "typescript-eslint
+      # does not support TS 7.0" (8.72's peer range is <6.1.0) and
+      # type-coverage 2.30 on "needs the TypeScript compiler API
+      # (ts.createProgram)".
+      blocked-typescript:
+        update-types: ["major"]
+        patterns: [typescript]
       all-updates:
         patterns:
           - "*"
