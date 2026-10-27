@@ -38,7 +38,7 @@ Turso. Copy `.env.local.example` to `.env.local` and fill in the keys you need.
 ### Lint policy — no rule suppressions
 
 ESLint runs type-checked (`tseslint.configs.recommendedTypeChecked`) with
-`jsx-a11y`, `import/no-cycle`, `no-floating-promises`, and `no-misused-promises`
+`jsx-a11y`, `import-x/no-cycle`, `no-floating-promises`, and `no-misused-promises`
 enabled. **Per project policy there are no rule suppressions** — no
 `eslint-disable`, no `@ts-ignore`/`@ts-expect-error`, and no downgrading a rule in
 config to make a violation pass. Fix the underlying code instead. (Many of the

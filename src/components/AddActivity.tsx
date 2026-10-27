@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type {
   Activity,

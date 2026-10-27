@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import * as L from 'leaflet';
 
 // Custom frosted zoom controls, replacing Leaflet's default `zoomControl`. The
 // MapContainer is mounted with `zoomControl={false}` and renders this as a

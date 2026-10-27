@@ -8,7 +8,7 @@ import {
   useMap,
   useMapEvents,
 } from 'react-leaflet';
-import type L from 'leaflet';
+import type * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapZoomControls } from './MapZoomControls';
 import { BoundsWatcher, FitToActivities, ViewportWatcher } from './MapViewport';

@@ -29,7 +29,7 @@ vi.mock('react-leaflet', () => ({
 }));
 
 vi.mock('leaflet', () => ({
-  default: { divIcon: () => ({}) },
+  divIcon: () => ({}),
 }));
 
 const ownerState = vi.hoisted(() => ({ isOwner: true }));

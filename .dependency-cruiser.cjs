@@ -3,7 +3,7 @@
  * the layering as prose — "src/ is the React app", "api/ is the GraphQL
  * function", "src/lib holds hooks and pure helpers", "src/data/types.ts is the
  * Activity model" — and the AI review re-checks it per PR, but nothing failed a
- * build on a violation. eslint's `import/no-cycle` catches cycles within each
+ * build on a violation. eslint's `import-x/no-cycle` catches cycles within each
  * lint group; these rules make the *cross-layer* boundaries computational too:
  *
  *   api ⇹ src                     (serverless function and browser SPA stay separate)
