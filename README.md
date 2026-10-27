@@ -103,8 +103,7 @@ A few things in here worth a closer look:
   and mobile — is documented in [`PLAN.md`](./PLAN.md).
 - **A strict, type-checked lint setup with a no-suppressions rule.** ESLint runs
   with type-aware rules, `jsx-a11y`, and import-cycle detection, and the project
-  forbids `eslint-disable` / `@ts-ignore` outright. The debugging notes from
-  honoring that rule live in [`CALIBER_LEARNINGS.md`](./CALIBER_LEARNINGS.md).
+  forbids `eslint-disable` / `@ts-ignore` outright.
 - **Privacy-conscious observability.** Sentry runs with `sendDefaultPii: false`,
   scrubs query strings from breadcrumbs and events, uploads hidden source maps to
   de-minify stack traces, and deletes them from the public bundle at build time.
@@ -302,6 +301,4 @@ docs/           Screenshots
 
 A personal project built and maintained with a
 [Claude Code](https://claude.com/claude-code) workflow — see
-[`CLAUDE.md`](./CLAUDE.md) for the working conventions and
-[`CALIBER_LEARNINGS.md`](./CALIBER_LEARNINGS.md) for accumulated engineering
-notes.
+[`CLAUDE.md`](./CLAUDE.md) for the working conventions.
