@@ -23,12 +23,25 @@ updates:
       time: "06:00"
       timezone: Etc/UTC
     open-pull-requests-limit: 10
-    # Apollo Server (@apollo/server and its @apollo/utils.* deps) doesn't
-    # accept graphql 17 yet; delete this ignore once it does. Majors only:
-    # graphql 16 minors and patches still flow, and without this the grouped
-    # PR would keep offering 17, fail to resolve, and hold every other bump.
+    # Each ignore is majors only: minors and patches still flow. Without one,
+    # the grouped PR would keep offering a major that fails, holding every
+    # other bump with it.
     ignore:
+      # graphql 17: @apollo/server 5.5.1 (and its @apollo/cache-control-types,
+      # server-gateway-interface and utils.* deps) still takes only graphql 16
+      # (peer "^16.11.0"), so with graphql@17.0.2 `npm ci` fails "ERESOLVE
+      # could not resolve ... peer graphql@"^16.11.0" from
+      # @apollo/server@5.5.1". Delete once Apollo Server accepts 17.
       - dependency-name: graphql
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7 (the native compiler) exports no compiler API, which the
+      # lint and type-coverage gates load: with typescript@7.0.2, ESLint stops
+      # on "typescript-eslint does not support TS 7.0" (8.72's peer range is
+      # <6.1.0) and type-coverage 2.30 on "needs the TypeScript compiler API
+      # (ts.createProgram), which typescript@7.0.2 does not export" (tsc -b,
+      # vite, vitest and codegen pass). Delete once typescript-eslint accepts
+      # TS 7, or run TS 7 beside the 6 API as sift and BoardGames do.
+      - dependency-name: typescript
         update-types: ["version-update:semver-major"]
     groups:
       all-updates:
