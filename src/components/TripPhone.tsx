@@ -67,7 +67,17 @@ export function TripPhone(props: Props) {
     setTab(isVoting ? 'ideas' : 'plan');
   }
   const [membersOpen, setMembersOpen] = useState(false);
-  const status = isPast ? 'Past' : isVoting ? 'Voting' : 'Planning';
+  // A past trip says when it ended, when someone marked it so.
+  const status = isPast
+    ? trip.marked_past_at
+      ? `Past · ended ${new Date(trip.marked_past_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        })}`
+      : 'Past'
+    : isVoting
+      ? 'Voting'
+      : 'Planning';
   // This header stands in for the brand's bar, which Layout hides while
   // the page is marked.
   useEffect(() => {
@@ -80,7 +90,10 @@ export function TripPhone(props: Props) {
 
   return (
     <>
-      <header className="space-y-sm bg-surface-container-lowest pt-xs px-margin pb-sm">
+      {/* White across a phone, a bar at the top of the screen; on a wider
+          screen, in the page's column, it would be a white box ending
+          above the days, so it takes the page's own colour there. */}
+      <header className="space-y-sm bg-surface-container-lowest pt-xs px-margin pb-sm md:bg-transparent md:px-gutter">
         <div className="flex items-center justify-between">
           <Link
             to="/trips"
@@ -103,6 +116,11 @@ export function TripPhone(props: Props) {
           <p className="text-body-sm text-on-surface-variant">
             {formatDateRange(trip.start_date, trip.end_date)} · {status}
           </p>
+          {trip.description && (
+            <p className="pt-xs text-body-md whitespace-pre-line text-on-surface">
+              {trip.description}
+            </p>
+          )}
         </div>
         <div className="flex items-center justify-between gap-sm">
           <Avatars trip={trip} onOpen={() => setMembersOpen(true)} />
@@ -156,7 +174,7 @@ export function TripPhone(props: Props) {
           <Days {...props} />
         ))}
       {tab === 'ideas' && <div className="[&>section]:py-sm">{ideas}</div>}
-      {tab === 'map' && <div className="py-sm px-margin">{map}</div>}
+      {tab === 'map' && <div className="py-sm px-margin md:px-gutter">{map}</div>}
 
       {membersOpen && (
         <ModalShell title="Members" onCancel={() => setMembersOpen(false)}>
@@ -234,7 +252,7 @@ function Days({
       <div
         role="group"
         aria-label="Day"
-        className="flex scrollbar-none gap-base overflow-x-auto px-margin pb-xs"
+        className="flex scrollbar-none gap-base overflow-x-auto px-margin pb-xs md:px-gutter"
       >
         {Array.from({ length: total }, (_, i) => {
           const on = i === day;
@@ -259,7 +277,7 @@ function Days({
           );
         })}
       </div>
-      <ol className="pt-xs px-margin">
+      <ol className="pt-xs px-margin md:px-gutter">
         {places.map((a) => (
           <PlaceRow
             key={a.id}

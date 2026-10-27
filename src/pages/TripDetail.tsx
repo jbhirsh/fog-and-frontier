@@ -52,10 +52,9 @@ import {
   type UserSummary,
 } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
-import { formatDateRange } from '../lib/dateRange';
-import { useMediaQuery } from '../lib/useMediaQuery';
 
-// A phone's layout loads only on a phone, so the main bundle carries none of it.
+// The trip's page loads as its own chunk, only on a trip, so the main bundle
+// carries none of it.
 const TripPhone = lazy(() =>
   import('../components/TripPhone').then((m) => ({ default: m.TripPhone })),
 );
@@ -85,14 +84,11 @@ export function TripDetail() {
   const [detail, setDetail] = useState<Activity | null>(null);
   const { activities: catalog, loading: catalogLoading, error: catalogError } = useUserActivities();
   const openActivity = useOpenActivity();
-  // A phone lays the trip out on its own (#294); wider keeps the columns.
-  const phone = useMediaQuery('(max-width: 767.98px)');
 
   const isPast = trip?.status === 'past';
   const isVoting = trip?.status === 'voting';
   const isCreator = !!trip && !!email && trip.creator_email === email;
 
-  const buckets = useMemo(() => bucketByDay(trip), [trip]);
   // Null until the catalog is in: an empty or failed load isn't "nothing near".
   const suggestions = useMemo(
     () =>
@@ -255,33 +251,6 @@ export function TripDetail() {
         setActionError("Couldn't leave the trip. Try again.");
       }
     })();
-  }
-
-  function handleDropOnDay(dayIndex: number) {
-    return (e: React.DragEvent<HTMLDivElement>) => {
-      if (isPast || !trip) return;
-      const taId = e.dataTransfer.getData(DRAG_MIME);
-      if (!taId) return;
-      e.preventDefault();
-      const activity = trip.activities.find((a) => a.id === taId);
-      if (!activity) return;
-      // Dropping a card back onto the day it already belongs to is a no-op —
-      // don't fire a PATCH or recompute start_time (#79).
-      if (activity.day_index === dayIndex) return;
-      const onDay = trip.activities.filter(
-        (a) => a.day_index === dayIndex && a.id !== taId && a.start_time,
-      );
-      const start_time = defaultStartTimeForDay(onDay);
-      void runAction(() => assignSlot(taId, { day_index: dayIndex, start_time }));
-    };
-  }
-
-  function handleDropOnUnscheduled(e: React.DragEvent<HTMLDivElement>) {
-    if (isPast) return;
-    const taId = e.dataTransfer.getData(DRAG_MIME);
-    if (!taId) return;
-    e.preventDefault();
-    void runAction(() => assignSlot(taId, { day_index: null, start_time: null }));
   }
 
   function handleAssignOrEdit(activity: TripActivity) {
@@ -470,7 +439,6 @@ export function TripDetail() {
     <UnscheduledPanel
       trip={trip}
       isPast={isPast}
-      onDrop={handleDropOnUnscheduled}
       onAssign={(a) => handleAssignOrEdit(a)}
       onRemove={(a) => handleRemove(a)}
       onOpen={handleOpenActivity}
@@ -495,8 +463,10 @@ export function TripDetail() {
     </>
   );
 
-  const page =
-    phone && !editingHeader ? (
+  // The trip's page, the phone's at every width (#294), in a column from md
+  // up. Editing its name and dates opens the header's form instead.
+  const page = !editingHeader ? (
+    <div className="mx-auto w-full max-w-2xl">
       <Suspense fallback={null}>
         <TripPhone
           // Its day and tab start afresh on another trip.
@@ -523,7 +493,7 @@ export function TripDetail() {
             isVoting ? (
               votingView
             ) : (
-              <section className="space-y-md py-md px-margin">
+              <section className="space-y-md py-md px-margin md:px-gutter">
                 {unscheduledPanel}
                 <VotingResults trip={trip} onOpen={handleOpenActivity} />
               </section>
@@ -534,7 +504,7 @@ export function TripDetail() {
               ? trip.activities.length
               : trip.activities.filter((a) => a.day_index === null).length
           }
-          map={<TripMap trip={trip} bare />}
+          map={<TripMap trip={trip} />}
           onOpen={handleOpenActivity}
           onSchedule={handleScheduleOnDay}
           onMove={handleMoveWithinDay}
@@ -544,88 +514,21 @@ export function TripDetail() {
           onBrowse={addFromCurated}
         />
       </Suspense>
-    ) : null;
+    </div>
+  ) : null;
 
   return (
     <>
       {page ?? (
-        <>
-          <TripHeader
+        <div className="mx-auto w-full max-w-2xl">
+          <TripEditForm
             trip={trip}
             isPast={isPast}
-            isVoting={isVoting}
-            isCreator={isCreator}
-            editing={editingHeader}
-            onEdit={() => setEditingHeader(true)}
-            onCancelEdit={() => setEditingHeader(false)}
+            onCancel={() => setEditingHeader(false)}
             onSave={(input) => void handleSaveHeader(input)}
-            onMarkPast={() => setMarkPastOpen(true)}
-            onDelete={() => setConfirmingDelete(true)}
-            onRevert={() => setConfirmingRevert(true)}
           />
-
           {shared}
-
-          <div className="mx-auto max-w-screen-2xl pt-md px-margin">{membersStrip}</div>
-
-          {isVoting ? (
-            votingView
-          ) : (
-            <section className="mx-auto max-w-screen-2xl space-y-md py-md px-margin md:space-y-lg md:py-lg">
-              <TripMap trip={trip} />
-
-              <div className="flex flex-wrap items-center justify-between gap-md">
-                <h2 className="font-headline-md text-headline-md text-on-surface">Itinerary</h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isPast) return;
-                    void navigate('/', {
-                      state: {
-                        target_trip_id: trip.id,
-                        target_trip_title: trip.title,
-                      },
-                    });
-                  }}
-                  disabled={isPast}
-                  title={isPast ? PAST_TOOLTIP : undefined}
-                  className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span
-                    className="material-symbols-outlined text-icon-md"
-                    style={{ marginLeft: glyphBleed('add') }}
-                  >
-                    add
-                  </span>
-                  Add activity
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-gutter lg:grid-cols-3">
-                <div className="space-y-md lg:col-span-2">
-                  {buckets.map((bucket) => (
-                    <DaySection
-                      key={bucket.dayIndex}
-                      trip={trip}
-                      bucket={bucket}
-                      isPast={isPast}
-                      onDropOnDay={handleDropOnDay(bucket.dayIndex)}
-                      onEditTime={(a) => handleAssignOrEdit(a)}
-                      onMoveToUnscheduled={(a) => handleMoveToUnscheduled(a)}
-                      onRemove={(a) => handleRemove(a)}
-                      onOpen={handleOpenActivity}
-                    />
-                  ))}
-                </div>
-                {unscheduledPanel}
-              </div>
-
-              {/* Final vote tallies stay visible after voting closes, as
-              historical context (#51). */}
-              <VotingResults trip={trip} onOpen={handleOpenActivity} />
-            </section>
-          )}
-        </>
+        </div>
       )}
       {slotDialog && trip && (
         <SlotDialog
@@ -729,7 +632,7 @@ function VotingView({
 }) {
   const candidates = trip.activities;
   return (
-    <section className="mx-auto max-w-screen-2xl space-y-md py-md px-margin md:space-y-lg md:py-lg">
+    <section className="space-y-md py-md px-margin md:px-gutter">
       <div className="rounded-xl border border-outline-variant/20 bg-primary-fixed/50 px-md py-sm font-body-md text-on-surface">
         Voting is open — react to each candidate. Scheduling unlocks once the trip creator finalizes
         voting.
@@ -781,7 +684,7 @@ function VotingView({
           to start voting.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-md md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-md">
           {candidates.map((a) => (
             <div key={a.id} className="space-y-xs">
               <VotingCandidateCard
@@ -860,7 +763,7 @@ function VotingResults({ trip, onOpen }: { trip: Trip; onOpen: (a: TripActivity)
   return (
     <div className="space-y-md border-t border-outline-variant/20 pt-md">
       <h2 className="font-headline-md text-headline-md text-on-surface">Voting results</h2>
-      <div className="grid grid-cols-1 gap-md md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-md">
         {ranked.map((a) => (
           <div key={a.id} className="space-y-xs">
             <VotingCandidateCard
@@ -879,23 +782,6 @@ function VotingResults({ trip, onOpen }: { trip: Trip; onOpen: (a: TripActivity)
   );
 }
 
-type DayBucket = { dayIndex: number; activities: TripActivity[] };
-
-function bucketByDay(trip: Trip | null): DayBucket[] {
-  if (!trip) return [];
-  const total = dayCount(trip);
-  const out: DayBucket[] = [];
-  for (let i = 0; i < total; i++) {
-    out.push({
-      dayIndex: i,
-      activities: trip.activities
-        .filter((a) => a.day_index === i)
-        .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? '')),
-    });
-  }
-  return out;
-}
-
 type HeaderEditInput = {
   title: string;
   start_date: string;
@@ -904,30 +790,17 @@ type HeaderEditInput = {
   cover_image_url: string;
 };
 
-function TripHeader({
+/** The trip's name, dates, description and cover, being edited. */
+function TripEditForm({
   trip,
   isPast,
-  isVoting,
-  isCreator,
-  editing,
-  onEdit,
-  onCancelEdit,
+  onCancel,
   onSave,
-  onMarkPast,
-  onDelete,
-  onRevert,
 }: {
   trip: Trip;
   isPast: boolean;
-  isVoting: boolean;
-  isCreator: boolean;
-  editing: boolean;
-  onEdit: () => void;
-  onCancelEdit: () => void;
+  onCancel: () => void;
   onSave: (input: HeaderEditInput) => void;
-  onMarkPast: () => void;
-  onDelete: () => void;
-  onRevert: () => void;
 }) {
   const [draft, setDraft] = useState<HeaderEditInput>({
     title: trip.title,
@@ -936,136 +809,69 @@ function TripHeader({
     description: trip.description ?? '',
     cover_image_url: trip.cover_image_url ?? '',
   });
-  if (editing) {
-    return (
-      <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin">
-        <form
-          className="mx-auto max-w-3xl space-y-md"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSave(draft);
-          }}
-        >
+  return (
+    <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin">
+      <form
+        className="mx-auto max-w-3xl space-y-md"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave(draft);
+        }}
+      >
+        <input
+          type="text"
+          value={draft.title}
+          onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+          required
+          disabled={isPast}
+          title={isPast ? 'This trip is past' : undefined}
+          className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-display text-headline-md disabled:opacity-60"
+        />
+        <div className="grid grid-cols-1 gap-md md:grid-cols-2">
           <input
-            type="text"
-            value={draft.title}
-            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            required
+            type="date"
+            value={draft.start_date}
+            onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
             disabled={isPast}
             title={isPast ? 'This trip is past' : undefined}
-            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-display text-headline-md disabled:opacity-60"
-          />
-          <div className="grid grid-cols-1 gap-md md:grid-cols-2">
-            <input
-              type="date"
-              value={draft.start_date}
-              onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
-              disabled={isPast}
-              title={isPast ? 'This trip is past' : undefined}
-              className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm disabled:opacity-60"
-            />
-            <input
-              type="date"
-              value={draft.end_date}
-              onChange={(e) => setDraft({ ...draft, end_date: e.target.value })}
-              min={draft.start_date || undefined}
-              disabled={isPast}
-              title={isPast ? 'This trip is past' : undefined}
-              className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm disabled:opacity-60"
-            />
-          </div>
-          <textarea
-            value={draft.description}
-            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            rows={2}
-            placeholder="Description (optional)"
-            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm disabled:opacity-60"
           />
           <input
-            type="url"
-            value={draft.cover_image_url}
-            onChange={(e) => setDraft({ ...draft, cover_image_url: e.target.value })}
-            placeholder="Cover image URL (optional)"
-            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
+            type="date"
+            value={draft.end_date}
+            onChange={(e) => setDraft({ ...draft, end_date: e.target.value })}
+            min={draft.start_date || undefined}
+            disabled={isPast}
+            title={isPast ? 'This trip is past' : undefined}
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm disabled:opacity-60"
           />
-          <div className="flex items-center gap-md">
-            <button
-              type="submit"
-              className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={onCancelEdit}
-              className="font-body-md text-on-surface-variant"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </section>
-    );
-  }
-
-  const dateRange = formatDateRange(trip.start_date, trip.end_date);
-  const editTooltip = isPast ? 'This trip is past' : undefined;
-
-  return (
-    <section className="border-b border-outline-variant/20 bg-surface-container-low pt-sm px-margin pb-md md:py-lg">
-      <div className="mx-auto flex max-w-screen-2xl flex-wrap items-start justify-between gap-md">
-        <div className="space-y-xs">
-          <Link to="/trips" className="text-body-sm text-on-surface-variant underline">
-            ← Trips
-          </Link>
-          <h1 className="font-display text-headline-lg text-primary md:text-display">
-            {trip.title}
-          </h1>
-          <p className="font-body-md text-on-surface-variant">{dateRange}</p>
-          {trip.description && (
-            <p className="max-w-2xl font-body-md text-on-surface">{trip.description}</p>
-          )}
         </div>
-
-        {/* Under the title on a phone, kept to the right so the menu
-            opens within the screen. */}
-        <div className="ml-auto flex items-center gap-sm">
-          {isPast ? (
-            <span className="rounded-full bg-surface-variant px-sm py-xs font-label-caps text-label-caps text-on-surface-variant">
-              {trip.marked_past_at
-                ? `Past · ended ${new Date(trip.marked_past_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })}`
-                : 'Past'}
-            </span>
-          ) : isVoting ? (
-            <span className="rounded-full bg-tertiary-container px-sm py-xs font-label-caps text-label-caps text-on-tertiary-container">
-              Voting
-            </span>
-          ) : (
-            <span className="rounded-full bg-primary-fixed px-sm py-xs font-label-caps text-label-caps text-primary">
-              Planning
-            </span>
-          )}
+        <textarea
+          value={draft.description}
+          onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+          rows={2}
+          placeholder="Description (optional)"
+          className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
+        />
+        <input
+          type="url"
+          value={draft.cover_image_url}
+          onChange={(e) => setDraft({ ...draft, cover_image_url: e.target.value })}
+          placeholder="Cover image URL (optional)"
+          className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
+        />
+        <div className="flex items-center gap-md">
           <button
-            type="button"
-            onClick={onEdit}
-            title={isPast ? 'Past trip — only cover and description are editable' : editTooltip}
-            className="inline-flex min-h-11 items-center rounded-full border border-outline-variant/40 px-md font-body-md text-sm text-on-surface-variant hover:bg-surface-variant md:min-h-9 md:px-sm"
+            type="submit"
+            className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
           >
-            Edit
+            Save
           </button>
-          <TripMenu
-            isPast={isPast}
-            isVoting={isVoting}
-            isCreator={isCreator}
-            onMarkPast={onMarkPast}
-            onDelete={onDelete}
-            onRevert={onRevert}
-          />
+          <button type="button" onClick={onCancel} className="font-body-md text-on-surface-variant">
+            Cancel
+          </button>
         </div>
-      </div>
+      </form>
     </section>
   );
 }
@@ -1126,7 +932,7 @@ export function TripMenu({
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-label="More trip actions"
-        className="inline-flex size-11 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant md:size-9"
+        className="inline-flex size-11 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
       >
         <span className="material-symbols-outlined">more_horiz</span>
       </button>
@@ -1216,78 +1022,9 @@ function MenuItem({
   );
 }
 
-function DaySection({
-  trip,
-  bucket,
-  isPast,
-  onDropOnDay,
-  onEditTime,
-  onMoveToUnscheduled,
-  onRemove,
-  onOpen,
-}: {
-  trip: Trip;
-  bucket: DayBucket;
-  isPast: boolean;
-  onDropOnDay: (e: React.DragEvent<HTMLDivElement>) => void;
-  onEditTime: (a: TripActivity) => void;
-  onMoveToUnscheduled: (a: TripActivity) => void;
-  onRemove: (a: TripActivity) => void;
-  onOpen: (a: TripActivity) => void;
-}) {
-  const [dragOver, setDragOver] = useState(false);
-  return (
-    <div
-      onDragOver={(e) => {
-        if (isPast) return;
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        setDragOver(false);
-        onDropOnDay(e);
-      }}
-      className={`space-y-sm rounded-xl border-2 p-sm transition-colors md:p-md ${
-        dragOver
-          ? 'border-primary bg-primary-fixed/40'
-          : 'border-outline-variant/30 bg-surface-container-low'
-      }`}
-    >
-      <h3 className="font-headline-md text-body-lg text-on-surface">
-        {dayLabel(trip, bucket.dayIndex)}
-      </h3>
-      {bucket.activities.length === 0 ? (
-        <p className="font-body-md text-sm text-on-surface-variant">
-          Drag an activity from Unscheduled, or use the card menu.
-        </p>
-      ) : (
-        bucket.activities.map((a) => (
-          <TripActivityCard
-            key={a.id}
-            activity={a}
-            disabled={isPast}
-            pastTooltip={PAST_TOOLTIP}
-            onDragStart={(e) => {
-              e.dataTransfer.setData(DRAG_MIME, a.id);
-              e.dataTransfer.effectAllowed = 'move';
-            }}
-            onEditTime={() => onEditTime(a)}
-            onMoveToUnscheduled={() => onMoveToUnscheduled(a)}
-            onRemove={() => onRemove(a)}
-            onOpen={() => onOpen(a)}
-            showTimeRange
-          />
-        ))
-      )}
-    </div>
-  );
-}
-
 function UnscheduledPanel({
   trip,
   isPast,
-  onDrop,
   onAssign,
   onRemove,
   onOpen,
@@ -1295,33 +1032,15 @@ function UnscheduledPanel({
 }: {
   trip: Trip;
   isPast: boolean;
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   onAssign: (a: TripActivity) => void;
   onRemove: (a: TripActivity) => void;
   onOpen: (a: TripActivity) => void;
   onAddFromCurated: () => void;
 }) {
-  const [dragOver, setDragOver] = useState(false);
   const items = trip.activities.filter((a) => a.day_index === null);
 
   return (
-    <div
-      onDragOver={(e) => {
-        if (isPast) return;
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        setDragOver(false);
-        onDrop(e);
-      }}
-      className={`h-fit space-y-sm rounded-xl border-2 p-md transition-colors ${
-        dragOver
-          ? 'border-primary bg-primary-fixed/40'
-          : 'border-outline-variant/30 bg-surface-container-low'
-      }`}
-    >
+    <div className="h-fit space-y-sm rounded-xl border-2 border-outline-variant/30 bg-surface-container-low p-md">
       <div className="flex items-center justify-between gap-sm">
         <h2 className="font-headline-md text-headline-md text-on-surface">Unscheduled</h2>
         <button
@@ -1329,7 +1048,7 @@ function UnscheduledPanel({
           onClick={onAddFromCurated}
           disabled={isPast}
           title={isPast ? PAST_TOOLTIP : undefined}
-          className="inline-flex min-h-11 items-center rounded-full border border-outline-variant/40 px-md font-body-md text-sm text-on-surface-variant hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60 md:min-h-9 md:px-sm"
+          className="inline-flex min-h-11 items-center rounded-full border border-outline-variant/40 px-md font-body-md text-sm text-on-surface-variant hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60"
         >
           + Add
         </button>
@@ -1354,10 +1073,6 @@ function UnscheduledPanel({
             activity={a}
             disabled={isPast}
             pastTooltip={PAST_TOOLTIP}
-            onDragStart={(e) => {
-              e.dataTransfer.setData(DRAG_MIME, a.id);
-              e.dataTransfer.effectAllowed = 'move';
-            }}
             onAssignToDay={() => onAssign(a)}
             onRemove={() => onRemove(a)}
             onOpen={() => onOpen(a)}

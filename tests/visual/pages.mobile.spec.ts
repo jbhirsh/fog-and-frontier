@@ -229,8 +229,7 @@ test.describe('visual regression — trips (mobile)', () => {
   for (const view of TRIP_VIEWS) {
     test(view.name, async ({ page }) => {
       await page.goto(view.path);
-      // A phone's trip opens on its plan, the map behind its Map tab (#294).
-      await settleTripView(page, { ...view, map: false });
+      await settleTripView(page, view);
       // WebKit fills an empty date field with today's date in grey, read
       // from the system clock (page.clock can't pin it), so the snapshot
       // would change every day. Mask the fields: their size and place

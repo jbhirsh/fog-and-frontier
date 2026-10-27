@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { completedHike, muirWoods } from '../test/fixtures';
@@ -104,6 +104,19 @@ describe('a trip’s page on a phone (#294)', () => {
     expect(screen.getByText(/· Voting$/)).toBeInTheDocument();
     show({ isPast: true });
     expect(screen.getByText(/· Past$/)).toBeInTheDocument();
+  });
+
+  it('says when a past trip ended, once marked so', () => {
+    show({ isPast: true, trip: { ...TRIP, marked_past_at: Date.UTC(2026, 10, 9, 12) } });
+    expect(screen.getByText(/· Past · ended Nov 9$/)).toBeInTheDocument();
+  });
+
+  it('shows the trip’s description under its dates, and nothing without one', () => {
+    show({ trip: { ...TRIP, description: 'Tide pools first, then the lighthouse.' } });
+    expect(screen.getByText('Tide pools first, then the lighthouse.')).toBeInTheDocument();
+    cleanup();
+    const { view } = show();
+    expect(view.container.querySelector('.whitespace-pre-line')).toBeNull();
   });
 
   it('shows the members as initials, opening the list of them, and invites', async () => {

@@ -147,24 +147,16 @@ export async function signIn(page: Page) {
 // `ready` is text that only appears once the view's mocked data has rendered,
 // so a slow runner can't snapshot a loading state.
 export const TRIP_VIEWS = [
-  { name: 'trips-list', path: '/trips', map: false, ready: 'Spring Getaway' },
-  { name: 'trips-new', path: '/trips/new', map: false, ready: 'Open voting first' },
-  {
-    name: 'trip-planning',
-    path: '/trips/fixture-trip-planning',
-    map: true,
-    ready: 'Coast Weekend',
-  },
-  { name: 'trip-voting', path: '/trips/fixture-trip-voting', map: false, ready: 'Spring Getaway' },
+  { name: 'trips-list', path: '/trips', ready: 'Spring Getaway' },
+  { name: 'trips-new', path: '/trips/new', ready: 'Open voting first' },
+  // A trip opens on its plan, the map behind its Map tab (#294).
+  { name: 'trip-planning', path: '/trips/fixture-trip-planning', ready: 'Coast Weekend' },
+  { name: 'trip-voting', path: '/trips/fixture-trip-voting', ready: 'Spring Getaway' },
 ] as const;
 
-export async function settleTripView(page: Page, view: { map: boolean; ready: string }) {
+export async function settleTripView(page: Page, view: { ready: string }) {
   await expect(page.getByText(view.ready).first()).toBeVisible();
   await waitForVisualReady(page);
-  if (view.map) {
-    await page.locator('.leaflet-container').first().waitFor({ state: 'attached' });
-    await page.waitForTimeout(400);
-  }
 }
 
 export async function mockApis(page: Page) {

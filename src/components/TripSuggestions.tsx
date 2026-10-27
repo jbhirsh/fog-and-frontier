@@ -62,7 +62,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
             Within {TRIP_SUGGESTION_RADIUS_MILES} miles of the candidates, starting with what the
             trip doesn&apos;t have yet.
           </p>
-          <ul className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-sm">
             {visible.map(({ activity: a, miles, nearName }) => (
               <li
                 key={a.id}
