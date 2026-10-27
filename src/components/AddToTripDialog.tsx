@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useFocusTrap, useReturnFocus } from '../lib/focusTrap';
 import { addActivityToTrip, useTripsList, type TripListItem } from '../lib/userTrips';
 
 type Props = {
@@ -15,6 +16,14 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
   const { trips, isLoading } = useTripsList();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Focus in as it opens, Tab kept inside, and back to its opener as it
+  // closes: over a place's page (#293), the page's own trap is off.
+  const dialog = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialog);
+  useReturnFocus();
+  useEffect(() => {
+    dialog.current?.focus({ preventScroll: true });
+  }, []);
 
   // Any non-past trip can take candidates — both voting and planning trips
   // (#51 c12). The list is already member-scoped server-side.
@@ -57,14 +66,17 @@ export function AddToTripDialog({ activityIds, onClose, onAdded }: Props) {
       <button
         type="button"
         aria-label="Close dialog"
+        tabIndex={-1}
         onClick={onClose}
         className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
       />
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-label="Add to trip"
-        className="relative max-h-[80vh] w-full max-w-2xl space-y-md overflow-y-auto rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl"
+        tabIndex={-1}
+        className="relative max-h-[80vh] w-full max-w-2xl space-y-md overflow-y-auto rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg shadow-xl focus:outline-none"
       >
         <h2 className="font-headline-md text-headline-md text-on-surface">
           Add {activityIds.length} activit{activityIds.length === 1 ? 'y' : 'ies'} to a trip

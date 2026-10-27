@@ -24,10 +24,13 @@ import { ActivityReviews } from './ActivityReviews';
 import { ActivityTile } from './ActivityTile';
 import { ParkActivities, PartOfPark } from './ParkLinks';
 import { AddActivity } from './AddActivity';
+import { AddToTripDialog } from './AddToTripDialog';
+import { ClampedText, PhoneActions, PhoneCover, PhoneHeading, SideRow } from './PlacePhone';
 import { CoverImage } from './CoverImage';
 import { InlineError } from './InlineError';
 import { sourceLabel } from '../lib/sharedPlaces';
 import { parkOf, subItemsOf } from '../lib/parks';
+import { activityPath } from '../lib/activityRoute';
 
 interface Props {
   activity: Activity;
@@ -86,6 +89,10 @@ function ownsArrows(target: EventTarget | null): boolean {
 // The detail's cover fills its panel: the width of a phone, or at most 768px.
 const DETAIL_SIZES = '(min-width: 768px) 768px, 100vw';
 
+// A button over the phone's photo (#293): back, share.
+const OVER_PHOTO =
+  'flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-container-lowest/95 text-on-surface shadow-[0_1px_4px_rgba(0,0,0,0.2)]';
+
 const STEP_BUTTON =
   'w-11 h-11 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default';
 
@@ -112,17 +119,25 @@ export function ActivityDetail({
   const scrimRef = useRef<HTMLButtonElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [override, setOverride] = useState<Activity | null>(null);
+  // What a phone's page last did for its place: added it to a trip, or
+  // copied its link.
+  const [note, setNote] = useState<string | null>(null);
   const [prevInitial, setPrevInitial] = useState(initial);
   if (prevInitial !== initial) {
     setPrevInitial(initial);
     setOverride(null);
+    setNote(null);
   }
   const activity = override ?? initial;
   const setActivity = setOverride;
 
   const allActivities = useAllActivities();
   const { completed } = useCompleted(activity);
-  const { isOwner } = useOwner();
+  const { isOwner, email } = useOwner();
+  // A phone lays the page out on its own (#293); everything wider keeps the
+  // dialog.
+  const phone = useMediaQuery('(max-width: 767.98px)');
+  const [addingToTrip, setAddingToTrip] = useState(false);
   const {
     photos,
     loading: photosLoading,
@@ -151,8 +166,18 @@ export function ActivityDetail({
     );
   }, [allActivities, activity, park, siblings, subItems]);
   const nearbyIdPrefix = useId();
+  // A phone's Nearby is one row, nearest first.
+  const nearby = useMemo(
+    () =>
+      nearbyGroups
+        .flatMap((g) => g.items)
+        .sort((x, y) => x.miles - y.miles)
+        .map((n) => n.activity),
+    [nearbyGroups],
+  );
 
   function selectNearby(a: Activity) {
+    setNote(null);
     if (onSelectNearby) {
       onSelectNearby(a);
     } else {
@@ -167,8 +192,11 @@ export function ActivityDetail({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // When the edit form is layered on top, let it own Escape — don't
-      // collapse both modals in one keystroke.
-      if (e.key === 'Escape' && !editing) onClose();
+      // collapse both modals in one keystroke. The trip picker is closed
+      // by it instead.
+      if (e.key !== 'Escape') return;
+      if (addingToTrip) setAddingToTrip(false);
+      else if (!editing) onClose();
     };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -176,7 +204,7 @@ export function ActivityDetail({
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [onClose, editing]);
+  }, [onClose, editing, addingToTrip]);
 
   // Left and Right step through the list, like its buttons, unless the edit
   // form is up, the key belongs to a field or control, or it's held down
@@ -187,6 +215,7 @@ export function ActivityDetail({
     const onKey = (e: KeyboardEvent) => {
       if (
         editing ||
+        addingToTrip ||
         e.repeat ||
         e.defaultPrevented ||
         e.altKey ||
@@ -204,7 +233,7 @@ export function ActivityDetail({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editing, onPrev, onNext]);
+  }, [editing, addingToTrip, onPrev, onNext]);
 
   // On a phone: swipe down from the top to close, or sideways to step through
   // the list, unless the edit form is up.
@@ -216,7 +245,7 @@ export function ActivityDetail({
       onClose,
       onPrev: onPrev && (() => onPrev('swipe')),
       onNext: onNext && (() => onNext('swipe')),
-      enabled: !editing,
+      enabled: !editing && !addingToTrip,
       reduceMotion,
     },
     trackRef,
@@ -225,7 +254,7 @@ export function ActivityDetail({
   // Tab stays inside the detail (#258), except while the edit form is up:
   // that's drawn beside the detail rather than in it, and Tab must reach it.
   // (The form has no trap of its own, so Tab past its end still leaves it.)
-  useFocusTrap(scrollRef, !editing);
+  useFocusTrap(scrollRef, !editing && !addingToTrip);
 
   // Closing the edit form takes focus with it, if it was in there; hand it
   // back to Edit, or the trap would never see the next Tab.
@@ -258,6 +287,28 @@ export function ActivityDetail({
     if (files && files.length) void addPhotos(files);
   };
 
+  // The phone's Share: the system's sheet where there is one, else the
+  // link copied.
+  async function share() {
+    const url = new URL(activityPath(activity.id), window.location.origin).href;
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: activity.name, url });
+        return;
+      } catch (error) {
+        // Dismissed: nothing to say. Anything else (refused, say) falls
+        // back to the link, as where there's no sheet.
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setNote('Link copied');
+    } catch {
+      setNote(`Copy this link: ${url}`);
+    }
+  }
+
   async function handleDelete() {
     if (!isOwner) return;
     const ok = window.confirm(
@@ -269,6 +320,251 @@ export function ActivityDetail({
     onClose();
     await deleteUserActivity(activity.id);
   }
+
+  // The parts both layouts show, the phone's in its own order.
+  const restaurantInfo = (
+    <>
+      {(activity.cuisine ||
+        activity.priceRange ||
+        activity.hours ||
+        activity.reservationUrl ||
+        activity.menuUrl ||
+        (activity.dietary && activity.dietary.length > 0)) && (
+        <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
+          <div className="font-label-caps text-label-caps text-on-surface-variant">
+            RESTAURANT INFO
+          </div>
+          <div className="flex flex-wrap gap-md text-on-surface-variant">
+            {activity.cuisine && <Stat icon="restaurant_menu" label={activity.cuisine} />}
+            {activity.priceRange && <Stat icon="payments" label={activity.priceRange} />}
+            {activity.hours && <Stat icon="schedule" label={activity.hours} />}
+          </div>
+          {activity.dietary && activity.dietary.length > 0 && (
+            <div className="flex flex-wrap gap-xs">
+              {activity.dietary.map((d) => (
+                <span
+                  key={d}
+                  className="rounded-full bg-surface-variant px-sm py-xs font-body-sm text-on-surface-variant capitalize"
+                >
+                  {d}
+                </span>
+              ))}
+            </div>
+          )}
+          {(activity.reservationUrl || activity.menuUrl) && (
+            <div className="flex flex-wrap gap-md">
+              {activity.reservationUrl && (
+                <a
+                  href={activity.reservationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
+                >
+                  Reserve
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    open_in_new
+                  </span>
+                </a>
+              )}
+              {activity.menuUrl && (
+                <a
+                  href={activity.menuUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
+                >
+                  Menu / website
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    open_in_new
+                  </span>
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const notesBlock = (
+    <>
+      {activity.notes && (
+        <div className="rounded-lg bg-surface-container-low p-md">
+          <div className="mb-xs font-label-caps text-label-caps text-on-surface-variant">NOTES</div>
+          <p className="font-body-md text-body-md text-on-surface">{activity.notes}</p>
+        </div>
+      )}
+    </>
+  );
+
+  const sourceLink = (
+    <>
+      {/* Where it was found (#6): the reel it was added from. A read,
+                open to every visitor. */}
+      {activity.sourceUrl && (
+        <a
+          href={activity.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
+        >
+          {sourceLabel(activity.sourceUrl)}
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            open_in_new
+          </span>
+        </a>
+      )}
+    </>
+  );
+
+  const reviewsBlock = (
+    <>
+      {/* Owner reviews (#184) — what each of us thought after doing it.
+                Reviews are about completed activities, so the section only
+                appears once this one is marked done. */}
+      {completed && (
+        // Keyed on the activity: picking a nearby activity swaps `activity`
+        // without unmounting this dialog, and an open review draft must not
+        // follow along and be saved onto a different activity.
+        <ActivityReviews key={activity.id} activityId={activity.id} />
+      )}
+    </>
+  );
+
+  const photosSection = (
+    <>
+      {/* Owner-only read (#19): the photos are the owners' own, kept in
+                private storage, so the whole section is theirs alone. */}
+      {isOwner && (completed || showUploads) && (
+        <section className="space-y-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="font-headline-md text-headline-md text-primary">Your Photos</h3>
+            {photos.length < MAX_PHOTOS_PER_ACTIVITY && (
+              <label
+                className={`flex items-center gap-xs rounded-full bg-secondary px-md py-sm font-medium text-on-secondary transition-opacity ${
+                  uploading ? 'cursor-wait opacity-60' : 'cursor-pointer hover:opacity-90'
+                }`}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                  {uploading ? 'hourglass_top' : 'add_a_photo'}
+                </span>
+                {uploading ? 'Uploading…' : 'Add photos'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={uploading}
+                  className="hidden"
+                  onChange={(e) => {
+                    handleFiles(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          <InlineError message={saveError} onDismiss={clearSaveError} />
+          {photosLoading ? null : photosLoadError ? (
+            <InlineError message={photosLoadError} />
+          ) : photos.length === 0 ? (
+            <div className="rounded-lg border-2 border-dashed border-outline-variant p-lg text-center text-on-surface-variant">
+              No photos yet — upload some from this trip.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-sm md:grid-cols-3">
+              {photos.map((photo, i) => (
+                <div
+                  key={photo.id}
+                  className="group relative aspect-square overflow-hidden rounded-lg bg-surface-variant"
+                >
+                  <img
+                    src={photo.url}
+                    alt={`${activity.name} ${i + 1}`}
+                    className="size-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void removePhoto(photo.id)}
+                    aria-label="Remove photo"
+                    className="absolute top-xs right-xs flex size-11 items-center justify-center rounded-full bg-on-surface/70 text-on-primary opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                      delete
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+    </>
+  );
+
+  const ownerControls = (
+    <>
+      {isOwner && (
+        <div className="mt-md flex flex-wrap justify-end gap-sm border-t border-outline-variant/40 pt-md">
+          <button
+            ref={editRef}
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-on-surface-variant transition-colors hover:bg-surface-variant"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              edit
+            </span>
+            EDIT ACTIVITY
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDelete()}
+            className="-mr-md inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-error transition-colors hover:bg-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              delete
+            </span>
+            DELETE ACTIVITY
+          </button>
+        </div>
+      )}
+    </>
+  );
+
+  // Its place in the list, and the steps either side (#64).
+  const stepper = (where: string) =>
+    sequence && (
+      <nav
+        aria-label={`Adventure ${sequence.index + 1} of ${sequence.total} in this list`}
+        className={`${where} flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm`}
+      >
+        <button
+          ref={prevRef}
+          type="button"
+          onClick={() => sequence.onPrev?.()}
+          disabled={!sequence.onPrev}
+          aria-label="Previous adventure"
+          aria-keyshortcuts="ArrowLeft"
+          className={STEP_BUTTON}
+        >
+          <span className="material-symbols-outlined">chevron_left</span>
+        </button>
+        <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
+          {sequence.index + 1} of {sequence.total}
+        </span>
+        <button
+          ref={nextRef}
+          type="button"
+          onClick={() => sequence.onNext?.()}
+          disabled={!sequence.onNext}
+          aria-label="Next adventure"
+          aria-keyshortcuts="ArrowRight"
+          className={STEP_BUTTON}
+        >
+          <span className="material-symbols-outlined">chevron_right</span>
+        </button>
+      </nav>
+    );
 
   return (
     <div className="fixed inset-0 z-1000 flex items-end justify-center overflow-hidden p-0 md:items-center md:p-md">
@@ -290,373 +586,247 @@ export function ActivityDetail({
           tabIndex={-1}
           className={`relative max-h-[95dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl bg-surface-container-lowest shadow-2xl focus:outline-none md:rounded-xl ${animateIn ? PANEL_IN : cameBy && !sequence?.swiped ? STEP_IN[cameBy] : ''}`}
         >
-          <div className="relative aspect-video bg-surface-variant">
-            <CoverImage
-              alt={activity.name}
-              category={activity.category}
-              src={activity.coverImage}
-              className="size-full object-cover"
-              glyphSize={64}
-              sizes={DETAIL_SIZES}
-            />
-            {/* The sheet's grab handle on a phone: it can be swiped down. */}
-            <span
-              aria-hidden="true"
-              className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden"
-            />
-            {sequence && (
-              <nav
-                aria-label={`Adventure ${sequence.index + 1} of ${sequence.total} in this list`}
-                className="absolute top-sm left-sm flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm"
-              >
-                <button
-                  ref={prevRef}
-                  type="button"
-                  onClick={() => sequence.onPrev?.()}
-                  disabled={!sequence.onPrev}
-                  aria-label="Previous adventure"
-                  aria-keyshortcuts="ArrowLeft"
-                  className={STEP_BUTTON}
-                >
-                  <span className="material-symbols-outlined">chevron_left</span>
-                </button>
-                <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
-                  {sequence.index + 1} of {sequence.total}
-                </span>
-                <button
-                  ref={nextRef}
-                  type="button"
-                  onClick={() => sequence.onNext?.()}
-                  disabled={!sequence.onNext}
-                  aria-label="Next adventure"
-                  aria-keyshortcuts="ArrowRight"
-                  className={STEP_BUTTON}
-                >
-                  <span className="material-symbols-outlined">chevron_right</span>
-                </button>
-              </nav>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-          </div>
-          {activity.coverCredit && (
-            // Commons covers are CC-licensed: credit author + license (#36).
-            <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
-              {activity.coverCredit}
-            </p>
-          )}
-          <div className="space-y-md p-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] md:p-lg">
-            <TitleRow activity={activity} />
-
-            {park && <PartOfPark park={park} onSelect={selectNearby} />}
-
-            <Facts activity={activity} onShowContributor={onShowContributor} />
-
-            {(activity.allTrailsUrl ||
-              activity.hikeDistanceMiles ||
-              activity.hikeElevationFeet) && (
-              <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
-                <div className="flex items-center justify-between gap-sm">
-                  <div className="font-label-caps text-label-caps text-on-surface-variant">
-                    TRAIL DETAILS
+          {phone ? (
+            <>
+              <PhoneCover activity={activity}>
+                <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
+                  <button type="button" onClick={onClose} aria-label="Back" className={OVER_PHOTO}>
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      arrow_back
+                    </span>
+                  </button>
+                  {stepper('')}
+                  <button
+                    type="button"
+                    onClick={() => void share()}
+                    aria-label="Share"
+                    className={OVER_PHOTO}
+                  >
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      ios_share
+                    </span>
+                  </button>
+                </div>
+              </PhoneCover>
+              {/* The page rises over the photo's foot. */}
+              <div className="relative -mt-5 space-y-md rounded-t-[22px] bg-surface-container-lowest px-md pt-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))]">
+                <PhoneHeading activity={activity} park={park} onOpenPark={selectNearby} />
+                <PhoneActions
+                  activity={activity}
+                  onTrip={email ? () => setAddingToTrip(true) : undefined}
+                />
+                {note && (
+                  <p role="status" className="text-body-sm text-on-surface-variant">
+                    {note}
+                  </p>
+                )}
+                <ClampedText
+                  // Shut again for the next place, which may swap in here.
+                  key={activity.id}
+                  text={activity.longDescription ?? activity.shortDescription}
+                />
+                {(activity.allTrailsUrl ||
+                  activity.hikeDistanceMiles != null ||
+                  activity.hikeElevationFeet != null) && <TrailRow activity={activity} />}
+                {restaurantInfo}
+                {notesBlock}
+                {sourceLink}
+                {activity.contributors && activity.contributors.length > 0 && (
+                  <div className="text-on-surface-variant">
+                    <Contributors emails={activity.contributors} onShow={onShowContributor} />
                   </div>
-                  {activity.allTrailsRating != null && (
-                    <div className="flex items-center gap-xs text-secondary">
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}
-                      >
-                        star
-                      </span>
-                      <span className="font-headline-md text-headline-md">
-                        {activity.allTrailsRating.toFixed(1)}
-                      </span>
-                      <span className="font-body-md text-on-surface-variant">AllTrails</span>
+                )}
+                {reviewsBlock}
+                {subItems.length > 0 && (
+                  <SideRow
+                    heading="Hikes & stops here"
+                    activities={subItems}
+                    onSelect={selectNearby}
+                  />
+                )}
+                {park && siblings.length > 0 && (
+                  <SideRow
+                    heading={`Also in ${park.name}`}
+                    activities={siblings}
+                    onSelect={selectNearby}
+                  />
+                )}
+                {nearby.length > 0 && (
+                  <SideRow heading="Nearby" activities={nearby} onSelect={selectNearby} />
+                )}
+                {photosSection}
+                {ownerControls}
+                {activity.coverCredit && (
+                  // Commons covers are CC-licensed: credit author + license (#36).
+                  <p className="text-[12px] text-on-surface-variant">{activity.coverCredit}</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative aspect-video bg-surface-variant">
+                <CoverImage
+                  alt={activity.name}
+                  category={activity.category}
+                  src={activity.coverImage}
+                  className="size-full object-cover"
+                  glyphSize={64}
+                  sizes={DETAIL_SIZES}
+                />
+                {/* The sheet's grab handle on a phone: it can be swiped down. */}
+                <span
+                  aria-hidden="true"
+                  className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden"
+                />
+                {sequence && stepper('absolute top-sm left-sm')}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              {activity.coverCredit && (
+                // Commons covers are CC-licensed: credit author + license (#36).
+                <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
+                  {activity.coverCredit}
+                </p>
+              )}
+              <div className="space-y-md p-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))] md:p-lg">
+                <TitleRow activity={activity} />
+
+                {park && <PartOfPark park={park} onSelect={selectNearby} />}
+
+                <Facts activity={activity} onShowContributor={onShowContributor} />
+
+                {(activity.allTrailsUrl ||
+                  activity.hikeDistanceMiles ||
+                  activity.hikeElevationFeet) && (
+                  <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
+                    <div className="flex items-center justify-between gap-sm">
+                      <div className="font-label-caps text-label-caps text-on-surface-variant">
+                        TRAIL DETAILS
+                      </div>
+                      {activity.allTrailsRating != null && (
+                        <div className="flex items-center gap-xs text-secondary">
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}
+                          >
+                            star
+                          </span>
+                          <span className="font-headline-md text-headline-md">
+                            {activity.allTrailsRating.toFixed(1)}
+                          </span>
+                          <span className="font-body-md text-on-surface-variant">AllTrails</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-md text-on-surface-variant">
-                  {activity.hikeDistanceMiles != null && (
-                    <Stat icon="straighten" label={`${activity.hikeDistanceMiles} mi`} />
-                  )}
-                  {activity.hikeElevationFeet != null && (
-                    <Stat
-                      icon="terrain"
-                      label={`${activity.hikeElevationFeet.toLocaleString()} ft gain`}
-                    />
-                  )}
-                  {activity.allTrailsUrl && (
-                    <a
-                      href={activity.allTrailsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-auto inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-                    >
-                      View on AllTrails
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                        open_in_new
-                      </span>
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {(activity.cuisine ||
-              activity.priceRange ||
-              activity.hours ||
-              activity.reservationUrl ||
-              activity.menuUrl ||
-              (activity.dietary && activity.dietary.length > 0)) && (
-              <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
-                <div className="font-label-caps text-label-caps text-on-surface-variant">
-                  RESTAURANT INFO
-                </div>
-                <div className="flex flex-wrap gap-md text-on-surface-variant">
-                  {activity.cuisine && <Stat icon="restaurant_menu" label={activity.cuisine} />}
-                  {activity.priceRange && <Stat icon="payments" label={activity.priceRange} />}
-                  {activity.hours && <Stat icon="schedule" label={activity.hours} />}
-                </div>
-                {activity.dietary && activity.dietary.length > 0 && (
-                  <div className="flex flex-wrap gap-xs">
-                    {activity.dietary.map((d) => (
-                      <span
-                        key={d}
-                        className="rounded-full bg-surface-variant px-sm py-xs font-body-sm text-on-surface-variant capitalize"
-                      >
-                        {d}
-                      </span>
-                    ))}
+                    <div className="flex flex-wrap gap-md text-on-surface-variant">
+                      {activity.hikeDistanceMiles != null && (
+                        <Stat icon="straighten" label={`${activity.hikeDistanceMiles} mi`} />
+                      )}
+                      {activity.hikeElevationFeet != null && (
+                        <Stat
+                          icon="terrain"
+                          label={`${activity.hikeElevationFeet.toLocaleString()} ft gain`}
+                        />
+                      )}
+                      {activity.allTrailsUrl && (
+                        <a
+                          href={activity.allTrailsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-auto inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
+                        >
+                          View on AllTrails
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                            open_in_new
+                          </span>
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
-                {(activity.reservationUrl || activity.menuUrl) && (
-                  <div className="flex flex-wrap gap-md">
-                    {activity.reservationUrl && (
-                      <a
-                        href={activity.reservationUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-                      >
-                        Reserve
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                          open_in_new
-                        </span>
-                      </a>
-                    )}
-                    {activity.menuUrl && (
-                      <a
-                        href={activity.menuUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-                      >
-                        Menu / website
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                          open_in_new
-                        </span>
-                      </a>
-                    )}
-                  </div>
+
+                {restaurantInfo}
+                {notesBlock}
+                {sourceLink}
+                {reviewsBlock}
+                {subItems.length > 0 && (
+                  <ParkActivities
+                    heading="Hikes & stops here"
+                    activities={subItems}
+                    onSelect={selectNearby}
+                  />
                 )}
-              </div>
-            )}
+                {park && siblings.length > 0 && (
+                  <ParkActivities
+                    heading={`Also in ${park.name}`}
+                    activities={siblings}
+                    onSelect={selectNearby}
+                  />
+                )}
 
-            {activity.notes && (
-              <div className="rounded-lg bg-surface-container-low p-md">
-                <div className="mb-xs font-label-caps text-label-caps text-on-surface-variant">
-                  NOTES
-                </div>
-                <p className="font-body-md text-body-md text-on-surface">{activity.notes}</p>
-              </div>
-            )}
-
-            {/* Where it was found (#6): the reel it was added from. A read,
-                open to every visitor. */}
-            {activity.sourceUrl && (
-              <a
-                href={activity.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-              >
-                {sourceLabel(activity.sourceUrl)}
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                  open_in_new
-                </span>
-              </a>
-            )}
-
-            {/* Owner reviews (#184) — what each of us thought after doing it.
-                Reviews are about completed activities, so the section only
-                appears once this one is marked done. */}
-            {completed && (
-              // Keyed on the activity: picking a nearby activity swaps `activity`
-              // without unmounting this dialog, and an open review draft must not
-              // follow along and be saved onto a different activity.
-              <ActivityReviews key={activity.id} activityId={activity.id} />
-            )}
-
-            {subItems.length > 0 && (
-              <ParkActivities
-                heading="Hikes & stops here"
-                activities={subItems}
-                onSelect={selectNearby}
-              />
-            )}
-            {park && siblings.length > 0 && (
-              <ParkActivities
-                heading={`Also in ${park.name}`}
-                activities={siblings}
-                onSelect={selectNearby}
-              />
-            )}
-
-            {/* Nearby, grouped by category (#65). Hidden entirely when nothing
+                {/* Nearby, grouped by category (#65). Hidden entirely when nothing
                 is within range: an empty "nothing nearby" panel on most remote
                 activities would be noise, not information. */}
-            {nearbyGroups.length > 0 && (
-              <section className="space-y-sm">
-                <h3 className="font-headline-md text-headline-md text-primary">
-                  Nearby — do at the same time
-                </h3>
-                <p className="font-body-sm text-on-surface-variant">
-                  Other activities within {NEARBY_RADIUS_MILES} miles of {activity.location.city}.
-                </p>
-                {nearbyGroups.map(({ category, items }) => {
-                  const headingId = `${nearbyIdPrefix}-${category}`;
-                  return (
-                    <section key={category} aria-labelledby={headingId} className="space-y-xs">
-                      <h4
-                        id={headingId}
-                        className="flex items-center gap-xs font-label-caps text-label-caps text-on-surface-variant"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined"
-                          style={{ fontSize: 16, marginLeft: glyphBleed(CATEGORY_ICON[category]) }}
-                        >
-                          {CATEGORY_ICON[category]}
-                        </span>
-                        {NEARBY_GROUP_HEADING[category]}
-                      </h4>
-                      <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
-                        {items.map(({ activity: a, miles: m }) => (
-                          <ActivityTile
-                            key={a.id}
-                            activity={a}
-                            lines={[`${a.location.city} · ${m.toFixed(1)} mi away`, a.duration]}
-                            onSelect={selectNearby}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
-              </section>
-            )}
-
-            {/* Owner-only read (#19): the photos are the owners' own, kept in
-                private storage, so the whole section is theirs alone. */}
-            {isOwner && (completed || showUploads) && (
-              <section className="space-y-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-headline-md text-headline-md text-primary">Your Photos</h3>
-                  {photos.length < MAX_PHOTOS_PER_ACTIVITY && (
-                    <label
-                      className={`flex items-center gap-xs rounded-full bg-secondary px-md py-sm font-medium text-on-secondary transition-opacity ${
-                        uploading ? 'cursor-wait opacity-60' : 'cursor-pointer hover:opacity-90'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                        {uploading ? 'hourglass_top' : 'add_a_photo'}
-                      </span>
-                      {uploading ? 'Uploading…' : 'Add photos'}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        disabled={uploading}
-                        className="hidden"
-                        onChange={(e) => {
-                          handleFiles(e.target.files);
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
-                  )}
-                </div>
-                <InlineError message={saveError} onDismiss={clearSaveError} />
-                {photosLoading ? null : photosLoadError ? (
-                  <InlineError message={photosLoadError} />
-                ) : photos.length === 0 ? (
-                  <div className="rounded-lg border-2 border-dashed border-outline-variant p-lg text-center text-on-surface-variant">
-                    No photos yet — upload some from this trip.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-sm md:grid-cols-3">
-                    {photos.map((photo, i) => (
-                      <div
-                        key={photo.id}
-                        className="group relative aspect-square overflow-hidden rounded-lg bg-surface-variant"
-                      >
-                        <img
-                          src={photo.url}
-                          alt={`${activity.name} ${i + 1}`}
-                          className="size-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void removePhoto(photo.id)}
-                          aria-label="Remove photo"
-                          className="absolute top-xs right-xs flex size-11 items-center justify-center rounded-full bg-on-surface/70 text-on-primary opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                            delete
-                          </span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                {nearbyGroups.length > 0 && (
+                  <section className="space-y-sm">
+                    <h3 className="font-headline-md text-headline-md text-primary">
+                      Nearby — do at the same time
+                    </h3>
+                    <p className="font-body-sm text-on-surface-variant">
+                      Other activities within {NEARBY_RADIUS_MILES} miles of{' '}
+                      {activity.location.city}.
+                    </p>
+                    {nearbyGroups.map(({ category, items }) => {
+                      const headingId = `${nearbyIdPrefix}-${category}`;
+                      return (
+                        <section key={category} aria-labelledby={headingId} className="space-y-xs">
+                          <h4
+                            id={headingId}
+                            className="flex items-center gap-xs font-label-caps text-label-caps text-on-surface-variant"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="material-symbols-outlined"
+                              style={{
+                                fontSize: 16,
+                                marginLeft: glyphBleed(CATEGORY_ICON[category]),
+                              }}
+                            >
+                              {CATEGORY_ICON[category]}
+                            </span>
+                            {NEARBY_GROUP_HEADING[category]}
+                          </h4>
+                          <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
+                            {items.map(({ activity: a, miles: m }) => (
+                              <ActivityTile
+                                key={a.id}
+                                activity={a}
+                                lines={[`${a.location.city} · ${m.toFixed(1)} mi away`, a.duration]}
+                                onSelect={selectNearby}
+                              />
+                            ))}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </section>
                 )}
-              </section>
-            )}
 
-            {isOwner && (
-              <div className="mt-md flex flex-wrap justify-end gap-sm border-t border-outline-variant/40 pt-md">
-                <button
-                  ref={editRef}
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-on-surface-variant transition-colors hover:bg-surface-variant"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                    edit
-                  </span>
-                  EDIT ACTIVITY
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete()}
-                  className="-mr-md inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-error transition-colors hover:bg-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                    delete
-                  </span>
-                  DELETE ACTIVITY
-                </button>
+                {photosSection}
+                {ownerControls}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
         {sequence?.prevActivity && (
           <Peek
+            phone={phone}
             activity={sequence.prevActivity}
             side="prev"
             place={sequence.index}
@@ -665,6 +835,7 @@ export function ActivityDetail({
         )}
         {sequence?.nextActivity && (
           <Peek
+            phone={phone}
             activity={sequence.nextActivity}
             side="next"
             place={sequence.index + 2}
@@ -677,6 +848,16 @@ export function ActivityDetail({
           editActivity={activity}
           onClose={() => setEditing(false)}
           onSaved={(updated) => setActivity(updated)}
+        />
+      )}
+      {/* Over the detail, inside its layer (#112): a signed-in account's. */}
+      {addingToTrip && (
+        <AddToTripDialog
+          activityIds={[activity.id]}
+          onClose={() => setAddingToTrip(false)}
+          onAdded={(trip, added) =>
+            setNote(added > 0 ? `Added to ${trip.title}` : `Already on ${trip.title}`)
+          }
         />
       )}
     </div>
@@ -833,13 +1014,32 @@ function Peek({
   side,
   place,
   total,
+  phone,
 }: {
   activity: Activity;
   side: 'prev' | 'next';
   /** Its 1-based position in the list. */
   place: number;
   total: number;
+  /** Drawn as a phone's page (#293), as the detail it stands beside is. */
+  phone?: boolean;
 }) {
+  const allActivities = useAllActivities();
+  const steps = (where: string) => (
+    <div
+      className={`${where} flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm`}
+    >
+      <span className={`${STEP_BUTTON} ${place === 1 ? 'opacity-35' : ''}`}>
+        <span className="material-symbols-outlined">chevron_left</span>
+      </span>
+      <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
+        {place} of {total}
+      </span>
+      <span className={`${STEP_BUTTON} ${place === total ? 'opacity-35' : ''}`}>
+        <span className="material-symbols-outlined">chevron_right</span>
+      </span>
+    </div>
+  );
   return (
     <div
       aria-hidden="true"
@@ -849,41 +1049,82 @@ function Peek({
         side === 'next' ? 'left-[calc(100%+16px)]' : 'right-[calc(100%+16px)]'
       }`}
     >
-      <div className="relative aspect-video bg-surface-variant">
-        <CoverImage
-          alt=""
-          category={activity.category}
-          src={activity.coverImage}
-          className="size-full object-cover"
-          glyphSize={64}
-          sizes={DETAIL_SIZES}
-        />
-        <span className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden" />
-        <div className="absolute top-sm left-sm flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm">
-          <span className={`${STEP_BUTTON} ${place === 1 ? 'opacity-35' : ''}`}>
-            <span className="material-symbols-outlined">chevron_left</span>
-          </span>
-          <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
-            {place} of {total}
-          </span>
-          <span className={`${STEP_BUTTON} ${place === total ? 'opacity-35' : ''}`}>
-            <span className="material-symbols-outlined">chevron_right</span>
-          </span>
-        </div>
-        <span className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm">
-          <span className="material-symbols-outlined">close</span>
-        </span>
-      </div>
-      {activity.coverCredit && (
-        <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
-          {activity.coverCredit}
-        </p>
+      {phone ? (
+        <>
+          <PhoneCover activity={activity}>
+            <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
+              <span className={OVER_PHOTO}>
+                <span className="material-symbols-outlined">arrow_back</span>
+              </span>
+              {steps('')}
+              <span className={OVER_PHOTO}>
+                <span className="material-symbols-outlined">ios_share</span>
+              </span>
+            </div>
+          </PhoneCover>
+          <div className="relative -mt-5 rounded-t-[22px] bg-surface-container-lowest px-md pt-md">
+            <PhoneHeading activity={activity} park={parkOf(activity, allActivities)} />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="relative aspect-video bg-surface-variant">
+            <CoverImage
+              alt=""
+              category={activity.category}
+              src={activity.coverImage}
+              className="size-full object-cover"
+              glyphSize={64}
+              sizes={DETAIL_SIZES}
+            />
+            <span className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/80 shadow-sm md:hidden" />
+            {steps('absolute top-sm left-sm')}
+            <span className="absolute top-sm right-sm flex size-11 items-center justify-center rounded-full bg-surface-container-lowest/90 backdrop-blur-sm">
+              <span className="material-symbols-outlined">close</span>
+            </span>
+          </div>
+          {activity.coverCredit && (
+            <p className="px-md pt-xs font-body-sm text-on-surface-variant md:px-lg">
+              {activity.coverCredit}
+            </p>
+          )}
+          <div className="space-y-md p-md md:p-lg">
+            <TitleRow activity={activity} />
+            <Facts activity={activity} />
+          </div>
+        </>
       )}
-      <div className="space-y-md p-md md:p-lg">
-        <TitleRow activity={activity} />
-        <Facts activity={activity} />
-      </div>
     </div>
+  );
+}
+
+/** A phone's row for the trail (#6): its numbers, and its AllTrails page when it has one. */
+function TrailRow({ activity }: { activity: Activity }) {
+  const stats = [
+    activity.hikeDistanceMiles != null && `${activity.hikeDistanceMiles} mi`,
+    activity.hikeElevationFeet != null && `${activity.hikeElevationFeet.toLocaleString()} ft`,
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const row =
+    'flex min-h-12 items-center justify-between gap-sm border-y border-outline-variant/40 text-[15px] text-on-surface';
+  const words = (
+    <span>
+      {activity.allTrailsUrl ? 'On AllTrails' : 'Trail'}
+      {stats && <span className="text-on-surface-variant"> · {stats}</span>}
+    </span>
+  );
+  if (!activity.allTrailsUrl) return <p className={row}>{words}</p>;
+  return (
+    <a href={activity.allTrailsUrl} target="_blank" rel="noopener noreferrer" className={row}>
+      {words}
+      <span
+        className="material-symbols-outlined size-4.5 shrink-0 overflow-hidden text-[18px] text-on-surface-variant"
+        aria-hidden="true"
+      >
+        open_in_new
+      </span>
+    </a>
   );
 }
 
