@@ -3,8 +3,10 @@ import { categoryOptionLabel } from './activityLabels';
 import {
   INITIAL_CATALOG_FILTERS,
   type CatalogFilterState,
+  type CostFilter,
   type DurationFilter,
 } from './useCatalogFilters';
+import { COST_TIERS } from './cost';
 
 // The catalog filters' choices, and the filters a list has on, for the two
 // ways the Curated page offers them: a row of pickers on wider screens, and
@@ -21,7 +23,7 @@ export const NO_FILTERS: FilterValues = {
   parkType: INITIAL_CATALOG_FILTERS.parkType,
   dogOnly: INITIAL_CATALOG_FILTERS.dogOnly,
   completedOnly: INITIAL_CATALOG_FILTERS.completedOnly,
-  freeOnly: INITIAL_CATALOG_FILTERS.freeOnly,
+  maxCost: INITIAL_CATALOG_FILTERS.maxCost,
   contributors: INITIAL_CATALOG_FILTERS.contributors,
 };
 
@@ -31,6 +33,17 @@ export const DISTANCE_LIMITS = [25, 50, 100, 250];
 
 // How long (#292): the same four choices on every screen.
 export const DURATION_OPTIONS: DurationFilter[] = ['Any', 'hours', 'half', 'day'];
+
+// How much (#85): Any, then up to each tier, cheapest first.
+export const COST_OPTIONS: CostFilter[] = ['Any', ...COST_TIERS];
+
+export const COST_LABELS: Record<CostFilter, string> = {
+  Any: 'Any cost',
+  free: 'Free',
+  $: 'Up to $',
+  $$: 'Up to $$',
+  $$$: 'Up to $$$',
+};
 
 export const DURATION_LABELS: Record<DurationFilter, string> = {
   Any: 'Any duration',
@@ -114,7 +127,9 @@ export function appliedFilters(
     });
   }
   if (values.dogOnly) on.push({ key: 'dog', label: 'Dogs welcome', off: { dogOnly: false } });
-  if (values.freeOnly) on.push({ key: 'free', label: 'Free', off: { freeOnly: false } });
+  if (values.maxCost !== 'Any') {
+    on.push({ key: 'cost', label: COST_LABELS[values.maxCost], off: { maxCost: 'Any' } });
+  }
   if (values.completedOnly) {
     on.push({ key: 'completed', label: "Places we've done", off: { completedOnly: false } });
   }

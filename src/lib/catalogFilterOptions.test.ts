@@ -24,7 +24,7 @@ describe('appliedFilters', () => {
       category: 'hiking',
       parkType: 'state',
       dogOnly: true,
-      freeOnly: true,
+      maxCost: '$$',
       completedOnly: true,
       contributors: ['tarun@example.com', 'jess@example.com'],
     };
@@ -33,7 +33,7 @@ describe('appliedFilters', () => {
       { key: 'distance', label: 'Within 50 mi', off: { maxDistance: Infinity } },
       { key: 'duration', label: 'Half day', off: { duration: 'Any' } },
       { key: 'dog', label: 'Dogs welcome', off: { dogOnly: false } },
-      { key: 'free', label: 'Free', off: { freeOnly: false } },
+      { key: 'cost', label: 'Up to $$', off: { maxCost: 'Any' } },
       { key: 'completed', label: "Places we've done", off: { completedOnly: false } },
       { key: 'park', label: 'State park', off: { parkType: 'Any' } },
       {

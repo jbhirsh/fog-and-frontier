@@ -1,6 +1,6 @@
 // How much empty space a Material Symbols glyph leaves inside its box on
 // each side, in em (measured at 15 and 18px; the glyphs are symmetric to
-// within half a pixel, but for money_off, below). It differs by glyph, from none (forest) to a quarter
+// within half a pixel). It differs by glyph, from none (forest) to a quarter
 // of the box (expand_more), so a pill padded evenly in CSS still looks
 // lopsided once an icon starts or ends it. A pill pads evenly and pulls its edge icons
 // out by this much (`glyphBleed`), so the visible ink sits at the padding.
@@ -15,9 +15,7 @@ export const ICON_SIDE_BEARING: Readonly<Record<string, number>> = {
   lightbulb: 0.167,
   location_on: 0.167,
   map: 0.111,
-  // Its slash leaves the right side emptier (0.111). This is the left side,
-  // where the Free chip, which it starts, is pulled out.
-  money_off: 0.056,
+  payments: 0.042,
   person: 0.167,
   pets: 0.083,
   schedule: 0.083,

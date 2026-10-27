@@ -78,59 +78,69 @@ describe('Curated Adventures page', () => {
     expect(screen.getByText('No activities match those filters.')).toBeInTheDocument();
   });
 
-  it('toggles the Free filter (#85)', async () => {
+  it('picks how much, up to a tier (#85)', async () => {
     render(
       <MemoryRouter>
         <CuratedAdventures />
       </MemoryRouter>,
-      { activities: [{ ...muirWoods, costTier: 'free' }, completedHike, dogFriendlyTidepools] },
+      {
+        activities: [
+          { ...muirWoods, costTier: 'free' },
+          { ...completedHike, costTier: '$$' },
+          dogFriendlyTidepools,
+        ],
+      },
     );
-    const free = screen.getByRole('switch', { name: 'Free' });
-    expect(free).toHaveAttribute('aria-checked', 'false');
-    // Its icon is pulled out by its glyph's empty side, like Dog friendly's.
-    expect(free.querySelector<HTMLElement>('.material-symbols-outlined')?.style.marginLeft).toBe(
-      '-0.056em',
-    );
-    await userEvent.click(free);
-    expect(free).toHaveAttribute('aria-checked', 'true');
+    const cost = screen.getByRole('combobox', { name: 'Cost' });
+    expect(cost).toHaveValue('Any');
+    // Its icon is pulled out by its glyph's empty side, like the others'.
+    expect(
+      cost.closest('label')?.querySelector<HTMLElement>('.material-symbols-outlined')?.style
+        .marginLeft,
+    ).toBe('-0.042em');
+    await userEvent.selectOptions(cost, 'Free');
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     expect(screen.queryByText('Test Completed Hike')).not.toBeInTheDocument();
+    // Up to $$: the free one too, and never one whose cost isn't known.
+    await userEvent.selectOptions(cost, 'Up to $$');
+    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
     expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
   });
 
-  it('keeps the Free filter on screen while it is on, after the last free activity changes (#85)', async () => {
+  it('keeps the cost picker on screen while a cost is picked, after the last priced activity changes (#85)', async () => {
     const { cache } = render(
       <MemoryRouter>
         <CuratedAdventures />
       </MemoryRouter>,
       // The mount's background fetch is held, or it could land after the
-      // edit below and put the free tier back.
+      // edit below and put the cost back.
       {
         activities: [{ ...muirWoods, costTier: 'free' }, completedHike],
         activitiesDelay: Infinity,
       },
     );
-    await userEvent.click(screen.getByRole('switch', { name: 'Free' }));
-    // The only free activity is edited to another tier.
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Cost' }), 'Free');
+    // The only priced activity loses its cost.
     act(() => {
       const data = cache.readQuery({ query: ACTIVITIES_QUERY })!;
       cache.writeQuery({
         query: ACTIVITIES_QUERY,
-        data: { activities: data.activities.map((a) => ({ ...a, costTier: '$' })) },
+        data: { activities: data.activities.map((a) => ({ ...a, costTier: null })) },
       });
     });
     await waitFor(() => expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument());
-    const free = screen.getByRole('switch', { name: 'Free' });
-    expect(free).toHaveAttribute('aria-checked', 'true');
-    // Turning it off brings the catalog back, and the chip goes with it.
-    await userEvent.click(free);
+    const cost = screen.getByRole('combobox', { name: 'Cost' });
+    expect(cost).toHaveValue('free');
+    // Any cost brings the catalog back, and the picker goes with it.
+    await userEvent.selectOptions(cost, 'Any cost');
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Cost' })).not.toBeInTheDocument();
   });
 
-  it('offers no Free filter until something is known to be free (#85)', () => {
+  it('offers no cost picker until some cost is known (#85)', () => {
     renderExplore();
-    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Cost' })).not.toBeInTheDocument();
   });
 
   it("shows each filter pill's choice as its label, and names each select", async () => {

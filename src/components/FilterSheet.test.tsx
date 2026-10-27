@@ -13,7 +13,7 @@ function renderSheet(props: Partial<FilterSheetProps> = {}) {
       onChange={onChange}
       count={12}
       originName="you"
-      showFree
+      showCost
       contributorOptions={[]}
       onClose={onClose}
       {...props}
@@ -75,8 +75,10 @@ describe('FilterSheet', () => {
     expect(onChange).toHaveBeenLastCalledWith({ duration: 'half' });
     await userEvent.click(screen.getByRole('switch', { name: 'Dogs welcome' }));
     expect(onChange).toHaveBeenLastCalledWith({ dogOnly: true });
-    await userEvent.click(screen.getByRole('switch', { name: 'Free' }));
-    expect(onChange).toHaveBeenLastCalledWith({ freeOnly: true });
+    await userEvent.click(group('How much').getByRole('button', { name: '$$' }));
+    expect(onChange).toHaveBeenLastCalledWith({ maxCost: '$$' });
+    await userEvent.click(group('How much').getByRole('button', { name: 'Free' }));
+    expect(onChange).toHaveBeenLastCalledWith({ maxCost: 'free' });
     await userEvent.click(screen.getByRole('switch', { name: 'Only places we’ve done' }));
     expect(onChange).toHaveBeenLastCalledWith({ completedOnly: true });
   });
@@ -188,9 +190,10 @@ describe('FilterSheet', () => {
     expect(screen.getByRole('heading', { name: 'How far from San Jose' })).toBeInTheDocument();
   });
 
-  it('offers Free only when asked to', () => {
-    renderSheet({ showFree: false });
-    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
+  it('offers How much only when asked to', () => {
+    renderSheet({ showCost: false });
+    expect(screen.queryByRole('group', { name: 'How much' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'How much' })).not.toBeInTheDocument();
   });
 
   it('offers no contributors when there are none to offer', () => {
@@ -231,7 +234,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={['jess@example.com', 'tarun@example.com']}
         onClose={() => {}}
       />
@@ -248,7 +251,7 @@ describe('FilterSheet', () => {
   });
 
   it('clears every filter at once', async () => {
-    const { onChange } = renderSheet({ values: { ...NO_FILTERS, freeOnly: true } });
+    const { onChange } = renderSheet({ values: { ...NO_FILTERS, maxCost: '$' } });
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     expect(onChange).toHaveBeenCalledWith(NO_FILTERS);
   });
@@ -274,7 +277,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={() => {}}
       />,
@@ -292,13 +295,17 @@ describe('FilterSheet', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
   });
   it('fills the chosen tile and segment, and switches a switch on', () => {
-    renderSheet({ values: { ...NO_FILTERS, category: 'food', maxDistance: 25, freeOnly: true } });
+    renderSheet({
+      values: { ...NO_FILTERS, category: 'food', maxDistance: 25, maxCost: '$', dogOnly: true },
+    });
     expect(group('What').getByRole('button', { name: 'Food' })).toHaveClass('bg-primary');
     expect(group('What').getByRole('button', { name: 'Hikes' })).not.toHaveClass('bg-primary');
     expect(group('How far').getByRole('button', { name: '25 mi' })).toHaveClass('shadow-sm');
     expect(group('How far').getByRole('button', { name: 'Any' })).not.toHaveClass('shadow-sm');
-    expect(screen.getByRole('switch', { name: 'Free' })).toBeChecked();
-    expect(screen.getByRole('switch', { name: 'Dogs welcome' })).not.toBeChecked();
+    expect(group('How much').getByRole('button', { name: '$' })).toHaveClass('shadow-sm');
+    expect(group('How much').getByRole('button', { name: 'Free' })).not.toHaveClass('shadow-sm');
+    expect(screen.getByRole('switch', { name: 'Dogs welcome' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Only places we’ve done' })).not.toBeChecked();
   });
 
   it('takes one contributor off and keeps the others', async () => {
@@ -343,7 +350,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={onClose}
       />,
@@ -362,7 +369,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={onClose}
       />
@@ -388,7 +395,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={() => {}}
       />,

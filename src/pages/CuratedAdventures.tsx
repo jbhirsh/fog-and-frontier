@@ -26,6 +26,7 @@ import {
   parseContributors,
   readCompletedOnly,
   useCatalogFilters,
+  type CostFilter,
   type DurationFilter,
   withCompletedOnly,
   withContributors,
@@ -51,6 +52,8 @@ import { rowEnd, useGridColumns } from '../lib/useGridColumns';
 import { categoryOptionLabel } from '../lib/activityLabels';
 import {
   CATEGORY_OPTIONS,
+  COST_LABELS,
+  COST_OPTIONS,
   DISTANCE_LIMITS,
   DURATION_LABELS,
   DURATION_OPTIONS,
@@ -109,8 +112,8 @@ export function CuratedAdventures() {
     setParkType,
     dogOnly,
     setDogOnly,
-    freeOnly,
-    setFreeOnly,
+    maxCost,
+    setMaxCost,
     setCompletedOnly,
     setContributors,
     applyFilters,
@@ -198,7 +201,7 @@ export function CuratedAdventures() {
     category,
     parkType,
     dogOnly,
-    freeOnly,
+    maxCost,
     completedOnly,
     contributors: selectedContributors,
   };
@@ -208,7 +211,7 @@ export function CuratedAdventures() {
     if (patch.category !== undefined) setCategory(patch.category);
     if (patch.parkType !== undefined) setParkType(patch.parkType);
     if (patch.dogOnly !== undefined) setDogOnly(patch.dogOnly);
-    if (patch.freeOnly !== undefined) setFreeOnly(patch.freeOnly);
+    if (patch.maxCost !== undefined) setMaxCost(patch.maxCost);
     const { completedOnly: completed, contributors } = patch;
     if (completed === undefined && contributors === undefined) return;
     setSearchParams(
@@ -276,7 +279,7 @@ export function CuratedAdventures() {
   const [submittingTarget, setSubmittingTarget] = useState(false);
   const { activities: all, error: loadError } = useUserActivities();
   const contributorChoices = useMemo(() => contributorOptions(all), [all]);
-  const anyFree = useMemo(() => all.some((a) => a.costTier === 'free'), [all]);
+  const anyCost = useMemo(() => all.some((a) => a.costTier !== undefined), [all]);
 
   const MAX_BULK_ADD = 50;
   const overBulkCap = selectedForTrip.size > MAX_BULK_ADD;
@@ -768,7 +771,7 @@ export function CuratedAdventures() {
       // What the list shows: on the mobile map, the places in view.
       count={visibleResults.length}
       originName={origin.name}
-      showFree={anyFree || freeOnly}
+      showCost={anyCost || maxCost !== 'Any'}
       contributorOptions={isSignedIn ? contributorChoices : []}
     />
   );
@@ -935,31 +938,24 @@ export function CuratedAdventures() {
         </span>
         Dog friendly
       </button>
-      {/* A read filter, so it's shown to everyone (#85), once anything is
-          known to be free: before that it could only empty the list. Kept
-          while it's on, so it can still be cleared if nothing free is left. */}
-      {(anyFree || freeOnly) && (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={freeOnly}
-          aria-label="Free"
-          onClick={() => setFreeOnly((v) => !v)}
-          className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-            freeOnly
-              ? 'border-primary bg-primary text-on-primary'
-              : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-          }`}
-        >
-          <span
-            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('money_off') }}
-            aria-hidden="true"
+      {/* A read filter, so it's shown to everyone (#85), once any cost is
+          known: before that it could only empty the list. Kept while one is
+          picked, so it can still be cleared. */}
+      {(anyCost || maxCost !== 'Any') && (
+        <FilterPill icon="payments" label={COST_LABELS[maxCost]}>
+          <select
+            value={maxCost}
+            onChange={(e) => setMaxCost(e.target.value as CostFilter)}
+            aria-label="Cost"
+            className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
           >
-            money_off
-          </span>
-          Free
-        </button>
+            {COST_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {COST_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </FilterPill>
       )}
       {/* A read filter, so it's shown to everyone (#5). */}
       <button

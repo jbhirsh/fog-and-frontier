@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
-import type { Activity, Category, Duration, ParkType } from '../data/types';
+import type { Activity, Category, CostTier, Duration, ParkType } from '../data/types';
+import { COST_TIERS } from './cost';
 import { isEffectivelyCompleted, type Overrides } from './userCompleted';
 import type { DrivingMiles } from './drivingMiles';
 
@@ -30,6 +31,19 @@ export const DURATION_GROUPS: Readonly<Record<DurationGroup, readonly Duration[]
 export function matchesDuration(duration: Duration, group: DurationFilter): boolean {
   return group === 'Any' || DURATION_GROUPS[group].includes(duration);
 }
+
+/** How much, as the filter asks it: up to this tier per person (#85). */
+export type CostFilter = 'Any' | CostTier;
+
+/**
+ * Whether a place costing `tier` is within `max`: 'Any' keeps every place,
+ * a cost unknown included; a tier keeps the places known to cost that much
+ * or less.
+ */
+export function withinCost(tier: CostTier | undefined, max: CostFilter): boolean {
+  if (max === 'Any') return true;
+  return tier !== undefined && COST_TIERS.indexOf(tier) <= COST_TIERS.indexOf(max);
+}
 export type CategoryFilter = 'Any' | Category;
 export type ParkTypeFilter = 'Any' | ParkType;
 
@@ -42,8 +56,8 @@ export interface CatalogFilterState {
   dogOnly: boolean;
   /** "Completed only" (#5): keep just the activities marked completed. */
   completedOnly: boolean;
-  /** "Free" (#85): keep just the activities known to cost nothing. */
-  freeOnly: boolean;
+  /** How much (#85): up to this per person; 'Any' for every place. */
+  maxCost: CostFilter;
   /**
    * Contributors (#9): keep the activities any of these accounts added (OR).
    * Empty means anyone's.
@@ -59,7 +73,7 @@ export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
   parkType: 'Any',
   dogOnly: false,
   completedOnly: false,
-  freeOnly: false,
+  maxCost: 'Any',
   contributors: [],
 };
 
@@ -145,7 +159,7 @@ export function applyCatalogFilters(
     parkType,
     dogOnly,
     completedOnly,
-    freeOnly,
+    maxCost,
     contributors,
   } = filters;
   const q = search.trim().toLowerCase();
@@ -161,7 +175,7 @@ export function applyCatalogFilters(
       if (parkType !== 'Any' && (a.parkType ?? 'none') !== parkType) return false;
       if (dogOnly && !a.dogFriendly) return false;
       if (completedOnly && !isEffectivelyCompleted(a, overrides)) return false;
-      if (freeOnly && a.costTier !== 'free') return false;
+      if (!withinCost(a.costTier, maxCost)) return false;
       if (contributors.length > 0 && !a.contributors?.some((c) => contributors.includes(c)))
         return false;
       if (q) {
@@ -183,7 +197,7 @@ export interface CatalogFilters extends CatalogFilterState {
   setParkType: Dispatch<SetStateAction<ParkTypeFilter>>;
   setDogOnly: Dispatch<SetStateAction<boolean>>;
   setCompletedOnly: Dispatch<SetStateAction<boolean>>;
-  setFreeOnly: Dispatch<SetStateAction<boolean>>;
+  setMaxCost: Dispatch<SetStateAction<CostFilter>>;
   setContributors: Dispatch<SetStateAction<readonly string[]>>;
   /**
    * Apply the current filters to `activities` (memoized on the filters), with
@@ -210,7 +224,7 @@ export function useCatalogFilters(): CatalogFilters {
   const [parkType, setParkType] = useState<ParkTypeFilter>(INITIAL_CATALOG_FILTERS.parkType);
   const [dogOnly, setDogOnly] = useState(INITIAL_CATALOG_FILTERS.dogOnly);
   const [completedOnly, setCompletedOnly] = useState(INITIAL_CATALOG_FILTERS.completedOnly);
-  const [freeOnly, setFreeOnly] = useState(INITIAL_CATALOG_FILTERS.freeOnly);
+  const [maxCost, setMaxCost] = useState<CostFilter>(INITIAL_CATALOG_FILTERS.maxCost);
   const [contributors, setContributors] = useState<readonly string[]>(
     INITIAL_CATALOG_FILTERS.contributors,
   );
@@ -224,7 +238,7 @@ export function useCatalogFilters(): CatalogFilters {
       parkType,
       dogOnly,
       completedOnly,
-      freeOnly,
+      maxCost,
       contributors,
     };
     return (
@@ -241,7 +255,7 @@ export function useCatalogFilters(): CatalogFilters {
     parkType,
     dogOnly,
     completedOnly,
-    freeOnly,
+    maxCost,
     contributors,
   ]);
 
@@ -253,7 +267,7 @@ export function useCatalogFilters(): CatalogFilters {
     parkType,
     dogOnly,
     completedOnly,
-    freeOnly,
+    maxCost,
     contributors,
     setSearch,
     setMaxDistance,
@@ -262,7 +276,7 @@ export function useCatalogFilters(): CatalogFilters {
     setParkType,
     setDogOnly,
     setCompletedOnly,
-    setFreeOnly,
+    setMaxCost,
     setContributors,
     applyFilters,
   };

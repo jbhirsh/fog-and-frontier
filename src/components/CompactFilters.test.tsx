@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NO_FILTERS, type FilterValues } from '../lib/catalogFilterOptions';
 import { CompactFilters } from './CompactFilters';
@@ -21,7 +21,7 @@ function Live({ initial = SOME }: { initial?: FilterValues }) {
       onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
       count={3}
       originName="you"
-      showFree
+      showCost
       contributorOptions={[]}
     />
   );
@@ -55,7 +55,7 @@ describe('CompactFilters', () => {
         onChange={onChange}
         count={3}
         originName="you"
-        showFree
+        showCost
         contributorOptions={[]}
       />,
     );
@@ -78,7 +78,9 @@ describe('CompactFilters', () => {
     const button = screen.getByRole('button', { name: 'Filters' });
     await userEvent.click(button);
     expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
-    const free = screen.getByRole('switch', { name: 'Free' });
+    const free = within(screen.getByRole('group', { name: 'How much' })).getByRole('button', {
+      name: 'Free',
+    });
     await userEvent.click(free);
     expect(chip('Free')).toBeInTheDocument();
     // A new chip behind the sheet leaves focus where it was.

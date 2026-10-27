@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from 're
 import type { Category } from '../data/types';
 import {
   appliedFilters,
+  COST_OPTIONS,
   DISTANCE_LIMITS,
   DURATION_LABELS,
   DURATION_OPTIONS,
@@ -23,8 +24,8 @@ export interface FilterSheetProps {
   count: number;
   /** Where distances are measured from: "you", or home's short name. */
   originName: string;
-  /** Whether to offer "Free": once anything is known to be free (#85), or while it's on. */
-  showFree: boolean;
+  /** Whether to offer How much: once any cost is known (#85), or while one is picked. */
+  showCost: boolean;
   /** The accounts to offer under "Added by"; empty hides it (signed out, #9). */
   contributorOptions: readonly string[];
 }
@@ -221,7 +222,7 @@ export function FilterSheet({
   onChange,
   count,
   originName,
-  showFree,
+  showCost,
   contributorOptions,
   onClose,
 }: FilterSheetProps & { onClose: () => void }) {
@@ -374,19 +375,24 @@ export function FilterSheet({
           onChange={(duration) => onChange({ duration })}
         />
       </Section>
+      {showCost && (
+        <Section title="How much">
+          <Segments
+            label="How much"
+            even
+            options={COST_OPTIONS}
+            value={values.maxCost}
+            optionLabel={(c) => (c === 'Any' ? 'Any' : c === 'free' ? 'Free' : c)}
+            onChange={(maxCost) => onChange({ maxCost })}
+          />
+        </Section>
+      )}
       <div className="border-t border-outline-variant/40">
         <Switch
           label="Dogs welcome"
           checked={values.dogOnly}
           onChange={(dogOnly) => onChange({ dogOnly })}
         />
-        {showFree && (
-          <Switch
-            label="Free"
-            checked={values.freeOnly}
-            onChange={(freeOnly) => onChange({ freeOnly })}
-          />
-        )}
         <Switch
           label="Only places we’ve done"
           checked={values.completedOnly}

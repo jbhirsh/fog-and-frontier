@@ -122,14 +122,16 @@ describe('Curated Adventures — the phone’s Filters sheet', () => {
     expect(sheet.queryByRole('button', { name: /^Added by/ })).not.toBeInTheDocument();
   });
 
-  it('sets the distance, park type and Free too', async () => {
+  it('sets the distance, park type and cost too', async () => {
     renderAs(SIGNED_OUT);
     const sheet = await openSheet();
     await userEvent.click(sheet.getByRole('button', { name: /^Park type/ }));
     await userEvent.click(screen.getByRole('button', { name: 'National park' }));
     expect(shown()).toEqual(['Test Muir Woods']);
     await userEvent.click(sheet.getByRole('button', { name: 'Clear all' }));
-    await userEvent.click(sheet.getByRole('switch', { name: 'Free' }));
+    await userEvent.click(
+      within(sheet.getByRole('group', { name: 'How much' })).getByRole('button', { name: 'Free' }),
+    );
     expect(shown()).toEqual(['Test Completed Hike']);
     await userEvent.click(sheet.getByRole('button', { name: 'Clear all' }));
     // From San Jose: the tide pools are under 50 miles, Mill Valley over.

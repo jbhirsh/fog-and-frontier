@@ -7,7 +7,9 @@ import {
   readCompletedOnly,
   withCompletedOnly,
   withContributors,
+  withinCost,
   type CatalogFilterState,
+  type CostFilter,
   type DurationFilter,
 } from './useCatalogFilters';
 import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
@@ -308,7 +310,7 @@ describe('contributorOptions (#9)', () => {
   });
 });
 
-describe('applyCatalogFilters — free only (#85)', () => {
+describe('applyCatalogFilters — how much (#85)', () => {
   const priced = [
     { ...muirWoods, costTier: 'free' as const },
     { ...completedHike, costTier: '$' as const },
@@ -319,9 +321,26 @@ describe('applyCatalogFilters — free only (#85)', () => {
     expect(applyCatalogFilters(priced, INITIAL_CATALOG_FILTERS)).toHaveLength(3);
   });
 
-  it('keeps only the activities known to be free', () => {
-    expect(applyCatalogFilters(priced, filters({ freeOnly: true })).map((a) => a.id)).toEqual([
-      muirWoods.id,
-    ]);
+  it('keeps the places known to cost up to the tier picked', () => {
+    const ids = (maxCost: CostFilter) =>
+      applyCatalogFilters(priced, filters({ maxCost })).map((a) => a.id);
+    expect(ids('free')).toEqual([muirWoods.id]);
+    expect(ids('$')).toEqual([muirWoods.id, completedHike.id]);
+    expect(ids('$$$')).toEqual([muirWoods.id, completedHike.id]);
+  });
+});
+
+describe('withinCost', () => {
+  it('keeps every place for Any, a cost unknown too', () => {
+    expect(withinCost(undefined, 'Any')).toBe(true);
+    expect(withinCost('$$$', 'Any')).toBe(true);
+  });
+
+  it('keeps a tier up to the one picked, and never an unknown cost', () => {
+    expect(withinCost('free', '$$')).toBe(true);
+    expect(withinCost('$$', '$$')).toBe(true);
+    expect(withinCost('$$$', '$$')).toBe(false);
+    expect(withinCost('$', 'free')).toBe(false);
+    expect(withinCost(undefined, '$$$')).toBe(false);
   });
 });
