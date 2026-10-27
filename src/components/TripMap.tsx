@@ -5,7 +5,9 @@ import type { Trip, TripActivity } from '../lib/userTrips';
 import { dayCount, dayLabel, formatHHMM } from '../lib/userTrips';
 import { HOME_LOCATION } from '../data/home';
 import { MapZoomControls } from './MapZoomControls';
-import { CARTO_ATTRIBUTION, CARTO_TILE_URL, glyphPin } from '../lib/mapPins';
+import { CARTO_TILE_URL, glyphPin } from '../lib/mapPins';
+import { MapCredit } from './MapCredit';
+import { WORLD_BOUNDS } from '../lib/mapFit';
 
 // Color cycle for "show all days" mode. Each day picks a hue; the same hue
 // is used for the per-day label so the legend stays readable.
@@ -117,11 +119,19 @@ export function TripMap({ trip, bare = false }: Props) {
         <MapContainer
           center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           zoom={8}
+          // Pins are drawn on one copy of the world: panning onto the next
+          // copy jumps back to that one.
+          worldCopyJump
+          // No grey past the poles (MapZoomControls keeps the zoom from it).
+          maxBounds={WORLD_BOUNDS}
+          maxBoundsViscosity={1}
           scrollWheelZoom
           zoomControl={false}
+          // The tiles' credit is MapCredit's ⓘ, below.
+          attributionControl={false}
           style={{ flex: 1, width: '100%' }}
         >
-          <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
+          <TileLayer url={CARTO_TILE_URL} />
           <MapZoomControls />
           {activitiesToShow.map(({ activity, dayIndex }, idx) => {
             const coords = activity.snapshot?.location?.coords;
@@ -147,6 +157,7 @@ export function TripMap({ trip, bare = false }: Props) {
             );
           })}
         </MapContainer>
+        <MapCredit />
       </div>
 
       {showAll && !bare && (

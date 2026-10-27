@@ -11,6 +11,8 @@ import {
 import type * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapZoomControls } from './MapZoomControls';
+import { MapCredit } from './MapCredit';
+import { WORLD_BOUNDS } from '../lib/mapFit';
 import { BoundsWatcher, FitToActivities, ViewportWatcher } from './MapViewport';
 import { HOME_LOCATION } from '../data/home';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
@@ -21,7 +23,6 @@ import { createMoveGate, fitPaddingFor, isInsidePadding, type MapBounds } from '
 import { drawPins, type DrawnPins } from '../lib/pinGroups';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import {
-  CARTO_ATTRIBUTION,
   CARTO_TILE_URL,
   CATEGORY_ICON,
   MINOR_PIN_MILES,
@@ -504,7 +505,7 @@ export function ActivityMap({
   return (
     <div
       className={`relative isolate size-full overflow-hidden ${
-        fullBleed ? 'leaflet-fullbleed' : 'rounded-xl border border-outline-variant/30 shadow-sm'
+        fullBleed ? '' : 'rounded-xl border border-outline-variant/30 shadow-sm'
       }`}
     >
       <MapContainer
@@ -512,11 +513,19 @@ export function ActivityMap({
         center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
         zoom={OPEN_ZOOM}
         maxZoom={MAX_ZOOM}
+        // Pins are drawn on one copy of the world: panning onto the next
+        // copy jumps back to that one, so they never pan out of reach.
+        worldCopyJump
+        // No grey past the poles (MapZoomControls keeps the zoom from it).
+        maxBounds={WORLD_BOUNDS}
+        maxBoundsViscosity={1}
         scrollWheelZoom
         zoomControl={false}
+        // The tiles' credit is MapCredit's ⓘ, below.
+        attributionControl={false}
         style={{ height: '100%', width: '100%' }}
       >
-        <TileLayer attribution={CARTO_ATTRIBUTION} url={CARTO_TILE_URL} />
+        <TileLayer url={CARTO_TILE_URL} />
         {/* In full bleed the map runs under the app header: clear its slim
             mobile form (about 60px) and its 80px md+ row. */}
         <MapZoomControls topInset={fullBleed ? 88 : 12} />
@@ -536,11 +545,10 @@ export function ActivityMap({
           return renderPin(d.ids[0]);
         })}
       </MapContainer>
-      {/* In full bleed the list sheet covers the bottom 4.5rem even at peek,
-          and Leaflet's attribution sits just above it (index.css); stack the
-          legend above that line, since on a phone the two are wide enough to
-          overlap and the attribution must stay readable. */}
-      <MapLegend bottomInset={fullBleed ? 112 : 12} />
+      {/* In full bleed the list sheet covers the bottom 4.5rem even at peek:
+          the credit and the legend sit above it. */}
+      <MapCredit bottom={fullBleed ? 'calc(4.5rem + 8px)' : 8} />
+      <MapLegend bottomInset={fullBleed ? 80 : 12} />
     </div>
   );
 }
@@ -549,7 +557,7 @@ export function ActivityMap({
 // discoverable (color carries meaning). Positioned with inline styles + a high
 // z-index for the same reason MapZoomControls does: Leaflet's unlayered CSS
 // would otherwise beat Tailwind v4's layered utilities. Sits bottom-left, clear
-// of Leaflet's bottom-right attribution and the top-right zoom controls.
+// of the credit's ⓘ bottom-right and the top-right zoom controls.
 function MapLegend({ bottomInset }: { bottomInset: number }) {
   return (
     <div

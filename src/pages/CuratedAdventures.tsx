@@ -805,15 +805,11 @@ export function CuratedAdventures() {
               type="button"
               aria-label={`${count} place${count === 1 ? '' : 's'}${bounds ? ' in this area' : ''}, see list`}
               onClick={() => setSheetSnap('full')}
-              className="inline-flex h-9 items-center gap-0.5 rounded-full pr-xs pl-sm transition-colors hover:bg-surface-variant"
+              // No ^ beside it: the grab bar above already says the sheet
+              // slides up, and the count opens it all the same.
+              className="inline-flex h-9 items-center rounded-full px-sm transition-colors hover:bg-surface-variant"
             >
               <span>{countText}</span>
-              <span
-                className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
-                aria-hidden="true"
-              >
-                expand_less
-              </span>
             </button>
           ) : (
             <span>{countText}</span>

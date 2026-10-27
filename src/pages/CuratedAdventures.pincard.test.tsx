@@ -128,7 +128,8 @@ describe('Curated Adventures — a tapped pin on the mobile map (#291)', () => {
   it('makes the count at peek the way up to the whole list', async () => {
     renderMap();
     const count = screen.getByRole('button', { name: '2 places, see list' });
-    expect(count).toHaveTextContent('2 places');
+    // The count alone: the grab bar above it says the sheet slides up.
+    expect(count).toHaveTextContent(/^2 places$/);
     await userEvent.click(count);
     expect(grabber('full')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /see list/ })).not.toBeInTheDocument();
