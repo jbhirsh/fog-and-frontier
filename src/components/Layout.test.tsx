@@ -68,15 +68,10 @@ describe('Layout', () => {
     expect(header().queryByRole('link', { name: 'Adventures' })).not.toBeInTheDocument();
   });
 
-  it('renders the brand and footer', () => {
-    // The footer is suppressed on the catalog ("/") so the split view owns the
-    // page scroll; assert it on another route.
+  it('renders the brand and no footer, at any width', () => {
     renderAt('/trips');
-    expect(screen.getAllByText('Fog and Frontier').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Inspired by the Pacific Coast/)).toBeInTheDocument();
-    // From md up only: on a phone the tab bar is the page's foot.
-    expect(screen.getByRole('contentinfo')).toHaveClass('hidden', 'md:block');
-    expect(screen.getByRole('contentinfo').className).not.toMatch(/safe-area/);
+    expect(screen.getAllByText('Fog and Frontier')).toHaveLength(1);
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
   });
 
   it('steps its bar aside on a phone only while a trip’s own header is up', () => {

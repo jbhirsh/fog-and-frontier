@@ -164,21 +164,6 @@ export function Layout() {
         <Outlet />
       </main>
       <PhoneTabBar />
-      {/* The catalog/split view (#4) owns the full page scroll Airbnb-style, so
-          the footer is suppressed there; other pages keep it, from md up: on a
-          phone the tab bar is the page's foot. */}
-      {pathname !== '/' && (
-        <footer className="mt-xl hidden w-full bg-primary py-xl md:block">
-          <div className="mx-auto flex max-w-screen-2xl flex-col items-center justify-between gap-md px-margin md:flex-row">
-            <div className="font-display text-headline-md font-bold text-on-primary">
-              Fog and Frontier
-            </div>
-            <div className="text-center font-body-md text-body-md text-on-primary/70 md:text-right">
-              Inspired by the Pacific Coast.
-            </div>
-          </div>
-        </footer>
-      )}
     </div>
   );
 }
