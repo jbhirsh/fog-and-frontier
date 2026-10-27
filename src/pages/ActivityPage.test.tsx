@@ -363,6 +363,16 @@ describe('ActivityPage (#86)', () => {
         fireEvent.touchEnd(panel, { touches: [] });
       }
 
+      // A step remounts the detail, whose touch listeners bind in an effect
+      // just after it shows: swipe until one is taken. One that lands while
+      // the panel is leaving is ignored, so it can't step twice.
+      async function swipeTo(dx: number, to: string) {
+        await waitFor(() => {
+          if (path() !== to) swipe(dx, 0);
+          expect(path()).toBe(to);
+        });
+      }
+
       it('steps to the next on a swipe left and back on a swipe right, landing in place', async () => {
         renderAt(['/'], CATALOG);
         await openFromList();
@@ -373,15 +383,13 @@ describe('ActivityPage (#86)', () => {
         expect(next).toHaveAttribute('aria-hidden', 'true');
         expect(next).toHaveAttribute('inert');
         expect(screen.getByTestId('peek-prev')).toHaveTextContent(dogFriendlyTidepools.name);
-        swipe(-300, 0);
-        await waitFor(() => expect(path()).toBe(`/activity/${muirWoods.id}`));
+        await swipeTo(-300, `/activity/${muirWoods.id}`);
         // The preview already brought it in: no slide on top.
         const stepped = screen.getByRole('dialog', { name: muirWoods.name });
         expect(stepped.className).not.toContain('animate-');
         // The last in the list: nothing to preview after it.
         expect(screen.queryByTestId('peek-next')).toBeNull();
-        swipe(300, 0);
-        await waitFor(() => expect(path()).toBe(`/activity/${completedHike.id}`));
+        await swipeTo(300, `/activity/${completedHike.id}`);
         expect(screen.getByRole('dialog', { name: completedHike.name }).className).not.toContain(
           'animate-',
         );
