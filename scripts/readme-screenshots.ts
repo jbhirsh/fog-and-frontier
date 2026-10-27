@@ -17,11 +17,11 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { ChildProcess } from 'node:child_process';
 import type { Page } from '@playwright/test';
 import { build, serve, stopServers } from './local-build.ts';
 import { PRODUCTION, cachePhotos, describeFailed, liveSite, waitForPhotos } from './live-site.ts';
+import { runAsScript } from './run-as-script.ts';
 
 export const SHOTS_DIR = 'docs/screenshots';
 
@@ -161,9 +161,4 @@ export async function main(argv: readonly string[]): Promise<void> {
   console.error(`readme-screenshots: took ${taken.length} into ${out}`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main(process.argv.slice(2)).catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exitCode = 1;
-  });
-}
+runAsScript(import.meta.url, main);
