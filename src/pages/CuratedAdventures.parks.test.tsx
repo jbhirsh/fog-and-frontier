@@ -190,3 +190,39 @@ describe('a park’s hikes and stops in the list (#269)', () => {
     expect(screen.getByText(/4 places near/)).toBeInTheDocument();
   });
 });
+
+describe('a park’s hikes and stops on a phone', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function asPhone() {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767.98px)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  }
+
+  it('stacks the park’s card, its count on the photo, with no bar under it', async () => {
+    asPhone();
+    renderList();
+    const card = document.querySelector<HTMLElement>(`[data-activity-id="${PARK.id}"]`)!;
+    const count = within(card).getByRole('button', { name: '2 hikes & stops in Test Seashore' });
+    expect(count).toHaveTextContent(/2$/);
+    expect(count).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('account_tree')).not.toBeInTheDocument();
+    await userEvent.click(count);
+    const section = screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' });
+    expect(count).toHaveAttribute('aria-expanded', 'true');
+    expect(count).toHaveAttribute('aria-controls', section.id);
+    expect(within(section).getByText('Test Lighthouse')).toBeInTheDocument();
+    // Closing the section gives focus back to the count it opened from.
+    await userEvent.click(
+      within(section).getByRole('button', { name: "Close Test Seashore's hikes and stops" }),
+    );
+    expect(screen.queryByRole('region', { name: /Hikes & stops/ })).not.toBeInTheDocument();
+    expect(count).toHaveFocus();
+  });
+});

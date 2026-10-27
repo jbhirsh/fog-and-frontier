@@ -1,7 +1,7 @@
 // A place's page on a phone: on main a tall photo, a big title and one fact
 // a line; on the branch (#293) a shorter photo with Back and Share, the name
 // with the dog beside it, the facts on one line, Directions, the park's
-// places sideways and Nearby grouped by kind. Scrolled down to Nearby and
+// places and Nearby as lists of rows. Scrolled down to Nearby and
 // back.
 //
 //   npm run gif -- scripts/gif-scenarios/place-page.ts --dir <PR number>

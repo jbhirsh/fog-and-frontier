@@ -65,21 +65,14 @@ describe('ParkSection (#269)', () => {
   });
 });
 
-describe('ParkBar and ParkSection on a phone', () => {
-  it('is a line of words under the card, boxed only on wider screens', () => {
+describe('ParkBar and ParkSection, by screen size', () => {
+  it('is a bar under the card, drawn only from md up', () => {
     const { rerender } = render(<ParkBar park={PARK} count={4} open={false} onToggle={() => {}} />);
     const bar = screen.getByRole('button', { name: '4 hikes & stops in Test Seashore' });
-    expect(bar).toHaveClass(
-      'whitespace-nowrap',
-      'min-h-11',
-      'md:border',
-      'md:bg-surface-container-low',
-    );
-    expect(bar).not.toHaveClass('border', 'bg-surface-container-low');
-    expect(icon('account_tree')).toHaveClass('hidden', 'md:inline');
+    expect(bar).toHaveClass('min-h-11', 'border', 'bg-surface-container-low');
+    expect(icon('account_tree')).not.toHaveClass('hidden');
     rerender(<ParkBar park={PARK} count={4} open onToggle={() => {}} />);
-    expect(bar).toHaveClass('md:border-primary', 'md:bg-primary-fixed');
-    expect(bar).not.toHaveClass('bg-primary-fixed');
+    expect(bar).toHaveClass('border-primary', 'bg-primary-fixed');
   });
 
   it('names the section by the park alone, reading the whole to a screen reader', () => {

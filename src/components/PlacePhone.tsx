@@ -3,15 +3,18 @@ import type { Activity } from '../data/types';
 import { kindLabel } from '../lib/activityLabels';
 import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
+import { glyphBleed } from '../lib/iconMetrics';
+import { CATEGORY_ICON } from '../lib/mapPins';
 import { useCompleted } from '../lib/userCompleted';
 import { useOwner } from '../lib/useOwner';
 import { CoverImage } from './CoverImage';
 import { DogIcon } from './DogIcon';
+import { PlaceRow } from './NearbyList';
 
 // A place's page on a phone (#293): the pieces ActivityDetail lays out below
 // md, saying the same as the desktop dialog in less: a shorter photo, the
 // facts on one line in symbols where they're clear, the three things to do
-// in a row, and the rest of the catalog sideways.
+// in a row, and the rest of the catalog as a list.
 
 /**
  * The dog's head for a dog-friendly place (#296), beside its name: a 44px
@@ -258,8 +261,12 @@ export function ClampedText({ text }: { text: string }) {
   );
 }
 
-/** Places side by side, a row that scrolls sideways: each its photo and name. */
-export function SideRow({
+/**
+ * A park's places, or a place's neighbours in its park, as rows like Nearby's
+ * (#293). They share the park, so a row says only what each is, by its
+ * symbol, and how long it takes.
+ */
+export function ParkPlaces({
   heading,
   activities,
   onSelect,
@@ -270,29 +277,23 @@ export function SideRow({
 }) {
   return (
     <section aria-label={heading} className="space-y-sm">
-      <h3 className="text-body-md font-semibold text-on-surface">{heading}</h3>
-      <ul className="-mx-md flex snap-x scroll-px-md scrollbar-none gap-sm overflow-x-auto px-md pb-xs">
+      <h3 className="font-display text-[22px] leading-tight font-bold text-primary">{heading}</h3>
+      <ul className="space-y-sm">
         {activities.map((a) => (
-          <li key={a.id} className="w-35 shrink-0 snap-start">
-            <button
-              type="button"
-              onClick={() => onSelect(a)}
-              className="flex w-full flex-col gap-1.5 text-left"
-            >
-              <span className="block h-23 w-full overflow-hidden rounded-xl bg-surface-variant">
-                <CoverImage
-                  src={a.coverImage}
-                  alt=""
-                  category={a.category}
-                  sizes="140px"
-                  glyphSize={32}
-                  className="size-full object-cover"
-                />
+          <li key={a.id}>
+            <PlaceRow activity={a} onSelect={onSelect}>
+              <span className="inline-flex items-center gap-xs">
+                <span
+                  aria-hidden="true"
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 16, marginLeft: glyphBleed(CATEGORY_ICON[a.category]) }}
+                >
+                  {CATEGORY_ICON[a.category]}
+                </span>
+                <span className="sr-only">{kindLabel(a.category)}, </span>
+                {a.duration}
               </span>
-              <span className="text-[13px] leading-snug font-semibold text-on-surface">
-                {a.cardName ?? a.name}
-              </span>
-            </button>
+            </PlaceRow>
           </li>
         ))}
       </ul>

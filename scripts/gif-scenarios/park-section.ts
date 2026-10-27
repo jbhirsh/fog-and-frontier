@@ -1,7 +1,7 @@
 // A park's hikes and stops on a phone: on main a boxed bar under its card,
 // its words wrapping, opening a section whose title runs down a narrow
-// column; on the branch a line of words under the card, opening a section
-// titled by the park's name alone.
+// column; on the branch the park drawn as a stack of cards, their count on
+// its photo, opening a section titled by the park's name alone.
 //
 //   npm run gif -- scripts/gif-scenarios/park-section.ts --dir <PR number>
 //

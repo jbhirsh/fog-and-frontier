@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams, type Location } from 'react-router-dom';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useDrivingMiles } from '../lib/drivingMiles';
-import { ActivityCard } from '../components/ActivityCard';
+import { ActivityCard, type ParkStack } from '../components/ActivityCard';
 import { ActivityMap } from '../components/ActivityMap';
 import { PinCard } from '../components/PinCard';
 import { AddActivity } from '../components/AddActivity';
@@ -40,7 +40,7 @@ import { useOwner } from '../lib/useOwner';
 import { usePendingSuggestions } from '../lib/suggestions';
 import { addActivityToTrip } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
-import { nestUnderParks, parkBarId, type Nested } from '../lib/parks';
+import { nestUnderParks, parkBarId, parkSectionId, type Nested } from '../lib/parks';
 
 /** The park whose hikes and stops are open below its row (#269). */
 interface OpenPark {
@@ -122,6 +122,8 @@ export function CuratedAdventures() {
   // in a bottom sheet (#96).
   const [searchParams, setSearchParams] = useSearchParams();
   const isLg = useMediaQuery('(min-width: 1024px)');
+  // A park's hikes and stops: a stack on a phone, a bar wider up.
+  const phone = useMediaQuery('(max-width: 767.98px)');
   const viewParam = searchParams.get('view');
   const requestedView: ViewMode = isViewMode(viewParam) ? viewParam : isLg ? 'split' : 'list';
   // Split needs the two-column desktop layout; below `lg` there's no room, so
@@ -541,11 +543,12 @@ export function CuratedAdventures() {
   const parkGridClass =
     view === 'list' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 xl:grid-cols-3';
 
-  function card(a: Activity) {
+  function card(a: Activity, stack?: ParkStack) {
     return (
       <ActivityCard
         key={a.id}
         activity={a}
+        stack={stack}
         selectionMode={selectionMode}
         selected={selectedForTrip.has(a.id)}
         highlighted={a.id === pinHoveredId}
@@ -591,28 +594,37 @@ export function CuratedAdventures() {
         setOpenPark(null);
       }}
     >
-      {opened.held.map(card)}
+      {opened.held.map((a) => card(a))}
     </ParkSection>
   );
   const sectionAfter = rowEnd(openIndex, columns, shown.length);
   const gridItems = shown.flatMap((a, i) => {
     const held = nested.subItems.get(a.id);
-    const item = held ? (
-      <div key={a.id} className="flex flex-col md:gap-sm">
-        {card(a)}
-        <ParkBar
-          park={a}
-          count={held.length}
-          open={a.id === opened?.id}
-          onToggle={() => {
-            // Revealed for good, so a smaller page (List to Split) keeps it.
-            revealTo(i);
-            setOpenPark((open) => (open === a.id ? null : a.id));
-          }}
-        />
-      </div>
-    ) : (
+    const open = a.id === opened?.id;
+    const toggle = () => {
+      // Revealed for good, so a smaller page (List to Split) keeps it.
+      revealTo(i);
+      setOpenPark((was) => (was === a.id ? null : a.id));
+    };
+    // A park's card says how many of its hikes and stops the list holds: on
+    // a phone as a stack with their count on its photo, wider as a bar
+    // under it. Each opens the park's section.
+    const item = !held ? (
       card(a)
+    ) : phone ? (
+      card(a, {
+        count: held.length,
+        open,
+        onToggle: toggle,
+        id: parkBarId(a.id),
+        controls: open ? parkSectionId(a.id) : undefined,
+        covers: held.slice(0, 2).map((h) => h.coverImage),
+      })
+    ) : (
+      <div key={a.id} className="flex flex-col gap-sm">
+        {card(a)}
+        <ParkBar park={a} count={held.length} open={open} onToggle={toggle} />
+      </div>
     );
     return i === sectionAfter && section ? [item, section] : [item];
   });

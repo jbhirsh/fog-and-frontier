@@ -218,6 +218,62 @@ describe('ActivityCard', () => {
       expect(done).toHaveClass('size-7.5', 'md:size-auto');
     });
 
+    it('draws a park as a stack, its count a button on the photo', async () => {
+      const onToggle = vi.fn();
+      const { rerender } = render(
+        <ActivityCard
+          activity={{ ...completedHike, dogFriendly: true }}
+          stack={{
+            count: 4,
+            open: false,
+            onToggle,
+            id: 'park-bar-x',
+            covers: ['https://example.com/a.jpg', 'https://example.com/b.jpg'],
+          }}
+        />,
+      );
+      const count = screen.getByRole('button', {
+        name: `4 hikes & stops in ${completedHike.name}`,
+      });
+      expect(count).toHaveAttribute('id', 'park-bar-x');
+      expect(count).toHaveAttribute('aria-expanded', 'false');
+      expect(count).not.toHaveAttribute('aria-controls');
+      expect(count).toHaveClass('bg-primary', 'h-7.5');
+      // First in the corner's row: the check keeps the corner.
+      const row = count.parentElement;
+      expect(row?.firstElementChild).toBe(count);
+      expect(row?.lastElementChild).toBe(screen.getByText('Completed').parentElement);
+      expect(row?.parentElement).toHaveClass('right-6');
+      // The photo fills a box the stack's edges fan out from.
+      const box = document.querySelector('.pr-4');
+      expect(box).toHaveClass('relative', 'aspect-4/3');
+      // Two of its places, as the cards behind it, back to front.
+      const behind = box?.querySelectorAll(':scope > span[aria-hidden="true"]');
+      expect(behind).toHaveLength(2);
+      expect(
+        Array.from(behind ?? []).map((el) => el.querySelector('img')?.getAttribute('src')),
+      ).toEqual(['https://example.com/b.jpg', 'https://example.com/a.jpg']);
+      expect(behind?.[0]).toHaveClass('ring-2', 'ring-surface');
+      await userEvent.click(count);
+      expect(onToggle).toHaveBeenCalledOnce();
+      rerender(
+        <ActivityCard
+          activity={completedHike}
+          stack={{ count: 4, open: true, onToggle, id: 'park-bar-x', controls: 'park-x' }}
+        />,
+      );
+      expect(count).toHaveAttribute('aria-expanded', 'true');
+      expect(count).toHaveAttribute('aria-controls', 'park-x');
+      expect(count).toHaveClass('bg-primary-fixed');
+    });
+
+    it('draws any other card flat, its photo 4:3', () => {
+      render(<ActivityCard activity={completedHike} />);
+      expect(screen.queryByRole('button', { name: /hikes & stops/ })).not.toBeInTheDocument();
+      expect(document.querySelector('.pr-4')).toBeNull();
+      expect(document.querySelector('.aspect-4\\/3')).not.toBeNull();
+    });
+
     it('puts the selection check at the top left, clear of the facts', () => {
       render(<ActivityCard activity={muirWoods} selectionMode selected />);
       const check = screen.getByText('check').parentElement;

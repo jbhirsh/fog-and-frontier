@@ -19,7 +19,7 @@ import { ActivityTile } from './ActivityTile';
 import { ParkActivities, PartOfPark } from './ParkLinks';
 import { AddActivity } from './AddActivity';
 import { AddToTripDialog } from './AddToTripDialog';
-import { ClampedText, PhoneActions, PhoneCover, PhoneHeading, SideRow } from './PlacePhone';
+import { ClampedText, PhoneActions, PhoneCover, PhoneHeading, ParkPlaces } from './PlacePhone';
 import { NearbyHeading, NearbyList } from './NearbyList';
 import { CoverImage } from './CoverImage';
 import { InlineError } from './InlineError';
@@ -624,14 +624,14 @@ export function ActivityDetail({
                 )}
                 {reviewsBlock}
                 {subItems.length > 0 && (
-                  <SideRow
+                  <ParkPlaces
                     heading="Hikes & stops here"
                     activities={subItems}
                     onSelect={selectNearby}
                   />
                 )}
                 {park && siblings.length > 0 && (
-                  <SideRow
+                  <ParkPlaces
                     heading={`Also in ${park.name}`}
                     activities={siblings}
                     onSelect={selectNearby}

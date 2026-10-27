@@ -356,12 +356,33 @@ describe('a place’s page on a phone (#293)', () => {
     expect(onSelectNearby).toHaveBeenCalledWith(expect.objectContaining({ id: TACOS.id }));
   });
 
-  it('lists a park’s own, and a hike’s neighbours in its park, the same way', () => {
-    show(PARK);
-    const row = screen.getByRole('region', { name: 'Hikes & stops here' });
-    expect(within(row).getByRole('button', { name: 'Test Canopy Trail' })).toBeInTheDocument();
-    // Snapped as it scrolls, a place stops at the page's margin, not the edge.
-    expect(within(row).getByRole('list')).toHaveClass('snap-x', 'scroll-px-md', 'px-md');
+  it('lists a park’s own as rows too, each its kind’s symbol and how long it takes', async () => {
+    const { onSelectNearby } = show(PARK);
+    const own = screen.getByRole('region', { name: 'Hikes & stops here' });
+    expect(within(own).getByRole('heading', { level: 3 })).toHaveClass('font-display');
+    const rows = within(own).getAllByRole('button');
+    // No town: the park's places share it.
+    expect(rows.map((b) => b.textContent)).toEqual([
+      `Test Canopy Traildirections_walkHike, ${HIKE.duration}chevron_right`,
+    ]);
+    expect(within(rows[0]).getByText('directions_walk')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(rows[0]).getByText('Hike,')).toHaveClass('sr-only');
+    expect(rows[0]).toHaveClass('min-h-14');
+    await userEvent.click(rows[0]);
+    expect(onSelectNearby).toHaveBeenCalledWith(expect.objectContaining({ id: HIKE.id }));
+  });
+
+  it('lists a place’s neighbours in its park the same way', () => {
+    const sibling = { ...HIKE, id: 'test-falls', name: 'Test Falls', category: 'water' as const };
+    render(<ActivityDetail activity={HIKE} onClose={() => {}} />, {
+      activities: [...ALL, sibling],
+    });
+    const also = screen.getByRole('region', { name: 'Also in Test Redwoods Park' });
+    expect(
+      within(also)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([`Test FallswaterWater, ${HIKE.duration}chevron_right`]);
   });
 
   it('credits the cover at the foot of the page', () => {

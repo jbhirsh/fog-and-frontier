@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import type { Activity, Category } from '../data/types';
 import { glyphBleed } from '../lib/iconMetrics';
 import { CATEGORY_ICON } from '../lib/mapPins';
@@ -25,6 +25,51 @@ export function NearbyHeading({ id, category }: { id: string; category: Category
       </span>
       {NEARBY_GROUP_HEADING[category]}
     </h4>
+  );
+}
+
+/**
+ * A place as a row on a phone (#65, #293): its photo, its name whole, a line
+ * of facts under it (`children`), and a chevron. Tapping it opens the place.
+ */
+export function PlaceRow({
+  activity: a,
+  onSelect,
+  children,
+}: {
+  activity: Activity;
+  onSelect: (activity: Activity) => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(a)}
+      className="flex min-h-14 w-full items-center gap-sm text-left"
+    >
+      <span className="block h-14 w-18 shrink-0 overflow-hidden rounded-[10px] bg-surface-variant">
+        <CoverImage
+          src={a.coverImage}
+          alt=""
+          category={a.category}
+          sizes="72px"
+          glyphSize={24}
+          className="size-full object-cover"
+        />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[15px] leading-snug font-semibold text-on-surface">
+          {a.cardName ?? a.name}
+        </span>
+        <span className="text-[13px] leading-snug text-on-surface-variant">{children}</span>
+      </span>
+      <span
+        className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px] text-outline"
+        aria-hidden="true"
+      >
+        chevron_right
+      </span>
+    </button>
   );
 }
 
@@ -59,36 +104,9 @@ export function NearbyList({
             <ul className="space-y-sm">
               {items.map(({ activity: a, miles }) => (
                 <li key={a.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(a)}
-                    className="flex min-h-14 w-full items-center gap-sm text-left"
-                  >
-                    <span className="block h-14 w-18 shrink-0 overflow-hidden rounded-[10px] bg-surface-variant">
-                      <CoverImage
-                        src={a.coverImage}
-                        alt=""
-                        category={a.category}
-                        sizes="72px"
-                        glyphSize={24}
-                        className="size-full object-cover"
-                      />
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-[15px] leading-snug font-semibold text-on-surface">
-                        {a.cardName ?? a.name}
-                      </span>
-                      <span className="text-[13px] leading-snug text-on-surface-variant">
-                        {a.location.city} · {miles.toFixed(1)} mi · {a.duration}
-                      </span>
-                    </span>
-                    <span
-                      className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px] text-outline"
-                      aria-hidden="true"
-                    >
-                      chevron_right
-                    </span>
-                  </button>
+                  <PlaceRow activity={a} onSelect={onSelect}>
+                    {a.location.city} · {miles.toFixed(1)} mi · {a.duration}
+                  </PlaceRow>
                 </li>
               ))}
             </ul>

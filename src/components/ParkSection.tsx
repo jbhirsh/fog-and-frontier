@@ -1,12 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Activity } from '../data/types';
 import { glyphBleed } from '../lib/iconMetrics';
-import { parkBarId, subItemsLabel } from '../lib/parks';
-
-/** The id of a park's section, which its bar controls. */
-function parkSectionId(parkId: string): string {
-  return `park-${parkId}`;
-}
+import { parkBarId, parkSectionId, subItemsLabel } from '../lib/parks';
 
 interface BarProps {
   park: Activity;
@@ -16,8 +11,8 @@ interface BarProps {
 }
 
 /**
- * The bar under a park's card (#269): how many of its hikes and stops the
- * list holds, opening the section that shows them.
+ * The bar under a park's card from md up (#269): how many of its hikes and
+ * stops the list holds, opening the section that shows them.
  */
 export function ParkBar({ park, count, open, onToggle }: BarProps) {
   const icon = open ? 'expand_less' : 'expand_more';
@@ -29,17 +24,17 @@ export function ParkBar({ park, count, open, onToggle }: BarProps) {
       aria-expanded={open}
       aria-controls={open ? parkSectionId(park.id) : undefined}
       aria-label={`${subItemsLabel(count)} in ${park.name}`}
-      // On a phone, a line under the card's name: its words and the chevron,
-      // no box, which would be mostly empty in half a card. Wider, a bar.
-      className={`flex min-h-11 w-full items-center gap-xs text-body-sm font-semibold whitespace-nowrap text-primary transition-colors md:justify-between md:gap-0 md:rounded-[14px] md:border md:px-md md:whitespace-normal ${
+      // From md up only: a phone's park card is a stack, its count on the
+      // photo (ActivityCard's stack).
+      className={`flex min-h-11 w-full items-center justify-between rounded-[14px] border px-md text-body-sm font-semibold text-primary transition-colors ${
         open
-          ? 'md:border-primary md:bg-primary-fixed'
-          : 'md:border-outline-variant md:bg-surface-container-low md:hover:bg-surface-container'
+          ? 'border-primary bg-primary-fixed'
+          : 'border-outline-variant bg-surface-container-low hover:bg-surface-container'
       }`}
     >
       <span className="flex items-center gap-sm">
         <span
-          className="material-symbols-outlined hidden text-secondary md:inline"
+          className="material-symbols-outlined text-secondary"
           aria-hidden="true"
           style={{ fontSize: 18, marginLeft: glyphBleed('account_tree') }}
         >
