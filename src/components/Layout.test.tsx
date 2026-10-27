@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './Layout';
 
@@ -144,5 +145,38 @@ describe('Layout', () => {
     renderAt('/');
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     expect(screen.getByText('explore-content').closest('.pb-\\(--tab-bar\\)')).not.toBeNull();
+  });
+
+  it('asks for a search in a word, and in full only where the box has room', () => {
+    // jsdom matches no media query: as narrow as a phone or a tablet.
+    renderAt('/');
+    expect(screen.getByRole('textbox', { name: 'Search adventures' })).toHaveAttribute(
+      'placeholder',
+      'Search',
+    );
+    cleanup();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(min-width: 64rem)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    renderAt('/');
+    expect(screen.getByRole('textbox', { name: 'Search adventures' })).toHaveAttribute(
+      'placeholder',
+      'Search adventures, places, trails…',
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('puts the keyboard away on Search, keeping what was typed', async () => {
+    renderAt('/');
+    const box = screen.getByRole('textbox', { name: 'Search adventures' });
+    await userEvent.type(box, 'beach');
+    expect(box).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(box).not.toHaveFocus();
+    expect(box).toHaveValue('beach');
+    await userEvent.type(box, '{Enter}');
+    expect(box).not.toHaveFocus();
   });
 });

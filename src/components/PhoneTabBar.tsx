@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { catalogHref, currentTab } from '../lib/tabs';
 import { useOwner } from '../lib/useOwner';
+import { useTyping } from '../lib/useTyping';
 
 const TAB =
   'flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors';
@@ -27,13 +29,24 @@ function Icon({ name }: { name: string }) {
  * visitors get neither. Fixed to the bottom, above the home indicator, and
  * gone from md up, where the header carries the links. Map replaces the
  * list's "Show map" and the map's "Hide map"; both tabs keep the catalog's
- * search and filters.
+ * search and filters. It steps aside while the keyboard is up, which an
+ * iPhone would otherwise float it above, mid-screen.
  */
 export function PhoneTabBar() {
   const { pathname } = useLocation();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { isOwner, email } = useOwner();
+  const typing = useTyping();
+  // What keeps clear of the bar (the page's foot, the map's list sheet)
+  // comes down with it, rather than leaving a band where it was.
+  useEffect(() => {
+    if (!typing) return;
+    document.documentElement.dataset.typing = '';
+    return () => {
+      delete document.documentElement.dataset.typing;
+    };
+  }, [typing]);
   // The catalog's params only mean anything on the catalog.
   const catalogParams = pathname === '/' ? params : new URLSearchParams();
   const tab = currentTab(pathname, params.get('view'));
@@ -45,7 +58,7 @@ export function PhoneTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-45 flex border-t border-outline-variant/40 bg-surface-container-lowest/95 px-base pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className={`fixed inset-x-0 bottom-0 z-45 border-t border-outline-variant/40 bg-surface-container-lowest/95 px-base pb-[env(safe-area-inset-bottom)] backdrop-blur-xl ${typing ? 'hidden' : 'flex md:hidden'}`}
     >
       <Link to={catalogHref(catalogParams, null)} {...link('places')}>
         <Icon name="format_list_bulleted" />

@@ -210,6 +210,10 @@
     --tab-bar: 0px;
   }
 }
+/* Nor while the keyboard is up, when the bar steps aside. */
+:root[data-typing] {
+  --tab-bar: 0px;
+}
 
 html,
 body {

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
+import { useMediaQuery } from '../lib/useMediaQuery';
 import { PhoneTabBar } from './PhoneTabBar';
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -38,6 +39,9 @@ export function Layout() {
   const isMapView = pathname === '/' && params.get('view') === 'map';
   // Explore is an owner-only surface (#111); its route is guarded in App.tsx.
   const { isOwner } = useOwner();
+  // The box has room for the whole prompt (about 265px of it) only from lg
+  // up; narrower, on a phone (#289) or a tablet, it's one word.
+  const wide = useMediaQuery('(min-width: 64rem)');
 
   function handleChange(next: string) {
     setParams(
@@ -75,7 +79,12 @@ export function Layout() {
           {showSearch && (
             <form
               role="search"
-              onSubmit={(e) => e.preventDefault()}
+              // The list filters as it's typed; Search or Enter puts the
+              // keyboard away, so a phone can see what it found.
+              onSubmit={(e) => {
+                e.preventDefault();
+                e.currentTarget.querySelector('input')?.blur();
+              }}
               className={`order-1 min-w-0 flex-1 md:order-2 md:w-[min(42vw,520px)] md:flex-none ${
                 isMapView ? 'md:max-lg:hidden' : ''
               }`}
@@ -86,7 +95,7 @@ export function Layout() {
                   value={q}
                   onChange={(e) => handleChange(e.target.value)}
                   className="min-w-0 grow border-none bg-transparent text-body-md focus:outline-none"
-                  placeholder="Search adventures, places, trails…"
+                  placeholder={wide ? 'Search adventures, places, trails…' : 'Search'}
                   type="text"
                   aria-label="Search adventures"
                 />
