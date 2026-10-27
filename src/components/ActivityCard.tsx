@@ -351,8 +351,8 @@ export function ActivityCard({
           }`}
         >
           {/* One row, so the dog never pushes the check down: the check
-              keeps the corner, the dog beside it, both the same 30px circle
-              on a phone (#290). */}
+              keeps the corner, the dog beside it, both the same 22px circle
+              on a phone (#290), as tall as Free and the stack's count. */}
           {(completed || activity.dogFriendly || stack) && (
             <div className="flex items-center gap-xs">
               {stack && (
@@ -363,12 +363,12 @@ export function ActivityCard({
                   aria-expanded={stack.open}
                   aria-controls={stack.controls}
                   aria-label={`${subItemsLabel(stack.count)} in ${activity.name}`}
-                  className={`inline-flex h-7.5 items-center gap-1 rounded-full px-2.5 text-[13px] font-semibold ${
+                  className={`inline-flex h-5.5 items-center gap-0.5 rounded-full px-2 text-[11.5px] font-semibold ${
                     stack.open ? 'bg-primary-fixed text-primary' : 'bg-primary text-on-primary'
                   }`}
                 >
                   <span
-                    className="material-symbols-outlined inline-flex size-4 items-center justify-center overflow-hidden text-[16px]"
+                    className="material-symbols-outlined inline-flex size-3.5 items-center justify-center overflow-hidden text-[14px]"
                     aria-hidden="true"
                   >
                     stacks
@@ -381,18 +381,18 @@ export function ActivityCard({
                 <span
                   role="img"
                   aria-label="Dogs welcome"
-                  className="inline-flex size-7.5 items-center justify-center rounded-full bg-surface-container-lowest/95 text-primary md:hidden"
+                  className="inline-flex size-5.5 items-center justify-center rounded-full bg-surface-container-lowest/95 text-primary md:hidden"
                 >
-                  <DogIcon size={20} />
+                  <DogIcon size={16} />
                 </span>
               )}
               {completed && (
                 // On a phone, a check in the dog's circle. From md, the
                 // category tag's twin: the same 28px pill and 15px icon, so
                 // the two sit level across the top of the photo.
-                <div className="inline-flex size-7.5 items-center justify-center rounded-full bg-primary-fixed text-primary md:size-auto md:h-7 md:gap-xs md:px-sm">
+                <div className="inline-flex size-5.5 items-center justify-center rounded-full bg-primary-fixed text-primary md:size-auto md:h-7 md:gap-xs md:px-sm">
                   <span
-                    className="material-symbols-outlined inline-flex size-5 items-center justify-center overflow-hidden text-[20px] md:hidden"
+                    className="material-symbols-outlined inline-flex size-3.5 items-center justify-center overflow-hidden text-[14px] md:hidden"
                     aria-hidden="true"
                   >
                     check

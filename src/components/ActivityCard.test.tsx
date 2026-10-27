@@ -214,8 +214,8 @@ describe('ActivityCard', () => {
       expect(dog.parentElement).toBe(done?.parentElement);
       expect(dog.parentElement).toHaveClass('flex', 'items-center');
       expect(dog.parentElement?.lastElementChild).toBe(done);
-      expect(dog).toHaveClass('size-7.5');
-      expect(done).toHaveClass('size-7.5', 'md:size-auto');
+      expect(dog).toHaveClass('size-5.5');
+      expect(done).toHaveClass('size-5.5', 'md:size-auto');
     });
 
     it('draws a park as a stack, its count a button on the photo', async () => {
@@ -238,7 +238,7 @@ describe('ActivityCard', () => {
       expect(count).toHaveAttribute('id', 'park-bar-x');
       expect(count).toHaveAttribute('aria-expanded', 'false');
       expect(count).not.toHaveAttribute('aria-controls');
-      expect(count).toHaveClass('bg-primary', 'h-7.5');
+      expect(count).toHaveClass('bg-primary', 'h-5.5');
       // First in the corner's row: the check keeps the corner.
       const row = count.parentElement;
       expect(row?.firstElementChild).toBe(count);
