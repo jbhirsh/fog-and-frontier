@@ -48,6 +48,11 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: jbhirsh/ci/autofix/check-triggers@main
 
+      - name: Pins
+        # A version held below its major needs a reason beside it (jbhirsh/ci's
+        # pins/check.mjs says what counts and where the reason goes).
+        uses: jbhirsh/ci/pins@main
+
       - name: Lint
         run: npm run lint
 
