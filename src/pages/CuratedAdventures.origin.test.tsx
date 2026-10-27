@@ -40,9 +40,10 @@ function renderAt(origin: DistanceOrigin, driving: DrivingMiles = NO_DRIVING_MIL
   );
 }
 
-// Before road miles load, the badge is the straight-line estimate ("≈").
+// The card's facts on its photo; the list's header says where they're from.
+// Before road miles load, the miles are the straight-line estimate ("≈").
 function badge(origin: DistanceOrigin, driving: DrivingMiles = NO_DRIVING_MILES) {
-  return `${formatMiles(distanceTo(origin, driving, muirWoods))} mi from ${origin.name}`;
+  return `${muirWoods.duration} · ${formatMiles(distanceTo(origin, driving, muirWoods))} mi`;
 }
 
 describe('Curated Adventures — distance origin (#66)', () => {
@@ -90,7 +91,7 @@ describe('Curated Adventures — distance origin (#66)', () => {
     // Straight-line, Muir Woods is ~55 mi from San Jose; say it's 20 by road.
     const driving = new Map([[muirWoods.id, 20]]);
     renderAt(HOME_ORIGIN, driving);
-    expect(screen.getByText('20 mi from San Jose')).toBeInTheDocument();
+    expect(screen.getByText(`${muirWoods.duration} · 20 mi`)).toBeInTheDocument();
     await userEvent.selectOptions(
       screen.getByDisplayValue('Any distance'),
       'Within 25 mi of San Jose',

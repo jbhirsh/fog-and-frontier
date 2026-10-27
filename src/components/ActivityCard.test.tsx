@@ -7,18 +7,12 @@ import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures
 describe('ActivityCard', () => {
   it('renders core fields', () => {
     render(<ActivityCard activity={muirWoods} />);
-    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
-    expect(screen.getByText('Short redwoods description.')).toBeInTheDocument();
-    expect(screen.getByText('Half Day')).toBeInTheDocument();
-    expect(screen.getByText('HIKING')).toBeInTheDocument();
-  });
-
-  it('shows the whole short description, wrapped, under a 3:2 photo from md up (#269)', () => {
-    render(<ActivityCard activity={muirWoods} />);
-    const description = screen.getByText('Short redwoods description.');
-    expect(description.className).not.toMatch(/line-clamp|truncate/);
-    expect(description).toHaveClass('hidden', 'md:block');
-    expect(document.querySelector('.md\\:aspect-3\\/2')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Test Muir Woods' })).toBeInTheDocument();
+    expect(screen.getByText(/^Half Day · \S+ mi$/)).toBeInTheDocument();
+    // The photo carries the facts; the description, category and contributors
+    // are the place's page's.
+    expect(screen.queryByText('Short redwoods description.')).not.toBeInTheDocument();
+    expect(screen.queryByText('HIKING')).not.toBeInTheDocument();
   });
 
   it('does not render difficulty (it lives in the detail view, not the card)', () => {
@@ -26,37 +20,9 @@ describe('ActivityCard', () => {
     expect(screen.queryByText('moderate')).not.toBeInTheDocument();
   });
 
-  it('shows a distance label computed from home', () => {
-    render(<ActivityCard activity={muirWoods} />);
-    expect(screen.getByText(/\d+\s*mi from San Jose/)).toBeInTheDocument();
-  });
-
-  it('renders the dog-friendly meta only when applicable', () => {
-    const { rerender } = render(<ActivityCard activity={muirWoods} />);
-    expect(screen.queryByText('Dog OK')).not.toBeInTheDocument();
-    rerender(<ActivityCard activity={dogFriendlyTidepools} />);
-    expect(screen.getByText('Dog OK')).toBeInTheDocument();
-  });
-
-  it('renders the completed badge only when activity.completed is true', () => {
-    const { rerender } = render(<ActivityCard activity={muirWoods} />);
-    expect(screen.queryByText('COMPLETED')).not.toBeInTheDocument();
-    rerender(<ActivityCard activity={completedHike} />);
-    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
-  });
-
-  it('credits contributors only when the activity carries them (#9)', () => {
-    const { rerender } = render(<ActivityCard activity={muirWoods} />);
+  it('credits no one on the card, contributors or not (#9)', () => {
+    render(<ActivityCard activity={{ ...muirWoods, contributors: ['tarun@example.com'] }} />);
     expect(screen.queryByText(/Contributed by/)).not.toBeInTheDocument();
-    rerender(
-      <ActivityCard
-        activity={{
-          ...muirWoods,
-          contributors: ['tarun@example.com', 'jess.hirsh@example.com', 'c@example.com'],
-        }}
-      />,
-    );
-    expect(screen.getByText('Contributed by Tarun, Jess Hirsh +1')).toBeInTheDocument();
   });
 
   it('fires onClick when clicked', async () => {
@@ -110,18 +76,17 @@ describe('ActivityCard', () => {
 
   it('falls back to the category glyph when the cover fails to load (#120)', () => {
     const { container } = render(<ActivityCard activity={muirWoods} />);
-    // Only the category pill carries the glyph while the cover loads.
-    expect(screen.getAllByText('directions_walk')).toHaveLength(1);
+    expect(screen.queryByText('directions_walk')).not.toBeInTheDocument();
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
     expect(container.querySelector('img')).toBeNull();
-    expect(screen.getAllByText('directions_walk')).toHaveLength(2);
+    expect(screen.getByText('directions_walk')).toBeInTheDocument();
   });
 
-  it('shows the AllTrails rating when present, on the photo for a phone and beside the name wider', () => {
-    render(<ActivityCard activity={{ ...muirWoods, allTrailsRating: 4.7 }} />);
-    const [onPhoto, besideName] = screen.getAllByText('4.7');
-    expect(onPhoto.closest('.md\\:hidden')).not.toBeNull();
-    expect(besideName).toHaveClass('hidden', 'md:flex');
+  it('shows the AllTrails rating on the photo, once', () => {
+    const { rerender } = render(<ActivityCard activity={muirWoods} />);
+    expect(screen.queryByText('star')).not.toBeInTheDocument();
+    rerender(<ActivityCard activity={{ ...muirWoods, allTrailsRating: 4.7 }} />);
+    expect(screen.getAllByText('4.7')).toHaveLength(1);
   });
 
   it('renders an actionSlot overlay', () => {
@@ -129,27 +94,27 @@ describe('ActivityCard', () => {
     expect(screen.getByRole('button', { name: 'Trip' })).toBeInTheDocument();
   });
 
-  it('shows both the completed badge and the actionSlot without dropping either', () => {
+  it('shows both the completed check and the actionSlot without dropping either', () => {
     render(
       <ActivityCard activity={completedHike} actionSlot={<button type="button">Trip</button>} />,
     );
-    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trip' })).toBeInTheDocument();
   });
 
-  describe('on a phone (#290)', () => {
+  describe('at every width (#290)', () => {
     it('lays the time and distance on the photo, short', () => {
       render(<ActivityCard activity={muirWoods} />);
       const facts = screen.getByText(/· \S+ mi$/);
       expect(facts.textContent).toMatch(/^Half Day · \S+ mi$/);
-      expect(facts.closest('.md\\:hidden')).not.toBeNull();
+      expect(facts.closest('[class*="md:"]')).toBeNull();
     });
 
     it('marks a free place with a Free pill, unless selecting', () => {
       const { rerender } = render(<ActivityCard activity={muirWoods} />);
       expect(screen.queryByText('Free')).not.toBeInTheDocument();
       rerender(<ActivityCard activity={{ ...muirWoods, costTier: 'free' }} />);
-      expect(screen.getByText('Free')).toHaveClass('md:hidden');
+      expect(screen.getByText('Free')).toHaveClass('leading-[22px]');
       rerender(<ActivityCard activity={{ ...muirWoods, costTier: 'free' }} selectionMode />);
       expect(screen.queryByText('Free')).not.toBeInTheDocument();
       rerender(<ActivityCard activity={{ ...muirWoods, costTier: '$' }} />);
@@ -160,7 +125,9 @@ describe('ActivityCard', () => {
       const { rerender } = render(<ActivityCard activity={muirWoods} />);
       expect(screen.queryByRole('img', { name: 'Dogs welcome' })).not.toBeInTheDocument();
       rerender(<ActivityCard activity={dogFriendlyTidepools} />);
-      expect(screen.getByRole('img', { name: 'Dogs welcome' })).toHaveClass('md:hidden');
+      expect(screen.getByRole('img', { name: 'Dogs welcome' })).toHaveClass('size-5.5');
+      // The place's page says the rest; there's no "Dog OK" line.
+      expect(screen.queryByText('Dog OK')).not.toBeInTheDocument();
     });
 
     it('shows the card line whole in place of the short description', () => {
@@ -170,11 +137,10 @@ describe('ActivityCard', () => {
         <ActivityCard activity={{ ...muirWoods, cardLine: 'Redwoods in a quiet canyon.' }} />,
       );
       const line = screen.getByText('Redwoods in a quiet canyon.');
-      expect(line).toHaveClass('md:hidden');
-      expect(line.className).not.toMatch(/line-clamp|truncate/);
+      expect(line.className).not.toMatch(/line-clamp|truncate|hidden/);
     });
 
-    it('shows the card name for a long name, and the name whole wider up', () => {
+    it('shows the card name for a long name', () => {
       render(
         <ActivityCard
           activity={{
@@ -184,26 +150,24 @@ describe('ActivityCard', () => {
           }}
         />,
       );
-      expect(screen.getByText('Castle Rock State Park')).toHaveClass('md:hidden');
-      expect(screen.getByText('Castle Rock State Park (Saratoga Gap & Ridge Loop)')).toHaveClass(
-        'hidden',
-        'md:inline',
-      );
+      expect(screen.getByRole('heading', { name: 'Castle Rock State Park' })).toBeInTheDocument();
+      expect(
+        screen.queryByText('Castle Rock State Park (Saratoga Gap & Ridge Loop)'),
+      ).not.toBeInTheDocument();
     });
 
     it('wraps the name rather than cutting it off', () => {
       render(<ActivityCard activity={muirWoods} />);
       const heading = screen.getByRole('heading', { name: 'Test Muir Woods' });
-      expect(heading.className.split(' ')).not.toContain('truncate');
-      expect(heading).toHaveClass('md:truncate');
-      // A phone's tighter leading for the wrapped name; wider up, as before.
-      expect(heading).toHaveClass('leading-snug', 'md:leading-normal');
+      expect(heading.className).not.toMatch(/truncate|line-clamp/);
+      expect(heading).toHaveClass('leading-snug');
     });
 
     it('shows a completed place by its check, named for screen readers', () => {
       render(<ActivityCard activity={completedHike} />);
-      expect(screen.getByText('COMPLETED')).toHaveClass('hidden', 'md:inline');
-      expect(screen.getByText('Completed')).toHaveClass('sr-only', 'md:hidden');
+      expect(screen.queryByText('COMPLETED')).not.toBeInTheDocument();
+      expect(screen.getByText('Completed')).toHaveClass('sr-only');
+      expect(screen.getByText('check')).toBeInTheDocument();
     });
 
     it('sits the dog beside the check, the same size, the check in the corner', () => {
@@ -215,7 +179,7 @@ describe('ActivityCard', () => {
       expect(dog.parentElement).toHaveClass('flex', 'items-center');
       expect(dog.parentElement?.lastElementChild).toBe(done);
       expect(dog).toHaveClass('size-5.5');
-      expect(done).toHaveClass('size-5.5', 'md:size-auto');
+      expect(done).toHaveClass('size-5.5');
     });
 
     it('draws a park as a stack, its count a button on the photo', async () => {
@@ -277,7 +241,8 @@ describe('ActivityCard', () => {
     it('puts the selection check at the top left, clear of the facts', () => {
       render(<ActivityCard activity={muirWoods} selectionMode selected />);
       const check = screen.getByText('check').parentElement;
-      expect(check).toHaveClass('top-base', 'left-base', 'md:bottom-sm', 'md:left-sm');
+      expect(check).toHaveClass('top-base', 'left-base');
+      expect(check?.className).not.toMatch(/md:/);
     });
   });
 });

@@ -532,19 +532,21 @@ export function CuratedAdventures() {
     document.getElementById(parkBarId(id))?.focus();
   }, [opened]);
 
-  // A phone's cards go two to a row (#290), in the list and the mobile map's
-  // sheet. Split (lg and up) is narrower than the full-width List layout,
-  // since the list shares the row with the map.
+  // Cards go two to a row on a phone (#290), more as the screen widens, in
+  // the list and the mobile map's sheet. Split (lg and up) is narrower than
+  // the full-width List layout, since the list shares the row with the map.
   const gridColsClass =
     view === 'split'
-      ? 'grid-cols-1 xl:grid-cols-2'
+      ? 'grid-cols-2 xl:grid-cols-3'
       : view === 'map'
         ? 'grid-cols-2'
-        : 'grid-cols-2 lg:grid-cols-3';
+        : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
   // An open park's hikes and stops sit smaller, one more to a row. (The
   // mobile map's sheet is never wide enough for Split's third column.)
   const parkGridClass =
-    view === 'list' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 xl:grid-cols-3';
+    view === 'list'
+      ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+      : 'grid-cols-2 xl:grid-cols-3';
 
   function card(a: Activity, stack?: ParkStack) {
     return (
