@@ -20,7 +20,7 @@ describe('appliedFilters', () => {
   it('lists each filter on, in the sheet’s order, with what turns it off', () => {
     const values: FilterValues = {
       maxDistance: 50,
-      duration: 'Half Day',
+      duration: 'half',
       category: 'hiking',
       parkType: 'state',
       dogOnly: true,
@@ -31,10 +31,10 @@ describe('appliedFilters', () => {
     expect(appliedFilters(values, name)).toEqual([
       { key: 'category', label: 'Hiking', off: { category: 'Any' } },
       { key: 'distance', label: 'Within 50 mi', off: { maxDistance: Infinity } },
-      { key: 'duration', label: 'Half Day', off: { duration: 'Any' } },
-      { key: 'dog', label: 'Dog friendly', off: { dogOnly: false } },
+      { key: 'duration', label: 'Half day', off: { duration: 'Any' } },
+      { key: 'dog', label: 'Dogs welcome', off: { dogOnly: false } },
       { key: 'free', label: 'Free', off: { freeOnly: false } },
-      { key: 'completed', label: 'Completed only', off: { completedOnly: false } },
+      { key: 'completed', label: "Places we've done", off: { completedOnly: false } },
       { key: 'park', label: 'State park', off: { parkType: 'Any' } },
       {
         key: 'by:tarun@example.com',
@@ -56,5 +56,14 @@ describe('appliedFilters', () => {
     expect(appliedFilters({ ...NO_FILTERS, maxDistance: 25 }, name)).toEqual([
       { key: 'distance', label: 'Within 25 mi', off: { maxDistance: Infinity } },
     ]);
+  });
+
+  it('names each duration group as the sheet does (#292)', () => {
+    const label = (duration: FilterValues['duration']) =>
+      appliedFilters({ ...NO_FILTERS, duration }, name)[0]?.label;
+    expect(label('hours')).toBe('A few hours');
+    expect(label('half')).toBe('Half day');
+    expect(label('day')).toBe('A day or more');
+    expect(label('Any')).toBeUndefined();
   });
 });

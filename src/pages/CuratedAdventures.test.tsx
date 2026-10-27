@@ -65,7 +65,7 @@ describe('Curated Adventures page', () => {
   it('filters by duration', async () => {
     renderExplore();
     const durationSelect = screen.getByDisplayValue('Any duration');
-    await userEvent.selectOptions(durationSelect, 'Half Day');
+    await userEvent.selectOptions(durationSelect, 'Half day');
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     expect(screen.queryByText('Test Completed Hike')).not.toBeInTheDocument();
   });
@@ -146,11 +146,11 @@ describe('Curated Adventures page', () => {
     expect(pillText('Category')).toBe('Any category');
     expect(pillText('Park type')).toBe('Any park type');
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Distance' }), '25');
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Duration' }), 'Half Day');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Duration' }), 'half');
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Category' }), 'hiking');
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Park type' }), 'state');
     expect(pillText('Distance')).toMatch(/^Within 25 mi of \S/);
-    expect(pillText('Duration')).toBe('Half Day');
+    expect(pillText('Duration')).toBe('Half day');
     expect(pillText('Category')).toBe('Hiking');
     expect(pillText('Park type')).toBe('State park');
   });

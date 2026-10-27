@@ -19,13 +19,14 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
 import type { SheetSnap } from '../lib/bottomSheetSnap';
-import type { Activity, Category, Duration, ParkType } from '../data/types';
+import type { Activity, Category, ParkType } from '../data/types';
 import {
   CONTRIBUTORS_PARAM,
   contributorOptions,
   parseContributors,
   readCompletedOnly,
   useCatalogFilters,
+  type DurationFilter,
   withCompletedOnly,
   withContributors,
 } from '../lib/useCatalogFilters';
@@ -51,6 +52,7 @@ import { categoryOptionLabel } from '../lib/activityLabels';
 import {
   CATEGORY_OPTIONS,
   DISTANCE_LIMITS,
+  DURATION_LABELS,
   DURATION_OPTIONS,
   PARK_TYPE_LABELS,
   PARK_TYPE_OPTIONS,
@@ -862,16 +864,16 @@ export function CuratedAdventures() {
           ))}
         </select>
       </FilterPill>
-      <FilterPill icon="schedule" label={duration === 'Any' ? 'Any duration' : duration}>
+      <FilterPill icon="schedule" label={DURATION_LABELS[duration]}>
         <select
           value={duration}
-          onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
+          onChange={(e) => setDuration(e.target.value as DurationFilter)}
           aria-label="Duration"
           className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
         >
           {DURATION_OPTIONS.map((d) => (
             <option key={d} value={d}>
-              {d === 'Any' ? 'Any duration' : d}
+              {DURATION_LABELS[d]}
             </option>
           ))}
         </select>

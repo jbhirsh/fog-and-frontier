@@ -292,6 +292,24 @@ describe('useSwipe', () => {
     expect(handlers.onClose).not.toHaveBeenCalled();
   });
 
+  it('asks atTop, when given, whether a pull down can close', () => {
+    // The panel's own scroll says nothing then: a list inside it decides.
+    const { unmount } = render(<Harness {...handlers} atTop={() => false} />);
+    drag(0, 400);
+    act(() => {
+      vi.advanceTimersByTime(SETTLE_MS);
+    });
+    expect(handlers.onClose).not.toHaveBeenCalled();
+    unmount();
+    render(<Harness {...handlers} atTop={() => true} />);
+    panel().scrollTop = 120;
+    drag(0, 400);
+    act(() => {
+      vi.advanceTimersByTime(SETTLE_MS);
+    });
+    expect(handlers.onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('claims the move from the browser only once it is a swipe', () => {
     render(<Harness {...handlers} />);
     touch(panel(), 'start', [[100, 100]]);

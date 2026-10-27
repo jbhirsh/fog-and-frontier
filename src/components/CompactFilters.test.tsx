@@ -44,7 +44,7 @@ describe('CompactFilters', () => {
     expect(screen.getByRole('button', { name: 'Filters, 3 on' })).toHaveTextContent('Filters3');
     expect(chip('Hiking')).toBeInTheDocument();
     expect(chip('Within 25 mi')).toBeInTheDocument();
-    expect(chip('Dog friendly')).toBeInTheDocument();
+    expect(chip('Dogs welcome')).toBeInTheDocument();
   });
 
   it('takes a filter off from its chip', async () => {
@@ -66,8 +66,8 @@ describe('CompactFilters', () => {
   it('moves focus to the next chip, then the one before, then the button', async () => {
     render(<Live />);
     await userEvent.click(chip('Within 25 mi'));
-    expect(chip('Dog friendly')).toHaveFocus();
-    await userEvent.click(chip('Dog friendly'));
+    expect(chip('Dogs welcome')).toHaveFocus();
+    await userEvent.click(chip('Dogs welcome'));
     expect(chip('Hiking')).toHaveFocus();
     await userEvent.click(chip('Hiking'));
     expect(screen.getByRole('button', { name: 'Filters' })).toHaveFocus();
@@ -78,7 +78,7 @@ describe('CompactFilters', () => {
     const button = screen.getByRole('button', { name: 'Filters' });
     await userEvent.click(button);
     expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
-    const free = screen.getByRole('checkbox', { name: 'Free' });
+    const free = screen.getByRole('switch', { name: 'Free' });
     await userEvent.click(free);
     expect(chip('Free')).toBeInTheDocument();
     // A new chip behind the sheet leaves focus where it was.

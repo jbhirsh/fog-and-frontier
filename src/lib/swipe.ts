@@ -110,6 +110,11 @@ export interface SwipeHandlers {
   enabled: boolean;
   /** Skip the leave animation (prefers-reduced-motion). */
   reduceMotion: boolean;
+  /**
+   * Whether a pull down can close: by default, the panel is scrolled to its
+   * top. A panel that scrolls only a part of itself says so here.
+   */
+  atTop?: () => boolean;
 }
 
 /**
@@ -154,7 +159,7 @@ export function useSwipe(
     let settled: ReturnType<typeof setTimeout> | undefined;
 
     const context = (): SwipeContext => ({
-      atTop: el.scrollTop <= 0,
+      atTop: latest.current.atTop?.() ?? el.scrollTop <= 0,
       hasPrev: !!latest.current.onPrev,
       hasNext: !!latest.current.onNext,
     });

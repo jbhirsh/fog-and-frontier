@@ -8,6 +8,7 @@ import {
   withCompletedOnly,
   withContributors,
   type CatalogFilterState,
+  type DurationFilter,
 } from './useCatalogFilters';
 import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
@@ -66,9 +67,15 @@ describe('applyCatalogFilters', () => {
     expect(result).toEqual([]);
   });
 
-  it('filters by duration', () => {
-    const result = applyCatalogFilters(ALL, filters({ duration: 'Half Day' }));
-    expect(result.map((a) => a.id)).toEqual([muirWoods.id]);
+  it('filters by duration, a group at a time (#292)', () => {
+    const ids = (duration: DurationFilter) =>
+      applyCatalogFilters(ALL, filters({ duration })).map((a) => a.id);
+    expect(ids('half')).toEqual([muirWoods.id]);
+    // 2-3 Hours and 1-2 Hours both read as a few hours.
+    expect(ids('hours').sort()).toEqual([completedHike.id, dogFriendlyTidepools.id].sort());
+    expect(ids('day')).toEqual([]);
+    const weekend = { ...muirWoods, id: 'weekend', duration: 'Weekend' as const };
+    expect(applyCatalogFilters([weekend], filters({ duration: 'day' }))).toEqual([weekend]);
   });
 
   it('filters by category', () => {
@@ -154,9 +161,10 @@ describe('applyCatalogFilters', () => {
   });
 
   it('stacks multiple filters (AND semantics)', () => {
+    const allDay = { ...completedHike, duration: 'Full Day' as const };
     const result = applyCatalogFilters(
-      ALL,
-      filters({ category: 'scenic', dogOnly: true, duration: '1-2 Hours' }),
+      [muirWoods, allDay, dogFriendlyTidepools],
+      filters({ category: 'scenic', dogOnly: true, duration: 'hours' }),
     );
     expect(result.map((a) => a.id)).toEqual([dogFriendlyTidepools.id]);
   });
@@ -195,11 +203,10 @@ describe('applyCatalogFilters — completed only (#5)', () => {
   });
 
   it('stacks with the other filters', () => {
-    const result = applyCatalogFilters(
-      ALL,
-      filters({ completedOnly: true, duration: '1-2 Hours' }),
-      { [dogFriendlyTidepools.id]: true },
-    );
+    const result = applyCatalogFilters(ALL, filters({ completedOnly: true, duration: 'hours' }), {
+      [dogFriendlyTidepools.id]: true,
+      [completedHike.id]: false,
+    });
     expect(result.map((a) => a.id)).toEqual([dogFriendlyTidepools.id]);
   });
 });

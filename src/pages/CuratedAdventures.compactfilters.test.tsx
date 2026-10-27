@@ -58,24 +58,22 @@ describe('Curated Adventures — the phone’s Filters sheet', () => {
   it('filters the list as the sheet changes, counting what’s left', async () => {
     renderAs(SIGNED_OUT);
     const sheet = await openSheet();
-    await userEvent.click(sheet.getByRole('checkbox', { name: 'Dog friendly' }));
+    await userEvent.click(sheet.getByRole('switch', { name: 'Dogs welcome' }));
     expect(shown()).toEqual(['Test Completed Hike', 'Test Tide Pools']);
     expect(sheet.getByRole('button', { name: 'Show 2 places' })).toBeInTheDocument();
     await userEvent.click(sheet.getByRole('button', { name: 'Show 2 places' }));
     expect(screen.getByRole('button', { name: 'Filters, 1 on' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Remove filter: Dog friendly' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove filter: Dogs welcome' })).toBeInTheDocument();
   });
 
   it('writes Completed only and contributors to the URL, and clears both at once', async () => {
     renderAs(SIGNED_IN);
     const sheet = await openSheet();
-    await userEvent.click(sheet.getByRole('checkbox', { name: 'Completed only' }));
+    await userEvent.click(sheet.getByRole('switch', { name: 'Only places we’ve done' }));
     expect(screen.getByTestId('search')).toHaveTextContent('?completed=1');
-    await userEvent.click(
-      within(sheet.getByRole('group', { name: 'Added by' })).getByRole('button', {
-        name: /Tarun/,
-      }),
-    );
+    await userEvent.click(sheet.getByRole('button', { name: /^Added by/ }));
+    const people = within(screen.getByRole('dialog', { name: 'Added by' }));
+    await userEvent.click(people.getByRole('checkbox', { name: /Tarun/ }));
     expect(screen.getByTestId('search')).toHaveTextContent(
       `?completed=1&contributors=${encodeURIComponent(TARUN)}`,
     );
@@ -87,7 +85,7 @@ describe('Curated Adventures — the phone’s Filters sheet', () => {
   it('shows a filter from the link as a chip that takes it off', async () => {
     renderAs(SIGNED_IN, '/?completed=1');
     expect(shown()).toEqual(['Test Completed Hike']);
-    await userEvent.click(screen.getByRole('button', { name: 'Remove filter: Completed only' }));
+    await userEvent.click(screen.getByRole('button', { name: "Remove filter: Places we've done" }));
     expect(screen.getByTestId('search').textContent).toBe('');
     expect(shown()).toHaveLength(3);
   });
@@ -96,17 +94,24 @@ describe('Curated Adventures — the phone’s Filters sheet', () => {
     renderAs(SIGNED_OUT);
     const sheet = await openSheet();
     await userEvent.click(
-      within(sheet.getByRole('group', { name: 'Category' })).getByRole('button', {
-        name: 'Scenic',
+      within(sheet.getByRole('group', { name: 'What' })).getByRole('button', {
+        name: 'Views',
       }),
     );
     expect(shown()).toEqual(['Test Completed Hike', 'Test Tide Pools']);
     await userEvent.click(
       within(sheet.getByRole('group', { name: 'How long' })).getByRole('button', {
-        name: '1-2 Hours',
+        name: 'A few hours',
       }),
     );
-    expect(shown()).toEqual(['Test Tide Pools']);
+    // Both are a few hours (2-3 and 1-2); neither is half a day.
+    expect(shown()).toEqual(['Test Completed Hike', 'Test Tide Pools']);
+    await userEvent.click(
+      within(sheet.getByRole('group', { name: 'How long' })).getByRole('button', {
+        name: 'Half day',
+      }),
+    );
+    expect(shown()).toEqual([]);
     await userEvent.click(sheet.getByRole('button', { name: 'Clear all' }));
     expect(shown()).toHaveLength(3);
   });
@@ -114,20 +119,17 @@ describe('Curated Adventures — the phone’s Filters sheet', () => {
   it('offers a signed-out visitor no contributors', async () => {
     renderAs(SIGNED_OUT);
     const sheet = await openSheet();
-    expect(sheet.queryByRole('group', { name: 'Added by' })).not.toBeInTheDocument();
+    expect(sheet.queryByRole('button', { name: /^Added by/ })).not.toBeInTheDocument();
   });
 
   it('sets the distance, park type and Free too', async () => {
     renderAs(SIGNED_OUT);
     const sheet = await openSheet();
-    await userEvent.click(
-      within(sheet.getByRole('group', { name: 'Park type' })).getByRole('button', {
-        name: 'National park',
-      }),
-    );
+    await userEvent.click(sheet.getByRole('button', { name: /^Park type/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'National park' }));
     expect(shown()).toEqual(['Test Muir Woods']);
     await userEvent.click(sheet.getByRole('button', { name: 'Clear all' }));
-    await userEvent.click(sheet.getByRole('checkbox', { name: 'Free' }));
+    await userEvent.click(sheet.getByRole('switch', { name: 'Free' }));
     expect(shown()).toEqual(['Test Completed Hike']);
     await userEvent.click(sheet.getByRole('button', { name: 'Clear all' }));
     // From San Jose: the tide pools are under 50 miles, Mill Valley over.

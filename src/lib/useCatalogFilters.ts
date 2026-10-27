@@ -11,7 +11,25 @@ import type { DrivingMiles } from './drivingMiles';
 // identically and #9 / #5 / #16 can stack onto the same seam rather than
 // duplicating `useState` clusters.
 
-export type DurationFilter = 'Any' | Duration;
+/**
+ * How long, as the filter asks it (#292): four choices rather than seven,
+ * by the owners' decision. An activity keeps its own duration; a group
+ * matches each of its durations.
+ */
+export type DurationGroup = 'hours' | 'half' | 'day';
+export type DurationFilter = 'Any' | DurationGroup;
+
+/** The durations each group matches: every duration in exactly one. */
+export const DURATION_GROUPS: Readonly<Record<DurationGroup, readonly Duration[]>> = {
+  hours: ['1-2 Hours', '2-3 Hours'],
+  half: ['Half Day'],
+  day: ['Full Day', 'Weekend', 'Multi-Day'],
+};
+
+/** Whether `duration` is one the filter `group` keeps ('Any' keeps all). */
+export function matchesDuration(duration: Duration, group: DurationFilter): boolean {
+  return group === 'Any' || DURATION_GROUPS[group].includes(duration);
+}
 export type CategoryFilter = 'Any' | Category;
 export type ParkTypeFilter = 'Any' | ParkType;
 
@@ -138,7 +156,7 @@ export function applyCatalogFilters(
     }))
     .filter(({ a, miles }) => {
       if (miles > maxDistance) return false;
-      if (duration !== 'Any' && a.duration !== duration) return false;
+      if (!matchesDuration(a.duration, duration)) return false;
       if (category !== 'Any' && a.category !== category) return false;
       if (parkType !== 'Any' && (a.parkType ?? 'none') !== parkType) return false;
       if (dogOnly && !a.dogFriendly) return false;
