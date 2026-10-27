@@ -290,30 +290,45 @@ export function ActivityCard({
       */}
       {(completed || actionSlot || activity.dogFriendly) && (
         <div className="absolute top-base right-base z-10 flex flex-col items-end gap-xs md:top-sm md:right-sm">
-          {/* Dogs welcome, on a phone's card only (#290); none when they aren't. */}
-          {activity.dogFriendly && (
-            <span
-              role="img"
-              aria-label="Dogs welcome"
-              className="inline-flex size-7.5 items-center justify-center rounded-full bg-surface-container-lowest/95 text-primary md:hidden"
-            >
-              <DogIcon size={20} />
-            </span>
-          )}
-          {completed && (
-            // The category tag's twin: the same 28px pill and 15px icon, so
-            // the two sit level across the top of the photo.
-            // On a phone, the check alone (#290).
-            <div className="inline-flex h-7 items-center gap-xs rounded-full bg-primary-fixed px-1.5 text-primary md:px-sm">
-              <span
-                className="material-symbols-outlined"
-                aria-hidden="true"
-                style={{ fontSize: 15, marginLeft: glyphBleed('check_circle') }}
-              >
-                check_circle
-              </span>
-              <span className="hidden font-label-caps text-label-caps md:inline">COMPLETED</span>
-              <span className="sr-only md:hidden">Completed</span>
+          {/* One row, so the dog never pushes the check down: the check
+              keeps the corner, the dog beside it, both the same 30px circle
+              on a phone (#290). */}
+          {(completed || activity.dogFriendly) && (
+            <div className="flex items-center gap-xs">
+              {/* Dogs welcome, on a phone's card only; none when they aren't. */}
+              {activity.dogFriendly && (
+                <span
+                  role="img"
+                  aria-label="Dogs welcome"
+                  className="inline-flex size-7.5 items-center justify-center rounded-full bg-surface-container-lowest/95 text-primary md:hidden"
+                >
+                  <DogIcon size={20} />
+                </span>
+              )}
+              {completed && (
+                // On a phone, a check in the dog's circle. From md, the
+                // category tag's twin: the same 28px pill and 15px icon, so
+                // the two sit level across the top of the photo.
+                <div className="inline-flex size-7.5 items-center justify-center rounded-full bg-primary-fixed text-primary md:size-auto md:h-7 md:gap-xs md:px-sm">
+                  <span
+                    className="material-symbols-outlined inline-flex size-5 items-center justify-center overflow-hidden text-[20px] md:hidden"
+                    aria-hidden="true"
+                  >
+                    check
+                  </span>
+                  <span
+                    className="material-symbols-outlined hidden md:inline"
+                    aria-hidden="true"
+                    style={{ fontSize: 15, marginLeft: glyphBleed('check_circle') }}
+                  >
+                    check_circle
+                  </span>
+                  <span className="hidden font-label-caps text-label-caps md:inline">
+                    COMPLETED
+                  </span>
+                  <span className="sr-only md:hidden">Completed</span>
+                </div>
+              )}
             </div>
           )}
           {actionSlot}

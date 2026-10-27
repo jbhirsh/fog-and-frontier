@@ -206,6 +206,18 @@ describe('ActivityCard', () => {
       expect(screen.getByText('Completed')).toHaveClass('sr-only', 'md:hidden');
     });
 
+    it('sits the dog beside the check, the same size, the check in the corner', () => {
+      render(<ActivityCard activity={{ ...completedHike, dogFriendly: true }} />);
+      const dog = screen.getByRole('img', { name: 'Dogs welcome' });
+      const done = screen.getByText('Completed').parentElement;
+      // One row, so the dog doesn't push the check down, with the check last.
+      expect(dog.parentElement).toBe(done?.parentElement);
+      expect(dog.parentElement).toHaveClass('flex', 'items-center');
+      expect(dog.parentElement?.lastElementChild).toBe(done);
+      expect(dog).toHaveClass('size-7.5');
+      expect(done).toHaveClass('size-7.5', 'md:size-auto');
+    });
+
     it('puts the selection check at the top left, clear of the facts', () => {
       render(<ActivityCard activity={muirWoods} selectionMode selected />);
       const check = screen.getByText('check').parentElement;
