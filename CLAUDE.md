@@ -187,7 +187,7 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   are enforced, but two different tokens that share a value (`px-gutter`
   and `py-md`) stay as written. `npm run lint:fix` rewrites them; a plain
   CSS class the plugin can't see goes in the rule's `ignore`.
-- **No `legacy-peer-deps`.** Installs are plain `npm ci`. Resolve a peer conflict (or a security advisory with no upstream fix) with a version bump, or with a narrow `overrides` entry, its reason (and when to delete it) written beside it in `package.json`'s `//overrides`.
+- **No `legacy-peer-deps`.** Installs are plain `npm ci`. Resolve a peer conflict (or a security advisory with no upstream fix) with a version bump, or with a narrow `overrides` entry, its reason (and when to delete it) written beside it in `package.json`'s `//overrides`. Any other pin (a range short of the next major, a Dependabot `ignore`, an action below its major) gets its reason beside it too, in `//pins` or a YAML comment: CI's Pins step (jbhirsh/ci's `pins`) fails one without.
 - **Commit hygiene.** Imperative subject ≤72 chars; body explains _why_; end
   with the `Co-Authored-By:` trailer. One logical change per commit; squash
   noisy commits (fixups, reverts, "address review") into a clean history before
