@@ -555,6 +555,16 @@ export const ASSIGN_SLOT = graphql(`
   }
 `);
 
+export const SET_START_TIMES = graphql(`
+  mutation SetStartTimes($input: SetStartTimesInput!) {
+    setStartTimes(input: $input) {
+      tripActivities {
+        id
+      }
+    }
+  }
+`);
+
 export const SET_DISPLAY_ORDER = graphql(`
   mutation SetDisplayOrder($input: SetDisplayOrderInput!) {
     setDisplayOrder(input: $input) {

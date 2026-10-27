@@ -54,7 +54,10 @@ export function Layout() {
   return (
     // Clear of the phone's tab bar (#289), which sits over the page's foot.
     <div className="flex min-h-dvh flex-col pb-(--tab-bar)">
-      <header className="sticky top-0 z-50 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-xl">
+      {/* A trip's page on a phone (#294) has its own header, Trips and all:
+          while one is up (TripPhone marks the page) the brand's bar would
+          only repeat it. Its loading and sign-in screens keep the bar. */}
+      <header className="sticky top-0 z-50 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-xl in-data-own-header:max-md:hidden">
         {/* Desktop (md+): one 80px row — brand · search · compact nav · auth.
             A phone (#289): one line, the search and auth on the catalog,
             the brand and auth elsewhere; its links are the tab bar's.
@@ -153,9 +156,10 @@ export function Layout() {
       </main>
       <PhoneTabBar />
       {/* The catalog/split view (#4) owns the full page scroll Airbnb-style, so
-          the footer is suppressed there; other pages keep it. */}
+          the footer is suppressed there; other pages keep it, from md up: on a
+          phone the tab bar is the page's foot. */}
       {pathname !== '/' && (
-        <footer className="mt-md w-full bg-primary py-md md:mt-xl md:py-xl">
+        <footer className="mt-xl hidden w-full bg-primary py-xl md:block">
           <div className="mx-auto flex max-w-screen-2xl flex-col items-center justify-between gap-md px-margin md:flex-row">
             <div className="font-display text-headline-md font-bold text-on-primary">
               Fog and Frontier

@@ -1,11 +1,12 @@
 import { authorLabel } from '../lib/activityReviews';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { TripActivityCard } from '../components/TripActivityCard';
 import { TripMap } from '../components/TripMap';
 import { VotingCandidateCard } from '../components/VotingCandidateCard';
 import { PromoteToPlanningModal } from '../components/PromoteToPlanningModal';
 import { InlineError } from '../components/InlineError';
+import { ModalShell } from '../components/ModalShell';
 import { MembersStrip } from '../components/MembersStrip';
 import { InviteModal } from '../components/InviteModal';
 import { TripSuggestions } from '../components/TripSuggestions';
@@ -40,6 +41,7 @@ import {
   revertToVoting,
   revokeInvite,
   setDisplayOrder,
+  setStartTimes,
   sortByNetScore,
   tallyFor,
   transitionToPlanning,
@@ -51,6 +53,12 @@ import {
 } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
 import { formatDateRange } from '../lib/dateRange';
+import { useMediaQuery } from '../lib/useMediaQuery';
+
+// A phone's layout loads only on a phone, so the main bundle carries none of it.
+const TripPhone = lazy(() =>
+  import('../components/TripPhone').then((m) => ({ default: m.TripPhone })),
+);
 
 const TALLY_REFRESH_MS = 30_000;
 
@@ -77,6 +85,8 @@ export function TripDetail() {
   const [detail, setDetail] = useState<Activity | null>(null);
   const { activities: catalog, loading: catalogLoading, error: catalogError } = useUserActivities();
   const openActivity = useOpenActivity();
+  // A phone lays the trip out on its own (#294); wider keeps the columns.
+  const phone = useMediaQuery('(max-width: 767.98px)');
 
   const isPast = trip?.status === 'past';
   const isVoting = trip?.status === 'voting';
@@ -295,6 +305,20 @@ export function TripDetail() {
     void runAction(() => assignSlot(taId, { day_index: dayIndex, start_time: startTime }));
   }
 
+  function handleScheduleOnDay(activity: TripActivity, dayIndex: number) {
+    if (!trip) return;
+    const start_time = defaultStartTimeForDay(
+      trip.activities.filter((a) => a.day_index === dayIndex && a.start_time),
+    );
+    void runAction(() => assignSlot(activity.id, { day_index: dayIndex, start_time }));
+  }
+
+  // One write for the move, so a swap never lands half done.
+  function handleMoveWithinDay(times: { id: string; start_time: string }[]) {
+    if (!trip || times.length === 0) return;
+    void runAction(() => setStartTimes(trip.id, times));
+  }
+
   function handleMoveToUnscheduled(activity: TripActivity) {
     void runAction(() => assignSlot(activity.id, { day_index: null, start_time: null }));
   }
@@ -403,133 +427,206 @@ export function TripDetail() {
     );
   }
 
-  return (
+  const addFromCurated = () => {
+    if (isPast) return;
+    void navigate('/', {
+      state: { target_trip_id: trip.id, target_trip_title: trip.title },
+    });
+  };
+  const membersStrip = (
+    <MembersStrip
+      members={trip.members}
+      invites={trip.invites}
+      currentEmail={email}
+      isCreator={isCreator}
+      onInvite={() => void handleOpenInvite()}
+      onRemoveMember={handleRemoveMember}
+      onRevokeInvite={handleRevokeInvite}
+      onLeave={handleLeave}
+    />
+  );
+  const votingView = (
+    <VotingView
+      trip={trip}
+      email={email}
+      isCreator={isCreator}
+      busy={busy}
+      onVote={handleVote}
+      onRemove={(a) => handleRemove(a)}
+      onOpen={handleOpenActivity}
+      onReorder={handleReorderCandidate}
+      onFinalize={() => setPromoteOpen(true)}
+      suggestions={suggestions}
+      onAddSuggestion={(a) => runAction(() => addActivityToTrip(trip.id, a.id))}
+      onOpenSuggestion={(a) => openActivity(a.id)}
+      onAddFromCurated={() =>
+        void navigate('/', {
+          state: { target_trip_id: trip.id, target_trip_title: trip.title },
+        })
+      }
+    />
+  );
+  const unscheduledPanel = (
+    <UnscheduledPanel
+      trip={trip}
+      isPast={isPast}
+      onDrop={handleDropOnUnscheduled}
+      onAssign={(a) => handleAssignOrEdit(a)}
+      onRemove={(a) => handleRemove(a)}
+      onOpen={handleOpenActivity}
+      onAddFromCurated={() => {
+        if (isPast) return;
+        void navigate('/', {
+          state: {
+            target_trip_id: trip.id,
+            target_trip_title: trip.title,
+          },
+        });
+      }}
+    />
+  );
+  const shared = (
     <>
-      <TripHeader
-        trip={trip}
-        isPast={isPast}
-        isVoting={isVoting}
-        isCreator={isCreator}
-        editing={editingHeader}
-        onEdit={() => setEditingHeader(true)}
-        onCancelEdit={() => setEditingHeader(false)}
-        onSave={(input) => void handleSaveHeader(input)}
-        onMarkPast={() => setMarkPastOpen(true)}
-        onDelete={() => setConfirmingDelete(true)}
-        onRevert={() => setConfirmingRevert(true)}
-      />
-
       {actionError && (
         <div className="mx-auto max-w-screen-2xl pt-md px-margin">
           <InlineError message={actionError} onDismiss={() => setActionError(null)} />
         </div>
       )}
+    </>
+  );
 
-      <div className="mx-auto max-w-screen-2xl pt-md px-margin">
-        <MembersStrip
-          members={trip.members}
-          invites={trip.invites}
-          currentEmail={email}
-          isCreator={isCreator}
-          onInvite={() => void handleOpenInvite()}
-          onRemoveMember={handleRemoveMember}
-          onRevokeInvite={handleRevokeInvite}
-          onLeave={handleLeave}
-        />
-      </div>
-
-      {isVoting ? (
-        <VotingView
-          trip={trip}
-          email={email}
-          isCreator={isCreator}
+  const page =
+    phone && !editingHeader ? (
+      <Suspense fallback={null}>
+        <TripPhone
+          // Its day and tab start afresh on another trip.
+          key={trip.id}
           busy={busy}
-          onVote={handleVote}
-          onRemove={(a) => handleRemove(a)}
-          onOpen={handleOpenActivity}
-          onReorder={handleReorderCandidate}
-          onFinalize={() => setPromoteOpen(true)}
-          suggestions={suggestions}
-          onAddSuggestion={(a) => runAction(() => addActivityToTrip(trip.id, a.id))}
-          onOpenSuggestion={(a) => openActivity(a.id)}
-          onAddFromCurated={() =>
-            void navigate('/', {
-              state: { target_trip_id: trip.id, target_trip_title: trip.title },
-            })
-          }
-        />
-      ) : (
-        <section className="mx-auto max-w-screen-2xl space-y-md py-md px-margin md:space-y-lg md:py-lg">
-          <TripMap trip={trip} />
-
-          <div className="flex flex-wrap items-center justify-between gap-md">
-            <h2 className="font-headline-md text-headline-md text-on-surface">Itinerary</h2>
-            <button
-              type="button"
-              onClick={() => {
-                if (isPast) return;
-                void navigate('/', {
-                  state: {
-                    target_trip_id: trip.id,
-                    target_trip_title: trip.title,
-                  },
-                });
-              }}
-              disabled={isPast}
-              title={isPast ? PAST_TOOLTIP : undefined}
-              className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <span
-                className="material-symbols-outlined text-icon-md"
-                style={{ marginLeft: glyphBleed('add') }}
-              >
-                add
-              </span>
-              Add activity
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-gutter lg:grid-cols-3">
-            <div className="space-y-md lg:col-span-2">
-              {buckets.map((bucket) => (
-                <DaySection
-                  key={bucket.dayIndex}
-                  trip={trip}
-                  bucket={bucket}
-                  isPast={isPast}
-                  onDropOnDay={handleDropOnDay(bucket.dayIndex)}
-                  onEditTime={(a) => handleAssignOrEdit(a)}
-                  onMoveToUnscheduled={(a) => handleMoveToUnscheduled(a)}
-                  onRemove={(a) => handleRemove(a)}
-                  onOpen={handleOpenActivity}
-                />
-              ))}
-            </div>
-            <UnscheduledPanel
-              trip={trip}
+          notice={shared}
+          trip={trip}
+          isPast={isPast}
+          isVoting={isVoting}
+          menu={
+            <TripMenu
               isPast={isPast}
-              onDrop={handleDropOnUnscheduled}
-              onAssign={(a) => handleAssignOrEdit(a)}
-              onRemove={(a) => handleRemove(a)}
-              onOpen={handleOpenActivity}
-              onAddFromCurated={() => {
-                if (isPast) return;
-                void navigate('/', {
-                  state: {
-                    target_trip_id: trip.id,
-                    target_trip_title: trip.title,
-                  },
-                });
-              }}
+              isVoting={isVoting}
+              isCreator={isCreator}
+              onEdit={() => setEditingHeader(true)}
+              onMarkPast={() => setMarkPastOpen(true)}
+              onDelete={() => setConfirmingDelete(true)}
+              onRevert={() => setConfirmingRevert(true)}
             />
-          </div>
+          }
+          members={membersStrip}
+          onInvite={() => void handleOpenInvite()}
+          ideas={
+            isVoting ? (
+              votingView
+            ) : (
+              <section className="space-y-md py-md px-margin">
+                {unscheduledPanel}
+                <VotingResults trip={trip} onOpen={handleOpenActivity} />
+              </section>
+            )
+          }
+          ideasCount={
+            isVoting
+              ? trip.activities.length
+              : trip.activities.filter((a) => a.day_index === null).length
+          }
+          map={<TripMap trip={trip} bare />}
+          onOpen={handleOpenActivity}
+          onSchedule={handleScheduleOnDay}
+          onMove={handleMoveWithinDay}
+          onEditTime={handleAssignOrEdit}
+          onUnschedule={handleMoveToUnscheduled}
+          onRemove={handleRemove}
+          onBrowse={addFromCurated}
+        />
+      </Suspense>
+    ) : null;
 
-          {/* Final vote tallies stay visible after voting closes, as
+  return (
+    <>
+      {page ?? (
+        <>
+          <TripHeader
+            trip={trip}
+            isPast={isPast}
+            isVoting={isVoting}
+            isCreator={isCreator}
+            editing={editingHeader}
+            onEdit={() => setEditingHeader(true)}
+            onCancelEdit={() => setEditingHeader(false)}
+            onSave={(input) => void handleSaveHeader(input)}
+            onMarkPast={() => setMarkPastOpen(true)}
+            onDelete={() => setConfirmingDelete(true)}
+            onRevert={() => setConfirmingRevert(true)}
+          />
+
+          {shared}
+
+          <div className="mx-auto max-w-screen-2xl pt-md px-margin">{membersStrip}</div>
+
+          {isVoting ? (
+            votingView
+          ) : (
+            <section className="mx-auto max-w-screen-2xl space-y-md py-md px-margin md:space-y-lg md:py-lg">
+              <TripMap trip={trip} />
+
+              <div className="flex flex-wrap items-center justify-between gap-md">
+                <h2 className="font-headline-md text-headline-md text-on-surface">Itinerary</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isPast) return;
+                    void navigate('/', {
+                      state: {
+                        target_trip_id: trip.id,
+                        target_trip_title: trip.title,
+                      },
+                    });
+                  }}
+                  disabled={isPast}
+                  title={isPast ? PAST_TOOLTIP : undefined}
+                  className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span
+                    className="material-symbols-outlined text-icon-md"
+                    style={{ marginLeft: glyphBleed('add') }}
+                  >
+                    add
+                  </span>
+                  Add activity
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-gutter lg:grid-cols-3">
+                <div className="space-y-md lg:col-span-2">
+                  {buckets.map((bucket) => (
+                    <DaySection
+                      key={bucket.dayIndex}
+                      trip={trip}
+                      bucket={bucket}
+                      isPast={isPast}
+                      onDropOnDay={handleDropOnDay(bucket.dayIndex)}
+                      onEditTime={(a) => handleAssignOrEdit(a)}
+                      onMoveToUnscheduled={(a) => handleMoveToUnscheduled(a)}
+                      onRemove={(a) => handleRemove(a)}
+                      onOpen={handleOpenActivity}
+                    />
+                  ))}
+                </div>
+                {unscheduledPanel}
+              </div>
+
+              {/* Final vote tallies stay visible after voting closes, as
               historical context (#51). */}
-          <VotingResults trip={trip} onOpen={handleOpenActivity} />
-        </section>
+              <VotingResults trip={trip} onOpen={handleOpenActivity} />
+            </section>
+          )}
+        </>
       )}
-
       {slotDialog && trip && (
         <SlotDialog
           state={slotDialog}
@@ -839,29 +936,6 @@ function TripHeader({
     description: trip.description ?? '',
     cover_image_url: trip.cover_image_url ?? '',
   });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close the overflow menu on outside click or Escape — matches the
-  // AddToTripDropdown pattern.
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onDocClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenuOpen(false);
-    }
-    document.addEventListener('click', onDocClick, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('click', onDocClick, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [menuOpen]);
-
   if (editing) {
     return (
       <section className="border-b border-outline-variant/20 bg-surface-container-low py-lg px-margin">
@@ -982,67 +1056,134 @@ function TripHeader({
           >
             Edit
           </button>
-          <div ref={menuRef} className="relative">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen((v) => !v);
-              }}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label="More trip actions"
-              className="inline-flex size-11 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant md:size-9"
-            >
-              <span className="material-symbols-outlined">more_horiz</span>
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 z-10 mt-xs w-56 max-w-[calc(100vw-2*var(--spacing-gutter))] overflow-hidden rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg">
-                {!isPast && !isVoting && (
-                  <MenuItem
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onRevert();
-                    }}
-                    disabled={!isCreator}
-                    tooltip={!isCreator ? 'Only the trip creator can reopen voting' : undefined}
-                  >
-                    Reopen voting…
-                  </MenuItem>
-                )}
-                <MenuItem
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onMarkPast();
-                  }}
-                  disabled={isPast || !isCreator}
-                  tooltip={
-                    isPast
-                      ? 'Already past'
-                      : !isCreator
-                        ? 'Only the trip creator can mark a trip past'
-                        : undefined
-                  }
-                >
-                  Mark as past…
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onDelete();
-                  }}
-                  disabled={!isCreator}
-                  tooltip={!isCreator ? 'Only the trip creator can delete this trip' : undefined}
-                  destructive
-                >
-                  Delete trip…
-                </MenuItem>
-              </div>
-            )}
-          </div>
+          <TripMenu
+            isPast={isPast}
+            isVoting={isVoting}
+            isCreator={isCreator}
+            onMarkPast={onMarkPast}
+            onDelete={onDelete}
+            onRevert={onRevert}
+          />
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * The trip's ••• menu: reopen voting, mark past, delete, each the creator's
+ * (#51). On a phone, where the header has no Edit button, it leads with
+ * Edit trip (#294).
+ */
+export function TripMenu({
+  isPast,
+  isVoting,
+  isCreator,
+  onEdit,
+  onMarkPast,
+  onDelete,
+  onRevert,
+}: {
+  isPast: boolean;
+  isVoting: boolean;
+  isCreator: boolean;
+  onEdit?: () => void;
+  onMarkPast: () => void;
+  onDelete: () => void;
+  onRevert: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the overflow menu on outside click or Escape — matches the
+  // AddToTripDropdown pattern.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocClick, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setMenuOpen((v) => !v);
+        }}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-label="More trip actions"
+        className="inline-flex size-11 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant md:size-9"
+      >
+        <span className="material-symbols-outlined">more_horiz</span>
+      </button>
+      {menuOpen && (
+        <div className="absolute right-0 z-10 mt-xs w-56 max-w-[calc(100vw-2*var(--spacing-gutter))] overflow-hidden rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg">
+          {onEdit && (
+            <MenuItem
+              onClick={() => {
+                setMenuOpen(false);
+                onEdit();
+              }}
+            >
+              Edit trip…
+            </MenuItem>
+          )}
+          {!isPast && !isVoting && (
+            <MenuItem
+              onClick={() => {
+                setMenuOpen(false);
+                onRevert();
+              }}
+              disabled={!isCreator}
+              tooltip={!isCreator ? 'Only the trip creator can reopen voting' : undefined}
+            >
+              Reopen voting…
+            </MenuItem>
+          )}
+          <MenuItem
+            onClick={() => {
+              setMenuOpen(false);
+              onMarkPast();
+            }}
+            disabled={isPast || !isCreator}
+            tooltip={
+              isPast
+                ? 'Already past'
+                : !isCreator
+                  ? 'Only the trip creator can mark a trip past'
+                  : undefined
+            }
+          >
+            Mark as past…
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setMenuOpen(false);
+              onDelete();
+            }}
+            disabled={!isCreator}
+            tooltip={!isCreator ? 'Only the trip creator can delete this trip' : undefined}
+            destructive
+          >
+            Delete trip…
+          </MenuItem>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1416,35 +1557,5 @@ function ConfirmDialog({
         </button>
       </div>
     </ModalShell>
-  );
-}
-
-function ModalShell({
-  title,
-  onCancel,
-  children,
-}: {
-  title: string;
-  onCancel: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center py-md px-margin">
-      <button
-        type="button"
-        aria-label="Close dialog"
-        onClick={onCancel}
-        className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="relative max-h-[calc(100dvh-2*var(--spacing-md))] w-full max-w-2xl space-y-md overflow-y-auto overscroll-contain rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-md shadow-xl md:p-lg"
-      >
-        <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
-        {children}
-      </div>
-    </div>
   );
 }

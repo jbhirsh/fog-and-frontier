@@ -3279,6 +3279,57 @@ function slotUpdateArgs(): unknown {
   return (call?.[0] as { args: unknown[] } | undefined)?.args;
 }
 
+describe('Mutation.setStartTimes (#294)', () => {
+  const SET =
+    'mutation($i: SetStartTimesInput!){ setStartTimes(input:$i){ tripActivities { id startTime } } }';
+  const times = [
+    { taId: 'ta1', startTime: '13:00' },
+    { taId: 'ta2', startTime: '09:00' },
+  ];
+
+  it('is for the trip’s members only', async () => {
+    setup({ trip: tripRow({ status: 'planning' }), members: new Set() });
+    const r = await run(SET, { i: { tripId: 'trip1', times } }, OWNER);
+    expect(r.errors).toBeDefined();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('refuses while voting', async () => {
+    setup({ trip: tripRow({ status: 'voting' }) });
+    const r = await run(SET, { i: { tripId: 'trip1', times } }, OWNER);
+    expect(appCode(r)).toBe('voting_locked');
+  });
+
+  it('refuses places not on the trip', async () => {
+    setup({ trip: tripRow({ status: 'planning' }) });
+    const r = await run(SET, { i: { tripId: 'trip1', times } }, OWNER);
+    expect(code(r)).toBe('NOT_FOUND');
+  });
+
+  it('writes the times together and hands back the places', async () => {
+    setup({ trip: tripRow({ status: 'planning' }) });
+    execute.mockImplementation((q: unknown) => {
+      const sql = typeof q === 'string' ? q : (q as { sql: string }).sql;
+      if (/FROM trip_activities WHERE trip_id = \? AND id IN/.test(sql)) {
+        return Promise.resolve({
+          rows: [
+            taRow({ id: 'ta1', day_index: 0, start_time: '09:00' }),
+            taRow({ id: 'ta2', day_index: 0, start_time: '13:00' }),
+          ],
+        });
+      }
+      return Promise.resolve(routeExecute(q));
+    });
+    const r = await run(SET, { i: { tripId: 'trip1', times } }, OWNER);
+    expect(r.errors).toBeUndefined();
+    expect((r.data?.setStartTimes as Row).tripActivities).toEqual([
+      { id: 'ta1', startTime: '13:00' },
+      { id: 'ta2', startTime: '09:00' },
+    ]);
+    expect(batch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('Mutation.assignSlot / setDisplayOrder', () => {
   it('unknown candidate → NOT_FOUND', async () => {
     setup({ tripActivityRow: null });

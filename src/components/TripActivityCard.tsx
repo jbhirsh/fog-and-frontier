@@ -68,11 +68,11 @@ export function TripActivityCard({
             onClick={onOpen}
             className="flex w-full gap-md rounded-lg text-left hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
           >
-            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} wrap />
           </button>
         ) : (
           <div className="flex gap-md">
-            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} />
+            <TripCardBody cover={cover} name={name} cityLine={cityLine} orphaned={orphaned} wrap />
           </div>
         )}
         <div className="flex flex-wrap gap-xs">

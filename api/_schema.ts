@@ -530,6 +530,15 @@ export const typeDefs = /* GraphQL */ `
     startTime: LocalTime
     displayOrder: Int
   }
+  input StartTimeInput {
+    taId: ID!
+    startTime: LocalTime!
+  }
+  "New start times for places on a trip's days (#294), written together."
+  input SetStartTimesInput {
+    tripId: ID!
+    times: [StartTimeInput!]!
+  }
   input SetDisplayOrderInput {
     taId: ID!
     displayOrder: Int!
@@ -642,6 +651,9 @@ export const typeDefs = /* GraphQL */ `
   type AssignSlotPayload {
     tripActivity: TripActivity!
   }
+  type SetStartTimesPayload {
+    tripActivities: [TripActivity!]!
+  }
   type SetDisplayOrderPayload {
     tripActivity: TripActivity!
   }
@@ -717,6 +729,7 @@ export const typeDefs = /* GraphQL */ `
     deleteTrip(input: DeleteTripInput!): DeleteTripPayload!
     addTripActivity(input: AddTripActivityInput!): AddTripActivityPayload!
     assignSlot(input: AssignSlotInput!): AssignSlotPayload!
+    setStartTimes(input: SetStartTimesInput!): SetStartTimesPayload!
     setDisplayOrder(input: SetDisplayOrderInput!): SetDisplayOrderPayload!
     removeTripActivity(input: RemoveTripActivityInput!): RemoveTripActivityPayload!
     castVote(input: CastVoteInput!): CastVotePayload!

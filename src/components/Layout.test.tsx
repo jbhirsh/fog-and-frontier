@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './Layout';
 
@@ -73,9 +73,28 @@ describe('Layout', () => {
     renderAt('/trips');
     expect(screen.getAllByText('Fog and Frontier').length).toBeGreaterThan(0);
     expect(screen.getByText(/Inspired by the Pacific Coast/)).toBeInTheDocument();
-    // A phone's tab bar keeps the home indicator clear, so the footer doesn't.
-    expect(screen.getByRole('contentinfo')).toHaveClass('py-md');
+    // From md up only: on a phone the tab bar is the page's foot.
+    expect(screen.getByRole('contentinfo')).toHaveClass('hidden', 'md:block');
     expect(screen.getByRole('contentinfo').className).not.toMatch(/safe-area/);
+  });
+
+  it('steps its bar aside on a phone only while a trip’s own header is up', () => {
+    // Not by path: /trips/new, and a trip still loading or asking to sign
+    // in, have no header of their own.
+    for (const path of ['/trips/new', '/trips/t1', '/']) {
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="*" element={<div>page</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(screen.getByRole('banner')).toHaveClass('in-data-own-header:max-md:hidden');
+      expect(screen.getByRole('banner')).not.toHaveClass('max-md:hidden');
+      cleanup();
+    }
   });
 
   // Explore is an owner-only surface (#111): hidden, not greyed out.

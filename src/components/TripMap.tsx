@@ -26,6 +26,12 @@ function colorForDay(dayIndex: number): string {
 
 type Props = {
   trip: Trip;
+  /**
+   * A phone's Map tab (#294): the map alone, every day's places on it, each
+   * pin numbered by its day, and as tall as the screen allows. The day tabs,
+   * "Show all days" and the colour key are the wider layout's.
+   */
+  bare?: boolean;
 };
 
 type DayBucket = {
@@ -33,7 +39,7 @@ type DayBucket = {
   activities: TripActivity[];
 };
 
-export function TripMap({ trip }: Props) {
+export function TripMap({ trip, bare = false }: Props) {
   const total = dayCount(trip);
   const buckets = useMemo<DayBucket[]>(() => {
     const out: DayBucket[] = [];
@@ -48,7 +54,8 @@ export function TripMap({ trip }: Props) {
     return out;
   }, [trip, total]);
 
-  const [showAll, setShowAll] = useState(false);
+  const [showAllChosen, setShowAll] = useState(false);
+  const showAll = bare || showAllChosen;
   const [activeDay, setActiveDay] = useState(0);
   const safeActiveDay = Math.min(activeDay, total - 1);
 
@@ -61,7 +68,7 @@ export function TripMap({ trip }: Props) {
 
   return (
     <div className="space-y-md">
-      <div className="flex flex-wrap items-center gap-md">
+      <div className={bare ? 'hidden' : 'flex flex-wrap items-center gap-md'}>
         <div className="flex gap-xs overflow-x-auto" role="tablist" aria-label="Itinerary day">
           {buckets.map((b) => {
             const selected = !showAll && b.dayIndex === safeActiveDay;
@@ -100,7 +107,13 @@ export function TripMap({ trip }: Props) {
         </label>
       </div>
 
-      <div className="flex min-h-[400px] flex-col overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm">
+      {/* isolate: Leaflet's panes stack inside the map, under the phone's tab
+          bar, rather than over it. */}
+      <div
+        className={`relative isolate flex flex-col overflow-hidden rounded-xl border border-outline-variant/30 shadow-sm ${
+          bare ? 'h-[calc(100dvh-var(--tab-bar)-17rem)] min-h-80' : 'min-h-[400px]'
+        }`}
+      >
         <MapContainer
           center={[HOME_LOCATION.coords.lat, HOME_LOCATION.coords.lng]}
           zoom={8}
@@ -136,7 +149,7 @@ export function TripMap({ trip }: Props) {
         </MapContainer>
       </div>
 
-      {showAll && (
+      {showAll && !bare && (
         <div className="flex flex-wrap gap-md text-xs text-on-surface-variant">
           {buckets.map((b) => (
             <span key={b.dayIndex} className="flex items-center gap-xs">

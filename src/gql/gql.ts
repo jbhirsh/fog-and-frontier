@@ -44,6 +44,7 @@ type Documents = {
     "\n  mutation DeleteTrip($input: DeleteTripInput!) {\n    deleteTrip(input: $input) {\n      deletedId\n    }\n  }\n": typeof types.DeleteTripDocument,
     "\n  mutation AddTripActivity($input: AddTripActivityInput!) {\n    addTripActivity(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n": typeof types.AddTripActivityDocument,
     "\n  mutation AssignSlot($input: AssignSlotInput!) {\n    assignSlot(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n": typeof types.AssignSlotDocument,
+    "\n  mutation SetStartTimes($input: SetStartTimesInput!) {\n    setStartTimes(input: $input) {\n      tripActivities {\n        id\n      }\n    }\n  }\n": typeof types.SetStartTimesDocument,
     "\n  mutation SetDisplayOrder($input: SetDisplayOrderInput!) {\n    setDisplayOrder(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n": typeof types.SetDisplayOrderDocument,
     "\n  mutation RemoveTripActivity($input: RemoveTripActivityInput!) {\n    removeTripActivity(input: $input) {\n      deletedId\n    }\n  }\n": typeof types.RemoveTripActivityDocument,
     "\n  mutation CastVote($input: CastVoteInput!) {\n    castVote(input: $input) {\n      vote {\n        __typename\n        tripActivityId\n        memberEmail\n        value\n      }\n    }\n  }\n": typeof types.CastVoteDocument,
@@ -85,6 +86,7 @@ const documents: Documents = {
     "\n  mutation DeleteTrip($input: DeleteTripInput!) {\n    deleteTrip(input: $input) {\n      deletedId\n    }\n  }\n": types.DeleteTripDocument,
     "\n  mutation AddTripActivity($input: AddTripActivityInput!) {\n    addTripActivity(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n": types.AddTripActivityDocument,
     "\n  mutation AssignSlot($input: AssignSlotInput!) {\n    assignSlot(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n": types.AssignSlotDocument,
+    "\n  mutation SetStartTimes($input: SetStartTimesInput!) {\n    setStartTimes(input: $input) {\n      tripActivities {\n        id\n      }\n    }\n  }\n": types.SetStartTimesDocument,
     "\n  mutation SetDisplayOrder($input: SetDisplayOrderInput!) {\n    setDisplayOrder(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n": types.SetDisplayOrderDocument,
     "\n  mutation RemoveTripActivity($input: RemoveTripActivityInput!) {\n    removeTripActivity(input: $input) {\n      deletedId\n    }\n  }\n": types.RemoveTripActivityDocument,
     "\n  mutation CastVote($input: CastVoteInput!) {\n    castVote(input: $input) {\n      vote {\n        __typename\n        tripActivityId\n        memberEmail\n        value\n      }\n    }\n  }\n": types.CastVoteDocument,
@@ -230,6 +232,10 @@ export function graphql(source: "\n  mutation AddTripActivity($input: AddTripAct
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation AssignSlot($input: AssignSlotInput!) {\n    assignSlot(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation AssignSlot($input: AssignSlotInput!) {\n    assignSlot(input: $input) {\n      tripActivity {\n        id\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetStartTimes($input: SetStartTimesInput!) {\n    setStartTimes(input: $input) {\n      tripActivities {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation SetStartTimes($input: SetStartTimesInput!) {\n    setStartTimes(input: $input) {\n      tripActivities {\n        id\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

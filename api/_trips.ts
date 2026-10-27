@@ -1022,6 +1022,52 @@ export async function patchTripActivity(
   return updated;
 }
 
+/** At most this many start times in one setStartTimes. */
+export const MAX_START_TIMES = 50;
+
+/**
+ * New start times for places already on a trip's days (#294), written in one
+ * batch: a move swaps two places' times, and half a swap would leave them
+ * sharing one. Every place must be on this trip and on a day; the trip must
+ * be planning (not voting, not past).
+ */
+export async function setStartTimes(
+  trip: TripRow,
+  times: readonly { taId: string; startTime: string }[],
+): Promise<TripActivity[]> {
+  if (trip.status === 'past') throw conflict('trip is past', 'trip_past');
+  if (trip.status === 'voting') {
+    throw conflict('voting in progress — finalize to start scheduling', 'voting_locked');
+  }
+  if (times.length === 0 || times.length > MAX_START_TIMES) {
+    throw badInput(`between 1 and ${MAX_START_TIMES} start times`);
+  }
+  const ids = times.map((t) => t.taId);
+  if (new Set(ids).size !== ids.length) throw badInput('a place is listed twice');
+  if (!times.every((t) => isHHMM(t.startTime))) throw badInput('startTime must be HH:MM');
+  const marks = ids.map(() => '?').join(', ');
+  const rs = await db().execute({
+    sql: `SELECT * FROM trip_activities WHERE trip_id = ? AND id IN (${marks})`,
+    args: [trip.id, ...ids],
+  });
+  const found = rs.rows.map(rowToTripActivity);
+  if (found.length !== ids.length) throw notFound('not found');
+  if (found.some((ta) => ta.day_index === null)) {
+    throw badInput('only a place on a day has a start time');
+  }
+  // Still on a day as it's written: one taken off the plan since the read
+  // above keeps no time.
+  await db().batch(
+    times.map((t) => ({
+      sql: 'UPDATE trip_activities SET start_time = ? WHERE id = ? AND trip_id = ? AND day_index IS NOT NULL',
+      args: [t.startTime, t.taId, trip.id],
+    })),
+    'write',
+  );
+  const byId = new Map(times.map((t) => [t.taId, t.startTime]));
+  return found.map((ta) => ({ ...ta, start_time: byId.get(ta.id) ?? ta.start_time }));
+}
+
 // Remove a candidate. Only the member who added it, or the trip creator, may
 // remove it (#51). Cascade: drop the row and any votes on it in one tx.
 export async function removeCandidate(

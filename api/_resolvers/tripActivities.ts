@@ -6,6 +6,7 @@ import {
   getTripRow,
   patchTripActivity,
   removeCandidate,
+  setStartTimes as writeStartTimes,
 } from '../_trips.js';
 import { requireMemberCtx, type GqlContext } from '../_gqlContext.js';
 
@@ -84,9 +85,23 @@ async function removeTripActivity(
   return { deletedId: input.taId };
 }
 
+// A day's places retimed together (#294), so a swap lands whole or not at all.
+async function setStartTimes(
+  _parent: unknown,
+  { input }: { input: { tripId: string; times: { taId: string; startTime: string }[] } },
+  ctx: GqlContext,
+) {
+  await requireMemberCtx(ctx, input.tripId);
+  const trip = await getTripRow(input.tripId);
+  if (!trip) throw notFound('trip not found');
+  const updated = await writeStartTimes(trip, input.times);
+  return { tripActivities: updated.map(mapTripActivity) };
+}
+
 export const tripActivitiesMutation = {
   addTripActivity,
   assignSlot,
+  setStartTimes,
   setDisplayOrder,
   removeTripActivity,
 };

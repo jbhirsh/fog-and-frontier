@@ -12,7 +12,8 @@ const { execute, batch } = vi.hoisted(() => ({
 
 vi.mock('./_db.js', () => ({ db: () => ({ execute, batch }) }));
 
-const { transitionToPast, createTrip, patchTrip } = await import('./_trips.js');
+const { transitionToPast, createTrip, patchTrip, setStartTimes, MAX_START_TIMES } =
+  await import('./_trips.js');
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -221,5 +222,117 @@ describe('patchTrip (atomic)', () => {
     expect(stmts).toHaveLength(2);
     expect(stmts.some((s) => /UPDATE trips SET/.test(s.sql))).toBe(true);
     expect(stmts.some((s) => /UPDATE trip_activities/.test(s.sql))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setStartTimes (#294) — a move swaps two places' times; both land in ONE
+// write batch, so a failure never leaves them sharing one.
+// ---------------------------------------------------------------------------
+
+describe('setStartTimes (atomic)', () => {
+  afterEach(() => {
+    execute.mockReset();
+    batch.mockReset();
+  });
+
+  function onDay(id: string, start_time: string, day_index: number | null = 0) {
+    return {
+      id,
+      trip_id: TRIP_ID,
+      activity_id: id,
+      snapshot_json: '{}',
+      added_by_email: EDITOR_EMAIL,
+      added_at: 1,
+      day_index,
+      start_time,
+      display_order: 0,
+    };
+  }
+
+  it('writes every new time in a single batch, only for this trip', async () => {
+    execute.mockResolvedValueOnce({ rows: [onDay('a', '09:00'), onDay('b', '13:00')] });
+    batch.mockResolvedValueOnce([]);
+    const updated = await setStartTimes(tripRow, [
+      { taId: 'a', startTime: '13:00' },
+      { taId: 'b', startTime: '09:00' },
+    ]);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0][0]).toEqual({
+      sql: 'SELECT * FROM trip_activities WHERE trip_id = ? AND id IN (?, ?)',
+      args: [TRIP_ID, 'a', 'b'],
+    });
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch.mock.calls[0]).toEqual([
+      [
+        {
+          sql: 'UPDATE trip_activities SET start_time = ? WHERE id = ? AND trip_id = ? AND day_index IS NOT NULL',
+          args: ['13:00', 'a', TRIP_ID],
+        },
+        {
+          sql: 'UPDATE trip_activities SET start_time = ? WHERE id = ? AND trip_id = ? AND day_index IS NOT NULL',
+          args: ['09:00', 'b', TRIP_ID],
+        },
+      ],
+      'write',
+    ]);
+    expect(updated.map((ta) => [ta.id, ta.start_time])).toEqual([
+      ['a', '13:00'],
+      ['b', '09:00'],
+    ]);
+  });
+
+  it.each([
+    ['past', 'trip_past'],
+    ['voting', 'voting_locked'],
+  ] as const)('refuses a %s trip before touching the db', async (status, appCode) => {
+    await expect(
+      setStartTimes({ ...tripRow, status }, [{ taId: 'a', startTime: '09:00' }]),
+    ).rejects.toMatchObject({ extensions: { code: 'CONFLICT', appCode } });
+    expect(execute).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['none', []],
+    [
+      'too many',
+      Array.from({ length: MAX_START_TIMES + 1 }, (_, i) => ({
+        taId: `t${i}`,
+        startTime: '09:00',
+      })),
+    ],
+    [
+      'a place twice',
+      [
+        { taId: 'a', startTime: '09:00' },
+        { taId: 'a', startTime: '10:00' },
+      ],
+    ],
+    ['a time that isn’t one', [{ taId: 'a', startTime: '9am' }]],
+  ])('refuses %s, writing nothing', async (_label, times) => {
+    await expect(setStartTimes(tripRow, times)).rejects.toMatchObject({
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('refuses a place not on this trip, writing nothing', async () => {
+    execute.mockResolvedValueOnce({ rows: [onDay('a', '09:00')] });
+    await expect(
+      setStartTimes(tripRow, [
+        { taId: 'a', startTime: '10:00' },
+        { taId: 'elsewhere', startTime: '09:00' },
+      ]),
+    ).rejects.toMatchObject({ extensions: { code: 'NOT_FOUND' } });
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('refuses a place on no day, writing nothing', async () => {
+    execute.mockResolvedValueOnce({ rows: [onDay('a', '09:00', null)] });
+    await expect(setStartTimes(tripRow, [{ taId: 'a', startTime: '10:00' }])).rejects.toMatchObject(
+      { extensions: { code: 'BAD_USER_INPUT' } },
+    );
+    expect(batch).not.toHaveBeenCalled();
   });
 });
