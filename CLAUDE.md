@@ -15,7 +15,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run codegen` — `graphql-codegen` → typed GraphQL operations in `src/gql/`.
 - `npm run lint` — ESLint flat config.
 - `npm run typecov` — type-coverage over `tsconfig.app.json` and `tsconfig.api.json`: fails on any identifier typed `any`, and names it.
-- `npm run format` / `format:check` — Prettier over the whole repo (`.prettierrc.json`: single quotes, 100 columns; `.prettierignore` leaves out the lockfile, `src/gql/`, `patches/` and `public/`).
+- `npm run format` / `format:check` — Prettier over the whole repo (`.prettierrc.json`: single quotes, 100 columns; `.prettierignore` leaves out the lockfile, `src/gql/` and `public/`).
 - `npm test` / `test:watch` / `test:coverage` — Vitest.
 - `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
 - `npm run test:visual` — Playwright visual regression: the desktop pages in Chromium, Firefox and WebKit (`desktop`, `desktop-firefox`, `desktop-webkit`) and the mobile ones on an iPhone (WebKit), each against its own Linux baselines. Baselines come from CI, not a laptop (fonts differ): run `visual.yml` by hand with `update_snapshots` on the branch, which commits them there.
@@ -156,7 +156,7 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   each test states what must hold for all of it (never throws, reads back
   what it wrote, stays in range). A failure prints its seed and the smallest
   counterexample; fix the code, or the property if it claimed too much.
-- **Mutation testing checks the assertions.** A PR's run mutates only the lines it changed in the files the `mutate` globs in `stryker.config.json` cover, and fails below the `break` score; a monthly sweep (8 parallel shards) covers everything. `mutation.yml` calls jbhirsh/ci's `mutation` tool, whose module headers say what counts as a change, when Stryker is skipped and how results are cached; this repo's settings for it are the `mutation` key of `.github/ci.json`. A surviving mutant means a missing assertion: add the test, or delete the code if it can never matter. The globs mirror the coverage scope in `vite.config.ts`, backlog included, and `src/test/mutationScope.test.ts` fails if the two drift apart. `patches/` holds a `patch-package` fix that makes Stryker's vitest runner name tests the way Vitest 5 matches them (stryker-js#6210); the runner is pinned to 10.0.0 so a release can't break it. Delete the patch and unpin once a Stryker release carries the fix.
+- **Mutation testing checks the assertions.** A PR's run mutates only the lines it changed in the files the `mutate` globs in `stryker.config.json` cover, and fails below the `break` score; a monthly sweep (8 parallel shards) covers everything. `mutation.yml` calls jbhirsh/ci's `mutation` tool, whose module headers say what counts as a change, when Stryker is skipped and how results are cached; this repo's settings for it are the `mutation` key of `.github/ci.json`. A surviving mutant means a missing assertion: add the test, or delete the code if it can never matter. The globs mirror the coverage scope in `vite.config.ts`, backlog included, and `src/test/mutationScope.test.ts` fails if the two drift apart.
 - **Prettier formats everything** (code, CSS, Markdown, YAML, JSON); ESLint
   checks correctness only, and `eslint-config-prettier`, last in the flat
   config, turns off any rule that would argue with it. CI's "Format
