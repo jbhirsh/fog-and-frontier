@@ -596,7 +596,7 @@ export function CuratedAdventures() {
   const gridItems = shown.flatMap((a, i) => {
     const held = nested.subItems.get(a.id);
     const item = held ? (
-      <div key={a.id} className="flex flex-col gap-sm">
+      <div key={a.id} className="flex flex-col md:gap-sm">
         {card(a)}
         <ParkBar
           park={a}
