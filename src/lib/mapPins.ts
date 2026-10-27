@@ -1,4 +1,4 @@
-import L from 'leaflet';
+import * as L from 'leaflet';
 import type { Category } from '../data/types';
 import { isWithinBounds, type MapBounds } from './mapBounds';
 import { GROUP_MAX_SIZE, groupSize } from './pinGroups';

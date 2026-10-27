@@ -3,7 +3,8 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
-import importPlugin from 'eslint-plugin-import';
+import { importX } from 'eslint-plugin-import-x';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 import tseslint from 'typescript-eslint';
@@ -79,8 +80,8 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
       jsxA11y.flatConfigs.recommended,
-      importPlugin.flatConfigs.recommended,
-      importPlugin.flatConfigs.typescript,
+      importX.flatConfigs.recommended,
+      importX.flatConfigs.typescript,
     ],
     plugins: {
       'better-tailwindcss': betterTailwindcss,
@@ -93,17 +94,17 @@ export default defineConfig([
       },
     },
     settings: {
-      'import/resolver': {
-        typescript: { project: './tsconfig.app.json' },
-      },
+      'import-x/resolver-next': [
+        createTypeScriptImportResolver({ project: './tsconfig.app.json' }),
+      ],
       'better-tailwindcss': {
         entryPoint: 'src/index.css',
       },
     },
     rules: {
-      'import/no-cycle': ['error', { ignoreExternal: true }],
-      'import/no-unresolved': ['error', { ignore: ['^virtual:'] }],
-      'import/no-named-as-default-member': 'off',
+      'import-x/no-cycle': ['error', { ignoreExternal: true }],
+      'import-x/no-unresolved': ['error', { ignore: ['^virtual:'] }],
+      'import-x/no-named-as-default-member': 'off',
       'better-tailwindcss/no-conflicting-classes': 'error',
       'better-tailwindcss/no-duplicate-classes': 'error',
       // Plain CSS classes, not utilities: the icon font's (src/index.css)
@@ -132,8 +133,8 @@ export default defineConfig([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommendedTypeChecked,
-      importPlugin.flatConfigs.recommended,
-      importPlugin.flatConfigs.typescript,
+      importX.flatConfigs.recommended,
+      importX.flatConfigs.typescript,
     ],
     languageOptions: {
       globals: globals.node,
@@ -143,15 +144,15 @@ export default defineConfig([
       },
     },
     settings: {
-      'import/resolver': {
-        // api/*.ts imports siblings with a `.js` extension (NodeNext-style),
-        // which the TS resolver handles automatically.
-        typescript: { project: './tsconfig.api.json' },
-      },
+      // api/*.ts imports siblings with a `.js` extension (NodeNext-style),
+      // which the TS resolver handles automatically.
+      'import-x/resolver-next': [
+        createTypeScriptImportResolver({ project: './tsconfig.api.json' }),
+      ],
     },
     rules: {
-      'import/no-cycle': ['error', { ignoreExternal: true }],
-      'import/no-named-as-default-member': 'off',
+      'import-x/no-cycle': ['error', { ignoreExternal: true }],
+      'import-x/no-named-as-default-member': 'off',
     },
   },
 
@@ -176,8 +177,8 @@ export default defineConfig([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommendedTypeChecked,
-      importPlugin.flatConfigs.recommended,
-      importPlugin.flatConfigs.typescript,
+      importX.flatConfigs.recommended,
+      importX.flatConfigs.typescript,
     ],
     languageOptions: {
       globals: globals.node,
@@ -187,15 +188,15 @@ export default defineConfig([
       },
     },
     settings: {
-      'import/resolver': {
-        // eval/*.ts imports siblings with a `.js` extension (NodeNext-style),
-        // which the TS resolver handles automatically.
-        typescript: { project: './tsconfig.eval.json' },
-      },
+      // eval/*.ts imports siblings with a `.js` extension (NodeNext-style),
+      // which the TS resolver handles automatically.
+      'import-x/resolver-next': [
+        createTypeScriptImportResolver({ project: './tsconfig.eval.json' }),
+      ],
     },
     rules: {
-      'import/no-cycle': ['error', { ignoreExternal: true }],
-      'import/no-named-as-default-member': 'off',
+      'import-x/no-cycle': ['error', { ignoreExternal: true }],
+      'import-x/no-named-as-default-member': 'off',
     },
   },
 
@@ -208,8 +209,8 @@ export default defineConfig([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommendedTypeChecked,
-      importPlugin.flatConfigs.recommended,
-      importPlugin.flatConfigs.typescript,
+      importX.flatConfigs.recommended,
+      importX.flatConfigs.typescript,
     ],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
@@ -219,13 +220,13 @@ export default defineConfig([
       },
     },
     settings: {
-      'import/resolver': {
-        typescript: { project: './tsconfig.scripts.json' },
-      },
+      'import-x/resolver-next': [
+        createTypeScriptImportResolver({ project: './tsconfig.scripts.json' }),
+      ],
     },
     rules: {
-      'import/no-cycle': ['error', { ignoreExternal: true }],
-      'import/no-named-as-default-member': 'off',
+      'import-x/no-cycle': ['error', { ignoreExternal: true }],
+      'import-x/no-named-as-default-member': 'off',
     },
   },
 

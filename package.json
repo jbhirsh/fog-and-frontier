@@ -87,7 +87,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-better-tailwindcss": "^4.10.0",
-    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-jsdoc": "^65.4.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -112,13 +112,10 @@
     "vitest-axe": "^0.1.0"
   },
   "//overrides": [
-    "eslint-plugin-import and eslint-plugin-jsx-a11y -> eslint: $eslint: neither has a release whose peer range includes ESLint 10. Delete each once one does (or move import to eslint-plugin-import-x, which already supports 10).",
-    "@vercel/cli-config -> zod ^4.6.6: lifts zod past GHSA-mrhx-c7xc-m3w5, which fails CI's npm audit, since every release of @vercel/cli-config (pulled in by @vercel/blob) pins zod 4.1.11. Delete it once a release pins a fixed zod."
+    "eslint-plugin-jsx-a11y -> eslint: $eslint: its latest release (6.10.2) peers eslint up to ^9, so without this npm install fails ERESOLVE against ESLint 10. Delete it once a release accepts ESLint 10.",
+    "@vercel/cli-config -> zod ^4.6.6: lifts zod past GHSA-mrhx-c7xc-m3w5 (high), which fails CI's npm audit --omit=dev --audit-level=high, since every release of @vercel/cli-config through 0.3.4 (pulled in by @vercel/blob via @vercel/oidc) pins zod 4.1.11. Delete it once a release pins a fixed zod."
   ],
   "overrides": {
-    "eslint-plugin-import": {
-      "eslint": "$eslint"
-    },
     "eslint-plugin-jsx-a11y": {
       "eslint": "$eslint"
     },
