@@ -1121,6 +1121,30 @@ describe('costTier (#85)', () => {
     },
   );
 
+  it('saves a dog rules page (#296)', async () => {
+    setup();
+    const dogs = 'https://www.parks.ca.gov/?page_id=518';
+    const r = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), dogFriendly: true, dogRulesUrl: dogs } } },
+      OWNER,
+    );
+    expect(r.errors).toBeUndefined();
+    expect(JSON.parse(executeWrites()[0]?.args[1] as string)).toMatchObject({ dogRulesUrl: dogs });
+  });
+
+  it('refuses a dog rules link that is no web page, writing nothing (#296)', async () => {
+    setup();
+    const refused = await run(
+      SAVE,
+      { i: { id: 'a1', activity: { ...minimalActivity(), dogRulesUrl: 'javascript:alert(1)' } } },
+      OWNER,
+    );
+    expect(code(refused)).toBe('BAD_USER_INPUT');
+    expect(refused.errors?.[0]?.message).toBe('dogRulesUrl must be a web address');
+    expect(executeWrites()).toEqual([]);
+  });
+
   it('saves card copy trimmed, an empty one as none (#295)', async () => {
     setup();
     const ok = await run(
@@ -2086,6 +2110,71 @@ describe('Gemini ops', () => {
       expect(body.generationConfig.responseJsonSchema.required).toContain('cardLine');
       expect(body.systemInstruction.parts[0].text).toContain('at most 50 characters');
       expect(body.systemInstruction.parts[0].text).toContain('over 40 characters');
+    });
+  });
+
+  describe('generateActivity: a draft’s dog rules page (#296)', () => {
+    const DRAFT = {
+      name: 'Mission Peak',
+      shortDescription: 'Steep climb to the Fremont skyline post',
+      category: 'hiking',
+      region: 'east-bay',
+      city: 'Fremont',
+      lat: 37.5126,
+      lng: -121.8805,
+      duration: 'Half Day',
+    };
+    const DOGS = 'https://www.ebparks.org/parks/mission-peak#dogs';
+    const RULES =
+      'mutation($i: GenerateActivityInput!){ generateActivity(input:$i){ activity { dogRulesUrl } } }';
+    const draftWith = async (fields: Record<string, unknown>) => {
+      setup();
+      stubFetch(geminiText(JSON.stringify({ ...DRAFT, ...fields })));
+      const r = await run(RULES, { i: { title: 'Mission Peak' } }, OWNER);
+      expect(r.errors).toBeUndefined();
+      return (r.data?.generateActivity as { activity: { dogRulesUrl: string | null } }).activity
+        .dogRulesUrl;
+    };
+
+    it('keeps the park’s own page for a dog-friendly place', async () => {
+      expect(await draftWith({ dogFriendly: true, dogRulesUrl: DOGS })).toBe(DOGS);
+    });
+
+    it('drops it for a place dogs aren’t welcome at, or not said to be', async () => {
+      expect(await draftWith({ dogFriendly: false, dogRulesUrl: DOGS })).toBeNull();
+      expect(await draftWith({ dogRulesUrl: DOGS })).toBeNull();
+    });
+
+    it('drops a listing site’s page, or a link that is no page', async () => {
+      expect(
+        await draftWith({
+          dogFriendly: true,
+          dogRulesUrl: 'https://www.bringfido.com/attraction/1234',
+        }),
+      ).toBeNull();
+      expect(
+        await draftWith({
+          dogFriendly: true,
+          dogRulesUrl: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/x',
+        }),
+      ).toBeNull();
+    });
+
+    it('asks Gemini for the page only when dogs are welcome', async () => {
+      setup();
+      stubFetch(geminiText(JSON.stringify(DRAFT)));
+      await run(RULES, { i: { title: 'Mission Peak' } }, OWNER);
+      const call = vi
+        .mocked(fetch)
+        .mock.calls.find(([url]) => typeof url === 'string' && url.includes('generativelanguage'));
+      const body = JSON.parse(call?.[1]?.body as string) as {
+        systemInstruction: { parts: { text: string }[] };
+        generationConfig: { responseJsonSchema: { properties: Record<string, unknown> } };
+      };
+      expect(body.generationConfig.responseJsonSchema.properties).toHaveProperty('dogRulesUrl');
+      expect(body.systemInstruction.parts[0].text).toContain(
+        '"dogRulesUrl", only when "dogFriendly" is true',
+      );
     });
   });
 

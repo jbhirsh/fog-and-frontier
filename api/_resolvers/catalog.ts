@@ -186,9 +186,10 @@ export function checkActivityInput(activity: ActivityInput): void {
   if (costTier != null && !COST_TIERS.has(costTier as string)) {
     throw badInput('costTier must be free, $, $$ or $$$');
   }
-  // Shown as a link, so a web page or nothing.
-  if (activity.sourceUrl != null && !isSavableUrl(activity.sourceUrl, null)) {
-    throw badInput('sourceUrl must be a web address');
+  // Shown as links, so a web page or nothing.
+  for (const field of ['sourceUrl', 'dogRulesUrl'] as const) {
+    const url = activity[field];
+    if (url != null && !isSavableUrl(url, null)) throw badInput(`${field} must be a web address`);
   }
   // Written to fit a phone's card (#295), never cut short there.
   checkCardCopy(activity);

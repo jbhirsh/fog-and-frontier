@@ -3,7 +3,7 @@ import { db } from '../_db.js';
 import { slugify } from '../_duplicates.js';
 import { badInput, conflict, forbidden, notFound } from '../_gqlError.js';
 import { mapCatalogActivity, parseCatalogActivity } from '../_gqlMap.js';
-import { keepSavableLinks } from '../_links.js';
+import { isDogRulesPage, keepSavableLinks } from '../_links.js';
 import { logServerError } from '../_log.js';
 import { requireOwnerCtx, requireUserCtx, type GqlContext } from '../_gqlContext.js';
 import { upsertUserStatement } from '../_trips.js';
@@ -45,9 +45,13 @@ async function suggestActivity(
   const id = randomUUID();
   // Credit is set on accept, and the catalog id chosen then too. Whether the
   // owners have done it is theirs to say, so completion is dropped, and so
-  // is which park it's part of (#269). Only real web pages are kept as links.
+  // is which park it's part of (#269). Only real web pages are kept as links,
+  // and a dog rules page (#296) only as a draft's is: for a place dogs are
+  // welcome at, on its own site rather than a listing of it.
+  const { dogFriendly, dogRulesUrl } = input.activity;
   const draft = keepSavableLinks({
     ...input.activity,
+    dogRulesUrl: dogFriendly === true && isDogRulesPage(dogRulesUrl) ? dogRulesUrl : null,
     completed: undefined,
     completedDate: undefined,
     contributors: undefined,

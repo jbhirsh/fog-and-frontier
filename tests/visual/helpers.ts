@@ -64,6 +64,7 @@ function toActivityRow(a: Activity) {
     reservationUrl: a.reservationUrl ?? null,
     menuUrl: a.menuUrl ?? null,
     sourceUrl: a.sourceUrl ?? null,
+    dogRulesUrl: a.dogRulesUrl ?? null,
     cardLine: a.cardLine ?? null,
     cardName: a.cardName ?? null,
     dietary: a.dietary ?? null,

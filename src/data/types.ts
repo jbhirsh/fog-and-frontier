@@ -59,6 +59,9 @@ export interface Activity {
   dietary?: string[];
   // Where it was found (#6): the Instagram post it was added from, say.
   sourceUrl?: string;
+  // For a dog-friendly place (#296), the page where it or its park gives its
+  // dog rules; the app shows them as a link, never as text.
+  dogRulesUrl?: string;
   // What its card shows on a phone (#295), written to fit and shown whole: a
   // line of at most 50 characters, and for a name over 40, a shorter one.
   cardLine?: string;

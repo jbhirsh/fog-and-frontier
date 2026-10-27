@@ -72,6 +72,7 @@ export function activityToInput(a: Activity) {
     menuUrl: a.menuUrl ?? null,
     dietary: a.dietary ?? null,
     sourceUrl: a.sourceUrl ?? null,
+    dogRulesUrl: a.dogRulesUrl ?? null,
     cardLine: a.cardLine ?? null,
     cardName: a.cardName ?? null,
     parentId: a.parentId ?? null,

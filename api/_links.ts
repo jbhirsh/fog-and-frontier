@@ -1,3 +1,5 @@
+import { isListingSite } from '../shared/dogRules.js';
+
 // Which links an activity may keep. A saved link has to be the real page:
 // an http(s) URL, never a Google grounding redirect, and for AllTrails a
 // trail page on alltrails.com. Gemini's drafts are held to it, and so are
@@ -9,6 +11,7 @@ export const LINK_HOSTS: Record<string, RegExp | null> = {
   reservationUrl: null,
   menuUrl: null,
   sourceUrl: null,
+  dogRulesUrl: null,
 };
 
 export function isSavableUrl(value: unknown, host: RegExp | null): boolean {
@@ -43,4 +46,17 @@ export function keepSavableLinks<T extends Record<string, unknown>>(activity: T)
     out.galleryImages = out.galleryImages.filter((u: unknown) => isSavableUrl(u, null));
   }
   return out as T;
+}
+
+/**
+ * Whether a drafted dog rules link (#296) can be kept: a page that could be
+ * saved, on a site that isn't a listing of places (the place's own, or its
+ * park's, rather than a review of it).
+ */
+export function isDogRulesPage(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    isSavableUrl(value, null) &&
+    !isListingSite(new URL(value).hostname)
+  );
 }

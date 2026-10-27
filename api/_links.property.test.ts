@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { LINK_HOSTS, isSavableUrl, keepSavableLinks } from './_links.js';
+import { LINK_HOSTS, isDogRulesPage, isSavableUrl, keepSavableLinks } from './_links.js';
 
 // Suggestions (#73) carry links written by people who aren't owners, so the
 // filter must hold for anything they send. Example tests are in
@@ -22,6 +22,7 @@ const activity = fc.record(
     allTrailsUrl: link,
     reservationUrl: link,
     menuUrl: link,
+    dogRulesUrl: link,
     coverImage: link,
     coverCredit: fc.option(fc.string()),
     galleryImages: fc.oneof(fc.array(link), link),
@@ -75,6 +76,28 @@ describe('keepSavableLinks, for any suggestion', () => {
           expect(new URL(value as string).protocol).toMatch(/^https?:$/);
         }
       }),
+    );
+  });
+});
+
+describe('isDogRulesPage (#296), for any value', () => {
+  it('keeps only a savable http(s) page', () => {
+    fc.assert(
+      fc.property(link, (value) => {
+        if (isDogRulesPage(value)) expect(isSavableUrl(value, null)).toBe(true);
+      }),
+    );
+  });
+
+  it('never keeps a page on a listing site, nor one under it', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom('alltrails.com', 'www.yelp.com', 'm.facebook.com', 'BringFido.com'),
+        fc.webPath(),
+        (host, path) => {
+          expect(isDogRulesPage(`https://${host}${path}`)).toBe(false);
+        },
+      ),
     );
   });
 });

@@ -49,6 +49,7 @@ export function toActivityRow(a: Activity) {
     menuUrl: a.menuUrl ?? null,
     dietary: a.dietary ?? null,
     sourceUrl: a.sourceUrl ?? null,
+    dogRulesUrl: a.dogRulesUrl ?? null,
     cardLine: a.cardLine ?? null,
     cardName: a.cardName ?? null,
     completed: a.completed ?? null,

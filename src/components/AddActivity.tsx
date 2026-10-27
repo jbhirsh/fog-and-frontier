@@ -242,6 +242,7 @@ export function AddActivity({
         durationDetail: g.durationDetail,
         difficulty: g.difficulty,
         dogFriendly: g.dogFriendly,
+        dogRulesUrl: g.dogRulesUrl,
         hikeDistanceMiles: g.hikeDistanceMiles,
         hikeElevationFeet: g.hikeElevationFeet,
         allTrailsUrl: g.allTrailsUrl,
@@ -982,7 +983,16 @@ function ReviewStep({
         <Field label="Dog friendly">
           <select
             value={draft.dogFriendly ? 'yes' : 'no'}
-            onChange={(e) => patch('dogFriendly', e.target.value === 'yes')}
+            // No dogs, no dog rules page (#296): its field goes, and so
+            // does what it held.
+            onChange={(e) => {
+              const yes = e.target.value === 'yes';
+              onChange({
+                ...draft,
+                dogFriendly: yes,
+                dogRulesUrl: yes ? draft.dogRulesUrl : undefined,
+              });
+            }}
             className={selectCls}
           >
             <option value="no">No</option>
@@ -1124,6 +1134,20 @@ function ReviewStep({
           }}
         />
       </Field>
+
+      {/* Only for a place dogs are welcome at (#296): the page that says
+          where they may go, which the place's page links its dog to. */}
+      {draft.dogFriendly && (
+        <Field label="Dog rules page (optional)">
+          <input
+            type="url"
+            value={draft.dogRulesUrl ?? ''}
+            placeholder="https://www.parks.ca.gov/…"
+            onChange={(e) => patch('dogRulesUrl', e.target.value.trim() || undefined)}
+            className={inputCls}
+          />
+        </Field>
+      )}
 
       <Field label="Where you found it (optional)">
         <input

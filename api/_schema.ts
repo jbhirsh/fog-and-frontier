@@ -94,6 +94,8 @@ export const typeDefs = /* GraphQL */ `
     dietary: [String!]
     "Where it was found (#6): the Instagram post it was added from, say."
     sourceUrl: String
+    "For a dog-friendly place (#296), the page where it or its park gives its dog rules."
+    dogRulesUrl: String
     "Its card's line on a phone (#295): at most 50 characters, shown whole."
     cardLine: String
     "A shorter name for cards and pins (#295), for a name over 40 characters: at most 40."
@@ -139,6 +141,8 @@ export const typeDefs = /* GraphQL */ `
     dietary: [String!]
     "Where it was found (#6): the Instagram post it was added from, say."
     sourceUrl: String
+    "For a dog-friendly place (#296), the page where it or its park gives its dog rules."
+    dogRulesUrl: String
     "Its card's line on a phone (#295): at most 50 characters, shown whole."
     cardLine: String
     "A shorter name for cards and pins (#295), for a name over 40 characters: at most 40."
@@ -304,6 +308,8 @@ export const typeDefs = /* GraphQL */ `
     menuUrl: String
     dietary: [String!]
     allTrailsUrl: String
+    "For a dog-friendly draft (#296), the page of the place's or its park's own site giving its dog rules; null when there's none."
+    dogRulesUrl: String
     "The trails its AllTrails search found to choose from (#6), its pick first; null when there was no search."
     allTrailsOptions: [TrailOption!]
     notes: String
@@ -370,6 +376,8 @@ export const typeDefs = /* GraphQL */ `
     dietary: [String!]
     "Where it was found (#6): the Instagram post it was added from, say."
     sourceUrl: String
+    "For a dog-friendly place (#296), the page where it or its park gives its dog rules."
+    dogRulesUrl: String
     "Its card's line on a phone (#295): at most 50 characters, shown whole."
     cardLine: String
     "A shorter name for cards and pins (#295), for a name over 40 characters: at most 40."

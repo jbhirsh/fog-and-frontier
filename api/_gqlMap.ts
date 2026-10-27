@@ -105,6 +105,7 @@ export type SnapshotShape = {
   menuUrl: string | null;
   dietary: string[] | null;
   sourceUrl: string | null;
+  dogRulesUrl: string | null;
   cardLine: string | null;
   cardName: string | null;
   completed: boolean | null;
@@ -145,6 +146,7 @@ export function coerceSnapshot(raw: unknown): SnapshotShape | null {
     menuUrl: str(r.menuUrl),
     dietary: strArray(r.dietary),
     sourceUrl: str(r.sourceUrl),
+    dogRulesUrl: str(r.dogRulesUrl),
     cardLine: str(r.cardLine),
     cardName: str(r.cardName),
     completed: bool(r.completed),

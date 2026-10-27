@@ -97,6 +97,7 @@ function snapshotJson(over: Record<string, unknown> = {}) {
     reservationUrl: 'http://resy',
     menuUrl: 'http://menu',
     sourceUrl: null,
+    dogRulesUrl: null,
     cardLine: null,
     cardName: null,
     dietary: ['vegetarian'],

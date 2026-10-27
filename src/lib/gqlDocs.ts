@@ -47,6 +47,7 @@ export const ACTIVITIES_QUERY = graphql(`
       menuUrl
       dietary
       sourceUrl
+      dogRulesUrl
       cardLine
       cardName
       completed
@@ -226,6 +227,7 @@ export const TRIP_QUERY = graphql(`
           menuUrl
           dietary
           sourceUrl
+          dogRulesUrl
           cardLine
           cardName
           completed
@@ -392,6 +394,7 @@ export const GENERATE_ACTIVITY = graphql(`
         durationDetail
         difficulty
         dogFriendly
+        dogRulesUrl
         hikeDistanceMiles
         hikeElevationFeet
         cuisine

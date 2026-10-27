@@ -11,7 +11,7 @@ import { matchParent, parkName } from '../_parents.js';
 import { toRegion } from '../_regions.js';
 import { badGateway, badInput, forbidden } from '../_gqlError.js';
 import { claimAssist, releaseAssist } from '../_assistBudget.js';
-import { isSavableUrl, LINK_HOSTS } from '../_links.js';
+import { isDogRulesPage, isSavableUrl, LINK_HOSTS } from '../_links.js';
 import { logEvent, logServerError } from '../_log.js';
 import { requireOwnerCtx, requireUserCtx, type GqlContext } from '../_gqlContext.js';
 import { HOME_BASE } from '../_home.js';
@@ -180,6 +180,11 @@ const ACTIVITY_SCHEMA = {
     },
     difficulty: { type: 'string', enum: DIFFICULTY_VALUES },
     dogFriendly: { type: 'boolean' },
+    dogRulesUrl: {
+      type: 'string',
+      description:
+        "Only when dogFriendly: the page of the place's own site, or its park's, that gives its dog rules; omit if none",
+    },
     hikeDistanceMiles: { type: 'number' },
     hikeElevationFeet: { type: 'number' },
     allTrailsUrl: {
@@ -282,6 +287,7 @@ Rules:
 - "cardName" only when "name" is over ${CARD_NAME_MAX} characters: the name people would know it by, at most ${CARD_NAME_MAX} ("Castle Rock State Park" for "Castle Rock State Park (Saratoga Gap & Ridge Loop)"). Omit it otherwise.
 - In "shortDescription" and "longDescription", name a place or thing inside the activity (a grove, trail, viewpoint, landmark, dish, room) only if a source you found names it there. Describe anything you can't confirm in general terms instead; a vivid general line beats a specific name that turns out to belong somewhere else.
 - "notes" should mention dog rules, parking, fees, or seasonal tips when relevant.
+- "dogRulesUrl", only when "dogFriendly" is true: the page where the place itself, or the park it's in, states its dog rules (where dogs may go, and on what leash), found in your search. Its own site or its park agency's, never a listing or review site (AllTrails, BringFido, Yelp, TripAdvisor). Omit it if no such page says.
 - "parkType" should reflect who manages the land when the activity is in a park: 'national' for national parks/seashores/monuments and GGNRA sites, 'state' for state parks/reserves, 'regional' for regional open-space/park districts (e.g. EBRPD, Midpen), 'county' for county parks, 'city' for municipal parks, 'private' for privately managed grounds. Omit it entirely if the activity isn't in a park (e.g. a restaurant or a library).
 - When the activity is a restaurant or food spot (category "food"), also populate the restaurant fields when you can: "cuisine", "priceRange" ($ to $$$$), "hours", "reservationUrl", "menuUrl", and "dietary" options. Omit any you can't determine, and omit all of them for non-food activities.
 - "costTier" is what one person pays to do it, from the fees you found: "free" when you find no entry, parking or ticket fee (most trails, beaches and city parks), "$" under $25 (e.g. a state park day-use fee, or a national park's per-vehicle fee split between two people), "$$" $25-75, "$$$" over $75. Omit it for restaurants, which use "priceRange" instead, and otherwise only when there's clearly a charge you can't price.`;
@@ -564,6 +570,11 @@ async function generateActivity(
   for (const [field, host] of Object.entries(LINK_HOSTS)) {
     const v = parsed[field];
     if (v !== undefined && v !== null && !isSavableUrl(v, host)) parsed[field] = null;
+  }
+  // Dog rules (#296) only for a place dogs are welcome at, and only from
+  // the place's or its park's own site, never a listing of it.
+  if (parsed.dogFriendly !== true || !isDogRulesPage(parsed.dogRulesUrl)) {
+    parsed.dogRulesUrl = null;
   }
 
   // Location-aware Wikimedia Commons lookup (#36). The required-field guard

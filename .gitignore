@@ -73,9 +73,10 @@ knip-report.md
 lychee.json
 links.md
 
-# The card copy backfill's review file (npm run cards, #295): catalog copy
-# for an owner to read, not code.
+# The card copy and dog rules backfills' review files (npm run cards, #295,
+# #296): catalog data for an owner to read, not code.
 card-copy.review.json
+dog-rules.review.json
 
 # GIFs recorded for PRs (npm run gif)
 /pr-gif

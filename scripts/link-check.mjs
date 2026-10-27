@@ -25,6 +25,7 @@ export const LINK_FIELDS = [
   { field: 'reservationUrl', image: false },
   { field: 'coverImage', image: true },
   { field: 'sourceUrl', image: false },
+  { field: 'dogRulesUrl', image: false },
 ];
 
 /** Hosts that refuse scripts outright: their 403 says nothing about the page. */

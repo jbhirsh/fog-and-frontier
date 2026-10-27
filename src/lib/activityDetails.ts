@@ -8,6 +8,7 @@ export interface DetailRow {
   durationDetail?: string | null;
   difficulty?: Difficulty | null;
   dogFriendly?: boolean | null;
+  dogRulesUrl?: string | null;
   hikeDistanceMiles?: number | null;
   hikeElevationFeet?: number | null;
   allTrailsUrl?: string | null;
@@ -27,6 +28,7 @@ export interface Details {
   durationDetail?: string;
   difficulty?: Difficulty;
   dogFriendly?: boolean;
+  dogRulesUrl?: string;
   hikeDistanceMiles?: number;
   hikeElevationFeet?: number;
   allTrailsUrl?: string;
@@ -50,6 +52,7 @@ export function rowDetails(row: DetailRow): Details {
     durationDetail: row.durationDetail ?? undefined,
     difficulty: row.difficulty ?? undefined,
     dogFriendly: row.dogFriendly ?? undefined,
+    dogRulesUrl: row.dogRulesUrl ?? undefined,
     hikeDistanceMiles: row.hikeDistanceMiles ?? undefined,
     hikeElevationFeet: row.hikeElevationFeet ?? undefined,
     allTrailsUrl: row.allTrailsUrl ?? undefined,
