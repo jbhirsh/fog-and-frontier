@@ -6,19 +6,12 @@
       "tsconfig*.json",
       "package.json",
       "package-lock.json",
-      "patches/**",
       ".github/workflows/mutation.yml"
     ],
     "smoke": ["src/lib/viewMode.ts", "src/lib/mapBounds.ts"],
     "cache": {
       "restoreMain": false,
-      "restartOn": [
-        "package-lock.json",
-        "patches/**",
-        "stryker.config.json",
-        "vite.config.ts",
-        "src/test/**"
-      ]
+      "restartOn": ["package-lock.json", "stryker.config.json", "vite.config.ts", "src/test/**"]
     },
     "sweep": {
       "shards": 8,
