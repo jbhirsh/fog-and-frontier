@@ -37,6 +37,10 @@
     "ignore": ["**/*.test.{ts,tsx}", "src/test/**"],
     "source": "a local production build reading production's catalog and photos (scripts/readme-screenshots.ts)"
   },
+  "visual-baselines": {
+    "folders": ["tests/visual/*-snapshots"],
+    "command": "npx playwright install --with-deps chromium webkit firefox && npm run test:visual:update"
+  },
   "gif": {
     "setup": "scripts/gif-setup.ts",
     "scenarios": "scripts/gif-scenarios",

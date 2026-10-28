@@ -1,11 +1,12 @@
 name: Update visual baselines
 
 # Run by hand, on a branch: rewrites the visual regression's baselines on
-# Linux (the machine they must match; visual.yml compares against them) and
-# commits them to that branch. The Actions token's push starts no workflow,
-# so push again afterwards for the PR's checks to run on the new baselines.
-# A file of its own, not a step in visual.yml, so pull requests don't list
-# it as a skipped check.
+# Linux (the machine they must match; visual.yml compares against them)
+# and commits them to that branch. jbhirsh/ci's visual-baselines/rewrite
+# does it; this app's settings (the folders, and the command that writes
+# them) are the `visual-baselines` key of .github/ci.json. The Actions
+# token's push starts no workflow, so push again afterwards for the PR's
+# checks to run on the new baselines.
 on:
   workflow_dispatch:
 
@@ -20,52 +21,10 @@ jobs:
   update:
     name: Update visual baselines
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     # Pushes the new baselines to the branch it ran on.
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Install Playwright browsers
-        # Chromium (desktop), WebKit (the iPhone and desktop Safari) and
-        # Firefox (desktop): see the projects in playwright.config.ts.
-        run: npx playwright install --with-deps chromium webkit firefox
-
-      # Every baseline written afresh, so one no test takes any more is gone.
-      - name: Rewrite the baselines
-        run: |
-          rm -rf tests/visual/*-snapshots
-          npm run test:visual:update
-
-      # A subject and a body, so the commit check passes on it.
-      - name: Commit them
-        env:
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          git add -- tests/visual/
-          if git diff --cached --quiet; then
-            echo "The baselines are already up to date."
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Update the visual baselines' -m "Rewritten on Linux by visual-baselines.yml ($RUN_URL)."
-          git push origin "HEAD:$GITHUB_REF_NAME"
-
-      - uses: actions/upload-artifact@v7
-        if: failure() || cancelled()
-        with:
-          name: playwright-report-baselines
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 14
+      - uses: jbhirsh/ci/visual-baselines/rewrite@main
