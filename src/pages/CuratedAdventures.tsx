@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams, type Location } from 'react-router-dom';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useDrivingMiles } from '../lib/drivingMiles';
@@ -37,6 +38,7 @@ import { useOwner } from '../lib/useOwner';
 import { usePendingSuggestions } from '../lib/suggestions';
 import { addActivityToTrip } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
+import { useHeaderSlot } from '../lib/headerSlot';
 import { nestUnderParks, parkBarId, parkSectionId, type Nested } from '../lib/parks';
 
 /** The park whose hikes and stops are open below its row (#269). */
@@ -137,6 +139,12 @@ export function CuratedAdventures() {
   // draggable bottom sheet, Apple-Maps style. Only below `lg`; at lg+ Split
   // already pairs the list and the map side by side.
   const mobileMap = view === 'map' && !isLg;
+  // The page's controls go in the header's row (Layout's slot), and the
+  // chips for the filters on in a row of their own under it. Rendered
+  // alone, as in its tests, the page draws them in a toolbar of its own.
+  const headerSlot = useHeaderSlot();
+  const inHeader = headerSlot !== undefined;
+  const [chipsRow, setChipsRow] = useState<HTMLElement | null>(null);
   // The sheet starts collapsed so the map is the prominent surface the user
   // just asked for, and collapses again each time the map opens (below).
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
@@ -697,46 +705,56 @@ export function CuratedAdventures() {
   // How many suggestions wait for the owners (#259), in every view: the
   // queue itself only shows above the list. Tapping it goes there.
   const waiting = pending.length;
-  const reviewButton = isOwner && waiting > 0 && (
-    <button
-      type="button"
-      onClick={showQueue}
-      aria-label={`Review ${waiting} suggestion${waiting === 1 ? '' : 's'}`}
-      // Ends in its count's circle, so the right padding matches the space
-      // above and below it.
-      className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low pr-base pl-sm text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant"
-    >
-      Review
-      <span
-        aria-hidden="true"
-        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] leading-none text-on-primary tabular-nums"
+  // 44px tall in the header's row, 36px in the map's sheet.
+  // In the header's row a symbol with its count on the corner, 44px like
+  // the rest; in the map's sheet "Review" and its count.
+  const reviewButton = (inRow: boolean) =>
+    isOwner &&
+    waiting > 0 && (
+      <button
+        type="button"
+        onClick={showQueue}
+        aria-label={`Review ${waiting} suggestion${waiting === 1 ? '' : 's'}`}
+        title={inRow ? 'Review suggestions' : undefined}
+        // Ends in its count's circle, so the right padding matches the space
+        // above and below it.
+        className={`inline-flex shrink-0 items-center rounded-full border border-outline-variant/40 bg-surface-container-low text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant ${
+          inRow ? 'relative size-11 justify-center' : 'h-9 gap-xs pr-base pl-sm'
+        }`}
       >
-        {waiting}
-      </span>
-    </button>
-  );
+        {inRow ? (
+          <span
+            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+            aria-hidden="true"
+          >
+            inbox
+          </span>
+        ) : (
+          'Review'
+        )}
+        <span
+          aria-hidden="true"
+          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] leading-none text-on-primary tabular-nums ${
+            inRow ? 'absolute -top-1 -right-1' : ''
+          }`}
+        >
+          {waiting}
+        </span>
+      </button>
+    );
 
-  // Header of the mobile map's list sheet (#96). It stays visible at `peek`, so
-  // it carries the way back to the list and the same count / bounds summary
-  // the list header shows. The exit reads "Hide map" rather than "List"
-  // because the sheet already is the list.
-  // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
-  // scrolls beneath it); in Split it sits above the page-scrolled columns; in
-  // Map it's the fixed top row of a viewport-height flex column (below).
-  // Filters (#291): one button opening the filter sheet, with the filters on
-  // shown as chips beneath it, at every width, in the toolbar and the mobile
-  // map's sheet (#96).
-  const compactFilters = (
-    <CompactFilters
-      values={filterValues}
-      onChange={changeFilters}
-      // What the list shows: on the mobile map, the places in view.
-      count={visibleResults.length}
-      originName={origin.name}
-      showCost={anyCost || maxCost !== 'Any'}
-      contributorOptions={isSignedIn ? contributorChoices : []}
-    />
-  );
+  // Filters (#291): one button opening the filter sheet, with a chip for
+  // each filter on, in the header's row and the mobile map's sheet (#96).
+  const filterProps = {
+    values: filterValues,
+    onChange: changeFilters,
+    // What the list shows: on the mobile map, the places in view.
+    count: visibleResults.length,
+    originName: origin.name,
+    showCost: anyCost || maxCost !== 'Any',
+    contributorOptions: isSignedIn ? contributorChoices : [],
+  };
+  const compactFilters = <CompactFilters {...filterProps} />;
   // The mobile map's sheet header (#96), one row: a phone's Filters (#291),
   // the way out from md up, the owners' review count (#259), and how many
   // places the map holds, which at peek is the way up to the whole list.
@@ -771,7 +789,7 @@ export function CuratedAdventures() {
           </span>
           Hide map
         </button>
-        {reviewButton}
+        {reviewButton(false)}
         <div
           role="status"
           aria-live="polite"
@@ -811,89 +829,83 @@ export function CuratedAdventures() {
     );
   }
 
-  const filterToolbar = (
-    <section
-      className={`z-40 border-b border-outline-variant/20 bg-surface py-sm px-margin backdrop-blur-xl ${
-        view === 'list' ? 'md:sticky md:top-20' : ''
-      }`}
-    >
-      <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-sm">
-        {compactFilters}
-        {/* View toggle + trip actions: right-aligned, beside the Filters
-            button on a phone and after the filter chips on wider screens. */}
-        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-sm md:flex-nowrap">
-          {/* Split only exists at lg+, so the segmented control does too;
-              below it, a floating "Show map" button (below) opens the
-              full-screen map and the sheet's "Hide map" closes it (#96). */}
-          {isLg && <ViewModeToggle value={view} onChange={setView} />}
-          {reviewButton}
-          {isSignedIn && (
-            <button
-              type="button"
-              aria-label={selectionMode ? 'Cancel select' : 'Select for trip'}
-              onClick={() => {
-                if (selectionMode) {
-                  clearSelection();
-                } else {
-                  setSelectionMode(true);
-                }
-              }}
-              className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant"
-            >
-              <span
-                className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{
-                  fontSize: 18,
-                  width: 18,
-                  height: 18,
-                  marginLeft: glyphBleed(selectionMode ? 'close' : 'check_box'),
-                }}
-                aria-hidden="true"
-              >
-                {selectionMode ? 'close' : 'check_box'}
-              </span>
-              {/* Shortened on a phone, to fit beside the Filters button; the
-                  label keeps the whole name. The button's gap spaces the
-                  words, and the span's space keeps them apart in its text. */}
-              {selectionMode ? 'Cancel' : 'Select'}
-              <span className="hidden md:inline">{selectionMode ? ' select' : ' for trip'}</span>
-            </button>
-          )}
-          {/* Owners add; any other signed-in account suggests one for the
-              owners to review (#73). Signed-out visitors see neither. */}
-          {(isOwner || isSignedIn) && (
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              aria-label={isOwner ? 'Add activity' : 'Suggest activity'}
-              // A phone adds from its tab bar (#289).
-              className="hidden h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm whitespace-nowrap text-on-primary transition-opacity hover:opacity-90 md:inline-flex"
-            >
-              <span
-                className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{
-                  fontSize: 18,
-                  width: 18,
-                  height: 18,
-                  marginLeft: glyphBleed(isOwner ? 'add' : 'lightbulb'),
-                }}
-                aria-hidden="true"
-              >
-                {isOwner ? 'add' : 'lightbulb'}
-              </span>
-              {isOwner ? 'Add' : 'Suggest'}
-              <span className="hidden md:inline"> activity</span>
-            </button>
-          )}
-        </div>
-      </div>
-      {/* In the toolbar so List, Split and Map all show it: a failed catalog
-          read must not pass for an empty catalog. */}
-      {loadError && (
-        <div className="mx-auto max-w-screen-2xl pt-sm">
-          <InlineError message={loadError} />
-        </div>
+  // The header's row (#289): Filters, the view toggle, the owners' review
+  // count, Select for trip and Add, each 44px tall; Select and Add are
+  // symbols, named in a tooltip.
+  const pageControls = (
+    <>
+      <CompactFilters {...filterProps} inHeader chipsIn={inHeader ? chipsRow : undefined} />
+      {/* Split only exists at lg+, so the segmented control does too;
+          below it, a floating "Show map" button (below) opens the
+          full-screen map and the sheet's "Hide map" closes it (#96). */}
+      {isLg && <ViewModeToggle value={view} onChange={setView} />}
+      {reviewButton(true)}
+      {isSignedIn && (
+        <button
+          type="button"
+          aria-label={selectionMode ? 'Cancel select' : 'Select for trip'}
+          title={selectionMode ? 'Cancel select' : 'Select for trip'}
+          onClick={() => {
+            if (selectionMode) {
+              clearSelection();
+            } else {
+              setSelectionMode(true);
+            }
+          }}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-outline-variant/40 bg-surface-container-low text-on-surface-variant transition-colors hover:bg-surface-variant"
+        >
+          <span
+            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+            aria-hidden="true"
+          >
+            {selectionMode ? 'close' : 'check_box'}
+          </span>
+        </button>
       )}
+      {/* Owners add; any other signed-in account suggests one for the
+          owners to review (#73). Signed-out visitors see neither. */}
+      {(isOwner || isSignedIn) && (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          aria-label={isOwner ? 'Add activity' : 'Suggest activity'}
+          title={isOwner ? 'Add activity' : 'Suggest activity'}
+          // A phone adds from its tab bar (#289).
+          className="hidden size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-opacity hover:opacity-90 md:inline-flex"
+        >
+          <span
+            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+            aria-hidden="true"
+          >
+            {isOwner ? 'add' : 'lightbulb'}
+          </span>
+        </button>
+      )}
+    </>
+  );
+
+  // Under the header, in every view but the mobile map's: the chips for the
+  // filters on, and a failed catalog read, which must not pass for an empty
+  // catalog.
+  const loadErrorRow = loadError && (
+    <div className="mx-auto max-w-screen-2xl pt-sm px-margin">
+      <InlineError message={loadError} />
+    </div>
+  );
+  const filterToolbar = inHeader ? (
+    <>
+      <div
+        ref={setChipsRow}
+        className="border-b border-outline-variant/20 py-sm px-margin empty:hidden"
+      />
+      {loadErrorRow}
+    </>
+  ) : (
+    <section className="border-b border-outline-variant/20 bg-surface py-sm px-margin">
+      <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-sm">
+        {pageControls}
+      </div>
+      {loadErrorRow}
     </section>
   );
 
@@ -904,6 +916,7 @@ export function CuratedAdventures() {
 
   return (
     <>
+      {headerSlot && !mobileMap && createPortal(pageControls, headerSlot)}
       {mobileMap ? (
         // Mobile (#96): the map is a full-screen backdrop behind the
         // translucent app header, and the list rides over it in a draggable

@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../lib/authShim';
 import { useOwner } from '../lib/useOwner';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { HeaderSlotContext } from '../lib/headerSlot';
 import { PhoneTabBar } from './PhoneTabBar';
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -42,6 +44,9 @@ export function Layout() {
   // The box has room for the whole prompt (about 265px of it) only from lg
   // up; narrower, on a phone (#289) or a tablet, it's one word.
   const wide = useMediaQuery('(min-width: 64rem)');
+  // The page's own controls (the catalog's Filters, view toggle and
+  // actions), drawn into the row between the search and the nav.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
 
   function handleChange(next: string) {
     setParams(
@@ -62,15 +67,18 @@ export function Layout() {
           while one is up (TripPhone marks the page) the brand's bar would
           only repeat it. Its loading and sign-in screens keep the bar. */}
       <header className="sticky top-0 z-50 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-xl in-data-own-header:max-md:hidden">
-        {/* Desktop (md+): one 80px row — brand · search · compact nav · auth.
-            A phone (#289): one line, the search and auth on the catalog,
-            the brand and auth elsewhere; its links are the tab bar's.
-            order-* re-sequences the four for each layout. */}
-        <div className="mx-auto flex w-full max-w-screen-2xl flex-wrap items-center gap-x-md gap-y-sm py-sm px-margin md:h-20 md:py-0">
+        {/* One row at every width, everything in it 44px tall: brand ·
+            search · the page's controls · nav · auth (#289). On the catalog
+            the search stands in for the brand below xl, where the row has
+            no room for both, and a phone's links are its tab bar's. order-*
+            re-sequences them for each layout. */}
+        <div className="mx-auto flex w-full max-w-screen-2xl items-center gap-x-base py-sm px-margin md:h-20 md:gap-x-sm md:py-0 lg:gap-x-md">
           <NavLink
             to="/"
             className={`order-1 font-display text-headline-md font-bold whitespace-nowrap text-primary ${
-              showSearch ? 'hidden md:block' : ''
+              // The catalog's row is full until xl; its map from md to lg
+              // has no search or controls, so the brand comes back there.
+              showSearch ? (isMapView ? 'hidden md:max-lg:block xl:block' : 'hidden xl:block') : ''
             }`}
           >
             Fog and Frontier
@@ -85,16 +93,17 @@ export function Layout() {
                 e.preventDefault();
                 e.currentTarget.querySelector('input')?.blur();
               }}
-              className={`order-1 min-w-0 flex-1 md:order-2 md:w-[min(42vw,520px)] md:flex-none ${
+              className={`order-1 min-w-0 flex-1 md:order-2 md:max-w-140 ${
                 isMapView ? 'md:max-lg:hidden' : ''
               }`}
             >
-              <label className="flex items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest py-xs pr-xs pl-gutter shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
+              <label className="flex h-11 items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest pr-xs pl-gutter shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
                 <span className="material-symbols-outlined text-outline">search</span>
                 <input
                   value={q}
                   onChange={(e) => handleChange(e.target.value)}
-                  className="min-w-0 grow border-none bg-transparent text-body-md focus:outline-none"
+                  // A prompt longer than the box ends in an ellipsis.
+                  className="min-w-0 grow border-none bg-transparent text-body-md text-ellipsis focus:outline-none"
                   placeholder={wide ? 'Search adventures, places, trails…' : 'Search'}
                   type="text"
                   aria-label="Search adventures"
@@ -112,8 +121,13 @@ export function Layout() {
             </form>
           )}
 
+          <div
+            ref={setSlot}
+            className="order-2 flex shrink-0 items-center gap-x-base empty:hidden md:order-3 md:gap-x-sm"
+          />
+
           <nav
-            className={`order-4 hidden w-full items-center justify-center gap-x-sm text-body-sm whitespace-nowrap md:order-3 md:ml-auto md:w-auto md:justify-end ${
+            className={`order-4 hidden items-center gap-x-sm text-body-sm whitespace-nowrap md:ml-auto ${
               isMapView ? 'lg:flex' : 'md:flex'
             }`}
           >
@@ -134,14 +148,20 @@ export function Layout() {
             </NavLink>
           </nav>
 
-          <div className="order-2 ml-auto flex shrink-0 items-center md:order-4 md:ml-0">
+          <div
+            className={`order-3 ml-auto flex shrink-0 items-center md:order-5 ${
+              // Pushed right by the nav where it shows; on the map from md
+              // to lg, which has none, by itself.
+              isMapView ? 'md:max-lg:ml-auto lg:ml-0' : 'md:ml-0'
+            }`}
+          >
             {CLERK_ENABLED && (
               <>
                 <SignedOut>
                   <SignInButton mode="modal">
                     <button
                       type="button"
-                      className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
+                      className="inline-flex h-11 items-center rounded-full bg-primary px-md font-body-md text-on-primary transition-opacity hover:opacity-90"
                     >
                       Sign in
                     </button>
@@ -161,7 +181,9 @@ export function Layout() {
         </div>
       </header>
       <main className="grow">
-        <Outlet />
+        <HeaderSlotContext.Provider value={slot}>
+          <Outlet />
+        </HeaderSlotContext.Provider>
       </main>
       <PhoneTabBar />
     </div>

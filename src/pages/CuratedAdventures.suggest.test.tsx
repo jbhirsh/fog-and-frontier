@@ -80,12 +80,10 @@ describe('Curated Adventures — add or suggest (#73)', () => {
   it('offers a signed-in non-owner "Suggest activity", which opens the suggest dialog', async () => {
     renderAs(SIGNED_IN);
     expect(screen.queryByRole('button', { name: /Add activity/ })).not.toBeInTheDocument();
-    // Its lightbulb is pulled out by its own side bearing, not the add icon's.
-    const icon = screen
-      .getByRole('button', { name: /Suggest activity/ })
-      .querySelector<HTMLElement>('.material-symbols-outlined');
-    expect(icon).toHaveTextContent('lightbulb');
-    expect(icon?.style.marginLeft).toBe('-0.167em');
+    // A lightbulb alone, named in a tooltip.
+    const button = screen.getByRole('button', { name: /Suggest activity/ });
+    expect(button).toHaveTextContent(/^lightbulb$/);
+    expect(button).toHaveAttribute('title', 'Suggest activity');
     await userEvent.click(screen.getByRole('button', { name: /Suggest activity/ }));
     expect(screen.getByRole('dialog', { name: 'Suggest activity' })).toBeInTheDocument();
   });

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createPortal } from 'react-dom';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './Layout';
+import { useHeaderSlot } from '../lib/headerSlot';
 
 const ownerState = vi.hoisted(() => ({ isOwner: true }));
 
@@ -32,9 +34,35 @@ function renderAt(path: string) {
   );
 }
 
+// A page that puts a control of its own in the header's row, or says it
+// has no header to put it in.
+function PageWithControl() {
+  const slot = useHeaderSlot();
+  if (slot === undefined) return <p>no header</p>;
+  return slot && createPortal(<button type="button">page control</button>, slot);
+}
+
 describe('Layout', () => {
   beforeEach(() => {
     ownerState.isOwner = true;
+  });
+
+  it('gives the page a place in the header’s row for its own controls', () => {
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<PageWithControl />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(header().getByRole('button', { name: 'page control' })).toBeInTheDocument();
+  });
+
+  it('tells a page drawn without it that there is no header', () => {
+    render(<PageWithControl />);
+    expect(screen.getByText('no header')).toBeInTheDocument();
   });
 
   it('renders nav links and the routed child', () => {
@@ -117,6 +145,8 @@ describe('Layout', () => {
     expect(screen.getByRole('search')).toHaveClass('md:max-lg:hidden');
     expect(header().getByRole('navigation')).toHaveClass('hidden', 'lg:flex');
     expect(header().getByRole('navigation')).not.toHaveClass('md:flex');
+    // There it's the brand and the account, the account on the right.
+    expect(header().getByRole('link', { name: 'Fog and Frontier' })).toHaveClass('md:max-lg:block');
     unmount();
 
     renderAt('/?view=list');
@@ -126,11 +156,12 @@ describe('Layout', () => {
 
   it('gives a phone the search and the account on the catalog, the brand elsewhere (#289)', () => {
     const { unmount } = renderAt('/');
+    // The search stands in for the brand until xl, where the row has room.
     expect(header().getByRole('link', { name: 'Fog and Frontier' })).toHaveClass(
       'hidden',
-      'md:block',
+      'xl:block',
     );
-    expect(screen.getByRole('search')).toHaveClass('flex-1', 'md:flex-none');
+    expect(screen.getByRole('search')).toHaveClass('flex-1');
     unmount();
     renderAt('/trips');
     expect(header().getByRole('link', { name: 'Fog and Frontier' })).not.toHaveClass('hidden');

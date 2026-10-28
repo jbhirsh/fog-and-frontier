@@ -353,11 +353,11 @@ describe('PendingSuggestions (#73)', () => {
       expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     });
 
-    it('clears the way below the header and the sticky toolbar', () => {
+    it('clears the way below the sticky header', () => {
       render(<PendingSuggestions suggestions={[FF]} />);
       expect(screen.getByRole('region', { name: /Waiting for review/ })).toHaveClass(
-        'scroll-mt-40',
-        'md:scroll-mt-52',
+        'scroll-mt-20',
+        'md:scroll-mt-24',
       );
     });
   });

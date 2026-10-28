@@ -39,6 +39,18 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
+  // One header row (#289): the catalog's Filters sit in it, beside the
+  // search, and the chips for the filters on in a row under it.
+  it('puts the catalog’s Filters in the header and its chips under it', () => {
+    window.history.replaceState(null, '', '/?completed=1');
+    render(<App />, { activities: [muirWoods] });
+    const banner = screen.getByRole('banner');
+    expect(within(banner).getByRole('button', { name: 'Filters, 1 on' })).toBeInTheDocument();
+    const chip = screen.getByRole('button', { name: "Remove filter: Places we've done" });
+    expect(banner).not.toContainElement(chip);
+    expect(chip.closest('ul')).toHaveClass('mx-auto', 'max-w-screen-2xl');
+  });
+
   // Activity permalinks (#86).
   it('opens a linked activity over the catalog', () => {
     window.history.replaceState(null, '', `/activity/${muirWoods.id}`);
