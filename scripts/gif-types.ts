@@ -36,6 +36,7 @@ export interface Gif {
   click(page: Page, target: Target, options?: { ms?: number; holdMs?: number }): Promise<Point>;
   drag(page: Page, from: Target, to: Target, ms?: number): Promise<void>;
   scroll(page: Page, dy: number, ms?: number): Promise<void>;
+  swipe(page: Page, from: Target, to: Target, ms?: number): Promise<void>;
   side: 'before' | 'after';
   origin: string;
 }
