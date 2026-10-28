@@ -405,9 +405,16 @@ describe('a place’s page on a phone (#293)', () => {
     expect(within(prev).getByText('Trailside Tacos')).toBeInTheDocument();
     expect(within(prev).getByText('arrow_back')).toBeInTheDocument();
     expect(within(prev).getByText('1 of 3')).toBeInTheDocument();
-    // A neighbour in a park names it, as plain text: it can't be tapped.
+    // A neighbour draws its whole page, as the page will once the step lands,
+    // so nothing fills in after it: its park named as the page names it, its
+    // actions, its trail. Inert, so none of it can be tapped.
     const next = screen.getByTestId('peek-next');
-    expect(within(next).getByText(/Test Redwoods Park/).tagName).toBe('P');
+    expect(next).toHaveAttribute('inert');
+    expect(
+      within(next).getByRole('button', { name: 'Test Redwoods Park', hidden: true }),
+    ).toBeInTheDocument();
+    expect(within(next).getByText('Directions')).toBeInTheDocument();
+    expect(within(next).getByText('On AllTrails')).toBeInTheDocument();
     // The steps stay on the page itself, between Back and Share.
     expect(screen.getByRole('navigation', { name: 'Adventure 2 of 3 in this list' })).toBeVisible();
   });
