@@ -5,26 +5,18 @@
 //
 //   npm run gif -- scripts/gif-scenarios/trip-phone.ts --dir <PR number>
 //
-// Trips need a real sign-in, so the trip is the stub's.
+// Trips need a real sign-in, so the trip is the stub's, on production's
+// places and photos (live-trip.ts).
 
-import { mockApis, signIn } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
 import { PHONE } from './phone.ts';
+import { LIVE_TRIP, tripReady } from './live-trip.ts';
 
 const scenario: Scenario = {
   name: 'trip-phone',
   ...PHONE,
-  path: '/trips/fixture-trip-planning',
-  async setup(page) {
-    await mockApis(page);
-    await signIn(page);
-  },
-  async ready(page, gif) {
-    await page.getByRole('heading', { name: 'Coast Weekend' }).waitFor();
-    await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(1200);
-    await gif.glide(page, { x: 200, y: 600 }, 0);
-  },
+  ...LIVE_TRIP,
+  ready: (page, gif) => tripReady(page, gif, { x: 200, y: 600 }, 1200),
   async play(page, gif) {
     await page.waitForTimeout(1200);
     const days = page.getByRole('group', { name: 'Day' });

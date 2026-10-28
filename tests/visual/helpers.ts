@@ -96,7 +96,7 @@ function toTripListRow(t: FixtureTrip) {
   };
 }
 
-function toTripRow(t: FixtureTrip) {
+export function toTripRow(t: FixtureTrip) {
   return {
     __typename: 'Trip',
     id: t.id,
