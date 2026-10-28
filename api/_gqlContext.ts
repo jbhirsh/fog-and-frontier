@@ -8,6 +8,7 @@ import {
   type Trip,
 } from './_trips.js';
 import { forbidden, notFound, unauthenticated } from './_gqlError.js';
+import type { RequestTiming } from './_serverTiming.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
 //
@@ -20,7 +21,11 @@ import { forbidden, notFound, unauthenticated } from './_gqlError.js';
 // signed-in account (claiming an invite, and suggesting an activity with its
 // capped Gemini draft, #73).
 
-export type GqlContext = { caller: CurrentUser | null };
+export type GqlContext = {
+  caller: CurrentUser | null;
+  /** How long getting here took, for the Server-Timing header (graphql.ts). */
+  timing?: Pick<RequestTiming, 'schemaMs' | 'authMs'>;
+};
 
 function bearer(req: Request): string | null {
   const h = req.headers.authorization;
