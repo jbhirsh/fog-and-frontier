@@ -206,9 +206,9 @@ alert fires. The header comment in that file explains the trade-off.
 
 What happens to each PR:
 
-- **npm PRs merge themselves.** `dependabot-merge.yml` turns on auto-merge, and
-  GitHub merges only when every required check on `main` is green and every
-  review thread is resolved. If a check goes red, `claude-autofix.yml` tries
+- **npm PRs merge themselves.** `claude-autofix.yml` turns on auto-merge once
+  the PR's first check completes, and GitHub merges only when every required
+  check on `main` is green and every review thread is resolved. If a check goes red, `claude-autofix.yml` tries
   to fix it on the PR branch. Nothing for you to do unless a PR stays open.
 - **GitHub Actions PRs are merged by hand.** The Actions token can't merge a PR
   that edits `.github/workflows/`. Skim the release notes of any major, check
