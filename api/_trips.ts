@@ -81,216 +81,153 @@ export type TripListItem = TripRow & {
   unscheduled_count: number;
 };
 
-let initialized = false;
-export async function ensureTripsSchema(): Promise<void> {
-  if (initialized) return;
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS trips (
-      id TEXT PRIMARY KEY,
-      creator_email TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      start_date TEXT NOT NULL,
-      end_date TEXT NOT NULL,
-      cover_image_url TEXT,
-      status TEXT NOT NULL DEFAULT 'planning',
-      created_at INTEGER NOT NULL,
-      marked_past_at INTEGER
-    )`,
-  );
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS trip_activities (
-      id TEXT PRIMARY KEY,
-      trip_id TEXT NOT NULL,
-      activity_id TEXT,
-      snapshot_json TEXT NOT NULL,
-      added_by_email TEXT NOT NULL,
-      added_at INTEGER NOT NULL,
-      day_index INTEGER,
-      start_time TEXT,
-      display_order INTEGER NOT NULL DEFAULT 0,
-      UNIQUE (trip_id, activity_id)
-    )`,
-  );
-  await db().execute(
-    `CREATE INDEX IF NOT EXISTS idx_trip_activities_trip_id ON trip_activities (trip_id)`,
-  );
+const BACKFILL_KEY = 'members_backfill_v1';
+
+// Every table and index the API touches, created if missing. They go to Turso
+// as one batch: run one at a time they were 18 round trips, one after
+// another, before a cold instance answered its first request.
+const SCHEMA: string[] = [
+  // --- trips (v0) ---
+  `CREATE TABLE IF NOT EXISTS trips (
+    id TEXT PRIMARY KEY,
+    creator_email TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    cover_image_url TEXT,
+    status TEXT NOT NULL DEFAULT 'planning',
+    created_at INTEGER NOT NULL,
+    marked_past_at INTEGER
+  )`,
+  `CREATE TABLE IF NOT EXISTS trip_activities (
+    id TEXT PRIMARY KEY,
+    trip_id TEXT NOT NULL,
+    activity_id TEXT,
+    snapshot_json TEXT NOT NULL,
+    added_by_email TEXT NOT NULL,
+    added_at INTEGER NOT NULL,
+    day_index INTEGER,
+    start_time TEXT,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (trip_id, activity_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_trip_activities_trip_id ON trip_activities (trip_id)`,
 
   // --- v1 (#51): editor accounts, membership, invites, votes ---
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS users (
-      email TEXT PRIMARY KEY,
-      display_name TEXT,
-      created_at INTEGER NOT NULL,
-      role TEXT NOT NULL DEFAULT 'editor'
-    )`,
-  );
+  `CREATE TABLE IF NOT EXISTS users (
+    email TEXT PRIMARY KEY,
+    display_name TEXT,
+    created_at INTEGER NOT NULL,
+    role TEXT NOT NULL DEFAULT 'editor'
+  )`,
   // Key-value bag for migration sentinels etc. Kept separate from `users` so
   // backfill markers never leak into the invite picker autocomplete (#51 c18).
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS meta (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    )`,
-  );
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS trip_members (
-      trip_id TEXT NOT NULL,
-      member_email TEXT NOT NULL,
-      added_by_email TEXT NOT NULL,
-      added_at INTEGER NOT NULL,
-      PRIMARY KEY (trip_id, member_email)
-    )`,
-  );
-  await db().execute(
-    `CREATE INDEX IF NOT EXISTS idx_trip_members_email ON trip_members (member_email)`,
-  );
+  `CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS trip_members (
+    trip_id TEXT NOT NULL,
+    member_email TEXT NOT NULL,
+    added_by_email TEXT NOT NULL,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (trip_id, member_email)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_trip_members_email ON trip_members (member_email)`,
   // Invite token is the credential (#51 c2): whoever holds the link can claim
   // it. PK is (trip_id, invite_token); token is globally unique so a claim can
   // be resolved from the token alone.
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS trip_invites (
-      trip_id TEXT NOT NULL,
-      invite_token TEXT NOT NULL,
-      invited_email TEXT,
-      invited_by_email TEXT NOT NULL,
-      invited_at INTEGER NOT NULL,
-      PRIMARY KEY (trip_id, invite_token)
-    )`,
-  );
-  await db().execute(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_invites_token ON trip_invites (invite_token)`,
-  );
+  `CREATE TABLE IF NOT EXISTS trip_invites (
+    trip_id TEXT NOT NULL,
+    invite_token TEXT NOT NULL,
+    invited_email TEXT,
+    invited_by_email TEXT NOT NULL,
+    invited_at INTEGER NOT NULL,
+    PRIMARY KEY (trip_id, invite_token)
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_invites_token ON trip_invites (invite_token)`,
   // Votes keyed to the candidate ON THIS TRIP (trip_activity_id), not the
   // catalog activity (#51 c7). Neutral = no row; value is -1 or 1.
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS trip_votes (
-      trip_id TEXT NOT NULL,
-      member_email TEXT NOT NULL,
-      trip_activity_id TEXT NOT NULL,
-      value INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      PRIMARY KEY (trip_id, member_email, trip_activity_id)
-    )`,
+  `CREATE TABLE IF NOT EXISTS trip_votes (
+    trip_id TEXT NOT NULL,
+    member_email TEXT NOT NULL,
+    trip_activity_id TEXT NOT NULL,
+    value INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (trip_id, member_email, trip_activity_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_trip_votes_trip ON trip_votes (trip_id)`,
+
+  // The catalog: `a` (activities) and `c` (completion overrides). Without
+  // these, activities/completed/saveActivity/setCompleted/transitionTrip
+  // (to=past) would fail on a fresh Preview DB.
+  'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)',
+
+  // Owner reviews (#184): one row per (activity, owner). Deliberately a side
+  // table rather than more fields in the `a` JSON blob — reviews must survive
+  // a saveActivity rewrite of that blob, and free text would eat into its
+  // 8000-char cap. The PK enforces "one review per owner per activity" in the
+  // DB and covers the by-activity read.
+  `CREATE TABLE IF NOT EXISTS activity_reviews (
+    activity_id TEXT NOT NULL,
+    author_email TEXT NOT NULL,
+    rating INTEGER,
+    note TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (activity_id, author_email)
+  )`,
+
+  // Owner photos (#19): one row per photo kept in private Blob storage. The
+  // bytes live in Blob under `pathname`; this table is what lists them per
+  // activity and enforces the per-activity cap. Owner-only, read and write.
+  `CREATE TABLE IF NOT EXISTS activity_photos (
+    id TEXT PRIMARY KEY,
+    activity_id TEXT NOT NULL,
+    pathname TEXT NOT NULL UNIQUE,
+    added_by TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS activity_photos_by_activity
+     ON activity_photos (activity_id, created_at)`,
+
+  // Suggested activities (#73): a pending one waits here, apart from the
+  // catalog, until an owner accepts it (copied into `a`) or rejects it
+  // (kept, marked). `j` has the same shape as `a.j`.
+  `CREATE TABLE IF NOT EXISTS suggestions (
+    id TEXT PRIMARY KEY,
+    j TEXT NOT NULL,
+    t INTEGER NOT NULL,
+    suggested_by TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+  )`,
+  'CREATE INDEX IF NOT EXISTS suggestions_by_status ON suggestions (status, t)',
+];
+
+// Single entry point for graphql.ts startup, once per instance: the schema,
+// with the backfill's sentinel read riding in the same batch, then the
+// backfill itself on the one start that finds no sentinel.
+let initialized = false;
+export async function ensureAllSchemas(): Promise<void> {
+  if (initialized) return;
+  const results = await db().batch(
+    [...SCHEMA, { sql: 'SELECT value FROM meta WHERE key = ?', args: [BACKFILL_KEY] }],
+    'write',
   );
-  await db().execute(`CREATE INDEX IF NOT EXISTS idx_trip_votes_trip ON trip_votes (trip_id)`);
-
-  await backfillOwnersAndMembers();
-
+  const sentinel = results[SCHEMA.length];
+  if (!sentinel || sentinel.rows.length === 0) await backfillOwnersAndMembers();
   initialized = true;
 }
-
-// The catalog `a` (activities) and `c` (completed) tables used to be created by
-// per-handler `ensureSchema()` calls in api/activities.ts + api/completed.ts.
-// With the single GraphQL function those handlers are gone, so the table
-// creation lives here and graphql.ts seeds all three groups at startup. Without
-// this, activities/completed/saveActivity/setCompleted/transitionTrip(to=past)
-// would fail on a fresh Preview DB.
-let activitiesInitialized = false;
-export async function ensureActivitiesSchema(): Promise<void> {
-  if (activitiesInitialized) return;
-  await db().execute(
-    'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
-  );
-  activitiesInitialized = true;
-}
-
-let completedInitialized = false;
-export async function ensureCompletedSchema(): Promise<void> {
-  if (completedInitialized) return;
-  await db().execute('CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)');
-  completedInitialized = true;
-}
-
-// Owner reviews (#184): one row per (activity, owner). Deliberately a side
-// table rather than more fields in the `a` JSON blob — reviews must survive a
-// saveActivity rewrite of that blob, and free text would eat into its
-// 8000-char cap. The PK enforces "one review per owner per activity" in the DB
-// and covers the by-activity read.
-let reviewsInitialized = false;
-export async function ensureReviewsSchema(): Promise<void> {
-  if (reviewsInitialized) return;
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS activity_reviews (
-      activity_id TEXT NOT NULL,
-      author_email TEXT NOT NULL,
-      rating INTEGER,
-      note TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      PRIMARY KEY (activity_id, author_email)
-    )`,
-  );
-  reviewsInitialized = true;
-}
-
-// Owner photos (#19): one row per photo kept in private Blob storage. The
-// bytes live in Blob under `pathname`; this table is what lists them per
-// activity and enforces the per-activity cap. Owner-only, read and write.
-let photosInitialized = false;
-export async function ensurePhotosSchema(): Promise<void> {
-  if (photosInitialized) return;
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS activity_photos (
-      id TEXT PRIMARY KEY,
-      activity_id TEXT NOT NULL,
-      pathname TEXT NOT NULL UNIQUE,
-      added_by TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    )`,
-  );
-  await db().execute(
-    `CREATE INDEX IF NOT EXISTS activity_photos_by_activity
-       ON activity_photos (activity_id, created_at)`,
-  );
-  photosInitialized = true;
-}
-
-// Suggested activities (#73): a pending one waits here, apart from the
-// catalog, until an owner accepts it (copied into `a`) or rejects it (kept,
-// marked). `j` has the same shape as `a.j`.
-let suggestionsInitialized = false;
-export async function ensureSuggestionsSchema(): Promise<void> {
-  if (suggestionsInitialized) return;
-  await db().execute(
-    `CREATE TABLE IF NOT EXISTS suggestions (
-      id TEXT PRIMARY KEY,
-      j TEXT NOT NULL,
-      t INTEGER NOT NULL,
-      suggested_by TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending'
-    )`,
-  );
-  await db().execute('CREATE INDEX IF NOT EXISTS suggestions_by_status ON suggestions (status, t)');
-  suggestionsInitialized = true;
-}
-
-// Single entry point for graphql.ts startup: create every table group the API
-// touches (trips/members/invites/votes + activities + completed + reviews +
-// photos).
-export async function ensureAllSchemas(): Promise<void> {
-  await ensureTripsSchema();
-  await ensureActivitiesSchema();
-  await ensureCompletedSchema();
-  await ensureReviewsSchema();
-  await ensurePhotosSchema();
-  await ensureSuggestionsSchema();
-}
-
-const BACKFILL_KEY = 'members_backfill_v1';
 
 // One-time migration from v0's "auto-shared with all owners" to the explicit
 // member model: seed a `users` row per owner and make every owner (plus each
 // trip's creator) a member of every existing trip, so Jess + Tarun keep access
-// to trips that predate the member model. Guarded by a `meta` sentinel so it
-// runs once per database, not once per cold start.
+// to trips that predate the member model. Guarded by a `meta` sentinel, which
+// ensureAllSchemas reads, so it runs once per database, not once per cold
+// start.
 async function backfillOwnersAndMembers(): Promise<void> {
-  const sentinel = await db().execute({
-    sql: 'SELECT value FROM meta WHERE key = ?',
-    args: [BACKFILL_KEY],
-  });
-  if (sentinel.rows.length > 0) return;
-
   const owners = [...getOwnerEmails()];
   const now = Date.now();
   for (const email of owners) {

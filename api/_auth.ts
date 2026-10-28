@@ -96,7 +96,7 @@ export type CurrentUser = {
 // into `users` so the account is discoverable (invite picker) and its role
 // stays in sync with the owner allow-list. Returns null for anonymous callers.
 //
-// Callers MUST have run `ensureTripsSchema()` first (it creates the `users`
+// Callers MUST have run `ensureAllSchemas()` first (it creates the `users`
 // table). The GraphQL guards in api/_gqlContext.ts build on its result:
 // `requireOwnerCtx` remains the gate for site-wide writes and paid endpoints.
 export async function getCurrentUserFromToken(token: string | null): Promise<CurrentUser | null> {
