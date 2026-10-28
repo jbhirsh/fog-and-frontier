@@ -1,7 +1,6 @@
 # Mutation testing (StrykerJS), from the shared tooling in jbhirsh/ci: what
-# runs and why is in its mutation/action.yml (pull requests) and
-# .github/workflows/mutation-sweep.yml (the monthly sweep); this app's
-# settings are the `mutation` key of .github/ci.json.
+# runs and why is in its mutation/action.yml; this app's settings are the
+# `mutation` key of .github/ci.json.
 #
 #   - Pull requests: the lines the PR changed (a new file, or one whose test
 #     changed, whole), gated on stryker.config.json's `break`. Its `mutate`
@@ -10,8 +9,9 @@
 #     Each PR starts from its own last results only, and a change to what
 #     every result depends on (`cache.restartOn`) starts it over.
 #     Mutation Tests (Stryker) is a required check: keep the job's name.
-#   - Monthly (+ manual): the full sweep, in parallel shards, a drift sensor
-#     for what PR runs can't see (helpers, data, dependencies).
+#
+# The monthly full sweep, a drift sensor for what PR runs can't see
+# (helpers, data, dependencies), is mutation-sweep.yml.
 name: Mutation
 
 on:
@@ -20,11 +20,6 @@ on:
   # mutate skips Stryker's steps instead, and the job still reports.
   pull_request:
     branches: [main]
-  schedule:
-    # 06:00 UTC on the 1st. Not "the first Monday": GitHub's cron ORs the
-    # day-of-month and day-of-week fields, so that would run every Monday.
-    - cron: "0 6 1 * *"
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,13 +34,7 @@ permissions:
 jobs:
   mutation:
     name: Mutation Tests (Stryker)
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: jbhirsh/ci/mutation@main
-
-  sweep:
-    name: Mutation sweep
-    if: github.event_name != 'pull_request'
-    uses: jbhirsh/ci/.github/workflows/mutation-sweep.yml@main

@@ -1,0 +1,29 @@
+name: Mutation sweep
+
+# The monthly full mutation sweep: Stryker over every file in the mutation
+# scope, in parallel shards, saved as the baseline pull requests' runs start
+# from (jbhirsh/ci's .github/workflows/mutation-sweep.yml says how; this
+# app's settings are the `mutation` key of .github/ci.json). A file of its
+# own, not a job in mutation.yml, so pull requests don't list it as a
+# skipped check. The pull-request runs are mutation.yml.
+on:
+  schedule:
+    # 06:00 UTC on the 1st. Not "the first Monday": GitHub's cron ORs the
+    # day-of-month and day-of-week fields, so that would run every Monday.
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: Mutation sweep
+    uses: jbhirsh/ci/.github/workflows/mutation-sweep.yml@main
