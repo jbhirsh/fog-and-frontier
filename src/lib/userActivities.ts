@@ -87,8 +87,12 @@ export function activityToInput(a: Activity) {
 
 export const CATALOG_LOAD_ERROR = "Couldn't load activities. Try again in a moment.";
 
-// Public catalog read. cache-and-network: instant cached render + background
-// refresh (offline persistence was dropped in the GraphQL migration). `error`
+// Public catalog read. cache-first: the first reader in a page load fetches
+// it, and every later one (each detail step, its neighbours, a trip's
+// catalog) reads the cache. With cache-and-network each of those mounts
+// fetched the whole catalog again, so every swipe through the detail
+// downloaded it. Saves refetch it, and a change of account resets the store
+// (offline persistence was dropped in the GraphQL migration). `error`
 // is a user-facing message when the read failed, so a page can say so instead
 // of rendering the failure as an empty catalog. `loading` is the first load
 // only (nothing cached yet), so a permalink can tell "not loaded" from "no
@@ -99,7 +103,7 @@ export function useUserActivities(): {
   loading: boolean;
 } {
   const { data, error, loading } = useQuery(ACTIVITIES_QUERY, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
   const activities = useMemo(() => (data?.activities ?? []).map(rowToActivity), [data]);
   return {

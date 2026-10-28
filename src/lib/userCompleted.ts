@@ -117,9 +117,12 @@ export function applyCompletionMirror(completed: string[], uncompleted: string[]
   for (const id of uncompleted) setActivityCompleted(id, false);
 }
 
+// cache-first, like the catalog: every card reads this, and with
+// cache-and-network each card that mounted after the first read fetched it
+// again. Toggles write the cache (setCompleted).
 export function useOverrides(): Overrides {
   const { data } = useQuery(COMPLETED_QUERY, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
   return useMemo(() => {
     const out: Overrides = {};
