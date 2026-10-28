@@ -14,6 +14,7 @@ import { TripDetail } from './pages/TripDetail';
 import { SharePage } from './pages/SharePage';
 import { Sentry } from './lib/sentry';
 import { ACTIVITY_PATH } from './lib/activityRoute';
+import { useCatalogRefresh } from './lib/catalogRefresh';
 
 // Wrap once at module scope so Sentry can attach route-change spans for
 // pageload + navigation transactions. A no-op when initSentry didn't run
@@ -21,6 +22,7 @@ import { ACTIVITY_PATH } from './lib/activityRoute';
 const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 
 export default function App() {
+  useCatalogRefresh();
   return (
     <BrowserRouter>
       {/* Asks for the visitor's location on their first visit, for "miles
