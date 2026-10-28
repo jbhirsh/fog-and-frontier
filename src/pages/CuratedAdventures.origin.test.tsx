@@ -40,41 +40,58 @@ function renderAt(origin: DistanceOrigin, driving: DrivingMiles = NO_DRIVING_MIL
   );
 }
 
-// Before road miles load, the badge is the straight-line estimate ("≈").
+// The card's facts on its photo; the list's header says where they're from.
+// Before road miles load, the miles are the straight-line estimate ("≈").
 function badge(origin: DistanceOrigin, driving: DrivingMiles = NO_DRIVING_MILES) {
-  return `${formatMiles(distanceTo(origin, driving, muirWoods))} mi from ${origin.name}`;
+  return `${muirWoods.duration} · ${formatMiles(distanceTo(origin, driving, muirWoods))} mi`;
+}
+
+/** Opens the Filters sheet. */
+async function openFilters() {
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  return within(screen.getByRole('dialog', { name: 'Filters' }));
+}
+
+/** Picks how far in the open sheet. */
+async function within25() {
+  const sheet = within(screen.getByRole('dialog', { name: 'Filters' }));
+  await userEvent.click(
+    within(sheet.getByRole('group', { name: 'How far' })).getByRole('button', { name: '25 mi' }),
+  );
 }
 
 describe('Curated Adventures — distance origin (#66)', () => {
-  it('measures from home, and says so, until the visitor shares a location', () => {
+  it('measures from home, and says so, until the visitor shares a location', async () => {
     renderAt(HOME_ORIGIN);
     expect(screen.getByText(/sorted by\s+distance from San Jose, CA/)).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Within 25 mi of San Jose' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Any distance' })).toBeInTheDocument();
     expect(screen.getByText(badge(HOME_ORIGIN))).toBeInTheDocument();
+    const sheet = await openFilters();
+    expect(sheet.getByRole('heading', { name: 'How far from San Jose' })).toBeInTheDocument();
   });
 
-  it('measures from the visitor, and says "you"', () => {
+  it('measures from the visitor, and says "you"', async () => {
     renderAt(NEAR_SF);
     expect(screen.getByText(/sorted by\s+distance from you/)).toBeInTheDocument();
-    for (const miles of [25, 50, 100, 250]) {
-      expect(screen.getByRole('option', { name: `Within ${miles} mi of you` })).toBeInTheDocument();
-    }
     expect(screen.getByText(badge(NEAR_SF))).toBeInTheDocument();
+    const sheet = await openFilters();
+    expect(sheet.getByRole('heading', { name: 'How far from you' })).toBeInTheDocument();
+    const far = within(sheet.getByRole('group', { name: 'How far' }));
+    for (const miles of [25, 50, 100, 250]) {
+      expect(far.getByRole('button', { name: `${miles} mi` })).toBeInTheDocument();
+    }
   });
 
   it('filters by distance from the visitor, not from home', async () => {
     // Muir Woods is ~10 mi from the visitor but ~55 from San Jose.
     const { unmount } = renderAt(NEAR_SF);
-    await userEvent.selectOptions(screen.getByDisplayValue('Any distance'), 'Within 25 mi of you');
+    await openFilters();
+    await within25();
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     unmount();
 
     renderAt(HOME_ORIGIN);
-    await userEvent.selectOptions(
-      screen.getByDisplayValue('Any distance'),
-      'Within 25 mi of San Jose',
-    );
+    await openFilters();
+    await within25();
     expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
   });
 
@@ -82,22 +99,22 @@ describe('Curated Adventures — distance origin (#66)', () => {
     renderAt(NEAR_SF);
     await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
     const dialog = await screen.findByRole('dialog');
-    const miles = formatMiles(distanceTo(NEAR_SF, NO_DRIVING_MILES, muirWoods), true);
-    expect(within(dialog).getByText(`${miles} mi from you`)).toBeInTheDocument();
+    // Measured from the same place as the list, which says where that is.
+    const miles = formatMiles(distanceTo(NEAR_SF, NO_DRIVING_MILES, muirWoods));
+    expect(dialog).toHaveTextContent(`${miles} mi away`);
   });
 
   it('shows, filters and details by road miles once they load', async () => {
     // Straight-line, Muir Woods is ~55 mi from San Jose; say it's 20 by road.
     const driving = new Map([[muirWoods.id, 20]]);
     renderAt(HOME_ORIGIN, driving);
-    expect(screen.getByText('20 mi from San Jose')).toBeInTheDocument();
-    await userEvent.selectOptions(
-      screen.getByDisplayValue('Any distance'),
-      'Within 25 mi of San Jose',
-    );
+    expect(screen.getByText(`${muirWoods.duration} · 20 mi`)).toBeInTheDocument();
+    await openFilters();
+    await within25();
+    await userEvent.keyboard('{Escape}');
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Test Muir Woods/ }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('20.0 mi from San Jose, CA')).toBeInTheDocument();
+    expect(dialog).toHaveTextContent('20 mi away');
   });
 });

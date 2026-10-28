@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createPortal } from 'react-dom';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './Layout';
+import { useHeaderSlot } from '../lib/headerSlot';
 
 const ownerState = vi.hoisted(() => ({ isOwner: true }));
 
@@ -31,9 +34,35 @@ function renderAt(path: string) {
   );
 }
 
+// A page that puts a control of its own in the header's row, or says it
+// has no header to put it in.
+function PageWithControl() {
+  const slot = useHeaderSlot();
+  if (slot === undefined) return <p>no header</p>;
+  return slot && createPortal(<button type="button">page control</button>, slot);
+}
+
 describe('Layout', () => {
   beforeEach(() => {
     ownerState.isOwner = true;
+  });
+
+  it('gives the page a place in the header’s row for its own controls', () => {
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<PageWithControl />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(header().getByRole('button', { name: 'page control' })).toBeInTheDocument();
+  });
+
+  it('tells a page drawn without it that there is no header', () => {
+    render(<PageWithControl />);
+    expect(screen.getByText('no header')).toBeInTheDocument();
   });
 
   it('renders nav links and the routed child', () => {
@@ -67,15 +96,29 @@ describe('Layout', () => {
     expect(header().queryByRole('link', { name: 'Adventures' })).not.toBeInTheDocument();
   });
 
-  it('renders the brand and footer', () => {
-    // The footer is suppressed on the catalog ("/") so the split view owns the
-    // page scroll; assert it on another route.
+  it('renders the brand and no footer, at any width', () => {
     renderAt('/trips');
-    expect(screen.getAllByText('Fog and Frontier').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Inspired by the Pacific Coast/)).toBeInTheDocument();
-    // A phone's tab bar keeps the home indicator clear, so the footer doesn't.
-    expect(screen.getByRole('contentinfo')).toHaveClass('py-md');
-    expect(screen.getByRole('contentinfo').className).not.toMatch(/safe-area/);
+    expect(screen.getAllByText('Fog and Frontier')).toHaveLength(1);
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+  });
+
+  it('steps its bar aside on a phone only while a trip’s own header is up', () => {
+    // Not by path: /trips/new, and a trip still loading or asking to sign
+    // in, have no header of their own.
+    for (const path of ['/trips/new', '/trips/t1', '/']) {
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="*" element={<div>page</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(screen.getByRole('banner')).toHaveClass('in-data-own-header:max-md:hidden');
+      expect(screen.getByRole('banner')).not.toHaveClass('max-md:hidden');
+      cleanup();
+    }
   });
 
   // Explore is an owner-only surface (#111): hidden, not greyed out.
@@ -102,6 +145,8 @@ describe('Layout', () => {
     expect(screen.getByRole('search')).toHaveClass('md:max-lg:hidden');
     expect(header().getByRole('navigation')).toHaveClass('hidden', 'lg:flex');
     expect(header().getByRole('navigation')).not.toHaveClass('md:flex');
+    // There it's the brand and the account, the account on the right.
+    expect(header().getByRole('link', { name: 'Fog and Frontier' })).toHaveClass('md:max-lg:block');
     unmount();
 
     renderAt('/?view=list');
@@ -111,11 +156,12 @@ describe('Layout', () => {
 
   it('gives a phone the search and the account on the catalog, the brand elsewhere (#289)', () => {
     const { unmount } = renderAt('/');
+    // The search stands in for the brand until xl, where the row has room.
     expect(header().getByRole('link', { name: 'Fog and Frontier' })).toHaveClass(
       'hidden',
-      'md:block',
+      'xl:block',
     );
-    expect(screen.getByRole('search')).toHaveClass('flex-1', 'md:flex-none');
+    expect(screen.getByRole('search')).toHaveClass('flex-1');
     unmount();
     renderAt('/trips');
     expect(header().getByRole('link', { name: 'Fog and Frontier' })).not.toHaveClass('hidden');
@@ -125,5 +171,38 @@ describe('Layout', () => {
     renderAt('/');
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     expect(screen.getByText('explore-content').closest('.pb-\\(--tab-bar\\)')).not.toBeNull();
+  });
+
+  it('asks for a search in a word, and in full only where the box has room', () => {
+    // jsdom matches no media query: as narrow as a phone or a tablet.
+    renderAt('/');
+    expect(screen.getByRole('textbox', { name: 'Search adventures' })).toHaveAttribute(
+      'placeholder',
+      'Search',
+    );
+    cleanup();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(min-width: 64rem)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    renderAt('/');
+    expect(screen.getByRole('textbox', { name: 'Search adventures' })).toHaveAttribute(
+      'placeholder',
+      'Search adventures, places, trails…',
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('puts the keyboard away on Search, keeping what was typed', async () => {
+    renderAt('/');
+    const box = screen.getByRole('textbox', { name: 'Search adventures' });
+    await userEvent.type(box, 'beach');
+    expect(box).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(box).not.toHaveFocus();
+    expect(box).toHaveValue('beach');
+    await userEvent.type(box, '{Enter}');
+    expect(box).not.toHaveFocus();
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMap, useMapEvents } from 'react-leaflet';
 import * as L from 'leaflet';
+import { fillZoom } from '../lib/mapFit';
 
 // Custom frosted zoom controls, replacing Leaflet's default `zoomControl`. The
 // MapContainer is mounted with `zoomControl={false}` and renders this as a
@@ -12,6 +13,18 @@ export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
   const map = useMap();
   const ref = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(() => map.getZoom());
+
+  // Zoomed out, the world stays at least as tall as the map, with no grey
+  // above or below it (the map's maxBounds stop a pan at its top and bottom
+  // edges). Kept as the map resizes.
+  useEffect(() => {
+    const fit = () => map.setMinZoom(fillZoom(map.getSize().y));
+    fit();
+    map.on('resize', fit);
+    return () => {
+      map.off('resize', fit);
+    };
+  }, [map]);
 
   // Mirror Leaflet's default control: disable a button once the map is at its
   // zoom limit. Keep it in sync as the user zooms (buttons, wheel, pinch).

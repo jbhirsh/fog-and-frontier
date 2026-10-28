@@ -135,10 +135,9 @@ describe('Curated Adventures — view modes (#93)', () => {
     expect(sheet()).not.toHaveTextContent('1 places');
     expect(within(sheet()).getByRole('button', { name: 'Hide map' })).toBeInTheDocument();
     expect(grabber('peek')).toBeInTheDocument();
-    // The toolbar isn't shown, but its filter chips ride in the sheet so
-    // active filters stay visible and changeable; no floating button.
-    expect(within(sheet()).getByRole('switch', { name: 'Dog friendly' })).toBeInTheDocument();
-    expect(within(sheet()).getByRole('switch', { name: 'Completed only' })).toBeInTheDocument();
+    // The toolbar isn't shown, but Filters rides in the sheet so active
+    // filters stay visible and changeable; no floating button.
+    expect(within(sheet()).getByRole('button', { name: /^Filters/ })).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'View mode' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Show map' })).not.toBeInTheDocument();
   });
@@ -154,10 +153,11 @@ describe('Curated Adventures — view modes (#93)', () => {
     );
   });
 
-  it('filters the mobile map from the chips in its sheet', async () => {
+  it('filters the mobile map from Filters in its sheet', async () => {
     renderAt('/?view=map');
     expect(screen.getByTestId('activity-map')).toHaveTextContent('map:1');
-    await userEvent.click(within(sheet()).getByRole('switch', { name: 'Completed only' }));
+    await userEvent.click(within(sheet()).getByRole('button', { name: /^Filters/ }));
+    await userEvent.click(screen.getByRole('switch', { name: 'Only places we’ve done' }));
     // The fixture isn't completed, so the filter empties the map.
     expect(screen.getByTestId('activity-map')).toHaveTextContent('map:0');
   });

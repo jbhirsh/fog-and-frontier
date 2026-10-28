@@ -13,3 +13,22 @@ export function sentenceCase(value: string): string {
 export function categoryOptionLabel(c: 'Any' | Category): string {
   return c === 'Any' ? 'Any category' : sentenceCase(c);
 }
+
+// What a place is, in a word, for a fact line: a pin's card (#291) and a
+// place's page on a phone (#293).
+const KIND: Record<Category, string> = {
+  hiking: 'Hike',
+  cycling: 'Ride',
+  water: 'Water',
+  food: 'Food',
+  culture: 'Culture',
+  scenic: 'Scenic',
+  climbing: 'Climb',
+  camping: 'Camping',
+  other: 'Other',
+};
+
+/** "hiking" → "Hike": what a place is, in a word. */
+export function kindLabel(c: Category): string {
+  return KIND[c];
+}

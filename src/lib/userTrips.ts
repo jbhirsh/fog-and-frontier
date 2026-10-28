@@ -19,6 +19,7 @@ import {
   REMOVE_TRIP_ACTIVITY,
   REVOKE_INVITE,
   SET_DISPLAY_ORDER,
+  SET_START_TIMES,
   TRANSITION_TRIP,
   TRIP_QUERY,
   TRIPS_QUERY,
@@ -320,6 +321,19 @@ export async function assignSlot(taId: string, slot: SlotInput): Promise<void> {
         startTime: slot.start_time,
         displayOrder: slot.display_order,
       },
+    },
+  });
+}
+
+/** New start times for places on a trip's days (#294), saved together. */
+export async function setStartTimes(
+  tripId: string,
+  times: readonly { id: string; start_time: string }[],
+): Promise<void> {
+  await apolloClient.mutate({
+    mutation: SET_START_TIMES,
+    variables: {
+      input: { tripId, times: times.map((t) => ({ taId: t.id, startTime: t.start_time })) },
     },
   });
 }

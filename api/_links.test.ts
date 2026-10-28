@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LINK_HOSTS, isSavableUrl, keepSavableLinks } from './_links.js';
+import { LINK_HOSTS, isDogRulesPage, isSavableUrl, keepSavableLinks } from './_links.js';
 
 describe('isSavableUrl', () => {
   it('keeps http(s) pages and drops everything else', () => {
@@ -41,6 +41,7 @@ describe('keepSavableLinks (#73)', () => {
         allTrailsUrl: 'https://example.com/trail/x',
         reservationUrl: 'mailto:a@example.com',
         menuUrl: 'https://example.com/menu',
+        dogRulesUrl: 'ftp://parks.example/dogs',
       }),
     ).toEqual({
       name: 'X',
@@ -50,6 +51,7 @@ describe('keepSavableLinks (#73)', () => {
       allTrailsUrl: null,
       reservationUrl: null,
       menuUrl: 'https://example.com/menu',
+      dogRulesUrl: null,
     });
   });
 
@@ -70,5 +72,33 @@ describe('keepSavableLinks (#73)', () => {
     const activity = { coverImage: 'bad', menuUrl: 'bad' };
     keepSavableLinks(activity);
     expect(activity).toEqual({ coverImage: 'bad', menuUrl: 'bad' });
+  });
+});
+
+describe('isDogRulesPage (#296)', () => {
+  it("keeps a page of the place's or its park's own site", () => {
+    expect(isDogRulesPage('https://www.parks.ca.gov/?page_id=518')).toBe(true);
+    expect(isDogRulesPage('http://www.ebparks.org/dogs')).toBe(true);
+  });
+
+  it('drops a listing or review of the place', () => {
+    expect(isDogRulesPage('https://www.alltrails.com/trail/us/california/x')).toBe(false);
+    expect(isDogRulesPage('https://www.bringfido.com/attraction/1234')).toBe(false);
+    expect(isDogRulesPage('https://yelp.com/biz/x')).toBe(false);
+    expect(isDogRulesPage('https://www.yelp.com./biz/x')).toBe(false);
+  });
+
+  it('tells a listing site from a name that merely ends like one', () => {
+    expect(isDogRulesPage('https://notyelp.com/dogs')).toBe(true);
+    expect(isDogRulesPage('https://yelp.com.example.org/dogs')).toBe(true);
+  });
+
+  it('drops what could not be saved at all', () => {
+    expect(isDogRulesPage('mailto:ranger@parks.example')).toBe(false);
+    expect(isDogRulesPage('https://vertexaisearch.cloud.google.com/grounding-api-redirect/x')).toBe(
+      false,
+    );
+    expect(isDogRulesPage(null)).toBe(false);
+    expect(isDogRulesPage(42)).toBe(false);
   });
 });

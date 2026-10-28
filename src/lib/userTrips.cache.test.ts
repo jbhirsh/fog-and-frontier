@@ -3,7 +3,14 @@ import { createElement, type ReactNode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { ApolloProvider } from '@apollo/client/react';
 import { apolloClient } from './apolloClient';
-import { addActivityToTrip, castVote, createTrip, markTripPast, useTrip } from './userTrips';
+import {
+  addActivityToTrip,
+  castVote,
+  createTrip,
+  markTripPast,
+  setStartTimes,
+  useTrip,
+} from './userTrips';
 import { ACTIVITIES_QUERY, COMPLETED_QUERY, TRIP_QUERY } from './gqlDocs';
 import { toActivityRow } from '../test/render';
 import { completedHike, muirWoods } from '../test/fixtures';
@@ -97,6 +104,7 @@ function snapshotJson(over: Record<string, unknown> = {}) {
     reservationUrl: 'http://resy',
     menuUrl: 'http://menu',
     sourceUrl: null,
+    dogRulesUrl: null,
     cardLine: null,
     cardName: null,
     dietary: ['vegetarian'],
@@ -489,5 +497,44 @@ describe('boundary mappers — rowToTrip + createTrip input', () => {
     expect(id).toBe('trip9');
     expect(captured?.startDate).toBe('2025-07-01');
     expect(captured?.endDate).toBe('2025-07-03');
+  });
+});
+
+describe('setStartTimes (#294)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sends a day’s new times in one mutation', async () => {
+    let sent: Record<string, unknown> | undefined;
+    installFetch({
+      SetStartTimes: (vars) => {
+        sent = vars;
+        return jsonResponse({
+          data: {
+            setStartTimes: {
+              __typename: 'SetStartTimesPayload',
+              tripActivities: [
+                { __typename: 'TripActivity', id: 'a' },
+                { __typename: 'TripActivity', id: 'b' },
+              ],
+            },
+          },
+        });
+      },
+    });
+    await setStartTimes('trip-1', [
+      { id: 'a', start_time: '13:00' },
+      { id: 'b', start_time: '09:00' },
+    ]);
+    expect(sent).toEqual({
+      input: {
+        tripId: 'trip-1',
+        times: [
+          { taId: 'a', startTime: '13:00' },
+          { taId: 'b', startTime: '09:00' },
+        ],
+      },
+    });
   });
 });

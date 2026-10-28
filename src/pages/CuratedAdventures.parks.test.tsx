@@ -79,8 +79,8 @@ describe('a park’s hikes and stops in the list (#269)', () => {
     expect(bar).toHaveAttribute('aria-controls', section.id);
     expect(within(section).getByText('Test Lighthouse')).toBeInTheDocument();
     expect(within(section).getByText('Test Chimney Rock')).toBeInTheDocument();
-    // List's wide grid: four across on a large screen.
-    expect(section.querySelector('.grid')).toHaveClass('lg:grid-cols-4');
+    // List's wide grid: five across on a large screen.
+    expect(section.querySelector('.grid')).toHaveClass('lg:grid-cols-5');
 
     await userEvent.click(
       within(section).getByRole('button', { name: "Close Test Seashore's hikes and stops" }),
@@ -102,9 +102,7 @@ describe('a park’s hikes and stops in the list (#269)', () => {
     const section = screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' });
     await userEvent.click(within(section).getByRole('button', { name: /Test Lighthouse/ }));
     expect(screen.getByTestId('path')).toHaveTextContent(`/activity/${LIGHTHOUSE.id}`);
-    await userEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }),
-    );
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Back' }));
 
     await userEvent.click(
       within(screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' })).getByRole(
@@ -188,5 +186,41 @@ describe('a park’s hikes and stops in the list (#269)', () => {
     renderList();
     expect(screen.getByText(/4 places · sorted/)).toBeInTheDocument();
     expect(screen.getByText(/4 places near/)).toBeInTheDocument();
+  });
+});
+
+describe('a park’s hikes and stops on a phone', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function asPhone() {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767.98px)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  }
+
+  it('stacks the park’s card, its count on the photo, with no bar under it', async () => {
+    asPhone();
+    renderList();
+    const card = document.querySelector<HTMLElement>(`[data-activity-id="${PARK.id}"]`)!;
+    const count = within(card).getByRole('button', { name: '2 hikes & stops in Test Seashore' });
+    expect(count).toHaveTextContent(/2$/);
+    expect(count).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('account_tree')).not.toBeInTheDocument();
+    await userEvent.click(count);
+    const section = screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' });
+    expect(count).toHaveAttribute('aria-expanded', 'true');
+    expect(count).toHaveAttribute('aria-controls', section.id);
+    expect(within(section).getByText('Test Lighthouse')).toBeInTheDocument();
+    // Closing the section gives focus back to the count it opened from.
+    await userEvent.click(
+      within(section).getByRole('button', { name: "Close Test Seashore's hikes and stops" }),
+    );
+    expect(screen.queryByRole('region', { name: /Hikes & stops/ })).not.toBeInTheDocument();
+    expect(count).toHaveFocus();
   });
 });

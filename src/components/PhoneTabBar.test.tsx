@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, type Location } from 'react-router-dom';
 import { PhoneTabBar } from './PhoneTabBar';
@@ -134,5 +134,22 @@ describe('PhoneTabBar (#289)', () => {
     renderAt('/trips');
     await userEvent.click(tabs().getByRole('button', { name: /Add/ }));
     expect(screen.getByTestId('where')).toHaveTextContent('/|{"add":true}');
+  });
+
+  it('steps aside while a field has the keyboard up, and comes back after', () => {
+    renderAt('/');
+    const field = document.createElement('input');
+    document.body.append(field);
+    const bar = screen.getByRole('navigation', { name: 'Main' });
+    expect(bar).toHaveClass('flex', 'md:hidden');
+    act(() => field.focus());
+    expect(bar).toHaveClass('hidden');
+    expect(bar).not.toHaveClass('flex');
+    // Its room goes with it (index.css sets --tab-bar to 0 then).
+    expect(document.documentElement).toHaveAttribute('data-typing');
+    act(() => field.blur());
+    expect(bar).toHaveClass('flex');
+    expect(document.documentElement).not.toHaveAttribute('data-typing');
+    field.remove();
   });
 });

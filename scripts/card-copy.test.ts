@@ -1,14 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
+  DOG_REPLY_SCHEMA,
   MODEL,
   batches,
+  checkDogReview,
   checkReview,
+  dogPlacesToDraft,
+  dogPrompt,
+  dogRulesPage,
+  dogSaveStatements,
   fit,
+  fitDogs,
+  main,
+  parsePlaces,
   parseReply,
   placesToDraft,
   prompt,
   saveStatements,
+  type DogPlace,
   type Entry,
   type Place,
 } from './card-copy';
@@ -158,5 +168,129 @@ describe('card-copy', () => {
       { sql, args: ['Fits.', null, 'a', null, null] },
       { sql, args: ['Also.', 'Bee', 'b', 'Old.', 'Bea'] },
     ]);
+  });
+});
+
+function dogPlace(over: Partial<DogPlace> = {}): DogPlace {
+  return {
+    id: 'mission-peak',
+    name: 'Mission Peak',
+    city: 'Fremont',
+    park: 'Mission Peak Regional Preserve',
+    dogRulesUrl: null,
+    ...over,
+  };
+}
+
+describe('card-copy dogs (#296)', () => {
+  it('drafts only the dog-friendly places without a page, unless asked for all', () => {
+    const with_ = dogPlace({ id: 'a', dogRulesUrl: 'https://www.ebparks.org/dogs' });
+    const blank = dogPlace({ id: 'b', dogRulesUrl: ' ' });
+    const none = dogPlace({ id: 'c' });
+    expect(dogPlacesToDraft([with_, blank, none], false).map((p) => p.id)).toEqual(['b', 'c']);
+    expect(dogPlacesToDraft([with_, blank, none], true).map((p) => p.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('keeps a page of the place’s or its park’s own site, as the API does', () => {
+    expect(dogRulesPage(' https://www.ebparks.org/dogs ')).toBe('https://www.ebparks.org/dogs');
+    expect(dogRulesPage('http://parks.ca.gov/?page_id=1')).toBe('http://parks.ca.gov/?page_id=1');
+    for (const bad of [
+      'https://www.bringfido.com/attraction/1',
+      'https://www.alltrails.com/trail/us/california/x',
+      'https://vertexaisearch.cloud.google.com/grounding-api-redirect/x',
+      'ftp://parks.example/dogs',
+      'not a link',
+      null,
+      7,
+    ]) {
+      expect(dogRulesPage(bad)).toBeNull();
+    }
+  });
+
+  it('asks about each place by its name, town and park, searching', () => {
+    expect(JSON.parse(dogPrompt([dogPlace(), dogPlace({ id: 'x', park: null })]))).toEqual([
+      {
+        id: 'mission-peak',
+        name: 'Mission Peak',
+        city: 'Fremont',
+        partOf: 'Mission Peak Regional Preserve',
+      },
+      { id: 'x', name: 'Mission Peak', city: 'Fremont' },
+    ]);
+    expect(DOG_REPLY_SCHEMA.properties.places.items.required).toEqual(['id']);
+  });
+
+  it('reads a grounded answer split over several parts', () => {
+    const text = JSON.stringify({ places: [{ id: 'a', dogRulesUrl: 'https://x.example/' }] });
+    const read = parsePlaces({
+      candidates: [{ content: { parts: [{ text: text.slice(0, 10) }, { text: text.slice(10) }] } }],
+    });
+    expect(read.get('a')).toEqual({ id: 'a', dogRulesUrl: 'https://x.example/' });
+    expect(parsePlaces({ candidates: [{ content: { parts: 'x' } }] }).size).toBe(0);
+    expect(parsePlaces(reply([null, 'x', { id: 3 }])).size).toBe(0);
+  });
+
+  it('keeps a drafted page only if it can be one, noting what the catalog held', () => {
+    const stored = dogPlace({ dogRulesUrl: 'https://old.example/dogs' });
+    expect(fitDogs(stored, { dogRulesUrl: 'https://www.ebparks.org/dogs' })).toEqual({
+      id: 'mission-peak',
+      name: 'Mission Peak',
+      city: 'Fremont',
+      dogRulesUrl: 'https://www.ebparks.org/dogs',
+      stored: { dogRulesUrl: 'https://old.example/dogs' },
+    });
+    expect(fitDogs(stored, { dogRulesUrl: 'https://yelp.com/biz/x' }).dogRulesUrl).toBeNull();
+    expect(fitDogs(stored, undefined).dogRulesUrl).toBeNull();
+  });
+
+  it('says what’s wrong with a reviewed file, and passes a good one', () => {
+    expect(
+      checkDogReview([
+        { id: 'a', name: 'A', dogRulesUrl: 'https://www.ebparks.org/dogs' },
+        { id: 'b', name: 'B', dogRulesUrl: null },
+        { id: 'c', name: 'C' },
+      ]),
+    ).toEqual([]);
+    expect(checkDogReview({})).toEqual(['the file must hold a list of places']);
+    expect(
+      checkDogReview([
+        { name: 'No id' },
+        { id: 'a', name: 'Listing', dogRulesUrl: 'https://www.bringfido.com/a' },
+        { id: 'a', name: 'Again', dogRulesUrl: null },
+        null,
+      ]),
+    ).toEqual([
+      'No id: no id',
+      "Listing: dog rules page isn't the place's own web page",
+      'Again: listed twice',
+      'place 4: no id',
+    ]);
+  });
+
+  it('saves each page found into its stored JSON, while it holds what was drafted from', () => {
+    const sql =
+      "UPDATE a SET j = json_set(j, '$.dogRulesUrl', ?) WHERE id = ?" +
+      " AND json_extract(j, '$.dogRulesUrl') IS ?";
+    expect(
+      dogSaveStatements([
+        { id: 'a', name: 'A', city: '', dogRulesUrl: 'https://www.ebparks.org/dogs' },
+        { id: 'b', name: 'B', city: '', dogRulesUrl: null },
+        {
+          id: 'c',
+          name: 'C',
+          city: '',
+          dogRulesUrl: 'https://parks.ca.gov/c',
+          stored: { dogRulesUrl: 'https://parks.ca.gov/old' },
+        },
+      ]),
+    ).toEqual([
+      { sql, args: ['https://www.ebparks.org/dogs', 'a', null] },
+      { sql, args: ['https://parks.ca.gov/c', 'c', 'https://parks.ca.gov/old'] },
+    ]);
+  });
+
+  it('says how it’s used when the step is unknown', async () => {
+    await expect(main(['dogs', 'nope'])).rejects.toThrow(/dogs draft \[file\]/);
+    await expect(main([])).rejects.toThrow(/^usage: npm run cards/);
   });
 });

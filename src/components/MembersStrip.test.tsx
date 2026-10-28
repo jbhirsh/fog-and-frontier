@@ -132,6 +132,7 @@ describe('MembersStrip', () => {
   });
 
   it('shows Leave trip button for non-creator current member and calls onLeave', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const onLeave = vi.fn();
     render(
       <MembersStrip
@@ -146,6 +147,19 @@ describe('MembersStrip', () => {
     expect(leaveBtn).toBeInTheDocument();
     await userEvent.click(leaveBtn);
     expect(onLeave).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks before leaving, and stays when told no', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const onLeave = vi.fn();
+    render(
+      <MembersStrip
+        {...defaultProps({ currentEmail: 'bob@example.com', isCreator: false, onLeave })}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Leave trip' }));
+    expect(confirm).toHaveBeenCalledWith('Leave this trip? You’ll need a new invite to rejoin.');
+    expect(onLeave).not.toHaveBeenCalled();
   });
 
   it('does NOT show Leave trip button for the creator', () => {

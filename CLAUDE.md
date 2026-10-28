@@ -20,7 +20,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
 - `npm run test:visual` — Playwright visual regression: the desktop pages in Chromium, Firefox and WebKit (`desktop`, `desktop-firefox`, `desktop-webkit`) and the mobile ones on an iPhone (WebKit), each against its own Linux baselines. Baselines come from CI, not a laptop (fonts differ): run `visual-baselines.yml` by hand on the branch, which commits them there.
 - `npm run db:snapshot` / `db:seed-preview` — Turso helpers in `scripts/`. The catalog lives only in Turso; there is no static seed.
-- `npm run cards -- draft` / `cards -- save` — card copy (#295) for places saved without it: Gemini drafts a review file, an owner edits it, then saves it to production.
+- `npm run cards -- draft` / `cards -- save` — card copy (#295) for places saved without it: Gemini drafts a review file, an owner edits it, then saves it to production. `cards -- dogs draft` / `dogs save` do the same for dog-friendly places' dog rules pages (#296), with Google Search.
 - `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/gif.mjs`, which runs jbhirsh/ci's `gif` tool; below, "Show UI changes in the PR").
 - `npm run regions:gen` — regenerate `shared/isoRegions.ts` from ISO 3166 (Debian's `iso-codes` package, `apt install iso-codes`), when a new release adds or renames regions.
 - `npm run links:check` — audit every outbound link in the live catalog (#68): dead links fail it, bot-blocked ones (AllTrails) are listed for checking by hand. Runs weekly in `links.yml`.

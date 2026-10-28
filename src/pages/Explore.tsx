@@ -340,7 +340,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   return (
     <div className="space-y-md px-md py-lg text-center md:py-xl">
       <p className="font-body-lg text-error">Something went wrong.</p>
-      <p className="mx-auto max-w-xl font-body-md text-on-surface-variant">{message}</p>
+      <p className="mx-auto max-w-144 font-body-md text-on-surface-variant">{message}</p>
       <button
         type="button"
         onClick={onRetry}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '../test/render';
+import { render, screen, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AuthCtx, type AuthState } from '../lib/authShim';
@@ -43,6 +43,14 @@ function renderAs(auth: AuthState, path = '/', activities: Activity[] = CREDITED
   );
 }
 
+/** Opens the Filters sheet's Added by list. */
+async function openAddedBy() {
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  const sheet = within(screen.getByRole('dialog', { name: 'Filters' }));
+  await userEvent.click(sheet.getByRole('button', { name: /^Added by/ }));
+  return within(screen.getByRole('group', { name: 'Added by' }));
+}
+
 function shown() {
   return ['Test Muir Woods', 'Test Completed Hike', 'Test Tide Pools'].filter(
     (name) => screen.queryByText(name) !== null,
@@ -54,24 +62,26 @@ describe('Curated Adventures — contributors filter (#9)', () => {
     renderAs(SIGNED_IN, `/?contributors=${encodeURIComponent(JESS)}`);
     expect(shown()).toEqual(['Test Completed Hike', 'Test Tide Pools']);
     expect(
-      screen.getByRole('button', { name: 'Remove contributor filter: Jess' }),
+      screen.getByRole('button', { name: 'Remove filter: Added by Jess' }),
     ).toBeInTheDocument();
   });
 
   it('picks a contributor into the URL, and its chip takes them off again', async () => {
     renderAs(SIGNED_IN);
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Contributed by' }), TARUN);
+    const people = await openAddedBy();
+    await userEvent.click(people.getByRole('checkbox', { name: 'Tarun' }));
+    await userEvent.keyboard('{Escape}{Escape}');
     expect(screen.getByTestId('search')).toHaveTextContent(
       `?contributors=${encodeURIComponent(TARUN)}`,
     );
     expect(shown()).toEqual(['Test Muir Woods', 'Test Tide Pools']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Remove contributor filter: Tarun' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove filter: Added by Tarun' }));
     expect(screen.getByTestId('search').textContent).toBe('');
     expect(shown()).toHaveLength(3);
   });
 
-  it('is not rendered for a signed-out visitor, and their link filters nothing', () => {
+  it('is not rendered for a signed-out visitor, and their link filters nothing', async () => {
     // A shared ?contributors= link: the server sends a signed-out visitor no
     // contributors, so honouring it would empty the list.
     renderAs(SIGNED_OUT, `/?contributors=${encodeURIComponent(TARUN)}`, [
@@ -79,8 +89,13 @@ describe('Curated Adventures — contributors filter (#9)', () => {
       completedHike,
       dogFriendlyTidepools,
     ]);
-    expect(screen.queryByRole('combobox', { name: 'Contributed by' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /contributor filter/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Added by/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Filters' })).queryByRole('button', {
+        name: /^Added by/,
+      }),
+    ).not.toBeInTheDocument();
     expect(shown()).toHaveLength(3);
     // The link is left as it was, for when they sign in.
     expect(screen.getByTestId('search')).toHaveTextContent(
@@ -88,8 +103,13 @@ describe('Curated Adventures — contributors filter (#9)', () => {
     );
   });
 
-  it('offers no picker when nothing is credited', () => {
+  it('offers no Added by when nothing is credited', async () => {
     renderAs(SIGNED_IN, '/', [muirWoods]);
-    expect(screen.queryByRole('combobox', { name: 'Contributed by' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Filters' })).queryByRole('button', {
+        name: /^Added by/,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -50,9 +50,9 @@ export function VotingCandidateCard({
         votingOpen && draggable ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
-      {/* Below md the controls wrap onto their own row (#228): beside the
-          thumbnail they left the name a few pixels wide on a phone. */}
-      <div className="flex flex-wrap gap-x-md gap-y-sm p-sm md:flex-nowrap">
+      {/* The controls wrap onto their own row (#228): beside the thumbnail
+          they left the name a few pixels wide. */}
+      <div className="flex flex-wrap gap-x-md gap-y-sm p-sm">
         {/* Drag handle */}
         {votingOpen && draggable && (
           <div className="flex shrink-0 items-center text-on-surface-variant/50">
@@ -78,9 +78,8 @@ export function VotingCandidateCard({
           </div>
         )}
 
-        {/* Vote controls + remove: a row of their own on a phone, the right
-            side of the card from md up. */}
-        <div className="flex shrink-0 basis-full items-center justify-end gap-sm md:basis-auto md:flex-col md:items-end md:justify-start md:gap-xs">
+        {/* Vote controls + remove: a row of their own. */}
+        <div className="flex shrink-0 basis-full items-center justify-end gap-sm">
           <VoteControls
             tally={tally}
             myVote={myVote}
@@ -93,7 +92,7 @@ export function VotingCandidateCard({
               type="button"
               aria-label="Remove candidate"
               onClick={onRemove}
-              className="min-h-11 rounded-full border border-error/40 py-xs pr-sm pl-[10px] font-body-md text-sm text-error transition-colors hover:bg-error-container md:min-h-auto"
+              className="min-h-11 rounded-full border border-error/40 py-xs pr-sm pl-[10px] font-body-md text-sm text-error transition-colors hover:bg-error-container"
             >
               ✕ Remove
             </button>

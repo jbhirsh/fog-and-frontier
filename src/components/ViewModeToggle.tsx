@@ -11,8 +11,8 @@ type Option = { value: ViewMode; label: string; icon: string };
 // Order matters: the segmented control reads List · Split · Map left-to-right,
 // and left/right arrow navigation walks this array.
 const OPTIONS: readonly Option[] = [
-  { value: 'list', label: 'List', icon: 'view_agenda' },
-  { value: 'split', label: 'Split', icon: 'splitscreen' },
+  { value: 'list', label: 'List', icon: 'grid_view' },
+  { value: 'split', label: 'Split', icon: 'vertical_split' },
   { value: 'map', label: 'Map', icon: 'map' },
 ];
 
@@ -23,7 +23,9 @@ type Props = {
 
 /**
  * iOS-style segmented control for switching between the List · Split · Map
- * layouts. Frosted pill track with a navy (`primary`) active segment. Shown
+ * layouts, a symbol each (the cards' grid, the list beside the map, the
+ * map), named for a screen reader and in a tooltip. It sits in the header's
+ * one row, 44px tall like everything else there. Shown
  * only at `lg+`: below it Split has no two-column layout, so the mobile UX is
  * a floating "Show map" button instead (see CuratedAdventures, #96).
  *
@@ -76,7 +78,9 @@ export function ViewModeToggle({ value, onChange }: Props) {
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`flex items-center gap-xs rounded-lg px-sm py-xs text-body-sm font-semibold transition-colors ${
+            aria-label={option.label}
+            title={option.label}
+            className={`flex h-9 w-10 items-center justify-center rounded-lg transition-colors ${
               selected
                 ? 'bg-surface-container-lowest text-primary shadow-sm'
                 : 'text-on-surface-variant hover:text-on-surface'
@@ -85,17 +89,16 @@ export function ViewModeToggle({ value, onChange }: Props) {
             {/* Fixed-size icon box: Material Symbols renders the glyph via a
                 ligature, so if the icon font fails to load (e.g. the visual
                 tests stub Google Fonts to empty) the raw ligature *name*
-                ("splitscreen", "view_agenda") would otherwise render as text and
+                ("vertical_split", "grid_view") would otherwise render as text and
                 blow out the width of this non-wrapping control. Clipping to a
                 fixed box keeps the layout stable in either case. */}
             <span
               className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-              style={{ fontSize: 18, width: 20, height: 20 }}
+              style={{ fontSize: 20, width: 20, height: 20 }}
               aria-hidden="true"
             >
               {option.icon}
             </span>
-            <span>{option.label}</span>
           </button>
         );
       })}

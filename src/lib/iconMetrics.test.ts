@@ -25,7 +25,7 @@ describe('glyphBleed', () => {
       lightbulb: 0.167,
       location_on: 0.167,
       map: 0.111,
-      money_off: 0.056,
+      payments: 0.042,
       person: 0.167,
       pets: 0.083,
       schedule: 0.083,

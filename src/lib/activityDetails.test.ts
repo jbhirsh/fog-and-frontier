@@ -5,6 +5,7 @@ const full: Required<DetailRow> = {
   durationDetail: '2-3 hours',
   difficulty: 'moderate',
   dogFriendly: false,
+  dogRulesUrl: 'https://www.parks.ca.gov/dogs',
   hikeDistanceMiles: 0,
   hikeElevationFeet: 1200,
   allTrailsUrl: 'https://www.alltrails.com/trail/x',

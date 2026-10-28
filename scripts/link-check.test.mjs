@@ -23,9 +23,10 @@ describe('collectLinks', () => {
       'reservationUrl',
       'coverImage',
       'sourceUrl',
+      'dogRulesUrl',
     ]);
     expect(ACTIVITIES_QUERY).toBe(
-      '{ activities { id name allTrailsUrl menuUrl reservationUrl coverImage sourceUrl } }',
+      '{ activities { id name allTrailsUrl menuUrl reservationUrl coverImage sourceUrl dogRulesUrl } }',
     );
     const links = collectLinks([
       {

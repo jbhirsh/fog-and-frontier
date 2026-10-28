@@ -194,6 +194,27 @@ describe('suggestActivity', () => {
     });
   });
 
+  it('drops a dog rules link that is a listing, or for a place without dogs (#296)', async () => {
+    for (const activity of [
+      { dogFriendly: true, dogRulesUrl: 'https://www.bringfido.com/attraction/1' },
+      { dogFriendly: false, dogRulesUrl: 'https://www.parks.ca.gov/?page_id=518' },
+    ]) {
+      const id = await suggest(FRIEND, {
+        name: `Place ${String(activity.dogFriendly)}`,
+        ...activity,
+      });
+      const stored = JSON.parse(suggestions.get(id ?? '')?.j ?? '{}') as Record<string, unknown>;
+      expect(stored.dogRulesUrl ?? null).toBeNull();
+    }
+  });
+
+  it('keeps a dog rules page that is one (#296)', async () => {
+    const dogs = 'https://www.parks.ca.gov/?page_id=518';
+    const id = await suggest(FRIEND, { dogFriendly: true, dogRulesUrl: dogs });
+    const stored = JSON.parse(suggestions.get(id ?? '')?.j ?? '{}') as Record<string, unknown>;
+    expect(stored).toMatchObject({ dogRulesUrl: dogs });
+  });
+
   it('leaves which park it’s part of to the owners (#269)', async () => {
     const id = await suggest(FRIEND, { parentId: 'point-reyes-seashore' });
     const stored = JSON.parse(suggestions.get(id ?? '')?.j ?? '{}') as Record<string, unknown>;

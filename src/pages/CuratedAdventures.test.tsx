@@ -31,6 +31,20 @@ function renderExplore(path = '/', completed: CompletedSeed[] = []) {
   );
 }
 
+const DONE = 'Only places we’ve done';
+
+/** Opens the Filters sheet, for its choices. */
+async function openFilters() {
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  return within(screen.getByRole('dialog', { name: 'Filters' }));
+}
+
+/** A segmented choice in the open Filters sheet, by its row and its words. */
+function choice(row: string, name: string) {
+  const sheet = within(screen.getByRole('dialog', { name: 'Filters' }));
+  return within(sheet.getByRole('group', { name: row })).getByRole('button', { name });
+}
+
 describe('Curated Adventures page', () => {
   it('shows an error, not an empty catalog, when the catalog read fails', async () => {
     render(
@@ -64,122 +78,88 @@ describe('Curated Adventures page', () => {
 
   it('filters by duration', async () => {
     renderExplore();
-    const durationSelect = screen.getByDisplayValue('Any duration');
-    await userEvent.selectOptions(durationSelect, 'Half Day');
+    await openFilters();
+    await userEvent.click(choice('How long', 'Half day'));
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     expect(screen.queryByText('Test Completed Hike')).not.toBeInTheDocument();
   });
 
   it('filters by max distance', async () => {
     renderExplore();
-    const distanceSelect = screen.getByDisplayValue('Any distance');
-    await userEvent.selectOptions(distanceSelect, '25');
+    await openFilters();
+    await userEvent.click(choice('How far', '25 mi'));
     // From San Jose, all fixtures are >25 miles away.
     expect(screen.getByText('No activities match those filters.')).toBeInTheDocument();
   });
 
-  it('toggles the Free filter (#85)', async () => {
+  it('picks how much, up to a tier (#85)', async () => {
     render(
       <MemoryRouter>
         <CuratedAdventures />
       </MemoryRouter>,
-      { activities: [{ ...muirWoods, costTier: 'free' }, completedHike, dogFriendlyTidepools] },
+      {
+        activities: [
+          { ...muirWoods, costTier: 'free' },
+          { ...completedHike, costTier: '$$' },
+          dogFriendlyTidepools,
+        ],
+      },
     );
-    const free = screen.getByRole('switch', { name: 'Free' });
-    expect(free).toHaveAttribute('aria-checked', 'false');
-    // Its icon is pulled out by its glyph's empty side, like Dog friendly's.
-    expect(free.querySelector<HTMLElement>('.material-symbols-outlined')?.style.marginLeft).toBe(
-      '-0.056em',
-    );
-    await userEvent.click(free);
-    expect(free).toHaveAttribute('aria-checked', 'true');
+    await openFilters();
+    await userEvent.click(choice('How much', 'Free'));
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     expect(screen.queryByText('Test Completed Hike')).not.toBeInTheDocument();
+    // Up to $$: the free one too, and never one whose cost isn't known.
+    await userEvent.click(choice('How much', '$$'));
+    expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
+    expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
     expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
   });
 
-  it('keeps the Free filter on screen while it is on, after the last free activity changes (#85)', async () => {
+  it('keeps How much in the sheet while a cost is picked, after the last priced activity changes (#85)', async () => {
     const { cache } = render(
       <MemoryRouter>
         <CuratedAdventures />
       </MemoryRouter>,
       // The mount's background fetch is held, or it could land after the
-      // edit below and put the free tier back.
+      // edit below and put the cost back.
       {
         activities: [{ ...muirWoods, costTier: 'free' }, completedHike],
         activitiesDelay: Infinity,
       },
     );
-    await userEvent.click(screen.getByRole('switch', { name: 'Free' }));
-    // The only free activity is edited to another tier.
+    await openFilters();
+    await userEvent.click(choice('How much', 'Free'));
+    // The only priced activity loses its cost.
     act(() => {
       const data = cache.readQuery({ query: ACTIVITIES_QUERY })!;
       cache.writeQuery({
         query: ACTIVITIES_QUERY,
-        data: { activities: data.activities.map((a) => ({ ...a, costTier: '$' })) },
+        data: { activities: data.activities.map((a) => ({ ...a, costTier: null })) },
       });
     });
     await waitFor(() => expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument());
-    const free = screen.getByRole('switch', { name: 'Free' });
-    expect(free).toHaveAttribute('aria-checked', 'true');
-    // Turning it off brings the catalog back, and the chip goes with it.
-    await userEvent.click(free);
+    const sheet = within(screen.getByRole('dialog', { name: 'Filters' }));
+    expect(choice('How much', 'Free')).toHaveAttribute('aria-pressed', 'true');
+    // Any brings the catalog back, and How much goes with it.
+    await userEvent.click(choice('How much', 'Any'));
     expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
+    expect(sheet.queryByRole('group', { name: 'How much' })).not.toBeInTheDocument();
   });
 
-  it('offers no Free filter until something is known to be free (#85)', () => {
+  it('offers no cost until some cost is known (#85)', async () => {
     renderExplore();
-    expect(screen.queryByRole('switch', { name: 'Free' })).not.toBeInTheDocument();
-  });
-
-  it("shows each filter pill's choice as its label, and names each select", async () => {
-    renderExplore();
-    // The pill's label is the visible text; the select under it is invisible.
-    const pillText = (name: string) =>
-      screen
-        .getByRole('combobox', { name })
-        .closest('label')
-        ?.querySelector('span[aria-hidden="true"].whitespace-nowrap')?.textContent;
-    expect(pillText('Distance')).toBe('Any distance');
-    expect(pillText('Duration')).toBe('Any duration');
-    expect(pillText('Category')).toBe('Any category');
-    expect(pillText('Park type')).toBe('Any park type');
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Distance' }), '25');
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Duration' }), 'Half Day');
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Category' }), 'hiking');
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Park type' }), 'state');
-    expect(pillText('Distance')).toMatch(/^Within 25 mi of \S/);
-    expect(pillText('Duration')).toBe('Half Day');
-    expect(pillText('Category')).toBe('Hiking');
-    expect(pillText('Park type')).toBe('State park');
-  });
-
-  it('spells out the category options rather than leaving them to CSS', () => {
-    renderExplore();
-    const options = within(screen.getByRole('combobox', { name: 'Category' })).getAllByRole(
-      'option',
-    );
-    expect(options.map((o) => o.textContent)).toEqual([
-      'Any category',
-      'Hiking',
-      'Cycling',
-      'Water',
-      'Food',
-      'Culture',
-      'Scenic',
-      'Climbing',
-      'Camping',
-      'Other',
-    ]);
+    const sheet = await openFilters();
+    expect(sheet.queryByRole('group', { name: 'How much' })).not.toBeInTheDocument();
   });
 
   it('toggles dog-friendly filter', async () => {
     renderExplore();
-    const toggle = screen.getByRole('switch', { name: 'Dog friendly' });
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    const sheet = await openFilters();
+    const toggle = sheet.getByRole('switch', { name: 'Dogs welcome' });
+    expect(toggle).not.toBeChecked();
     await userEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(toggle).toBeChecked();
     expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
     expect(screen.getByText('Test Tide Pools')).toBeInTheDocument();
   });
@@ -194,7 +174,7 @@ describe('Curated Adventures page', () => {
     expect(screen.getByTestId('path')).toHaveTextContent(`/activity/${muirWoods.id}`);
     expect(screen.getByTestId('search')).toBeEmptyDOMElement();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByTestId('path')).toHaveTextContent(/^\/$/);
     expect(screen.getByTestId('search')).toHaveTextContent('?q=muir');
@@ -224,22 +204,18 @@ describe('Curated Adventures page', () => {
   });
 
   describe('Completed only (#5)', () => {
-    it('is off by default and shows every activity', () => {
+    it('is off by default and shows every activity', async () => {
       renderExplore();
-      expect(screen.getByRole('switch', { name: 'Completed only' })).toHaveAttribute(
-        'aria-checked',
-        'false',
-      );
+      const sheet = await openFilters();
+      expect(sheet.getByRole('switch', { name: DONE })).not.toBeChecked();
       expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     });
 
     it('filters to completed activities from ?completed=1', async () => {
       renderExplore('/?completed=1');
-      expect(screen.getByRole('switch', { name: 'Completed only' })).toHaveAttribute(
-        'aria-checked',
-        'true',
-      );
       expect(await screen.findByText(/^1 place · sorted/)).toBeInTheDocument();
+      const sheet = await openFilters();
+      expect(sheet.getByRole('switch', { name: DONE })).toBeChecked();
       expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
       expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
       expect(screen.queryByText('Test Tide Pools')).not.toBeInTheDocument();
@@ -247,15 +223,16 @@ describe('Curated Adventures page', () => {
 
     it('toggles the filter and syncs ?completed=1 to the URL', async () => {
       renderExplore('/?q=test');
-      const toggle = screen.getByRole('switch', { name: 'Completed only' });
-      await userEvent.click(toggle);
-      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      const sheet = await openFilters();
+      await userEvent.click(sheet.getByRole('switch', { name: DONE }));
+      const toggle = sheet.getByRole('switch', { name: DONE });
+      expect(toggle).toBeChecked();
       expect(screen.getByTestId('search')).toHaveTextContent('?q=test&completed=1');
       expect(screen.queryByText('Test Muir Woods')).not.toBeInTheDocument();
       expect(screen.getByText('Test Completed Hike')).toBeInTheDocument();
 
       await userEvent.click(toggle);
-      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      expect(sheet.getByRole('switch', { name: DONE })).not.toBeChecked();
       expect(screen.getByTestId('search')).toHaveTextContent(/^\?q=test$/);
       expect(screen.getByText('Test Muir Woods')).toBeInTheDocument();
     });

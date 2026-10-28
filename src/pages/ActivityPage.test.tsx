@@ -135,7 +135,7 @@ describe('ActivityPage (#86)', () => {
   it('closes a link opened fresh to the catalog', async () => {
     renderAt([`/activity/${muirWoods.id}`], CATALOG);
     const dialog = screen.getByRole('dialog', { name: muirWoods.name });
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(path()).toBe('/');
   });
@@ -161,7 +161,7 @@ describe('ActivityPage (#86)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'open the hike from the list' }));
     expect(path()).toBe(`/activity/${completedHike.id}`);
     expect(screen.getByRole('dialog', { name: completedHike.name })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
     expect(path()).toBe(`/activity/${muirWoods.id}`);
   });
@@ -174,7 +174,7 @@ describe('ActivityPage (#86)', () => {
     screen.getByRole('button', { name: 'open the hike from the list' }).focus();
     await userEvent.keyboard('{Enter}');
     expect(path()).toBe(`/activity/${completedHike.id}`);
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(path()).toBe('/');
   });
@@ -183,7 +183,7 @@ describe('ActivityPage (#86)', () => {
     renderAt(['/'], CATALOG);
     await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods twice' }));
     expect(path()).toBe(`/activity/${muirWoods.id}`);
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(path()).toBe('/');
   });
 
@@ -195,7 +195,7 @@ describe('ActivityPage (#86)', () => {
     );
     expect(path()).toBe(`/activity/${completedHike.id}`);
     expect(screen.getByRole('dialog', { name: completedHike.name })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(path()).toBe('/');
   });
@@ -240,7 +240,7 @@ describe('ActivityPage (#86)', () => {
       await userEvent.click(screen.getByRole('button', { name: 'back' }));
       expect(path()).toBe(`/activity/${completedHike.id}`);
       await userEvent.click(next());
-      await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Back' }));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(path()).toBe('/');
     });
@@ -306,7 +306,7 @@ describe('ActivityPage (#86)', () => {
         await Promise.resolve();
       });
       expect(path()).toBe(`/activity/${muirWoods.id}`);
-      await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Back' }));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(path()).toBe('/');
     });
@@ -363,6 +363,16 @@ describe('ActivityPage (#86)', () => {
         fireEvent.touchEnd(panel, { touches: [] });
       }
 
+      // A step remounts the detail, whose touch listeners bind in an effect
+      // just after it shows: swipe until one is taken. One that lands while
+      // the panel is leaving is ignored, so it can't step twice.
+      async function swipeTo(dx: number, to: string) {
+        await waitFor(() => {
+          if (path() !== to) swipe(dx, 0);
+          expect(path()).toBe(to);
+        });
+      }
+
       it('steps to the next on a swipe left and back on a swipe right, landing in place', async () => {
         renderAt(['/'], CATALOG);
         await openFromList();
@@ -373,20 +383,18 @@ describe('ActivityPage (#86)', () => {
         expect(next).toHaveAttribute('aria-hidden', 'true');
         expect(next).toHaveAttribute('inert');
         expect(screen.getByTestId('peek-prev')).toHaveTextContent(dogFriendlyTidepools.name);
-        swipe(-300, 0);
-        await waitFor(() => expect(path()).toBe(`/activity/${muirWoods.id}`));
+        await swipeTo(-300, `/activity/${muirWoods.id}`);
         // The preview already brought it in: no slide on top.
         const stepped = screen.getByRole('dialog', { name: muirWoods.name });
         expect(stepped.className).not.toContain('animate-');
         // The last in the list: nothing to preview after it.
         expect(screen.queryByTestId('peek-next')).toBeNull();
-        swipe(300, 0);
-        await waitFor(() => expect(path()).toBe(`/activity/${completedHike.id}`));
+        await swipeTo(300, `/activity/${completedHike.id}`);
         expect(screen.getByRole('dialog', { name: completedHike.name }).className).not.toContain(
           'animate-',
         );
         // One step deeper each time: close leaves them all.
-        await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Back' }));
         expect(path()).toBe('/');
       });
 
@@ -510,15 +518,15 @@ describe('ActivityPage (#86)', () => {
       renderAt(['/'], CATALOG);
       await userEvent.click(screen.getByRole('button', { name: 'open Muir Woods' }));
       const dialog = screen.getByRole('dialog');
-      // Its first control is Close, at the top of the cover.
+      // Its first control is Back, at the top of the photo.
       await userEvent.tab();
-      expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus();
+      expect(within(dialog).getByRole('button', { name: 'Back' })).toHaveFocus();
       await userEvent.tab({ shift: true });
       const last = document.activeElement;
       expect(inDetail()).toBe(true);
-      expect(last).not.toBe(within(dialog).getByRole('button', { name: 'Close' }));
+      expect(last).not.toBe(within(dialog).getByRole('button', { name: 'Back' }));
       await userEvent.tab();
-      expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus();
+      expect(within(dialog).getByRole('button', { name: 'Back' })).toHaveFocus();
       for (let i = 0; i < 30; i++) {
         await userEvent.tab();
         expect(inDetail()).toBe(true);
@@ -538,7 +546,7 @@ describe('ActivityPage (#86)', () => {
 
       await userEvent.click(card);
       await userEvent.click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }),
+        within(screen.getByRole('dialog')).getByRole('button', { name: 'Back' }),
       );
       expect(card).toHaveFocus();
     });

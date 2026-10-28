@@ -140,11 +140,13 @@ export function BottomSheet({ snap, onSnapChange, header, children, label }: Pro
   return (
     // Above a phone's tab bar (#289), which keeps the home indicator clear.
     // Clipped to its height: at peek the list's padding can't shrink, and
-    // its top would spill over the tab bar.
+    // its top would spill over the tab bar. Clip, not hidden: a hidden box
+    // still scrolls when a card in its list is scrolled into view, which
+    // would ride the grabber and header up out of sight.
     <section
       ref={sheetRef}
       aria-label={label}
-      className="fixed inset-x-0 bottom-(--tab-bar) z-60 flex flex-col overflow-hidden rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl max-md:pb-0"
+      className="fixed inset-x-0 bottom-(--tab-bar) z-60 flex flex-col overflow-clip rounded-t-2xl border-t border-outline-variant/30 bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(16,21,27,0.18)] backdrop-blur-xl max-md:pb-0"
       style={{
         height: dragging ? `${liveHeight}px` : SNAP_CSS[snap],
         transition:

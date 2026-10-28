@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   appliedFilters,
   CATEGORY_OPTIONS,
+  COST_OPTIONS,
   DISTANCE_LIMITS,
   DURATION_OPTIONS,
   PARK_TYPE_OPTIONS,
@@ -18,7 +19,7 @@ const values: fc.Arbitrary<FilterValues> = fc.record({
   category: fc.constantFrom(...CATEGORY_OPTIONS),
   parkType: fc.constantFrom(...PARK_TYPE_OPTIONS),
   dogOnly: fc.boolean(),
-  freeOnly: fc.boolean(),
+  maxCost: fc.constantFrom(...COST_OPTIONS),
   completedOnly: fc.boolean(),
   contributors: fc.string().map((raw) => parseContributors(raw)),
 });

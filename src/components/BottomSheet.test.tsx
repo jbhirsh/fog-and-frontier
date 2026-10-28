@@ -201,8 +201,10 @@ describe('BottomSheet', () => {
   it('sits above the phone’s tab bar, which keeps the home indicator clear (#289)', () => {
     render(<Host />);
     expect(sheet()).toHaveClass('bottom-(--tab-bar)', 'max-md:pb-0');
-    // Nothing of the list spills over the tab bar at peek (#291).
-    expect(sheet()).toHaveClass('overflow-hidden');
+    // Nothing of the list spills over the tab bar at peek (#291), and a card
+    // scrolled into view can't scroll the sheet itself, riding its grabber
+    // and header up out of sight.
+    expect(sheet()).toHaveClass('overflow-clip');
   });
 
   it('snaps to full after a long drag up', () => {

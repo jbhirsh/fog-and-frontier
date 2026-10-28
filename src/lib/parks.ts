@@ -55,6 +55,11 @@ export function parkBarId(parkId: string): string {
   return `park-bar-${parkId}`;
 }
 
+/** The id of a park's section, which its bar (or a phone's stack) controls. */
+export function parkSectionId(parkId: string): string {
+  return `park-${parkId}`;
+}
+
 /** "6 hikes & stops", "1 hike or stop". */
 export function subItemsLabel(count: number): string {
   return count === 1 ? '1 hike or stop' : `${count} hikes & stops`;

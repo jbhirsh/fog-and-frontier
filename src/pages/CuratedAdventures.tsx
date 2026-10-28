@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams, type Location } from 'react-router-dom';
 import { useDistanceOrigin } from '../lib/distanceOrigin';
 import { useDrivingMiles } from '../lib/drivingMiles';
-import { ActivityCard } from '../components/ActivityCard';
+import { ActivityCard, type ParkStack } from '../components/ActivityCard';
 import { ActivityMap } from '../components/ActivityMap';
 import { PinCard } from '../components/PinCard';
 import { AddActivity } from '../components/AddActivity';
@@ -10,16 +11,14 @@ import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
 import { BottomSheet } from '../components/BottomSheet';
 import { CompactFilters } from '../components/CompactFilters';
-import { ContributorFilter } from '../components/ContributorFilter';
-import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
-import { ParkBar, ParkSection } from '../components/ParkSection';
+import { ParkSection } from '../components/ParkSection';
 import { PendingSuggestions } from '../components/PendingSuggestions';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
 import type { SheetSnap } from '../lib/bottomSheetSnap';
-import type { Activity, Category, Duration, ParkType } from '../data/types';
+import type { Activity } from '../data/types';
 import {
   CONTRIBUTORS_PARAM,
   contributorOptions,
@@ -39,7 +38,8 @@ import { useOwner } from '../lib/useOwner';
 import { usePendingSuggestions } from '../lib/suggestions';
 import { addActivityToTrip } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
-import { nestUnderParks, parkBarId, type Nested } from '../lib/parks';
+import { useHeaderSlot } from '../lib/headerSlot';
+import { nestUnderParks, parkBarId, parkSectionId, type Nested } from '../lib/parks';
 
 /** The park whose hikes and stops are open below its row (#269). */
 interface OpenPark {
@@ -47,15 +47,7 @@ interface OpenPark {
   held: Activity[];
 }
 import { rowEnd, useGridColumns } from '../lib/useGridColumns';
-import { categoryOptionLabel } from '../lib/activityLabels';
-import {
-  CATEGORY_OPTIONS,
-  DISTANCE_LIMITS,
-  DURATION_OPTIONS,
-  PARK_TYPE_LABELS,
-  PARK_TYPE_OPTIONS,
-  type FilterValues,
-} from '../lib/catalogFilterOptions';
+import { type FilterValues } from '../lib/catalogFilterOptions';
 
 type TargetTrip = { id: string; title: string };
 
@@ -107,8 +99,8 @@ export function CuratedAdventures() {
     setParkType,
     dogOnly,
     setDogOnly,
-    freeOnly,
-    setFreeOnly,
+    maxCost,
+    setMaxCost,
     setCompletedOnly,
     setContributors,
     applyFilters,
@@ -147,6 +139,12 @@ export function CuratedAdventures() {
   // draggable bottom sheet, Apple-Maps style. Only below `lg`; at lg+ Split
   // already pairs the list and the map side by side.
   const mobileMap = view === 'map' && !isLg;
+  // The page's controls go in the header's row (Layout's slot), and the
+  // chips for the filters on in a row of their own under it. Rendered
+  // alone, as in its tests, the page draws them in a toolbar of its own.
+  const headerSlot = useHeaderSlot();
+  const inHeader = headerSlot !== undefined;
+  const [chipsRow, setChipsRow] = useState<HTMLElement | null>(null);
   // The sheet starts collapsed so the map is the prominent surface the user
   // just asked for, and collapses again each time the map opens (below).
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
@@ -167,11 +165,6 @@ export function CuratedAdventures() {
   useEffect(() => {
     setCompletedOnly(completedOnly);
   }, [completedOnly, setCompletedOnly]);
-  function toggleCompletedOnly() {
-    // Read from `prev`, not the render's value, so two quick clicks toggle
-    // twice instead of both turning it on.
-    setSearchParams((prev) => withCompletedOnly(prev, !readCompletedOnly(prev)), { replace: true });
-  }
   // Contributors (#9) are URL-sourced too (`?contributors=`). Only signed-in
   // callers get contributor data, so for anyone else the filter is off rather
   // than matching nothing, and its chip isn't rendered.
@@ -183,10 +176,7 @@ export function CuratedAdventures() {
   useEffect(() => {
     setContributors(selectedContributors);
   }, [selectedContributors, setContributors]);
-  function changeContributors(next: string[]) {
-    setSearchParams((prev) => withContributors(prev, next), { replace: true });
-  }
-  // The phone's filter sheet and chips change any filters at once ("Clear
+  // The filter sheet and chips change any filters at once ("Clear
   // all" sets them all), the URL-sourced ones in a single history entry.
   const filterValues: FilterValues = {
     maxDistance,
@@ -194,7 +184,7 @@ export function CuratedAdventures() {
     category,
     parkType,
     dogOnly,
-    freeOnly,
+    maxCost,
     completedOnly,
     contributors: selectedContributors,
   };
@@ -204,7 +194,7 @@ export function CuratedAdventures() {
     if (patch.category !== undefined) setCategory(patch.category);
     if (patch.parkType !== undefined) setParkType(patch.parkType);
     if (patch.dogOnly !== undefined) setDogOnly(patch.dogOnly);
-    if (patch.freeOnly !== undefined) setFreeOnly(patch.freeOnly);
+    if (patch.maxCost !== undefined) setMaxCost(patch.maxCost);
     const { completedOnly: completed, contributors } = patch;
     if (completed === undefined && contributors === undefined) return;
     setSearchParams(
@@ -272,7 +262,7 @@ export function CuratedAdventures() {
   const [submittingTarget, setSubmittingTarget] = useState(false);
   const { activities: all, error: loadError } = useUserActivities();
   const contributorChoices = useMemo(() => contributorOptions(all), [all]);
-  const anyFree = useMemo(() => all.some((a) => a.costTier === 'free'), [all]);
+  const anyCost = useMemo(() => all.some((a) => a.costTier !== undefined), [all]);
 
   const MAX_BULK_ADD = 50;
   const overBulkCap = selectedForTrip.size > MAX_BULK_ADD;
@@ -525,25 +515,28 @@ export function CuratedAdventures() {
     document.getElementById(parkBarId(id))?.focus();
   }, [opened]);
 
-  // A phone's cards go two to a row (#290), in the list and the mobile map's
-  // sheet. Split (lg and up) is narrower than the full-width List layout,
-  // since the list shares the row with the map.
+  // Cards go two to a row on a phone (#290), more as the screen widens, in
+  // the list and the mobile map's sheet. Split (lg and up) is narrower than
+  // the full-width List layout, since the list shares the row with the map.
   const gridColsClass =
     view === 'split'
-      ? 'grid-cols-1 xl:grid-cols-2'
+      ? 'grid-cols-2 xl:grid-cols-3'
       : view === 'map'
         ? 'grid-cols-2'
-        : 'grid-cols-2 lg:grid-cols-3';
+        : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
   // An open park's hikes and stops sit smaller, one more to a row. (The
   // mobile map's sheet is never wide enough for Split's third column.)
   const parkGridClass =
-    view === 'list' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 xl:grid-cols-3';
+    view === 'list'
+      ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+      : 'grid-cols-2 xl:grid-cols-3';
 
-  function card(a: Activity) {
+  function card(a: Activity, stack?: ParkStack) {
     return (
       <ActivityCard
         key={a.id}
         activity={a}
+        stack={stack}
         selectionMode={selectionMode}
         selected={selectedForTrip.has(a.id)}
         highlighted={a.id === pinHoveredId}
@@ -589,29 +582,30 @@ export function CuratedAdventures() {
         setOpenPark(null);
       }}
     >
-      {opened.held.map(card)}
+      {opened.held.map((a) => card(a))}
     </ParkSection>
   );
   const sectionAfter = rowEnd(openIndex, columns, shown.length);
   const gridItems = shown.flatMap((a, i) => {
     const held = nested.subItems.get(a.id);
-    const item = held ? (
-      <div key={a.id} className="flex flex-col gap-sm">
-        {card(a)}
-        <ParkBar
-          park={a}
-          count={held.length}
-          open={a.id === opened?.id}
-          onToggle={() => {
-            // Revealed for good, so a smaller page (List to Split) keeps it.
-            revealTo(i);
-            setOpenPark((open) => (open === a.id ? null : a.id));
-          }}
-        />
-      </div>
-    ) : (
-      card(a)
-    );
+    const open = a.id === opened?.id;
+    const toggle = () => {
+      // Revealed for good, so a smaller page (List to Split) keeps it.
+      revealTo(i);
+      setOpenPark((was) => (was === a.id ? null : a.id));
+    };
+    // A park's card is a stack, with how many of its hikes and stops the
+    // list holds on its photo, opening the park's section.
+    const item = !held
+      ? card(a)
+      : card(a, {
+          count: held.length,
+          open,
+          onToggle: toggle,
+          id: parkBarId(a.id),
+          controls: open ? parkSectionId(a.id) : undefined,
+          covers: held.slice(0, 2).map((h) => h.coverImage),
+        });
     return i === sectionAfter && section ? [item, section] : [item];
   });
 
@@ -711,53 +705,56 @@ export function CuratedAdventures() {
   // How many suggestions wait for the owners (#259), in every view: the
   // queue itself only shows above the list. Tapping it goes there.
   const waiting = pending.length;
-  const reviewButton = isOwner && waiting > 0 && (
-    <button
-      type="button"
-      onClick={showQueue}
-      aria-label={`Review ${waiting} suggestion${waiting === 1 ? '' : 's'}`}
-      // Ends in its count's circle, so the right padding matches the space
-      // above and below it.
-      className="inline-flex h-9 shrink-0 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low pr-base pl-sm text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant"
-    >
-      Review
-      <span
-        aria-hidden="true"
-        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] leading-none text-on-primary tabular-nums"
+  // 44px tall in the header's row, 36px in the map's sheet.
+  // In the header's row a symbol with its count on the corner, 44px like
+  // the rest; in the map's sheet "Review" and its count.
+  const reviewButton = (inRow: boolean) =>
+    isOwner &&
+    waiting > 0 && (
+      <button
+        type="button"
+        onClick={showQueue}
+        aria-label={`Review ${waiting} suggestion${waiting === 1 ? '' : 's'}`}
+        title={inRow ? 'Review suggestions' : undefined}
+        // Ends in its count's circle, so the right padding matches the space
+        // above and below it.
+        className={`inline-flex shrink-0 items-center rounded-full border border-outline-variant/40 bg-surface-container-low text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant ${
+          inRow ? 'relative size-11 justify-center' : 'h-9 gap-xs pr-base pl-sm'
+        }`}
       >
-        {waiting}
-      </span>
-    </button>
-  );
+        {inRow ? (
+          <span
+            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+            aria-hidden="true"
+          >
+            inbox
+          </span>
+        ) : (
+          'Review'
+        )}
+        <span
+          aria-hidden="true"
+          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] leading-none text-on-primary tabular-nums ${
+            inRow ? 'absolute -top-1 -right-1' : ''
+          }`}
+        >
+          {waiting}
+        </span>
+      </button>
+    );
 
-  // Header of the mobile map's list sheet (#96). It stays visible at `peek`, so
-  // it carries the way back to the list and the same count / bounds summary
-  // the list header shows. The exit reads "Hide map" rather than "List"
-  // because the sheet already is the list.
-  // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
-  // scrolls beneath it); in Split it sits above the page-scrolled columns; in
-  // Map it's the fixed top row of a viewport-height flex column (below).
-  // The filter chips, shared by the toolbar and the mobile map's sheet (#96),
-  // from md up; a phone gets one Filters button instead (`compactFilters`),
-  // since a row of seven pickers scrolling sideways was too much there. They
-  // wrap: a chip past the edge of a scrolling row (e.g. "Completed only" at
-  // 1280px) was unreachable in practice.
-  // In the toolbar the chips' box dissolves (`contents`), so the chips and
-  // the view/trip actions wrap as one row: kept in two columns, the chips
-  // wrapped in what was left beside the actions, stranding one on a line of
-  // its own. The mobile map's sheet keeps the box.
-  const compactFilters = (
-    <CompactFilters
-      className="md:hidden"
-      values={filterValues}
-      onChange={changeFilters}
-      // What the list shows: on the mobile map, the places in view.
-      count={visibleResults.length}
-      originName={origin.name}
-      showFree={anyFree || freeOnly}
-      contributorOptions={isSignedIn ? contributorChoices : []}
-    />
-  );
+  // Filters (#291): one button opening the filter sheet, with a chip for
+  // each filter on, in the header's row and the mobile map's sheet (#96).
+  const filterProps = {
+    values: filterValues,
+    onChange: changeFilters,
+    // What the list shows: on the mobile map, the places in view.
+    count: visibleResults.length,
+    originName: origin.name,
+    showCost: anyCost || maxCost !== 'Any',
+    contributorOptions: isSignedIn ? contributorChoices : [],
+  };
+  const compactFilters = <CompactFilters {...filterProps} />;
   // The mobile map's sheet header (#96), one row: a phone's Filters (#291),
   // the way out from md up, the owners' review count (#259), and how many
   // places the map holds, which at peek is the way up to the whole list.
@@ -792,7 +789,7 @@ export function CuratedAdventures() {
           </span>
           Hide map
         </button>
-        {reviewButton}
+        {reviewButton(false)}
         <div
           role="status"
           aria-live="polite"
@@ -803,15 +800,11 @@ export function CuratedAdventures() {
               type="button"
               aria-label={`${count} place${count === 1 ? '' : 's'}${bounds ? ' in this area' : ''}, see list`}
               onClick={() => setSheetSnap('full')}
-              className="inline-flex h-9 items-center gap-0.5 rounded-full pr-xs pl-sm transition-colors hover:bg-surface-variant"
+              // No ^ beside it: the grab bar above already says the sheet
+              // slides up, and the count opens it all the same.
+              className="inline-flex h-9 items-center rounded-full px-sm transition-colors hover:bg-surface-variant"
             >
               <span>{countText}</span>
-              <span
-                className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
-                aria-hidden="true"
-              >
-                expand_less
-              </span>
             </button>
           ) : (
             <span>{countText}</span>
@@ -836,238 +829,83 @@ export function CuratedAdventures() {
     );
   }
 
-  const renderFilterChips = (inToolbar: boolean) => (
-    <div
-      className={`hidden min-w-0 flex-1 flex-wrap items-center gap-sm ${
-        inToolbar ? 'md:contents' : 'md:flex'
-      }`}
-    >
-      <FilterPill
-        icon="location_on"
-        label={
-          maxDistance === Infinity ? 'Any distance' : `Within ${maxDistance} mi of ${origin.name}`
-        }
-      >
-        <select
-          value={String(maxDistance)}
-          onChange={(e) => setMaxDistance(Number(e.target.value))}
-          aria-label="Distance"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          <option value={String(Infinity)}>Any distance</option>
-          {DISTANCE_LIMITS.map((miles) => (
-            <option key={miles} value={String(miles)}>
-              Within {miles} mi of {origin.name}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <FilterPill icon="schedule" label={duration === 'Any' ? 'Any duration' : duration}>
-        <select
-          value={duration}
-          onChange={(e) => setDuration(e.target.value as 'Any' | Duration)}
-          aria-label="Duration"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          {DURATION_OPTIONS.map((d) => (
-            <option key={d} value={d}>
-              {d === 'Any' ? 'Any duration' : d}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <FilterPill icon="category" label={categoryOptionLabel(category)}>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-          aria-label="Category"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          {CATEGORY_OPTIONS.map((c) => (
-            <option key={c} value={c}>
-              {categoryOptionLabel(c)}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <FilterPill icon="forest" label={PARK_TYPE_LABELS[parkType]}>
-        <select
-          value={parkType}
-          onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-          aria-label="Park type"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          {PARK_TYPE_OPTIONS.map((p) => (
-            <option key={p} value={p}>
-              {PARK_TYPE_LABELS[p]}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={dogOnly}
-        aria-label="Dog friendly"
-        onClick={() => setDogOnly((v) => !v)}
-        className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-          dogOnly
-            ? 'border-primary bg-primary text-on-primary'
-            : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-        }`}
-      >
-        <span
-          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-          style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('pets') }}
-          aria-hidden="true"
-        >
-          pets
-        </span>
-        Dog friendly
-      </button>
-      {/* A read filter, so it's shown to everyone (#85), once anything is
-          known to be free: before that it could only empty the list. Kept
-          while it's on, so it can still be cleared if nothing free is left. */}
-      {(anyFree || freeOnly) && (
+  // The header's row (#289): Filters, the view toggle, the owners' review
+  // count, Select for trip and Add, each 44px tall; Select and Add are
+  // symbols, named in a tooltip.
+  const pageControls = (
+    <>
+      <CompactFilters {...filterProps} inHeader chipsIn={inHeader ? chipsRow : undefined} />
+      {/* Split only exists at lg+, so the segmented control does too;
+          below it, a floating "Show map" button (below) opens the
+          full-screen map and the sheet's "Hide map" closes it (#96). */}
+      {isLg && <ViewModeToggle value={view} onChange={setView} />}
+      {reviewButton(true)}
+      {isSignedIn && (
         <button
           type="button"
-          role="switch"
-          aria-checked={freeOnly}
-          aria-label="Free"
-          onClick={() => setFreeOnly((v) => !v)}
-          className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-            freeOnly
-              ? 'border-primary bg-primary text-on-primary'
-              : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-          }`}
+          aria-label={selectionMode ? 'Cancel select' : 'Select for trip'}
+          title={selectionMode ? 'Cancel select' : 'Select for trip'}
+          onClick={() => {
+            if (selectionMode) {
+              clearSelection();
+            } else {
+              setSelectionMode(true);
+            }
+          }}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-outline-variant/40 bg-surface-container-low text-on-surface-variant transition-colors hover:bg-surface-variant"
         >
           <span
-            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-            style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('money_off') }}
+            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
             aria-hidden="true"
           >
-            money_off
+            {selectionMode ? 'close' : 'check_box'}
           </span>
-          Free
         </button>
       )}
-      {/* A read filter, so it's shown to everyone (#5). */}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={completedOnly}
-        aria-label="Completed only"
-        onClick={toggleCompletedOnly}
-        className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-          completedOnly
-            ? 'border-primary bg-primary text-on-primary'
-            : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-        }`}
-      >
-        <span
-          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-          style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('check_circle') }}
-          aria-hidden="true"
+      {/* Owners add; any other signed-in account suggests one for the
+          owners to review (#73). Signed-out visitors see neither. */}
+      {(isOwner || isSignedIn) && (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          aria-label={isOwner ? 'Add activity' : 'Suggest activity'}
+          title={isOwner ? 'Add activity' : 'Suggest activity'}
+          // A phone adds from its tab bar (#289).
+          className="hidden size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-opacity hover:opacity-90 md:inline-flex"
         >
-          check_circle
-        </span>
-        Completed only
-      </button>
-      {/* Signed-in only (#9): there's no contributor data to filter otherwise. */}
-      {isSignedIn && (
-        <ContributorFilter
-          options={contributorChoices}
-          selected={selectedContributors}
-          onChange={changeContributors}
-        />
+          <span
+            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+            aria-hidden="true"
+          >
+            {isOwner ? 'add' : 'lightbulb'}
+          </span>
+        </button>
       )}
-    </div>
+    </>
   );
 
-  const filterToolbar = (
-    <section
-      className={`z-40 border-b border-outline-variant/20 bg-surface py-sm px-margin backdrop-blur-xl ${
-        view === 'list' ? 'md:sticky md:top-20' : ''
-      }`}
-    >
+  // Under the header, in every view but the mobile map's: the chips for the
+  // filters on, and a failed catalog read, which must not pass for an empty
+  // catalog.
+  const loadErrorRow = loadError && (
+    <div className="mx-auto max-w-screen-2xl pt-sm px-margin">
+      <InlineError message={loadError} />
+    </div>
+  );
+  const filterToolbar = inHeader ? (
+    <>
+      <div
+        ref={setChipsRow}
+        className="border-b border-outline-variant/20 py-sm px-margin empty:hidden"
+      />
+      {loadErrorRow}
+    </>
+  ) : (
+    <section className="border-b border-outline-variant/20 bg-surface py-sm px-margin">
       <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-sm">
-        {compactFilters}
-        {renderFilterChips(true)}
-        {/* View toggle + trip actions: right-aligned, beside the Filters
-            button on a phone and after the filter chips on wider screens. */}
-        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-sm md:flex-nowrap">
-          {/* Split only exists at lg+, so the segmented control does too;
-              below it, a floating "Show map" button (below) opens the
-              full-screen map and the sheet's "Hide map" closes it (#96). */}
-          {isLg && <ViewModeToggle value={view} onChange={setView} />}
-          {reviewButton}
-          {isSignedIn && (
-            <button
-              type="button"
-              aria-label={selectionMode ? 'Cancel select' : 'Select for trip'}
-              onClick={() => {
-                if (selectionMode) {
-                  clearSelection();
-                } else {
-                  setSelectionMode(true);
-                }
-              }}
-              className="inline-flex h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm whitespace-nowrap text-on-surface-variant transition-colors hover:bg-surface-variant"
-            >
-              <span
-                className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{
-                  fontSize: 18,
-                  width: 18,
-                  height: 18,
-                  marginLeft: glyphBleed(selectionMode ? 'close' : 'check_box'),
-                }}
-                aria-hidden="true"
-              >
-                {selectionMode ? 'close' : 'check_box'}
-              </span>
-              {/* Shortened on a phone, to fit beside the Filters button; the
-                  label keeps the whole name. The button's gap spaces the
-                  words, and the span's space keeps them apart in its text. */}
-              {selectionMode ? 'Cancel' : 'Select'}
-              <span className="hidden md:inline">{selectionMode ? ' select' : ' for trip'}</span>
-            </button>
-          )}
-          {/* Owners add; any other signed-in account suggests one for the
-              owners to review (#73). Signed-out visitors see neither. */}
-          {(isOwner || isSignedIn) && (
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              aria-label={isOwner ? 'Add activity' : 'Suggest activity'}
-              // A phone adds from its tab bar (#289).
-              className="hidden h-9 items-center gap-xs rounded-full bg-primary px-sm text-body-sm whitespace-nowrap text-on-primary transition-opacity hover:opacity-90 md:inline-flex"
-            >
-              <span
-                className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-                style={{
-                  fontSize: 18,
-                  width: 18,
-                  height: 18,
-                  marginLeft: glyphBleed(isOwner ? 'add' : 'lightbulb'),
-                }}
-                aria-hidden="true"
-              >
-                {isOwner ? 'add' : 'lightbulb'}
-              </span>
-              {isOwner ? 'Add' : 'Suggest'}
-              <span className="hidden md:inline"> activity</span>
-            </button>
-          )}
-        </div>
+        {pageControls}
       </div>
-      {/* In the toolbar so List, Split and Map all show it: a failed catalog
-          read must not pass for an empty catalog. */}
-      {loadError && (
-        <div className="mx-auto max-w-screen-2xl pt-sm">
-          <InlineError message={loadError} />
-        </div>
-      )}
+      {loadErrorRow}
     </section>
   );
 
@@ -1078,6 +916,7 @@ export function CuratedAdventures() {
 
   return (
     <>
+      {headerSlot && !mobileMap && createPortal(pageControls, headerSlot)}
       {mobileMap ? (
         // Mobile (#96): the map is a full-screen backdrop behind the
         // translucent app header, and the list rides over it in a draggable
@@ -1123,13 +962,6 @@ export function CuratedAdventures() {
             label="Activities on the map"
             header={renderMobileSheetHeader()}
           >
-            {/* The toolbar isn't shown on the mobile map, so the sheet
-                carries its filter chips: otherwise active filters would
-                narrow the pins with no way to see or change them here. A
-                phone's Filters is in the header (above). */}
-            <div className="hidden flex-wrap items-center gap-sm pb-sm md:flex">
-              {renderFilterChips(false)}
-            </div>
             {/* The toolbar that shows a failed catalog read elsewhere isn't
                 here, and a failed read must not pass for an empty catalog. */}
             {loadError && (

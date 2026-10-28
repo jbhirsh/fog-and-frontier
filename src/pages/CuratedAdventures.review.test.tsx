@@ -140,8 +140,9 @@ describe('Curated Adventures — the review count (#259)', () => {
     it('counts what is waiting, and takes them to it in the list', async () => {
       renderAt('/');
       const button = await review(1);
-      // The count is shown; the name says what it counts.
-      expect(button).toHaveTextContent('Review1');
+      // A symbol and the count; the name and tooltip say what it counts.
+      expect(button).toHaveTextContent(/^inbox1$/);
+      expect(button).toHaveAttribute('title', 'Review suggestions');
       expect(scroll).not.toHaveBeenCalled();
       await userEvent.click(button);
       expect(scroll).toHaveBeenCalledTimes(1);
@@ -152,7 +153,7 @@ describe('Curated Adventures — the review count (#259)', () => {
     it('counts more than one', async () => {
       waiting = [suggestion('s1', 'Fort Funston'), suggestion('s2', 'Lands End')];
       renderAt('/');
-      expect(await review(2, 'suggestions')).toHaveTextContent('Review2');
+      expect(await review(2, 'suggestions')).toHaveTextContent(/^inbox2$/);
     });
 
     it('unfolds a queue that was folded away', async () => {

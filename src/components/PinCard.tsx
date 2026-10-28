@@ -1,22 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Activity } from '../data/types';
+import { kindLabel } from '../lib/activityLabels';
 import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
 import { CoverImage } from './CoverImage';
 import { DogIcon } from './DogIcon';
-
-// What a place is, in a word, for the card's line under its name.
-const KIND: Record<Activity['category'], string> = {
-  hiking: 'Hike',
-  cycling: 'Ride',
-  water: 'Water',
-  food: 'Food',
-  culture: 'Culture',
-  scenic: 'Scenic',
-  climbing: 'Climb',
-  camping: 'Camping',
-  other: 'Other',
-};
 
 interface Props {
   activity: Activity;
@@ -103,7 +91,7 @@ export function PinCard({ activity, onDetails, onClose }: Props) {
               {name}
             </h2>
             <p className="text-body-sm text-on-surface-variant">
-              {KIND[activity.category]} · {activity.duration}
+              {kindLabel(activity.category)} · {activity.duration}
             </p>
             <p className="flex flex-wrap items-center gap-x-sm text-body-sm text-on-surface-variant">
               <span>

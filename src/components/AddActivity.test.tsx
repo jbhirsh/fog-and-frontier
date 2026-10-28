@@ -1551,6 +1551,73 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
     expect((saveSpy.mock.calls[0] as [Activity])[0].sourceUrl).toBeUndefined();
   });
 
+  it('asks for a dog rules page only for a dog-friendly place (#296)', async () => {
+    render(
+      <AddActivity onClose={() => {}} editActivity={{ ...baseActivity, dogFriendly: false }} />,
+    );
+    expect(screen.queryByLabelText('Dog rules page (optional)')).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Dog friendly'), 'yes');
+    const field = screen.getByLabelText('Dog rules page (optional)');
+    expect(field).toHaveAttribute('type', 'url');
+    await userEvent.type(field, ' https://www.parks.ca.gov/dogs ');
+    await userEvent.click(screen.getByRole('button', { name: /Save/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    const saved = (saveSpy.mock.calls[0] as [Activity])[0];
+    expect(saved.dogRulesUrl).toBe('https://www.parks.ca.gov/dogs');
+    expect(saved.dogFriendly).toBe(true);
+  });
+
+  it('drops the dog rules page once dogs aren’t welcome (#296)', async () => {
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{
+          ...baseActivity,
+          dogFriendly: true,
+          dogRulesUrl: 'https://www.parks.ca.gov/dogs',
+        }}
+      />,
+    );
+    await userEvent.selectOptions(screen.getByLabelText('Dog friendly'), 'no');
+    expect(screen.queryByLabelText('Dog rules page (optional)')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Save/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    const saved = (saveSpy.mock.calls[0] as [Activity])[0];
+    expect(saved.dogFriendly).toBe(false);
+    expect(saved.dogRulesUrl).toBeUndefined();
+  });
+
+  it('saves no dog rules page once it’s cleared (#296)', async () => {
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{
+          ...baseActivity,
+          dogFriendly: true,
+          dogRulesUrl: 'https://www.parks.ca.gov/dogs',
+        }}
+      />,
+    );
+    const field = screen.getByLabelText('Dog rules page (optional)');
+    expect(field).toHaveValue('https://www.parks.ca.gov/dogs');
+    await userEvent.clear(field);
+    await userEvent.click(screen.getByRole('button', { name: /Save/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].dogRulesUrl).toBeUndefined();
+  });
+
+  it('keeps a draft’s dog rules page (#296)', async () => {
+    generateSpy.mockResolvedValue({
+      ...generated,
+      dogFriendly: true,
+      dogRulesUrl: 'https://www.ebparks.org/dogs',
+    });
+    render(<AddActivity onClose={() => {}} seed={seed} />);
+    expect(await screen.findByLabelText('Dog rules page (optional)')).toHaveValue(
+      'https://www.ebparks.org/dogs',
+    );
+  });
+
   it('opens on the form, with the notes kept, for a seed with no place yet', async () => {
     render(<AddActivity onClose={() => {}} seed={{ title: '', notes: seed.notes }} />);
     expect(screen.getByLabelText('Title')).toHaveValue('');

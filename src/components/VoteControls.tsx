@@ -77,8 +77,8 @@ function ThumbButton({
       disabled={disabled}
       title={disabled ? disabledTooltip : undefined}
       onClick={onClick}
-      // 44px tall on touch screens (#228); compact from md, as before.
-      className={`flex min-h-11 min-w-11 items-center gap-xs px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed md:min-h-auto md:min-w-auto ${
+      // 44px tall, for a finger (#228).
+      className={`flex min-h-11 min-w-11 items-center gap-xs px-sm py-xs font-body-md text-sm transition-colors disabled:cursor-not-allowed ${
         active ? `${activeClass} font-medium` : 'text-on-surface-variant'
       } ${disabled ? '' : 'hover:bg-surface-variant'}`}
     >

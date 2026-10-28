@@ -115,10 +115,9 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
     <section
       ref={section}
       aria-labelledby={headingId}
-      // Scrolled to just below the sticky app header (147px tall on a
-      // phone, 81px from md up), and from md up below List's sticky toolbar
-      // too (up to 110px; Split's doesn't stick, so it gets room to spare).
-      className="scroll-mt-40 space-y-sm rounded-xl border border-outline-variant/40 bg-surface-container-low p-sm md:scroll-mt-52"
+      // Scrolled to just below the sticky app header (69px tall on a phone,
+      // 81px from md up), with a little room to spare.
+      className="scroll-mt-20 space-y-sm rounded-xl border border-outline-variant/40 bg-surface-container-low p-sm md:scroll-mt-24"
     >
       <h2
         id={headingId}

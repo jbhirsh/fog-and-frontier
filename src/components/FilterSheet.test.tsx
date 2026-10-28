@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NO_FILTERS, type FilterValues } from '../lib/catalogFilterOptions';
-import { glyphBleed } from '../lib/iconMetrics';
 import { FilterSheet, type FilterSheetProps } from './FilterSheet';
 
 function renderSheet(props: Partial<FilterSheetProps> = {}) {
@@ -14,7 +13,7 @@ function renderSheet(props: Partial<FilterSheetProps> = {}) {
       onChange={onChange}
       count={12}
       originName="you"
-      showFree
+      showCost
       contributorOptions={[]}
       onClose={onClose}
       {...props}
@@ -41,13 +40,13 @@ describe('FilterSheet', () => {
 
   it('marks the choices in force', () => {
     renderSheet({
-      values: { ...NO_FILTERS, category: 'water', maxDistance: 100, duration: 'Weekend' },
+      values: { ...NO_FILTERS, category: 'water', maxDistance: 100, duration: 'day' },
     });
-    expect(group('Category').getByRole('button', { name: 'Water' })).toHaveAttribute(
+    expect(group('What').getByRole('button', { name: 'Water' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    expect(group('Category').getByRole('button', { name: 'Any' })).toHaveAttribute(
+    expect(group('What').getByRole('button', { name: 'Hikes' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -59,32 +58,117 @@ describe('FilterSheet', () => {
       'aria-pressed',
       'false',
     );
-    expect(group('How long').getByRole('button', { name: 'Weekend' })).toHaveAttribute(
+    expect(group('How long').getByRole('button', { name: 'A day or more' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    expect(group('Park type').getByRole('button', { name: 'Any' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Park type/ })).toHaveTextContent('Park typeAny');
+  });
+
+  it('changes each filter as it’s picked', async () => {
+    const { onChange } = renderSheet();
+    await userEvent.click(group('What').getByRole('button', { name: 'Hikes' }));
+    expect(onChange).toHaveBeenLastCalledWith({ category: 'hiking' });
+    await userEvent.click(group('How far').getByRole('button', { name: '25 mi' }));
+    expect(onChange).toHaveBeenLastCalledWith({ maxDistance: 25 });
+    await userEvent.click(group('How long').getByRole('button', { name: 'Half day' }));
+    expect(onChange).toHaveBeenLastCalledWith({ duration: 'half' });
+    await userEvent.click(screen.getByRole('switch', { name: 'Dogs welcome' }));
+    expect(onChange).toHaveBeenLastCalledWith({ dogOnly: true });
+    await userEvent.click(group('How much').getByRole('button', { name: '$$' }));
+    expect(onChange).toHaveBeenLastCalledWith({ maxCost: '$$' });
+    await userEvent.click(group('How much').getByRole('button', { name: 'Free' }));
+    expect(onChange).toHaveBeenLastCalledWith({ maxCost: 'free' });
+    await userEvent.click(screen.getByRole('switch', { name: 'Only places we’ve done' }));
+    expect(onChange).toHaveBeenLastCalledWith({ completedOnly: true });
+  });
+
+  it('offers the four durations, in order', () => {
+    renderSheet();
+    expect(
+      group('How long')
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Any', 'A few hours', 'Half day', 'A day or more']);
+  });
+
+  it('names the main categories as tiles, each with its glyph', () => {
+    renderSheet();
+    const tiles = group('What').getAllByRole('button');
+    expect(tiles.map((t) => t.textContent)).toEqual([
+      'directions_walkHikes',
+      'restaurantFood',
+      'landscapeViews',
+      'waterWater',
+      'museumCulture',
+      'pedal_bikeBikes',
+      'forestCamping',
+      'more_horizMore',
+    ]);
+  });
+
+  it('takes a category off with a second tap', async () => {
+    const { onChange } = renderSheet({ values: { ...NO_FILTERS, category: 'food' } });
+    await userEvent.click(group('What').getByRole('button', { name: 'Food' }));
+    expect(onChange).toHaveBeenLastCalledWith({ category: 'Any' });
+  });
+
+  it('opens the rest of the categories from More', async () => {
+    const { onChange } = renderSheet();
+    const more = group('What').getByRole('button', { name: 'More' });
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+    expect(more).not.toHaveAttribute('aria-controls');
+    expect(more).not.toHaveAttribute('aria-pressed');
+    expect(screen.queryByRole('button', { name: 'Climbing' })).not.toBeInTheDocument();
+    await userEvent.click(more);
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    const climbing = screen.getByRole('button', { name: 'Climbing' });
+    expect(more.getAttribute('aria-controls')).toBe(climbing.parentElement?.id);
+    await userEvent.click(climbing);
+    expect(onChange).toHaveBeenLastCalledWith({ category: 'climbing' });
+    await userEvent.click(screen.getByRole('button', { name: 'Other' }));
+    expect(onChange).toHaveBeenLastCalledWith({ category: 'other' });
+    await userEvent.click(more);
+    expect(screen.queryByRole('button', { name: 'Climbing' })).not.toBeInTheDocument();
+  });
+
+  it('opens More when the category in force is one of the rest, and fills it', () => {
+    renderSheet({ values: { ...NO_FILTERS, category: 'climbing' } });
+    const more = group('What').getByRole('button', { name: 'More' });
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    expect(more).toHaveClass('bg-primary');
+    expect(screen.getByRole('button', { name: 'Climbing' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
   });
 
-  it('changes each filter as it’s picked', async () => {
-    const { onChange } = renderSheet();
-    await userEvent.click(group('Category').getByRole('button', { name: 'Hiking' }));
-    expect(onChange).toHaveBeenLastCalledWith({ category: 'hiking' });
-    await userEvent.click(group('How far').getByRole('button', { name: '25 mi' }));
-    expect(onChange).toHaveBeenLastCalledWith({ maxDistance: 25 });
-    await userEvent.click(group('How long').getByRole('button', { name: 'Half Day' }));
-    expect(onChange).toHaveBeenLastCalledWith({ duration: 'Half Day' });
-    await userEvent.click(group('Park type').getByRole('button', { name: 'Regional park' }));
+  it('picks a park type from its own list, then goes back to the filters', async () => {
+    const { onChange } = renderSheet({ values: { ...NO_FILTERS, parkType: 'state' } });
+    const row = screen.getByRole('button', { name: /^Park type/ });
+    expect(row).toHaveTextContent('State park');
+    await userEvent.click(row);
+    expect(screen.getByRole('dialog', { name: 'Park type' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to filters' })).toHaveFocus();
+    const types = within(screen.getByRole('group', { name: 'Park type' }));
+    expect(types.getByRole('button', { name: 'State park' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(types.getAllByRole('button')).toHaveLength(8);
+    await userEvent.click(types.getByRole('button', { name: 'Regional park' }));
     expect(onChange).toHaveBeenLastCalledWith({ parkType: 'regional' });
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Dog friendly' }));
-    expect(onChange).toHaveBeenLastCalledWith({ dogOnly: true });
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Free' }));
-    expect(onChange).toHaveBeenLastCalledWith({ freeOnly: true });
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Completed only' }));
-    expect(onChange).toHaveBeenLastCalledWith({ completedOnly: true });
+    expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Park type/ })).toHaveFocus();
+  });
+
+  it('goes back from a list without changing anything', async () => {
+    const { onChange } = renderSheet();
+    await userEvent.click(screen.getByRole('button', { name: /^Park type/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back to filters' }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^Park type/ })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Back to filters' })).not.toBeInTheDocument();
   });
 
   it('sets a distance back to any', async () => {
@@ -93,9 +177,9 @@ describe('FilterSheet', () => {
     expect(onChange).toHaveBeenLastCalledWith({ maxDistance: Infinity });
   });
 
-  it('turns a toggle off again', async () => {
+  it('turns a switch off again', async () => {
     const { onChange } = renderSheet({ values: { ...NO_FILTERS, dogOnly: true } });
-    const dog = screen.getByRole('checkbox', { name: 'Dog friendly' });
+    const dog = screen.getByRole('switch', { name: 'Dogs welcome' });
     expect(dog).toBeChecked();
     await userEvent.click(dog);
     expect(onChange).toHaveBeenLastCalledWith({ dogOnly: false });
@@ -106,31 +190,59 @@ describe('FilterSheet', () => {
     expect(screen.getByRole('heading', { name: 'How far from San Jose' })).toBeInTheDocument();
   });
 
-  it('offers Free only when asked to', () => {
-    renderSheet({ showFree: false });
-    expect(screen.queryByRole('checkbox', { name: 'Free' })).not.toBeInTheDocument();
+  it('offers How much only when asked to', () => {
+    renderSheet({ showCost: false });
+    expect(screen.queryByRole('group', { name: 'How much' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'How much' })).not.toBeInTheDocument();
   });
 
   it('offers no contributors when there are none to offer', () => {
     renderSheet();
-    expect(screen.queryByRole('group', { name: 'Added by' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Added by/ })).not.toBeInTheDocument();
   });
 
-  it('adds and takes off contributors one at a time', async () => {
+  it('adds and takes off contributors one at a time, from their own list', async () => {
     const { onChange } = renderSheet({
       values: { ...NO_FILTERS, contributors: ['jess@example.com'] },
       contributorOptions: ['jess@example.com', 'tarun@example.com'],
     });
-    const jess = group('Added by').getByRole('button', { name: /Jess/ });
-    const tarun = group('Added by').getByRole('button', { name: /Tarun/ });
-    expect(jess).toHaveAttribute('aria-pressed', 'true');
-    expect(tarun).toHaveAttribute('aria-pressed', 'false');
+    const row = screen.getByRole('button', { name: /^Added by/ });
+    expect(row).toHaveTextContent('Jess');
+    await userEvent.click(row);
+    expect(screen.getByRole('dialog', { name: 'Added by' })).toBeInTheDocument();
+    const jess = screen.getByRole('checkbox', { name: 'Jess' });
+    const tarun = screen.getByRole('checkbox', { name: 'Tarun' });
+    expect(jess).toBeChecked();
+    expect(tarun).not.toBeChecked();
     await userEvent.click(tarun);
     expect(onChange).toHaveBeenLastCalledWith({
       contributors: ['jess@example.com', 'tarun@example.com'],
     });
     await userEvent.click(jess);
     expect(onChange).toHaveBeenLastCalledWith({ contributors: [] });
+    // Several can be picked, so the list stays open.
+    expect(screen.getByRole('dialog', { name: 'Added by' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to filters' }));
+    expect(screen.getByRole('button', { name: /^Added by/ })).toHaveFocus();
+  });
+
+  it('says who the contributors filter keeps', () => {
+    const { rerender } = render(<></>);
+    const sheet = (contributors: string[]) => (
+      <FilterSheet
+        values={{ ...NO_FILTERS, contributors }}
+        onChange={() => {}}
+        count={0}
+        originName="you"
+        showCost={false}
+        contributorOptions={['jess@example.com', 'tarun@example.com']}
+        onClose={() => {}}
+      />
+    );
+    rerender(sheet([]));
+    expect(screen.getByRole('button', { name: /^Added by/ })).toHaveTextContent('Anyone');
+    rerender(sheet(['jess@example.com', 'tarun@example.com']));
+    expect(screen.getByRole('button', { name: /^Added by/ })).toHaveTextContent('2 people');
   });
 
   it('offers Clear all only once a filter is on', () => {
@@ -139,7 +251,7 @@ describe('FilterSheet', () => {
   });
 
   it('clears every filter at once', async () => {
-    const { onChange } = renderSheet({ values: { ...NO_FILTERS, freeOnly: true } });
+    const { onChange } = renderSheet({ values: { ...NO_FILTERS, maxCost: '$' } });
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     expect(onChange).toHaveBeenCalledWith(NO_FILTERS);
   });
@@ -165,7 +277,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={() => {}}
       />,
@@ -182,22 +294,18 @@ describe('FilterSheet', () => {
     await userEvent.tab();
     expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
   });
-  it('draws the chosen chip, segment and contributor filled, the rest outlined', () => {
+  it('fills the chosen tile and segment, and switches a switch on', () => {
     renderSheet({
-      values: {
-        ...NO_FILTERS,
-        category: 'food',
-        maxDistance: 25,
-        contributors: ['jess@example.com'],
-      },
-      contributorOptions: ['jess@example.com', 'tarun@example.com'],
+      values: { ...NO_FILTERS, category: 'food', maxDistance: 25, maxCost: '$', dogOnly: true },
     });
-    expect(group('Category').getByRole('button', { name: 'Food' })).toHaveClass('bg-primary');
-    expect(group('Category').getByRole('button', { name: 'Any' })).not.toHaveClass('bg-primary');
+    expect(group('What').getByRole('button', { name: 'Food' })).toHaveClass('bg-primary');
+    expect(group('What').getByRole('button', { name: 'Hikes' })).not.toHaveClass('bg-primary');
     expect(group('How far').getByRole('button', { name: '25 mi' })).toHaveClass('shadow-sm');
     expect(group('How far').getByRole('button', { name: 'Any' })).not.toHaveClass('shadow-sm');
-    expect(group('Added by').getByRole('button', { name: /Jess/ })).toHaveClass('bg-primary');
-    expect(group('Added by').getByRole('button', { name: /Tarun/ })).not.toHaveClass('bg-primary');
+    expect(group('How much').getByRole('button', { name: '$' })).toHaveClass('shadow-sm');
+    expect(group('How much').getByRole('button', { name: 'Free' })).not.toHaveClass('shadow-sm');
+    expect(screen.getByRole('switch', { name: 'Dogs welcome' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Only places we’ve done' })).not.toBeChecked();
   });
 
   it('takes one contributor off and keeps the others', async () => {
@@ -205,14 +313,20 @@ describe('FilterSheet', () => {
       values: { ...NO_FILTERS, contributors: ['jess@example.com', 'tarun@example.com'] },
       contributorOptions: ['jess@example.com', 'tarun@example.com'],
     });
-    await userEvent.click(group('Added by').getByRole('button', { name: /Jess/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Added by/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Jess' }));
     expect(onChange).toHaveBeenLastCalledWith({ contributors: ['tarun@example.com'] });
   });
 
-  it('pulls the contributor icon in by its glyph’s empty side', () => {
-    renderSheet({ contributorOptions: ['jess@example.com'] });
-    const icon = group('Added by').getByText('person');
-    expect(icon.style.marginLeft).toBe(glyphBleed('person'));
+  it('goes back to the filters on Escape from a list, then closes', async () => {
+    const { onClose } = renderSheet();
+    await userEvent.click(screen.getByRole('button', { name: /^Park type/ }));
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Park type/ })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('focuses itself without scrolling the page', () => {
@@ -236,7 +350,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={onClose}
       />,
@@ -255,7 +369,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={onClose}
       />
@@ -281,7 +395,7 @@ describe('FilterSheet', () => {
         onChange={() => {}}
         count={0}
         originName="you"
-        showFree={false}
+        showCost={false}
         contributorOptions={[]}
         onClose={() => {}}
       />,
@@ -290,5 +404,54 @@ describe('FilterSheet', () => {
     unmount();
     expect(document.body.style.overflow).toBe('clip');
     document.body.style.overflow = '';
+  });
+
+  describe('swiped down', () => {
+    // A one-finger pull down the sheet, released a second later.
+    function pull(target: Element, dy: number) {
+      const at = (y: number) => ({ touches: [{ clientX: 100, clientY: y }] });
+      fireEvent.touchStart(target, at(100));
+      for (const f of [0.25, 0.5, 1]) fireEvent.touchMove(target, at(100 + dy * f));
+      vi.advanceTimersByTime(1000);
+      fireEvent.touchEnd(target, { touches: [], changedTouches: [] });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('closes, as a place’s sheet does, from its title or its list', () => {
+      vi.useFakeTimers();
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(600);
+      const { onClose } = renderSheet();
+      pull(screen.getByRole('heading', { name: 'Filters' }), 300);
+      expect(onClose).toHaveBeenCalledTimes(1);
+      // On a row's words: a gesture never starts on a field itself.
+      pull(screen.getByText('Dogs welcome'), 300);
+      expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
+    it('scrolls its list back up instead, while it’s scrolled down', () => {
+      vi.useFakeTimers();
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(600);
+      const { onClose } = renderSheet();
+      const dogs = screen.getByText('Dogs welcome');
+      const list = dogs.closest('.overflow-y-auto');
+      if (!(list instanceof HTMLElement)) throw new Error('no list');
+      list.scrollTop = 80;
+      pull(dogs, 300);
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('stays for a short pull', () => {
+      vi.useFakeTimers();
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(600);
+      const { onClose } = renderSheet();
+      pull(screen.getByRole('heading', { name: 'Filters' }), 30);
+      expect(onClose).not.toHaveBeenCalled();
+    });
   });
 });

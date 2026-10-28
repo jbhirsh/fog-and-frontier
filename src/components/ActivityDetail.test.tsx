@@ -166,9 +166,9 @@ describe('ActivityDetail', () => {
 
   it('shows what it costs only when that is known (#85)', () => {
     const { rerender } = render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-    expect(screen.queryByText(/^Free$|per person|\$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Free$|^\$+$/)).not.toBeInTheDocument();
     rerender(<ActivityDetail activity={{ ...muirWoods, costTier: '$$' }} onClose={() => {}} />);
-    expect(screen.getByText('$$ · $25–75 per person')).toBeInTheDocument();
+    expect(screen.getByText('$$')).toBeInTheDocument();
     rerender(<ActivityDetail activity={{ ...muirWoods, costTier: 'free' }} onClose={() => {}} />);
     expect(screen.getByText('Free')).toBeInTheDocument();
   });
@@ -222,10 +222,9 @@ describe('ActivityDetail', () => {
     expect(screen.queryByText(/via Wikimedia Commons/)).not.toBeInTheDocument();
   });
 
-  it('shows the COMPLETED badge with date and notes for completed activities', () => {
+  it('shows Done and the notes for completed activities', () => {
     render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
-    expect(screen.getByText(/COMPLETED/)).toBeInTheDocument();
-    expect(screen.getByText(/2025-11-02/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Beautiful sunset.')).toBeInTheDocument();
   });
 
@@ -321,7 +320,9 @@ describe('ActivityDetail', () => {
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />, {
         activities: [muirWoods, ...hikes, vista, lunch, faraway],
       });
-      expect(screen.getAllByRole('region')).toHaveLength(3);
+      // Nearby, holding one region per kind.
+      const nearby = screen.getByRole('region', { name: 'Nearby' });
+      expect(within(nearby).getAllByRole('region')).toHaveLength(3);
       // Each heading leads with its category's map-pin glyph (CATEGORY_ICON).
       expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
         'restaurantNearby food',
@@ -337,11 +338,15 @@ describe('ActivityDetail', () => {
       // Per-category cap: the three nearest hikes, nearest first; the fourth
       // is dropped without crowding out food or the vista.
       const hikeGroup = screen.getByRole('region', { name: 'Nearby hikes' });
-      expect(
-        within(hikeGroup)
-          .getAllByRole('button')
-          .map((b) => within(b).getByRole('img').getAttribute('alt')),
-      ).toEqual(['Ridge Hike 1', 'Ridge Hike 2', 'Ridge Hike 3']);
+      const names = within(hikeGroup)
+        .getAllByRole('button')
+        .map((b) => b.textContent ?? '');
+      expect(names).toHaveLength(3);
+      expect(names.map((name, i) => name.startsWith(`Ridge Hike ${i + 1}`))).toEqual([
+        true,
+        true,
+        true,
+      ]);
       expect(
         within(screen.getByRole('region', { name: 'Nearby scenic spots' })).getByRole('button', {
           name: /Overlook Vista/,
@@ -424,8 +429,8 @@ describe('ActivityDetail', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={completedHike} onClose={() => {}} />);
       // Status is preserved (a read), but it is not an interactive control.
-      expect(screen.getByText(/COMPLETED/)).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /completed/i })).not.toBeInTheDocument();
+      expect(screen.getByText('Done').tagName).toBe('SPAN');
+      expect(screen.queryByRole('button', { name: /done|completed/i })).not.toBeInTheDocument();
     });
   });
 
@@ -580,10 +585,10 @@ describe('ActivityDetail', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onClose when the close button is clicked', async () => {
+  it('calls onClose when Back is clicked', async () => {
     const onClose = vi.fn();
     render(<ActivityDetail activity={muirWoods} onClose={onClose} />);
-    await userEvent.click(screen.getByLabelText('Close'));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -601,12 +606,10 @@ describe('ActivityDetail', () => {
         onClose={() => {}}
       />,
     );
-    expect(screen.getByText('TRAIL DETAILS')).toBeInTheDocument();
-    expect(screen.getByText('4.6')).toBeInTheDocument();
-    expect(screen.getByText('3.2 mi')).toBeInTheDocument();
-    expect(screen.getByText('600 ft gain')).toBeInTheDocument();
-    expect(screen.getByText(/3\.2 mi loop/)).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /View on AllTrails/ });
+    // The rating among the facts, the trail's numbers on its row.
+    expect(screen.getByText(/4\.6/)).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /On AllTrails/ });
+    expect(link).toHaveTextContent('On AllTrails · 3.2 mi, 600 ft');
     expect(link).toHaveAttribute('href', 'https://www.alltrails.com/trail/test');
   });
 
@@ -624,7 +627,7 @@ describe('ActivityDetail', () => {
     it('links to Google Maps directions in a new tab on non-Apple devices', () => {
       stubUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0');
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      const link = screen.getByRole('link', { name: /Get directions/ });
+      const link = screen.getByRole('link', { name: 'Directions' });
       expect(link).toHaveAttribute(
         'href',
         'https://www.google.com/maps/dir/?api=1&destination=37.8917%2C-122.5719',
@@ -636,7 +639,7 @@ describe('ActivityDetail', () => {
     it('links to Apple Maps on Apple devices', () => {
       stubUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Safari/604.1');
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(screen.getByRole('link', { name: /Get directions/ })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
         'href',
         'https://maps.apple.com/?daddr=37.8917%2C-122.5719',
       );
@@ -645,7 +648,7 @@ describe('ActivityDetail', () => {
     it('is shown to non-owners too (a read, not owner-gated)', () => {
       ownerState.isOwner = false;
       render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
-      expect(screen.getByRole('link', { name: /Get directions/ })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Directions' })).toBeInTheDocument();
     });
 
     it('is absent when the activity has no usable coordinates', () => {
@@ -831,7 +834,7 @@ describe('ActivityDetail — focus around the edit form (#258)', () => {
   it('leaves focus be when it stayed in the detail', async () => {
     render(<ActivityDetail activity={muirWoods} onClose={() => {}} />);
     await userEvent.click(screen.getByRole('button', { name: /EDIT ACTIVITY/ }));
-    const close = screen.getByRole('button', { name: 'Close' });
+    const close = screen.getByRole('button', { name: 'Back' });
     close.focus();
     act(() => addActivityProps.current?.onClose());
     expect(screen.queryByTestId('add-activity-modal')).not.toBeInTheDocument();

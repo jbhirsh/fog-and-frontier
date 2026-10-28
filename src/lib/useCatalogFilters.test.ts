@@ -7,7 +7,10 @@ import {
   readCompletedOnly,
   withCompletedOnly,
   withContributors,
+  withinCost,
   type CatalogFilterState,
+  type CostFilter,
+  type DurationFilter,
 } from './useCatalogFilters';
 import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 import { HOME_LOCATION, distanceMiles } from '../data/home';
@@ -66,9 +69,15 @@ describe('applyCatalogFilters', () => {
     expect(result).toEqual([]);
   });
 
-  it('filters by duration', () => {
-    const result = applyCatalogFilters(ALL, filters({ duration: 'Half Day' }));
-    expect(result.map((a) => a.id)).toEqual([muirWoods.id]);
+  it('filters by duration, a group at a time (#292)', () => {
+    const ids = (duration: DurationFilter) =>
+      applyCatalogFilters(ALL, filters({ duration })).map((a) => a.id);
+    expect(ids('half')).toEqual([muirWoods.id]);
+    // 2-3 Hours and 1-2 Hours both read as a few hours.
+    expect(ids('hours').sort()).toEqual([completedHike.id, dogFriendlyTidepools.id].sort());
+    expect(ids('day')).toEqual([]);
+    const weekend = { ...muirWoods, id: 'weekend', duration: 'Weekend' as const };
+    expect(applyCatalogFilters([weekend], filters({ duration: 'day' }))).toEqual([weekend]);
   });
 
   it('filters by category', () => {
@@ -154,9 +163,10 @@ describe('applyCatalogFilters', () => {
   });
 
   it('stacks multiple filters (AND semantics)', () => {
+    const allDay = { ...completedHike, duration: 'Full Day' as const };
     const result = applyCatalogFilters(
-      ALL,
-      filters({ category: 'scenic', dogOnly: true, duration: '1-2 Hours' }),
+      [muirWoods, allDay, dogFriendlyTidepools],
+      filters({ category: 'scenic', dogOnly: true, duration: 'hours' }),
     );
     expect(result.map((a) => a.id)).toEqual([dogFriendlyTidepools.id]);
   });
@@ -195,11 +205,10 @@ describe('applyCatalogFilters — completed only (#5)', () => {
   });
 
   it('stacks with the other filters', () => {
-    const result = applyCatalogFilters(
-      ALL,
-      filters({ completedOnly: true, duration: '1-2 Hours' }),
-      { [dogFriendlyTidepools.id]: true },
-    );
+    const result = applyCatalogFilters(ALL, filters({ completedOnly: true, duration: 'hours' }), {
+      [dogFriendlyTidepools.id]: true,
+      [completedHike.id]: false,
+    });
     expect(result.map((a) => a.id)).toEqual([dogFriendlyTidepools.id]);
   });
 });
@@ -301,7 +310,7 @@ describe('contributorOptions (#9)', () => {
   });
 });
 
-describe('applyCatalogFilters — free only (#85)', () => {
+describe('applyCatalogFilters — how much (#85)', () => {
   const priced = [
     { ...muirWoods, costTier: 'free' as const },
     { ...completedHike, costTier: '$' as const },
@@ -312,9 +321,26 @@ describe('applyCatalogFilters — free only (#85)', () => {
     expect(applyCatalogFilters(priced, INITIAL_CATALOG_FILTERS)).toHaveLength(3);
   });
 
-  it('keeps only the activities known to be free', () => {
-    expect(applyCatalogFilters(priced, filters({ freeOnly: true })).map((a) => a.id)).toEqual([
-      muirWoods.id,
-    ]);
+  it('keeps the places known to cost up to the tier picked', () => {
+    const ids = (maxCost: CostFilter) =>
+      applyCatalogFilters(priced, filters({ maxCost })).map((a) => a.id);
+    expect(ids('free')).toEqual([muirWoods.id]);
+    expect(ids('$')).toEqual([muirWoods.id, completedHike.id]);
+    expect(ids('$$$')).toEqual([muirWoods.id, completedHike.id]);
+  });
+});
+
+describe('withinCost', () => {
+  it('keeps every place for Any, a cost unknown too', () => {
+    expect(withinCost(undefined, 'Any')).toBe(true);
+    expect(withinCost('$$$', 'Any')).toBe(true);
+  });
+
+  it('keeps a tier up to the one picked, and never an unknown cost', () => {
+    expect(withinCost('free', '$$')).toBe(true);
+    expect(withinCost('$$', '$$')).toBe(true);
+    expect(withinCost('$$$', '$$')).toBe(false);
+    expect(withinCost('$', 'free')).toBe(false);
+    expect(withinCost(undefined, '$$$')).toBe(false);
   });
 });
