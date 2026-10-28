@@ -30,7 +30,7 @@ function bearer(req: Request): string | null {
 
 // Builds the per-request context. Resolves the caller from the Bearer token;
 // for an owner this also upserts the `users` row (callers must have run
-// ensureTripsSchema() first — graphql.ts does, at startup).
+// ensureAllSchemas() first — graphql.ts does, at startup).
 export async function buildContext(req: Request): Promise<GqlContext> {
   const caller = await getCurrentUserFromToken(bearer(req));
   return { caller };
