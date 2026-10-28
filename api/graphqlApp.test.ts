@@ -64,7 +64,10 @@ type GqlResponse = {
 
 // Use node:http directly — the shared jsdom setup stubs global fetch to reject
 // ("offline"), which would otherwise intercept this real in-process request.
-function post(query: string, auth?: string): Promise<{ status: number; json: GqlResponse }> {
+function post(
+  query: string,
+  auth?: string,
+): Promise<{ status: number; json: GqlResponse; serverTiming?: string | string[] }> {
   const body = JSON.stringify({ query });
   const headers: Record<string, string | number> = {
     'content-type': 'application/json',
@@ -82,7 +85,11 @@ function post(query: string, auth?: string): Promise<{ status: number; json: Gql
         let data = '';
         res.on('data', (chunk: Buffer) => (data += chunk.toString()));
         res.on('end', () =>
-          resolve({ status: res.statusCode ?? 0, json: JSON.parse(data) as GqlResponse }),
+          resolve({
+            status: res.statusCode ?? 0,
+            json: JSON.parse(data) as GqlResponse,
+            serverTiming: res.headers['server-timing'],
+          }),
         );
       },
     );
@@ -98,6 +105,20 @@ describe('api/graphql.ts express app (real wiring)', () => {
     expect(r.status).toBe(200);
     const acts = r.json.data?.activities as Record<string, unknown>[] | undefined;
     expect(acts?.[0]).toMatchObject({ id: 'a1', name: 'Trail' });
+  });
+
+  // Profiling: each response says where its server time went.
+  it('times the schema wait, the sign-in check and the operation', async () => {
+    const r = await post('{ activities { id } }');
+    expect(r.serverTiming).toMatch(
+      /^schema;dur=\d+\.\d;desc="Schema setup", auth;dur=\d+\.\d;desc="Sign-in check", exec;dur=\d+\.\d;desc="Operation"$/,
+    );
+  });
+
+  it('times an operation that fails too', async () => {
+    const r = await post('{ trips { id } }');
+    expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+    expect(r.serverTiming).toContain('exec;dur=');
   });
 
   it('anon → UNAUTHENTICATED via the context guard', async () => {

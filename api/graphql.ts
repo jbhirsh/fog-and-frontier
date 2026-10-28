@@ -14,6 +14,7 @@ import { buildContext, type GqlContext } from './_gqlContext.js';
 import { ensureAllSchemas } from './_trips.js';
 import { logServerError } from './_log.js';
 import { USER_FACING_CODES } from './_gqlError.js';
+import { serverTimingHeader } from './_serverTiming.js';
 
 // The ONLY deployed Vercel function (issue #91): every former REST endpoint now
 // lives behind this single GraphQL handler, permanently clearing the Hobby
@@ -56,6 +57,27 @@ const server = new ApolloServer<GqlContext>({
     }
     return formatted;
   },
+  plugins: [
+    {
+      // Profiling: what the request spent where, in a Server-Timing header
+      // the browser's network panel shows. The context (schema, sign-in) is
+      // built before this starts, and times itself.
+      requestDidStart() {
+        const start = performance.now();
+        return Promise.resolve({
+          willSendResponse({ response, contextValue }) {
+            const execMs = performance.now() - start;
+            const { schemaMs = 0, authMs = 0 } = contextValue.timing ?? {};
+            response.http.headers.set(
+              'server-timing',
+              serverTimingHeader({ schemaMs, authMs, execMs }),
+            );
+            return Promise.resolve();
+          },
+        });
+      },
+    },
+  ],
 });
 
 // Cache server.start() as one module-scope promise (serverless-safe): the cold
@@ -81,8 +103,14 @@ async function graphqlMiddleware(): Promise<RequestHandler> {
   if (!middleware) {
     middleware = expressMiddleware(server, {
       context: async ({ req }) => {
+        const start = performance.now();
         await ready();
-        return buildContext(req);
+        const schemaDone = performance.now();
+        const ctx = await buildContext(req);
+        return {
+          ...ctx,
+          timing: { schemaMs: schemaDone - start, authMs: performance.now() - schemaDone },
+        };
       },
     });
   }
