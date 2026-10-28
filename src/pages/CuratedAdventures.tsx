@@ -10,8 +10,6 @@ import { AddToTripDialog } from '../components/AddToTripDialog';
 import { AddToTripDropdown } from '../components/AddToTripDropdown';
 import { BottomSheet } from '../components/BottomSheet';
 import { CompactFilters } from '../components/CompactFilters';
-import { ContributorFilter } from '../components/ContributorFilter';
-import { FilterPill } from '../components/FilterPill';
 import { InlineError } from '../components/InlineError';
 import { ParkSection } from '../components/ParkSection';
 import { PendingSuggestions } from '../components/PendingSuggestions';
@@ -19,15 +17,13 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import type { ViewMode } from '../components/ViewModeToggle';
 import { isViewMode } from '../lib/viewMode';
 import type { SheetSnap } from '../lib/bottomSheetSnap';
-import type { Activity, Category, ParkType } from '../data/types';
+import type { Activity } from '../data/types';
 import {
   CONTRIBUTORS_PARAM,
   contributorOptions,
   parseContributors,
   readCompletedOnly,
   useCatalogFilters,
-  type CostFilter,
-  type DurationFilter,
   withCompletedOnly,
   withContributors,
 } from '../lib/useCatalogFilters';
@@ -49,18 +45,7 @@ interface OpenPark {
   held: Activity[];
 }
 import { rowEnd, useGridColumns } from '../lib/useGridColumns';
-import { categoryOptionLabel } from '../lib/activityLabels';
-import {
-  CATEGORY_OPTIONS,
-  COST_LABELS,
-  COST_OPTIONS,
-  DISTANCE_LIMITS,
-  DURATION_LABELS,
-  DURATION_OPTIONS,
-  PARK_TYPE_LABELS,
-  PARK_TYPE_OPTIONS,
-  type FilterValues,
-} from '../lib/catalogFilterOptions';
+import { type FilterValues } from '../lib/catalogFilterOptions';
 
 type TargetTrip = { id: string; title: string };
 
@@ -172,11 +157,6 @@ export function CuratedAdventures() {
   useEffect(() => {
     setCompletedOnly(completedOnly);
   }, [completedOnly, setCompletedOnly]);
-  function toggleCompletedOnly() {
-    // Read from `prev`, not the render's value, so two quick clicks toggle
-    // twice instead of both turning it on.
-    setSearchParams((prev) => withCompletedOnly(prev, !readCompletedOnly(prev)), { replace: true });
-  }
   // Contributors (#9) are URL-sourced too (`?contributors=`). Only signed-in
   // callers get contributor data, so for anyone else the filter is off rather
   // than matching nothing, and its chip isn't rendered.
@@ -188,10 +168,7 @@ export function CuratedAdventures() {
   useEffect(() => {
     setContributors(selectedContributors);
   }, [selectedContributors, setContributors]);
-  function changeContributors(next: string[]) {
-    setSearchParams((prev) => withContributors(prev, next), { replace: true });
-  }
-  // The phone's filter sheet and chips change any filters at once ("Clear
+  // The filter sheet and chips change any filters at once ("Clear
   // all" sets them all), the URL-sourced ones in a single history entry.
   const filterValues: FilterValues = {
     maxDistance,
@@ -746,18 +723,11 @@ export function CuratedAdventures() {
   // Compact toolbar (filters + view toggle). Sticky in List mode (the long grid
   // scrolls beneath it); in Split it sits above the page-scrolled columns; in
   // Map it's the fixed top row of a viewport-height flex column (below).
-  // The filter chips, shared by the toolbar and the mobile map's sheet (#96),
-  // from md up; a phone gets one Filters button instead (`compactFilters`),
-  // since a row of seven pickers scrolling sideways was too much there. They
-  // wrap: a chip past the edge of a scrolling row (e.g. "Completed only" at
-  // 1280px) was unreachable in practice.
-  // In the toolbar the chips' box dissolves (`contents`), so the chips and
-  // the view/trip actions wrap as one row: kept in two columns, the chips
-  // wrapped in what was left beside the actions, stranding one on a line of
-  // its own. The mobile map's sheet keeps the box.
+  // Filters (#291): one button opening the filter sheet, with the filters on
+  // shown as chips beneath it, at every width, in the toolbar and the mobile
+  // map's sheet (#96).
   const compactFilters = (
     <CompactFilters
-      className="md:hidden"
       values={filterValues}
       onChange={changeFilters}
       // What the list shows: on the mobile map, the places in view.
@@ -841,147 +811,6 @@ export function CuratedAdventures() {
     );
   }
 
-  const renderFilterChips = (inToolbar: boolean) => (
-    <div
-      className={`hidden min-w-0 flex-1 flex-wrap items-center gap-sm ${
-        inToolbar ? 'md:contents' : 'md:flex'
-      }`}
-    >
-      <FilterPill
-        icon="location_on"
-        label={
-          maxDistance === Infinity ? 'Any distance' : `Within ${maxDistance} mi of ${origin.name}`
-        }
-      >
-        <select
-          value={String(maxDistance)}
-          onChange={(e) => setMaxDistance(Number(e.target.value))}
-          aria-label="Distance"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          <option value={String(Infinity)}>Any distance</option>
-          {DISTANCE_LIMITS.map((miles) => (
-            <option key={miles} value={String(miles)}>
-              Within {miles} mi of {origin.name}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <FilterPill icon="schedule" label={DURATION_LABELS[duration]}>
-        <select
-          value={duration}
-          onChange={(e) => setDuration(e.target.value as DurationFilter)}
-          aria-label="Duration"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          {DURATION_OPTIONS.map((d) => (
-            <option key={d} value={d}>
-              {DURATION_LABELS[d]}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <FilterPill icon="category" label={categoryOptionLabel(category)}>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value as 'Any' | Category)}
-          aria-label="Category"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          {CATEGORY_OPTIONS.map((c) => (
-            <option key={c} value={c}>
-              {categoryOptionLabel(c)}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <FilterPill icon="forest" label={PARK_TYPE_LABELS[parkType]}>
-        <select
-          value={parkType}
-          onChange={(e) => setParkType(e.target.value as 'Any' | ParkType)}
-          aria-label="Park type"
-          className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-        >
-          {PARK_TYPE_OPTIONS.map((p) => (
-            <option key={p} value={p}>
-              {PARK_TYPE_LABELS[p]}
-            </option>
-          ))}
-        </select>
-      </FilterPill>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={dogOnly}
-        aria-label="Dog friendly"
-        onClick={() => setDogOnly((v) => !v)}
-        className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-          dogOnly
-            ? 'border-primary bg-primary text-on-primary'
-            : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-        }`}
-      >
-        <span
-          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-          style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('pets') }}
-          aria-hidden="true"
-        >
-          pets
-        </span>
-        Dog friendly
-      </button>
-      {/* A read filter, so it's shown to everyone (#85), once any cost is
-          known: before that it could only empty the list. Kept while one is
-          picked, so it can still be cleared. */}
-      {(anyCost || maxCost !== 'Any') && (
-        <FilterPill icon="payments" label={COST_LABELS[maxCost]}>
-          <select
-            value={maxCost}
-            onChange={(e) => setMaxCost(e.target.value as CostFilter)}
-            aria-label="Cost"
-            className="cursor-pointer appearance-none bg-transparent text-body-sm focus:outline-none"
-          >
-            {COST_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {COST_LABELS[c]}
-              </option>
-            ))}
-          </select>
-        </FilterPill>
-      )}
-      {/* A read filter, so it's shown to everyone (#5). */}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={completedOnly}
-        aria-label="Completed only"
-        onClick={toggleCompletedOnly}
-        className={`inline-flex h-9 shrink-0 items-center gap-xs rounded-full border px-sm text-body-sm font-medium transition-colors ${
-          completedOnly
-            ? 'border-primary bg-primary text-on-primary'
-            : 'border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
-        }`}
-      >
-        <span
-          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
-          style={{ fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('check_circle') }}
-          aria-hidden="true"
-        >
-          check_circle
-        </span>
-        Completed only
-      </button>
-      {/* Signed-in only (#9): there's no contributor data to filter otherwise. */}
-      {isSignedIn && (
-        <ContributorFilter
-          options={contributorChoices}
-          selected={selectedContributors}
-          onChange={changeContributors}
-        />
-      )}
-    </div>
-  );
-
   const filterToolbar = (
     <section
       className={`z-40 border-b border-outline-variant/20 bg-surface py-sm px-margin backdrop-blur-xl ${
@@ -990,7 +819,6 @@ export function CuratedAdventures() {
     >
       <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-sm">
         {compactFilters}
-        {renderFilterChips(true)}
         {/* View toggle + trip actions: right-aligned, beside the Filters
             button on a phone and after the filter chips on wider screens. */}
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-sm md:flex-nowrap">
@@ -1121,13 +949,6 @@ export function CuratedAdventures() {
             label="Activities on the map"
             header={renderMobileSheetHeader()}
           >
-            {/* The toolbar isn't shown on the mobile map, so the sheet
-                carries its filter chips: otherwise active filters would
-                narrow the pins with no way to see or change them here. A
-                phone's Filters is in the header (above). */}
-            <div className="hidden flex-wrap items-center gap-sm pb-sm md:flex">
-              {renderFilterChips(false)}
-            </div>
             {/* The toolbar that shows a failed catalog read elsewhere isn't
                 here, and a failed read must not pass for an empty catalog. */}
             {loadError && (

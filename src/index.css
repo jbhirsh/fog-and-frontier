@@ -30,8 +30,8 @@
   --text-body-md--line-height: 1.6;
   --text-body-md--font-weight: 400;
 
-  /* Icons beside text are the text's size + 4px, as FilterPill pairs an 18px
-     icon with 14px text. Line height 1, so the icon's box is its glyph. */
+  /* Icons beside text are the text's size + 4px: an 18px icon with 14px
+     text. Line height 1, so the icon's box is its glyph. */
   --text-icon-sm: 18px;
   --text-icon-sm--line-height: 1;
   --text-icon-md: 20px;

@@ -479,7 +479,7 @@ export function FilterSheet({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative flex max-h-[calc(100dvh-var(--spacing-lg))] w-full flex-col rounded-t-2xl bg-surface-container-lowest shadow-2xl focus:outline-none motion-safe:animate-sheet-in md:max-w-lg md:rounded-xl md:motion-safe:animate-dialog-in"
+        className="relative flex max-h-[calc(100dvh-var(--spacing-lg))] w-full flex-col rounded-t-2xl bg-surface-container-lowest shadow-2xl focus:outline-none motion-safe:animate-sheet-in md:max-w-128 md:rounded-xl md:motion-safe:animate-dialog-in"
       >
         <div className="flex shrink-0 items-center gap-xs py-xs pr-sm pl-md">
           {page !== 'main' && (

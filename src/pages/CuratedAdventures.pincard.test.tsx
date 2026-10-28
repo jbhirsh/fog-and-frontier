@@ -120,8 +120,9 @@ describe('Curated Adventures — a tapped pin on the mobile map (#291)', () => {
   it('puts the card away once a filter takes its pin off the map', async () => {
     renderMap();
     await userEvent.click(screen.getByRole('button', { name: 'pin Test Muir Woods' }));
-    // Muir Woods isn't completed, so Completed only takes its pin off.
-    await userEvent.click(screen.getByRole('switch', { name: 'Completed only' }));
+    // Muir Woods isn't completed, so Only places we've done takes its pin off.
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+    await userEvent.click(screen.getByRole('switch', { name: 'Only places we’ve done' }));
     expect(card()).not.toBeInTheDocument();
   });
 
@@ -137,7 +138,7 @@ describe('Curated Adventures — a tapped pin on the mobile map (#291)', () => {
     expect(sheet()).toHaveTextContent('2 places');
   });
 
-  it('puts a phone’s Filters in the sheet’s one header row', () => {
+  it('puts Filters in the sheet’s one header row', () => {
     renderMap();
     const header = screen.getByRole('button', { name: '2 places, see list' }).closest('.flex-wrap');
     expect(header).toContainElement(screen.getByRole('button', { name: /^Filters/ }));

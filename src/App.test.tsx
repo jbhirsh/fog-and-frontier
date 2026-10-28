@@ -33,10 +33,10 @@ describe('App', () => {
     expect(await screen.findByText('Curated Adventures')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
     expect(window.location.search).toBe('?completed=1');
-    expect(screen.getByRole('switch', { name: 'Completed only' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    // Its chip under Filters says so.
+    expect(
+      screen.getByRole('button', { name: "Remove filter: Places we've done" }),
+    ).toBeInTheDocument();
   });
 
   // Activity permalinks (#86).
