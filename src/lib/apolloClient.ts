@@ -3,7 +3,12 @@ import { SetContextLink } from '@apollo/client/link/context';
 
 // The consolidated GraphQL endpoint (issue #91). Single function, single
 // round-trip; replaces the 11 REST handlers under /api.
-const httpLink = new HttpLink({ uri: '/api/graphql' });
+//
+// Asks for plain JSON. Apollo Client's default `accept` puts
+// application/graphql-response+json first, which Apollo Server then answers
+// with, and Vercel's edge doesn't compress that type: the catalog crossed the
+// wire at 650 KB rather than 157 KB of brotli.
+const httpLink = new HttpLink({ uri: '/api/graphql', headers: { accept: 'application/json' } });
 
 // Module-level token getter. Links run outside React, so they can't call
 // Clerk hooks directly — the auth bridge component (ClerkAuthProvider)
