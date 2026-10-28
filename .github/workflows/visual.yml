@@ -1,24 +1,20 @@
 name: Visual regression
 
+# The pages' screenshots, compared with their Linux baselines (see the
+# projects in playwright.config.ts). visual-baselines.yml, run by hand,
+# rewrites those baselines and commits them to its branch.
 on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      update_snapshots:
-        description: "Update baseline screenshots and commit"
-        required: false
-        default: "false"
 
 jobs:
   visual:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - uses: actions/setup-node@v7
         with:
@@ -50,34 +46,17 @@ jobs:
           fi
         shell: bash
 
-      # On PRs we never auto-mutate the contributor's branch. If baselines are
-      # missing, fail loudly with instructions instead of silently regenerating
-      # and force-committing back onto the head ref.
-      - name: Fail if baselines missing on pull_request
-        if: github.event_name == 'pull_request' && steps.baselines.outputs.present != 'true'
+      # This job never writes baselines: if there are none, it fails with
+      # where they come from instead of passing with nothing compared.
+      - name: Fail if baselines missing
+        if: steps.baselines.outputs.present != 'true'
         run: |
           echo "::error::No Linux baseline screenshots found under tests/visual/."
-          echo "::error::Bootstrap them by running this workflow via workflow_dispatch with update_snapshots=true."
-          echo "::error::Repo maintainer: Actions tab -> Visual regression -> Run workflow -> set 'update_snapshots' to 'true'."
+          echo "::error::Make them by running visual-baselines.yml on this branch: Actions tab -> Update visual baselines -> Run workflow."
           exit 1
 
       - name: Run visual tests
-        if: steps.baselines.outputs.present == 'true' && github.event.inputs.update_snapshots != 'true'
         run: npm run test:visual
-
-      # Regenerate ONLY on explicit workflow_dispatch with update_snapshots=true.
-      # Never on pull_request: that path would auto-commit to the PR branch and
-      # overwrite contributor changes.
-      - name: Regenerate baselines
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.update_snapshots == 'true'
-        run: npm run test:visual:update
-
-      - name: Commit baselines
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.update_snapshots == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "chore(visual): update baseline screenshots"
-          file_pattern: "tests/visual/**/*-linux.png"
 
       - uses: actions/upload-artifact@v7
         if: failure()
