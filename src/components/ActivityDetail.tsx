@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { Activity } from '../data/types';
 import { MAX_PHOTOS_PER_ACTIVITY, useActivityPhotos } from '../lib/userPhotos';
@@ -116,7 +116,6 @@ export function ActivityDetail({
   const activity = override ?? initial;
   const setActivity = setOverride;
 
-  const allActivities = useAllActivities();
   const { completed } = useCompleted(activity);
   const { isOwner, email } = useOwner();
   const [addingToTrip, setAddingToTrip] = useState(false);
@@ -131,22 +130,6 @@ export function ActivityDetail({
     clearSaveError,
   } = useActivityPhotos(activity.id, isOwner && (completed || !!showUploads));
   const [editing, setEditing] = useState(false);
-
-  // Its park, the park's other hikes and stops, or its own (#269). They
-  // aren't offered again under Nearby.
-  const park = useMemo(() => parkOf(activity, allActivities), [allActivities, activity]);
-  const subItems = useMemo(() => subItemsOf(activity, allActivities), [allActivities, activity]);
-  const siblings = useMemo(
-    () => (park ? subItemsOf(park, allActivities).filter((a) => a.id !== activity.id) : []),
-    [allActivities, activity, park],
-  );
-  const nearbyGroups = useMemo(() => {
-    const listed = new Set([park, ...subItems, ...siblings].map((a) => a?.id));
-    return nearbyByCategory(
-      activity,
-      allActivities.filter((a) => !listed.has(a.id)),
-    );
-  }, [allActivities, activity, park, siblings, subItems]);
 
   function selectNearby(a: Activity) {
     setNote(null);
@@ -293,115 +276,13 @@ export function ActivityDetail({
     await deleteUserActivity(activity.id);
   }
 
-  // The parts both layouts show, the phone's in its own order.
-  const restaurantInfo = (
-    <>
-      {(activity.cuisine ||
-        activity.priceRange ||
-        activity.hours ||
-        activity.reservationUrl ||
-        activity.menuUrl ||
-        (activity.dietary && activity.dietary.length > 0)) && (
-        <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
-          <div className="font-label-caps text-label-caps text-on-surface-variant">
-            RESTAURANT INFO
-          </div>
-          <div className="flex flex-wrap gap-md text-on-surface-variant">
-            {activity.cuisine && <Stat icon="restaurant_menu" label={activity.cuisine} />}
-            {activity.priceRange && <Stat icon="payments" label={activity.priceRange} />}
-            {activity.hours && <Stat icon="schedule" label={activity.hours} />}
-          </div>
-          {activity.dietary && activity.dietary.length > 0 && (
-            <div className="flex flex-wrap gap-xs">
-              {activity.dietary.map((d) => (
-                <span
-                  key={d}
-                  className="rounded-full bg-surface-variant px-sm py-xs font-body-sm text-on-surface-variant capitalize"
-                >
-                  {d}
-                </span>
-              ))}
-            </div>
-          )}
-          {(activity.reservationUrl || activity.menuUrl) && (
-            <div className="flex flex-wrap gap-md">
-              {activity.reservationUrl && (
-                <a
-                  href={activity.reservationUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-                >
-                  Reserve
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                    open_in_new
-                  </span>
-                </a>
-              )}
-              {activity.menuUrl && (
-                <a
-                  href={activity.menuUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-                >
-                  Menu / website
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                    open_in_new
-                  </span>
-                </a>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  );
-
-  const notesBlock = (
-    <>
-      {activity.notes && (
-        <div className="rounded-lg bg-surface-container-low p-md">
-          <div className="mb-xs font-label-caps text-label-caps text-on-surface-variant">NOTES</div>
-          <p className="font-body-md text-body-md text-on-surface">{activity.notes}</p>
-        </div>
-      )}
-    </>
-  );
-
-  const sourceLink = (
-    <>
-      {/* Where it was found (#6): the reel it was added from. A read,
-                open to every visitor. */}
-      {activity.sourceUrl && (
-        <a
-          href={activity.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
-        >
-          {sourceLabel(activity.sourceUrl)}
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            open_in_new
-          </span>
-        </a>
-      )}
-    </>
-  );
-
-  const reviewsBlock = (
-    <>
-      {/* Owner reviews (#184) — what each of us thought after doing it.
-                Reviews are about completed activities, so the section only
-                appears once this one is marked done. */}
-      {completed && (
-        // Keyed on the activity: picking a nearby activity swaps `activity`
-        // without unmounting this dialog, and an open review draft must not
-        // follow along and be saved onto a different activity.
-        <ActivityReviews key={activity.id} activityId={activity.id} />
-      )}
-    </>
-  );
+  // The page's taps, which its neighbours' previews take too (inert there),
+  // so a preview draws exactly what the page will once it lands.
+  const bodyHandlers: BodyHandlers = {
+    onTrip: email ? () => setAddingToTrip(true) : undefined,
+    onSelect: selectNearby,
+    onShowContributor,
+  };
 
   const photosSection = (
     <>
@@ -579,63 +460,23 @@ export function ActivityDetail({
                 </button>
               </div>
             </PhoneCover>
-            {/* The page rises over the photo's foot. */}
-            <div className="relative -mt-5 space-y-md rounded-t-[22px] bg-surface-container-lowest px-md pt-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))]">
-              <PhoneHeading activity={activity} park={park} onOpenPark={selectNearby} />
-              <PhoneActions
-                activity={activity}
-                onTrip={email ? () => setAddingToTrip(true) : undefined}
-              />
-              {note && (
-                <p role="status" className="text-body-sm text-on-surface-variant">
-                  {note}
-                </p>
-              )}
-              <ClampedText
-                // Shut again for the next place, which may swap in here.
-                key={activity.id}
-                text={activity.longDescription ?? activity.shortDescription}
-              />
-              {(activity.allTrailsUrl ||
-                activity.hikeDistanceMiles != null ||
-                activity.hikeElevationFeet != null) && <TrailRow activity={activity} />}
-              {restaurantInfo}
-              {notesBlock}
-              {sourceLink}
-              {activity.contributors && activity.contributors.length > 0 && (
-                <div className="text-on-surface-variant">
-                  <Contributors emails={activity.contributors} onShow={onShowContributor} />
-                </div>
-              )}
-              {reviewsBlock}
-              {subItems.length > 0 && (
-                <ParkPlaces
-                  heading="Hikes & stops here"
-                  activities={subItems}
-                  onSelect={selectNearby}
-                />
-              )}
-              {park && siblings.length > 0 && (
-                <ParkPlaces
-                  heading={`Also in ${park.name}`}
-                  activities={siblings}
-                  onSelect={selectNearby}
-                />
-              )}
-              {nearbyGroups.length > 0 && (
-                <NearbyList
-                  groups={nearbyGroups}
-                  city={activity.location.city}
-                  onSelect={selectNearby}
-                />
-              )}
-              {photosSection}
-              {ownerControls}
-              {activity.coverCredit && (
-                // Commons covers are CC-licensed: credit author + license (#36).
-                <p className="text-[12px] text-on-surface-variant">{activity.coverCredit}</p>
-              )}
-            </div>
+            <PlaceBody
+              activity={activity}
+              {...bodyHandlers}
+              note={
+                note && (
+                  <p role="status" className="text-body-sm text-on-surface-variant">
+                    {note}
+                  </p>
+                )
+              }
+              extras={
+                <>
+                  {photosSection}
+                  {ownerControls}
+                </>
+              }
+            />
           </>
         </div>
         {sequence?.prevActivity && (
@@ -644,6 +485,7 @@ export function ActivityDetail({
             side="prev"
             place={sequence.index}
             total={sequence.total}
+            handlers={bodyHandlers}
           />
         )}
         {sequence?.nextActivity && (
@@ -652,6 +494,7 @@ export function ActivityDetail({
             side="next"
             place={sequence.index + 2}
             total={sequence.total}
+            handlers={bodyHandlers}
           />
         )}
       </div>
@@ -713,10 +556,203 @@ function Contributors({
   );
 }
 
+type BodyHandlers = {
+  /** Add it to a trip; omitted for a signed-out visitor. */
+  onTrip?: () => void;
+  /** A park, hike or nearby place tapped. */
+  onSelect: (activity: Activity) => void;
+  onShowContributor?: (email: string) => void;
+};
+
 /**
- * A neighbour in the list, beside the panel while it's swiped sideways: the
- * top of its own page (photo, list position, name and facts), drawn the same
- * way, so the real one takes over in place when the step lands. Hidden until a swipe moves the track; its cover loads anyway, ready
+ * The page under a place's photo: its name and facts, actions, description
+ * and the rest, down to Nearby. The detail draws it for its activity, with
+ * the page's own `note` (after the actions) and `extras` (the owners'
+ * photos and controls, after Nearby); a preview beside it draws it for a
+ * neighbour.
+ */
+function PlaceBody({
+  activity,
+  onTrip,
+  onSelect,
+  onShowContributor,
+  note,
+  extras,
+}: BodyHandlers & { activity: Activity; note?: ReactNode; extras?: ReactNode }) {
+  const allActivities = useAllActivities();
+  const { completed } = useCompleted(activity);
+  // Its park, the park's other hikes and stops, or its own (#269). They
+  // aren't offered again under Nearby.
+  const park = useMemo(() => parkOf(activity, allActivities), [allActivities, activity]);
+  const subItems = useMemo(() => subItemsOf(activity, allActivities), [allActivities, activity]);
+  const siblings = useMemo(
+    () => (park ? subItemsOf(park, allActivities).filter((a) => a.id !== activity.id) : []),
+    [allActivities, activity, park],
+  );
+  const nearbyGroups = useMemo(() => {
+    const listed = new Set([park, ...subItems, ...siblings].map((a) => a?.id));
+    return nearbyByCategory(
+      activity,
+      allActivities.filter((a) => !listed.has(a.id)),
+    );
+  }, [allActivities, activity, park, siblings, subItems]);
+
+  // The parts both layouts show, the phone's in its own order.
+  const restaurantInfo = (
+    <>
+      {(activity.cuisine ||
+        activity.priceRange ||
+        activity.hours ||
+        activity.reservationUrl ||
+        activity.menuUrl ||
+        (activity.dietary && activity.dietary.length > 0)) && (
+        <div className="space-y-sm rounded-lg bg-surface-container-low p-md">
+          <div className="font-label-caps text-label-caps text-on-surface-variant">
+            RESTAURANT INFO
+          </div>
+          <div className="flex flex-wrap gap-md text-on-surface-variant">
+            {activity.cuisine && <Stat icon="restaurant_menu" label={activity.cuisine} />}
+            {activity.priceRange && <Stat icon="payments" label={activity.priceRange} />}
+            {activity.hours && <Stat icon="schedule" label={activity.hours} />}
+          </div>
+          {activity.dietary && activity.dietary.length > 0 && (
+            <div className="flex flex-wrap gap-xs">
+              {activity.dietary.map((d) => (
+                <span
+                  key={d}
+                  className="rounded-full bg-surface-variant px-sm py-xs font-body-sm text-on-surface-variant capitalize"
+                >
+                  {d}
+                </span>
+              ))}
+            </div>
+          )}
+          {(activity.reservationUrl || activity.menuUrl) && (
+            <div className="flex flex-wrap gap-md">
+              {activity.reservationUrl && (
+                <a
+                  href={activity.reservationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
+                >
+                  Reserve
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    open_in_new
+                  </span>
+                </a>
+              )}
+              {activity.menuUrl && (
+                <a
+                  href={activity.menuUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
+                >
+                  Menu / website
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    open_in_new
+                  </span>
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const notesBlock = (
+    <>
+      {activity.notes && (
+        <div className="rounded-lg bg-surface-container-low p-md">
+          <div className="mb-xs font-label-caps text-label-caps text-on-surface-variant">NOTES</div>
+          <p className="font-body-md text-body-md text-on-surface">{activity.notes}</p>
+        </div>
+      )}
+    </>
+  );
+
+  const sourceLink = (
+    <>
+      {/* Where it was found (#6): the reel it was added from. A read,
+                open to every visitor. */}
+      {activity.sourceUrl && (
+        <a
+          href={activity.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
+        >
+          {sourceLabel(activity.sourceUrl)}
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            open_in_new
+          </span>
+        </a>
+      )}
+    </>
+  );
+
+  const reviewsBlock = (
+    <>
+      {/* Owner reviews (#184) — what each of us thought after doing it.
+                Reviews are about completed activities, so the section only
+                appears once this one is marked done. */}
+      {completed && (
+        // Keyed on the activity: picking a nearby activity swaps `activity`
+        // without unmounting this dialog, and an open review draft must not
+        // follow along and be saved onto a different activity.
+        <ActivityReviews key={activity.id} activityId={activity.id} />
+      )}
+    </>
+  );
+
+  return (
+    // The page rises over the photo's foot.
+    <div className="relative -mt-5 space-y-md rounded-t-[22px] bg-surface-container-lowest px-md pt-md pb-[calc(var(--spacing-md)+env(safe-area-inset-bottom))]">
+      <PhoneHeading activity={activity} park={park} onOpenPark={onSelect} />
+      <PhoneActions activity={activity} onTrip={onTrip} />
+      {note}
+      <ClampedText
+        // Shut again for the next place, which may swap in here.
+        key={activity.id}
+        text={activity.longDescription ?? activity.shortDescription}
+      />
+      {(activity.allTrailsUrl ||
+        activity.hikeDistanceMiles != null ||
+        activity.hikeElevationFeet != null) && <TrailRow activity={activity} />}
+      {restaurantInfo}
+      {notesBlock}
+      {sourceLink}
+      {activity.contributors && activity.contributors.length > 0 && (
+        <div className="text-on-surface-variant">
+          <Contributors emails={activity.contributors} onShow={onShowContributor} />
+        </div>
+      )}
+      {reviewsBlock}
+      {subItems.length > 0 && (
+        <ParkPlaces heading="Hikes & stops here" activities={subItems} onSelect={onSelect} />
+      )}
+      {park && siblings.length > 0 && (
+        <ParkPlaces heading={`Also in ${park.name}`} activities={siblings} onSelect={onSelect} />
+      )}
+      {nearbyGroups.length > 0 && (
+        <NearbyList groups={nearbyGroups} city={activity.location.city} onSelect={onSelect} />
+      )}
+      {extras}
+      {activity.coverCredit && (
+        // Commons covers are CC-licensed: credit author + license (#36).
+        <p className="text-[12px] text-on-surface-variant">{activity.coverCredit}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A neighbour in the list, beside the panel while it's swiped sideways: its
+ * own page (photo, list position and body), drawn by the same PlaceBody, so
+ * the real one takes over in place when the step lands, with nothing left to
+ * fill in. Hidden until a swipe moves the track; its cover loads anyway, ready
  * for the step.
  */
 function Peek({
@@ -724,14 +760,15 @@ function Peek({
   side,
   place,
   total,
+  handlers,
 }: {
   activity: Activity;
   side: 'prev' | 'next';
   /** Its 1-based position in the list. */
   place: number;
   total: number;
+  handlers: BodyHandlers;
 }) {
-  const allActivities = useAllActivities();
   const steps = (where: string) => (
     <div
       className={`${where} flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm`}
@@ -768,9 +805,7 @@ function Peek({
             </span>
           </div>
         </PhoneCover>
-        <div className="relative -mt-5 rounded-t-[22px] bg-surface-container-lowest px-md pt-md">
-          <PhoneHeading activity={activity} park={parkOf(activity, allActivities)} />
-        </div>
+        <PlaceBody activity={activity} {...handlers} />
       </>
     </div>
   );
