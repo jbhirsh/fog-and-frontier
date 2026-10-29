@@ -8,7 +8,7 @@ type ForceEmailWindow = { __TEST_FORCE_EMAIL__?: unknown };
 const SIGNED_OUT: AuthState = {
   isLoaded: false,
   email: null,
-  getToken: () => Promise.resolve(null),
+  name: null,
 };
 
 function authState() {
@@ -27,10 +27,9 @@ describe('useAuthState', () => {
     expect(authState()).toBe(SIGNED_OUT);
   });
 
-  it('defaults to a loaded, signed-out visitor without a provider', async () => {
+  it('defaults to a loaded, signed-out visitor without a provider', () => {
     const state = renderHook(() => useAuthState()).result.current;
-    expect(state).toMatchObject({ isLoaded: true, email: null });
-    await expect(state.getToken()).resolves.toBeNull();
+    expect(state).toEqual({ isLoaded: true, email: null, name: null });
   });
 
   describe('window.__TEST_FORCE_EMAIL__ (Playwright escape hatch)', () => {

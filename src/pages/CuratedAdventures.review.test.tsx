@@ -31,7 +31,7 @@ import { CuratedAdventures } from './CuratedAdventures';
 const SIGNED_IN: AuthState = {
   isLoaded: true,
   email: 'friend@example.com',
-  getToken: () => Promise.resolve(null),
+  name: null,
 };
 
 type ForceOwner = { __TEST_FORCE_OWNER__?: boolean };

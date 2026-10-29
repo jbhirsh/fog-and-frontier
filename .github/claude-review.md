@@ -2,7 +2,8 @@ This is "Fog and Frontier", a personal West Coast adventures app: Vite +
 React 19 + TypeScript on the front end, a single Vercel serverless function
 in `api/` (`api/graphql.ts`, an Apollo Server on Express, schema in
 `api/_schema.ts`, resolvers in `api/_resolvers/*`), Turso (libSQL) for
-persistence, and Clerk for auth.
+persistence, and Better Auth (Google and passkeys, a session cookie on the
+site's own origin, `api/_betterAuth.ts`) for auth.
 
 ### Focus
 

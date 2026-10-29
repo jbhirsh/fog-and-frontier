@@ -1,5 +1,8 @@
 import type { Request } from 'express';
-import { getCurrentUserFromToken, type CurrentUser } from './_auth.js';
+import { fromNodeHeaders } from 'better-auth/node';
+import { callerFromSession, type CurrentUser } from './_auth.js';
+import { auth } from './_betterAuth.js';
+import { logServerError } from './_log.js';
 import {
   getTripDetail,
   getTripRow,
@@ -12,11 +15,11 @@ import type { RequestTiming } from './_serverTiming.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
 //
-// GraphQL request context + auth guards (issue #91). The context authenticates
-// once from the Bearer token (preserving the owner `users`-row upsert side
-// effect via getCurrentUserFromToken). Guards THROW a GraphQLError instead of
-// writing a `res`. They are the server-side auth gate for every resolver:
-// `requireOwnerCtx` for site-wide writes and paid calls, `requireMemberCtx` /
+// GraphQL request context + auth guards (issue #91). The context reads the
+// caller once, from the session cookie Better Auth set at sign-in
+// (_betterAuth.ts). Guards THROW a GraphQLError instead of writing a `res`.
+// They are the server-side auth gate for every resolver: `requireOwnerCtx`
+// for site-wide writes and paid calls, `requireMemberCtx` /
 // `requireCreatorCtx` for trip-scoped actions, and `requireUserCtx` for any
 // signed-in account (claiming an invite, and suggesting an activity with its
 // capped Gemini draft, #73).
@@ -27,18 +30,28 @@ export type GqlContext = {
   timing?: Pick<RequestTiming, 'schemaMs' | 'authMs'>;
 };
 
-function bearer(req: Request): string | null {
-  const h = req.headers.authorization;
-  if (typeof h !== 'string' || !h.startsWith('Bearer ')) return null;
-  return h.slice('Bearer '.length).trim() || null;
+// Better Auth's session cookie, under either of its names (`__Secure-` on
+// https). A request without one is signed out, with no lookup to make.
+const SESSION_COOKIE = /(^|;\s*)(__Secure-)?better-auth\.session_token=/;
+
+/** Whether a request carries a session cookie at all. */
+export function hasSessionCookie(cookie: string | undefined): boolean {
+  return typeof cookie === 'string' && SESSION_COOKIE.test(cookie);
 }
 
-// Builds the per-request context. Resolves the caller from the Bearer token;
-// for an owner this also upserts the `users` row (callers must have run
-// ensureAllSchemas() first — graphql.ts does, at startup).
+// Builds the per-request context: the caller the session cookie names, after
+// Better Auth checks it against its session table. A session it can't read
+// (a deployment missing its auth settings, the database down) leaves the
+// caller signed out, logged, rather than failing the public catalog with it.
 export async function buildContext(req: Request): Promise<GqlContext> {
-  const caller = await getCurrentUserFromToken(bearer(req));
-  return { caller };
+  if (!hasSessionCookie(req.headers.cookie)) return { caller: null };
+  try {
+    const session = await auth().api.getSession({ headers: fromNodeHeaders(req.headers) });
+    return { caller: callerFromSession(session) };
+  } catch (err) {
+    logServerError(err, { route: '/api/graphql', detail: 'session lookup failed' });
+    return { caller: null };
+  }
 }
 
 // Any authenticated account (owner or editor). Anon → UNAUTHENTICATED.

@@ -1,9 +1,11 @@
-import { createClerkClient, verifyToken } from '@clerk/backend';
 import { db } from './_db.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
+//
+// Who a signed-in caller is to the app. Better Auth (_betterAuth.ts) says who
+// signed in; this says what they may do (owner or editor) and keeps their
+// `users` row, which the invite picker and every attribution read, in step.
 
-const secretKey = process.env.CLERK_SECRET_KEY ?? '';
 const ownerEmails = new Set(
   (process.env.OWNER_EMAILS ?? '')
     .split(',')
@@ -29,62 +31,6 @@ export function getOwnerEmails(): Set<string> {
 // owner allow-list at auth time — the `users.role` column is a cache of that.
 export type UserRole = 'owner' | 'editor';
 
-let _client: ReturnType<typeof createClerkClient> | null = null;
-function client() {
-  if (!_client) _client = createClerkClient({ secretKey });
-  return _client;
-}
-
-// Tri-state caller status so `requireOwnerCtx` (api/_gqlContext.ts) can
-// distinguish anon (UNAUTHENTICATED) from signed-in non-owner (FORBIDDEN) per
-// #50 AC. Clerk/network failures collapse to `anon` since we can't trust the
-// identity — same conservative posture as the prior boolean helper.
-export type CallerStatus =
-  | { state: 'anon' }
-  | { state: 'non_owner'; email: string; firstName: string | null }
-  | { state: 'owner'; email: string; firstName: string | null };
-
-// The account's first name as Clerk has it (from Google, or as typed at
-// sign-up), for showing people as "Tarun" rather than their email. Null when
-// there is none.
-function firstNameOf(user: { firstName?: string | null }): string | null {
-  const name = typeof user.firstName === 'string' ? user.firstName.trim() : '';
-  return name ? name.slice(0, 50) : null;
-}
-
-// Token-core: resolve a caller from a raw Bearer token string (no req object).
-// The GraphQL context (api/_gqlContext.ts) extracts the token from the request
-// and authenticates from it, so the identity logic lives here.
-export async function getCallerStatusFromToken(token: string | null): Promise<CallerStatus> {
-  if (!secretKey || ownerEmails.size === 0) return { state: 'anon' };
-  if (!token) return { state: 'anon' };
-
-  let userId: string;
-  try {
-    const payload = await verifyToken(token, { secretKey });
-    if (typeof payload.sub !== 'string') return { state: 'anon' };
-    userId = payload.sub;
-  } catch {
-    return { state: 'anon' };
-  }
-
-  let email: string | null;
-  let firstName: string | null;
-  try {
-    const user = await client().users.getUser(userId);
-    const primary = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
-    email = primary?.emailAddress.trim().toLowerCase() ?? null;
-    firstName = firstNameOf(user);
-  } catch {
-    return { state: 'anon' };
-  }
-
-  if (!email) return { state: 'anon' };
-  return ownerEmails.has(email)
-    ? { state: 'owner', email, firstName }
-    : { state: 'non_owner', email, firstName };
-}
-
 export type CurrentUser = {
   email: string;
   role: UserRole;
@@ -92,72 +38,68 @@ export type CurrentUser = {
   firstName?: string | null;
 };
 
-// Identifies any authenticated account — owner OR editor — and upserts a row
-// into `users` so the account is discoverable (invite picker) and its role
-// stays in sync with the owner allow-list. Returns null for anonymous callers.
-//
-// Callers MUST have run `ensureAllSchemas()` first (it creates the `users`
-// table). The GraphQL guards in api/_gqlContext.ts build on its result:
-// `requireOwnerCtx` remains the gate for site-wide writes and paid endpoints.
-export async function getCurrentUserFromToken(token: string | null): Promise<CurrentUser | null> {
-  const status = await getCallerStatusFromToken(token);
-  if (status.state === 'anon') return null;
-  const email = status.email;
-  const role: UserRole = status.state === 'owner' ? 'owner' : 'editor';
-  // Only owners get a `users` row written here. A non-owner row is created
-  // exactly when that account claims a trip invite (the invite-claim path).
-  // Writing one for *every* authenticated visitor would let any random
-  // Google sign-in seed a row and pollute the global invite-picker
-  // autocomplete (#51 c4), which is meant to list owners + invitees only.
-  // The upsert also keeps `role` correct if an editor is later promoted into
-  // OWNER_EMAILS, and `display_name` the account's first name from Clerk, so
-  // people show as "Tarun" rather than their email (a name Clerk has none
-  // for keeps the one stored).
-  if (role === 'owner') {
+/** The part of a Better Auth session this reads. */
+export type SessionLike = {
+  user: { email: string; name?: string | null; emailVerified: boolean };
+} | null;
+
+// The account's first name (Google's given name, set as the account's name
+// at sign-in), for showing people as "Tarun" rather than their email. Null
+// when there is none.
+function firstNameOf(name: string | null | undefined): string | null {
+  const first = typeof name === 'string' ? name.trim() : '';
+  return first ? first.slice(0, 50) : null;
+}
+
+/**
+ * The caller a session belongs to, or null for a signed-out one. An email
+ * that isn't verified is no identity to trust, and with no owners configured
+ * nobody is signed in (a misconfigured deployment stays read-only). The
+ * GraphQL guards in api/_gqlContext.ts build on this: `requireOwnerCtx`
+ * remains the gate for site-wide writes and paid endpoints.
+ */
+export function callerFromSession(session: SessionLike): CurrentUser | null {
+  if (!session || ownerEmails.size === 0) return null;
+  if (!session.user.emailVerified) return null;
+  const email = session.user.email.trim().toLowerCase();
+  if (!email) return null;
+  return {
+    email,
+    role: ownerEmails.has(email) ? 'owner' : 'editor',
+    firstName: firstNameOf(session.user.name),
+  };
+}
+
+/**
+ * Brings an account's `users` row up to date when it signs in. Callers MUST
+ * have run `ensureAllSchemas()` first (it creates the `users` table).
+ *
+ * Only owners get a `users` row written here. A non-owner row is created
+ * exactly when that account claims a trip invite or has a suggestion
+ * accepted. Writing one for *every* signed-in visitor would let any random
+ * Google sign-in seed a row and pollute the global invite-picker
+ * autocomplete (#51 c4), which is meant to list owners + invitees only. The
+ * owner upsert also keeps `role` correct if an editor is later promoted into
+ * OWNER_EMAILS. Either way the row takes the account's first name, so people
+ * show as "Tarun" rather than their email (a sign-in with no name keeps the
+ * one stored).
+ */
+export async function syncUserRow(rawEmail: string, name: string | null): Promise<void> {
+  const email = rawEmail.trim().toLowerCase();
+  const firstName = firstNameOf(name);
+  if (ownerEmails.has(email)) {
     await db().execute({
       sql: `INSERT INTO users (email, display_name, created_at, role)
             VALUES (?, ?, ?, 'owner')
             ON CONFLICT(email) DO UPDATE SET
               role = 'owner',
               display_name = COALESCE(excluded.display_name, users.display_name)`,
-      args: [email, status.firstName, Date.now()],
+      args: [email, firstName, Date.now()],
     });
-  } else if (status.firstName && !nameSynced(email, status.firstName)) {
-    await syncEditorName(email, status.firstName);
-  }
-  return { email, role, firstName: status.firstName };
-}
-
-// The first name last written for each editor in this instance, or tried
-// for an account with no row yet, until when it needn't be tried again.
-const namesSynced = new Map<string, { name: string; until: number }>();
-
-// How long a name with no row to land in waits before it's tried again: a row
-// an accepted suggestion creates gets it within this, and a signed-in account
-// with no row doesn't write on every request.
-const NO_ROW_RETRY_MS = 10 * 60 * 1000;
-
-function nameSynced(email: string, firstName: string): boolean {
-  const synced = namesSynced.get(email);
-  return synced?.name === firstName && synced.until > Date.now();
-}
-
-// An editor's row, which only an invite claim or an accepted suggestion
-// creates, takes their first name too; never a new row. Remembered once it
-// lands, so a signed-in editor's requests on a warm instance don't each
-// write; with no row yet, it's tried again after a while. A failed write
-// leaves the name for the next request rather than failing this one.
-async function syncEditorName(email: string, firstName: string): Promise<void> {
-  try {
-    const rs = await db().execute({
+  } else if (firstName) {
+    await db().execute({
       sql: 'UPDATE users SET display_name = ? WHERE email = ?',
       args: [firstName, email],
     });
-    namesSynced.set(email, {
-      name: firstName,
-      until: rs.rowsAffected > 0 ? Infinity : Date.now() + NO_ROW_RETRY_MS,
-    });
-  } catch {
-    // Named from their email until a later request writes it.
   }
 }

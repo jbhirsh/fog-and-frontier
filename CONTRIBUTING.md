@@ -11,9 +11,9 @@ npm ci                       # install exactly what package-lock.json pins
 npm run dev                  # Vite, port 5173 by default
 ```
 
-The UI boots without any secrets: with no `VITE_CLERK_PUBLISHABLE_KEY` set,
-`src/lib/authShim.ts` falls back to a no-auth shim (every visitor is signed-out;
-owner-gated controls are hidden).
+The UI boots without any secrets: outside a build Vercel makes (`vercel dev`,
+a preview, production), `src/lib/authShim.ts` offers no sign-in (every visitor
+is signed-out; owner-gated controls are hidden).
 
 The Apollo client calls the API at the relative path `/api/graphql`, and plain
 `vite` doesn't serve it. For local data, run `vercel dev` (which serves the
@@ -91,7 +91,7 @@ artifact excluded from the strict app typecheck roots).
 ### Auth model
 
 - **Server is the real gate.** `requireOwnerCtx` in `api/_gqlContext.ts`
-  (Clerk-backed) enforces owner-only writes and paid calls (e.g. Gemini,
+  (on Better Auth's session cookie) enforces owner-only writes and paid calls (e.g. Gemini,
   apart from the capped drafts non-owners get for suggestions, #73);
   `requireMemberCtx` / `requireCreatorCtx` gate trip-scoped actions, and
   `requireUserCtx` admits any signed-in account where something else

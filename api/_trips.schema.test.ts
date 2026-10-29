@@ -46,7 +46,7 @@ describe('ensureAllSchemas', () => {
     expect(mode).toBe('write');
     const tables = stmts
       .map(sqlOf)
-      .flatMap((sql) => /CREATE TABLE IF NOT EXISTS (\w+)/.exec(sql)?.[1] ?? []);
+      .flatMap((sql) => /CREATE TABLE IF NOT EXISTS "?(\w+)/.exec(sql)?.[1] ?? []);
     expect(tables).toEqual([
       'trips',
       'trip_activities',
@@ -60,10 +60,15 @@ describe('ensureAllSchemas', () => {
       'activity_reviews',
       'activity_photos',
       'suggestions',
+      'auth_user',
+      'auth_session',
+      'auth_account',
+      'auth_verification',
+      'auth_passkey',
     ]);
     expect(
       stmts.map(sqlOf).filter((sql) => sql.includes('CREATE') && sql.includes('INDEX')),
-    ).toHaveLength(6);
+    ).toHaveLength(11);
     expect(stmts.at(-1)).toEqual({
       sql: 'SELECT value FROM meta WHERE key = ?',
       args: ['members_backfill_v1'],

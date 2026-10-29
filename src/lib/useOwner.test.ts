@@ -16,7 +16,7 @@ async function renderOwner(email: string | null, ownerEmails = 'owner@example.co
   const auth: AuthState = {
     isLoaded: true,
     email,
-    getToken: () => Promise.resolve(null),
+    name: null,
   };
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(AuthCtx.Provider, { value: auth }, children);

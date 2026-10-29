@@ -15,6 +15,8 @@ import { ensureAllSchemas } from './_trips.js';
 import { logServerError } from './_log.js';
 import { USER_FACING_CODES } from './_gqlError.js';
 import { serverTimingHeader } from './_serverTiming.js';
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from './_betterAuth.js';
 
 // The ONLY deployed Vercel function (issue #91): every former REST endpoint now
 // lives behind this single GraphQL handler, permanently clearing the Hobby
@@ -119,6 +121,17 @@ async function graphqlMiddleware(): Promise<RequestHandler> {
 
 const app = express();
 app.use(cors());
+
+// Sign-in (_betterAuth.ts) at /api/auth/*, which vercel.json rewrites to this
+// function. Ahead of express.json(): Better Auth reads the request body
+// itself. What it refuses, it refuses itself, by route (refusedRoute in
+// _betterAuth.ts), not here by path, which it reads differently.
+app.all('/api/auth/{*path}', (req: Request, res: Response, next: NextFunction) => {
+  ready()
+    .then(() => toNodeHandler(auth())(req, res))
+    .catch(next);
+});
+
 app.use(express.json());
 app.use('/api/graphql', (req: Request, res: Response, next: NextFunction) => {
   graphqlMiddleware()

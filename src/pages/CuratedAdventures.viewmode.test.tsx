@@ -39,7 +39,7 @@ function renderAt(path: string, opts: { activitiesError?: boolean; email?: strin
   const auth: AuthState = {
     isLoaded: true,
     email: opts.email ?? null,
-    getToken: () => Promise.resolve(null),
+    name: null,
   };
   return render(
     <AuthCtx.Provider value={auth}>

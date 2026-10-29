@@ -158,7 +158,7 @@ export function initSentry(): void {
     tracesSampleRate,
     // Lock distributed-trace headers to same-origin requests. The default
     // (same-origin + localhost) would start propagating sentry-trace +
-    // baggage headers to any third-party fetch added later (Clerk, Turso).
+    // baggage headers to any third-party fetch added later (Google, Turso).
     tracePropagationTargets: [/^\//],
     beforeBreadcrumb: scrubBreadcrumb,
     beforeSend: scrubEvent,

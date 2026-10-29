@@ -12,8 +12,8 @@ import { InviteModal } from '../components/InviteModal';
 import { TripSuggestions } from '../components/TripSuggestions';
 import { ActivityDetail } from '../components/ActivityDetail';
 import type { Activity } from '../data/types';
-import { SignInButton } from '@clerk/clerk-react';
-import { CLERK_ENABLED } from '../lib/authShim';
+import { SIGN_IN_ENABLED } from '../lib/authShim';
+import { SignInButton } from '../components/SignIn';
 import { useOwner } from '../lib/useOwner';
 import { useOpenActivity } from '../lib/activityRoute';
 import { useUserActivities } from '../lib/userActivities';
@@ -350,14 +350,9 @@ export function TripDetail() {
         <p className="font-body-lg text-on-surface-variant">
           Sign in to accept your invitation and join this trip.
         </p>
-        {CLERK_ENABLED ? (
-          <SignInButton mode="modal">
-            <button
-              type="button"
-              className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90"
-            >
-              Sign in to accept
-            </button>
+        {SIGN_IN_ENABLED ? (
+          <SignInButton className="rounded-full bg-primary px-md py-sm font-body-md text-on-primary hover:opacity-90">
+            Sign in to accept
           </SignInButton>
         ) : (
           <p className="font-body-md text-on-surface-variant">

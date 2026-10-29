@@ -17,7 +17,7 @@ const TARUN = 'tarun@example.com';
 const SIGNED_IN: AuthState = {
   isLoaded: true,
   email: 'editor@example.com',
-  getToken: () => Promise.resolve(null),
+  name: null,
 };
 const SIGNED_OUT: AuthState = { ...SIGNED_IN, email: null };
 

@@ -7,7 +7,7 @@ discovery.**
 🌉 **Live demo: [fog-and-frontier.vercel.app](https://fog-and-frontier.vercel.app)**
 
 React 19 + Vite front end · a single consolidated Apollo GraphQL serverless
-function · Turso (libSQL) edge database · Clerk auth · Leaflet maps · Sentry
+function · Turso (libSQL) edge database · Better Auth (Google, passkeys) · Leaflet maps · Sentry
 observability · Vitest + Playwright in CI.
 
 ![Split view — curated list alongside an interactive Leaflet map](docs/screenshots/home-split.png)
@@ -77,7 +77,7 @@ map, filter, and plan trips around.
 | **Data layer**    | Apollo Client 4, GraphQL, `graphql-codegen` (typed operations)                 |
 | **API**           | Apollo Server 5 on Express 5, one Vercel serverless function                   |
 | **Database**      | Turso / libSQL edge database (`@libsql/client`)                                |
-| **Auth**          | Clerk (`@clerk/clerk-react` + `@clerk/backend`)                                |
+| **Auth**          | Better Auth: Google and passkeys, an HttpOnly session cookie, tables in Turso  |
 | **AI**            | Google Gemini (event discovery, activity generation, trip ideas)               |
 | **Observability** | Sentry (`@sentry/react`) with source-map upload; structured serverless logging |
 | **Testing / CI**  | Vitest (unit), Playwright (visual regression), GitHub Actions                  |
@@ -91,7 +91,7 @@ A few things in here worth a closer look:
   behind a single Apollo Server handler (`api/graphql.ts`) to stay under Vercel
   Hobby's 12-function cap — schema in `api/_schema.ts`, resolvers in
   `api/_resolvers/*`, typed end-to-end via `graphql-codegen`.
-- **Auth you can't bypass from the client.** `requireOwnerCtx` (Clerk-backed,
+- **Auth you can't bypass from the client.** `requireOwnerCtx` (on the session cookie,
   with `requireMemberCtx` / `requireCreatorCtx` for trips) gates every owner
   mutation and paid AI call server-side; the one exception is a signed-in
   account's suggestion and its capped Gemini draft (#73, `requireUserCtx`).
@@ -118,9 +118,9 @@ npm run dev                  # Vite dev server on http://localhost:5173
 `npm run dev` serves the UI on port 5173 and needs no secrets to boot. The client
 calls the GraphQL API at the relative path `/api/graphql`, so to develop against
 live data run `vercel dev` (which serves the serverless function) with a
-`.env.local` — see [`CONTRIBUTING.md`](./CONTRIBUTING.md). With no Clerk key set,
-auth falls back to a public, signed-out mode (owner-only editing controls are
-hidden).
+`.env.local` — see [`CONTRIBUTING.md`](./CONTRIBUTING.md). Outside a build Vercel
+makes, the app is in a public, signed-out mode (no sign-in; owner-only editing
+controls are hidden).
 
 Common scripts:
 

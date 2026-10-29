@@ -164,9 +164,10 @@ function rowToTripListItem(row: TripListRow): TripListItem {
 // ---- reads ----
 
 export function useTripsList() {
-  // TRIPS_QUERY is auth-gated; firing before Clerk is ready sends an anon
-  // request → UNAUTHENTICATED with no self-heal (the link has no retry).
-  // `skip` until isLoaded; the query auto-runs (with a token) once it flips.
+  // TRIPS_QUERY is auth-gated; firing before the session has loaded would
+  // show a signed-in member a sign-in prompt, then UNAUTHENTICATED for a
+  // stale or missing cookie with no self-heal (the link has no retry).
+  // `skip` until isLoaded; the query auto-runs once it flips.
   const { isLoaded } = useAuthState();
   const { data, loading, error, refetch } = useQuery(TRIPS_QUERY, {
     fetchPolicy: 'cache-and-network',
@@ -185,7 +186,7 @@ export function useTripsList() {
 }
 
 export function useTrip(id: string | undefined) {
-  // Gate on Clerk readiness (see useTripsList) — TRIP_QUERY is auth-gated.
+  // Gate on the session loading (see useTripsList) — TRIP_QUERY is auth-gated.
   const { isLoaded } = useAuthState();
   const { data, loading, error, refetch } = useQuery(TRIP_QUERY, {
     variables: { id: id ?? '' },

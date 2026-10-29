@@ -1,5 +1,4 @@
 import { ApolloClient, HttpLink, InMemoryCache } from '@apollo/client';
-import { SetContextLink } from '@apollo/client/link/context';
 
 // The consolidated GraphQL endpoint (issue #91). Single function, single
 // round-trip; replaces the 11 REST handlers under /api.
@@ -8,29 +7,15 @@ import { SetContextLink } from '@apollo/client/link/context';
 // application/graphql-response+json first, which Apollo Server then answers
 // with, and Vercel's edge doesn't compress that type: the catalog crossed the
 // wire at 650 KB rather than 157 KB of brotli.
-const httpLink = new HttpLink({ uri: '/api/graphql', headers: { accept: 'application/json' } });
-
-// Module-level token getter. Links run outside React, so they can't call
-// Clerk hooks directly — the auth bridge component (ClerkAuthProvider)
-// registers the live `getToken` here via setAuthTokenGetter. Defaults to the
-// anonymous (no-token) getter so the public-only / no-Clerk path Just Works.
-let tokenGetter: () => Promise<string | null> = () => Promise.resolve(null);
-
-export function setAuthTokenGetter(getter: () => Promise<string | null>): void {
-  tokenGetter = getter;
-}
-
-// AC4 SetContextLink: injects `Authorization: Bearer <token>` per request,
-// reading the current token from the module-level getter at request time.
-const authLink = new SetContextLink(async (prevContext) => {
-  const token = await tokenGetter();
-  const { headers: prevHeaders = {} } = prevContext as { headers?: Record<string, string> };
-  return {
-    headers: {
-      ...prevHeaders,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  };
+//
+// No Authorization header: the session is a cookie on this origin (sign-in,
+// api/_betterAuth.ts), which the browser sends with every same-origin
+// request (`credentials: 'same-origin'`), so a read never waits for the
+// session to load.
+const httpLink = new HttpLink({
+  uri: '/api/graphql',
+  credentials: 'same-origin',
+  headers: { accept: 'application/json' },
 });
 
 // Normalized cache. keyFields per the migration plan (decision #8):
@@ -64,6 +49,6 @@ export function createApolloCache(): InMemoryCache {
 export const apolloCache = createApolloCache();
 
 export const apolloClient = new ApolloClient({
-  link: authLink.concat(httpLink),
+  link: httpLink,
   cache: apolloCache,
 });

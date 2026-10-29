@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/auth/:path*",
+      "destination": "/api/graphql"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

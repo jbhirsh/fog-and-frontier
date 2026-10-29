@@ -16,7 +16,7 @@ const SIGNED_IN: AuthState = {
   isLoaded: true,
   // A signed-in non-owner: adding to a trip is a member power (#51).
   email: 'editor@example.com',
-  getToken: () => Promise.resolve(null),
+  name: null,
 };
 const SIGNED_OUT: AuthState = { ...SIGNED_IN, email: null };
 
@@ -99,7 +99,7 @@ describe('Curated Adventures — trip CTAs (#112)', () => {
   });
 
   it('applies a trip target once auth finishes loading', () => {
-    // Clerk resolves the session after the first render; a reload keeps
+    // The session loads after the first render; a reload keeps
     // location.state, so the target must survive that.
     const loading: AuthState = { ...SIGNED_OUT, isLoaded: false };
     function page(auth: AuthState) {
