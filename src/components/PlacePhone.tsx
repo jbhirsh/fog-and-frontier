@@ -52,18 +52,19 @@ export function DogRulesLink({ activity }: { activity: Activity }) {
   );
 }
 
-/** The 250px photo at the top, with whatever buttons sit over it. */
+/** The photo at the top (250px, 320px from `lg`), with whatever buttons sit over it. */
 export function PhoneCover({ activity, children }: { activity: Activity; children?: ReactNode }) {
   return (
-    <div className="relative h-62.5 bg-surface-variant">
+    <div className="relative h-62.5 bg-surface-variant lg:h-80">
       <CoverImage
         alt={activity.name}
         category={activity.category}
         src={activity.coverImage}
         className="size-full object-cover"
         glyphSize={56}
-        // The page's width: a phone's, or the dialog's 576px (36rem).
-        sizes="(min-width: 576px) 576px, 100vw"
+        // The page's width: a phone's, or the dialog's 576px (36rem), or
+        // 800px (50rem) on a big screen.
+        sizes="(min-width: 1024px) 800px, (min-width: 576px) 576px, 100vw"
       />
       {children}
     </div>
@@ -279,7 +280,7 @@ export function ParkPlaces({
   return (
     <section aria-label={heading} className="space-y-sm">
       <h3 className="font-display text-[22px] leading-tight font-bold text-primary">{heading}</h3>
-      <ul className="space-y-sm">
+      <ul className="grid gap-sm lg:grid-cols-2 lg:gap-x-md">
         {activities.map((a) => (
           <li key={a.id}>
             <PlaceRow activity={a} onSelect={onSelect}>

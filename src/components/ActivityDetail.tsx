@@ -429,8 +429,9 @@ export function ActivityDetail({
         className={`absolute inset-0 cursor-default bg-on-surface/60 backdrop-blur-sm ${animateIn ? SCRIM_IN : ''}`}
       />
       {/* The track a sideways swipe moves: the panel, with its neighbours
-          waiting beside it. */}
-      <div ref={trackRef} className="group/track relative w-full max-w-144">
+          waiting beside it. A phone's width, or wider on a big screen, where
+          Nearby's places sit two to a row. */}
+      <div ref={trackRef} className="group/track relative w-full max-w-144 lg:max-w-200">
         <div
           role="dialog"
           aria-modal="true"

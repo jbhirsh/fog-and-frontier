@@ -76,7 +76,8 @@ export function PlaceRow({
 /**
  * A phone's Nearby (#65, as the owners chose over a sideways row): grouped by
  * kind, each place a row with its photo, its name whole, and where it is, how
- * far from here and how long it takes.
+ * far from here and how long it takes. On a big screen's wider dialog the
+ * rows sit two side by side.
  */
 export function NearbyList({
   groups,
@@ -101,7 +102,7 @@ export function NearbyList({
         return (
           <section key={category} aria-labelledby={headingId} className="space-y-sm">
             <NearbyHeading id={headingId} category={category} />
-            <ul className="space-y-sm">
+            <ul className="grid gap-sm lg:grid-cols-2 lg:gap-x-md">
               {items.map(({ activity: a, miles }) => (
                 <li key={a.id}>
                   <PlaceRow activity={a} onSelect={onSelect}>
