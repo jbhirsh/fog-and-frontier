@@ -98,6 +98,8 @@ vi.mock('./authClient', () => ({
       data: session.user ? { user: session.user } : null,
     }),
   },
+  // Off production: no One Tap prompt (oneTap.test.ts has it).
+  ONE_TAP_CLIENT_ID: '',
 }));
 
 const as = (id: string) => ({ id, email: `${id.toLowerCase()}@example.com`, name: id });

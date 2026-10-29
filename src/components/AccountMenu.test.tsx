@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthCtx, type AuthState } from '../lib/authShim';
 import { AccountMenu } from './AccountMenu';
@@ -63,7 +63,8 @@ describe('AccountMenu', () => {
       'S',
     );
     open();
-    expect(screen.getByText('Signed in as sam@example.com')).toBeInTheDocument();
+    expect(screen.getByText('sam@example.com')).toBeInTheDocument();
+    expect(screen.getAllByText(/sam@example\.com/)).toHaveLength(1);
   });
 
   it('says who is signed in', () => {
@@ -71,7 +72,9 @@ describe('AccountMenu', () => {
     open();
     // Outside the header, whose blur would box a fixed overlay into it.
     expect(screen.getByRole('dialog', { name: 'Your account' }).closest('header')).toBeNull();
-    expect(screen.getByText('Signed in as Jess (jess@example.com)')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Your account' });
+    expect(within(dialog).getByText('Jess')).toBeInTheDocument();
+    expect(within(dialog).getByText('jess@example.com')).toBeInTheDocument();
   });
 
   it('adds a passkey, and says so', async () => {
@@ -103,6 +106,13 @@ describe('AccountMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     await waitFor(() => expect(screen.getByTestId('at')).toHaveTextContent(/^\/$/));
     expect(client.signOut).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('closes from its close button', () => {
+    show();
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

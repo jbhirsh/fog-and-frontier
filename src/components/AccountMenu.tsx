@@ -7,12 +7,13 @@ import { passkeysSupported } from '../lib/passkeys';
 import { ModalShell } from './ModalShell';
 
 const ACTION =
-  'flex min-h-12 w-full items-center justify-center rounded-full border border-outline-variant px-md font-body-md text-on-surface transition-opacity hover:opacity-90 disabled:opacity-50';
+  'flex min-h-12 w-full items-center gap-sm px-md text-left font-body-md text-body-sm text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50';
 
 /**
  * The signed-in account, in the header: its initial, which opens what can be
  * done with it (add a passkey, so the next sign-in is Face ID or Touch ID;
- * sign out). The dialog goes to the body, as SignInButton's does.
+ * sign out), a card like the sign-in dialog's. The dialog goes to the body,
+ * as SignInButton's does.
  */
 export function AccountMenu() {
   const { email, name } = useAuthState();
@@ -59,11 +60,26 @@ export function AccountMenu() {
       </button>
       {open &&
         createPortal(
-          <ModalShell title="Your account" onCancel={() => setOpen(false)}>
-            <p className="font-body-md text-on-surface-variant">
-              Signed in as {name ? `${name} (${email})` : email}
-            </p>
-            <div className="space-y-sm">
+          <ModalShell title="Your account" layout="card" onCancel={() => setOpen(false)}>
+            <div className="flex items-center gap-sm p-md pr-lg">
+              <span
+                aria-hidden="true"
+                className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary-container font-body-md text-on-primary-container"
+              >
+                {label.charAt(0).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-body-md text-body-sm font-medium text-on-surface">
+                  {name ?? email}
+                </p>
+                {name && (
+                  <p className="truncate font-body-md text-body-sm text-on-surface-variant">
+                    {email}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="border-t border-outline-variant/40 py-xs">
               {passkeysSupported() && (
                 <button
                   type="button"
@@ -71,6 +87,9 @@ export function AccountMenu() {
                   disabled={busy}
                   className={ACTION}
                 >
+                  <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
+                    passkey
+                  </span>
                   Add a passkey
                 </button>
               )}
@@ -80,13 +99,16 @@ export function AccountMenu() {
                 disabled={busy}
                 className={ACTION}
               >
+                <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
+                  logout
+                </span>
                 Sign out
               </button>
             </div>
             {note && (
               <p
                 role={note.failed ? 'alert' : 'status'}
-                className={`font-body-md ${note.failed ? 'text-error' : 'text-on-surface-variant'}`}
+                className={`border-t border-outline-variant/40 px-md py-sm font-body-md text-body-sm ${note.failed ? 'text-error' : 'text-on-surface-variant'}`}
               >
                 {note.text}
               </p>
