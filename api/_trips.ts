@@ -86,7 +86,7 @@ const BACKFILL_KEY = 'members_backfill_v1';
 // Every table and index the API touches, created if missing. They go to Turso
 // as one batch: run one at a time they were 18 round trips, one after
 // another, before a cold instance answered its first request.
-const SCHEMA: string[] = [
+export const SCHEMA: string[] = [
   // --- trips (v0) ---
   `CREATE TABLE IF NOT EXISTS trips (
     id TEXT PRIMARY KEY,
@@ -204,6 +204,21 @@ const SCHEMA: string[] = [
     status TEXT NOT NULL DEFAULT 'pending'
   )`,
   'CREATE INDEX IF NOT EXISTS suggestions_by_status ON suggestions (status, t)',
+
+  // Sign-in (_betterAuth.ts): Better Auth's own tables, as its migration
+  // generator writes them for SQLite (`getMigrations` from
+  // better-auth/db/migration, with these model names), apart from the app's
+  // `users`. Regenerate them when an upgrade or a new plugin adds a column.
+  `CREATE TABLE IF NOT EXISTS "auth_user" ("id" text not null primary key, "name" text not null, "email" text not null unique, "emailVerified" integer not null, "image" text, "createdAt" date not null, "updatedAt" date not null)`,
+  `CREATE TABLE IF NOT EXISTS "auth_session" ("id" text not null primary key, "expiresAt" date not null, "token" text not null unique, "createdAt" date not null, "updatedAt" date not null, "ipAddress" text, "userAgent" text, "userId" text not null references "auth_user" ("id") on delete cascade)`,
+  `CREATE TABLE IF NOT EXISTS "auth_account" ("id" text not null primary key, "accountId" text not null, "providerId" text not null, "userId" text not null references "auth_user" ("id") on delete cascade, "accessToken" text, "refreshToken" text, "idToken" text, "accessTokenExpiresAt" date, "refreshTokenExpiresAt" date, "scope" text, "password" text, "createdAt" date not null, "updatedAt" date not null)`,
+  `CREATE TABLE IF NOT EXISTS "auth_verification" ("id" text not null primary key, "identifier" text not null, "value" text not null, "expiresAt" date not null, "createdAt" date not null, "updatedAt" date not null)`,
+  `CREATE TABLE IF NOT EXISTS "auth_passkey" ("id" text not null primary key, "name" text, "publicKey" text not null, "userId" text not null references "auth_user" ("id") on delete cascade, "credentialID" text not null, "counter" integer not null, "deviceType" text not null, "backedUp" integer not null, "transports" text, "createdAt" date, "aaguid" text)`,
+  'CREATE INDEX IF NOT EXISTS "auth_session_userId_idx" ON "auth_session" ("userId")',
+  'CREATE INDEX IF NOT EXISTS "auth_account_userId_idx" ON "auth_account" ("userId")',
+  'CREATE INDEX IF NOT EXISTS "auth_verification_identifier_idx" ON "auth_verification" ("identifier")',
+  'CREATE INDEX IF NOT EXISTS "auth_passkey_userId_idx" ON "auth_passkey" ("userId")',
+  'CREATE INDEX IF NOT EXISTS "auth_passkey_credentialID_idx" ON "auth_passkey" ("credentialID")',
 ];
 
 // Single entry point for graphql.ts startup, once per instance: the schema,
@@ -545,7 +560,7 @@ export async function deleteInviteByToken(tripId: string, token: string): Promis
 // 404→NOT_FOUND, 409→CONFLICT) and the REST `code` field becomes `appCode`.
 // ===========================================================================
 
-// Loose on purpose (#51 c17) — Clerk is the real validator at sign-in.
+// Loose on purpose (#51 c17) — sign-in (Google) is the real validator.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function trimmedString(value: unknown, max: number): string | null {

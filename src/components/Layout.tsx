@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
-import { CLERK_ENABLED } from '../lib/authShim';
+import { SIGN_IN_ENABLED, useAuthState } from '../lib/authShim';
+import { SignInButton } from './SignIn';
+import { AccountMenu } from './AccountMenu';
 import { useOwner } from '../lib/useOwner';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { HeaderSlotContext } from '../lib/headerSlot';
@@ -41,6 +42,7 @@ export function Layout() {
   const isMapView = pathname === '/' && params.get('view') === 'map';
   // Explore is an owner-only surface (#111); its route is guarded in App.tsx.
   const { isOwner } = useOwner();
+  const { email } = useAuthState();
   // The box has room for the whole prompt (about 265px of it) only from lg
   // up; narrower, on a phone (#289) or a tablet, it's one word.
   const wide = useMediaQuery('(min-width: 64rem)');
@@ -155,28 +157,14 @@ export function Layout() {
               isMapView ? 'md:max-lg:ml-auto lg:ml-0' : 'md:ml-0'
             }`}
           >
-            {CLERK_ENABLED && (
-              <>
-                <SignedOut>
-                  <SignInButton mode="modal">
-                    <button
-                      type="button"
-                      className="inline-flex h-11 items-center rounded-full bg-primary px-md font-body-md text-on-primary transition-opacity hover:opacity-90"
-                    >
-                      Sign in
-                    </button>
-                  </SignInButton>
-                </SignedOut>
-                <SignedIn>
-                  <UserButton
-                    afterSignOutUrl="/"
-                    appearance={{
-                      elements: { userButtonAvatarBox: 'w-11 h-11' },
-                    }}
-                  />
-                </SignedIn>
-              </>
-            )}
+            {SIGN_IN_ENABLED &&
+              (email ? (
+                <AccountMenu />
+              ) : (
+                <SignInButton className="inline-flex h-11 items-center rounded-full bg-primary px-md font-body-md text-on-primary transition-opacity hover:opacity-90">
+                  Sign in
+                </SignInButton>
+              ))}
           </div>
         </div>
       </header>

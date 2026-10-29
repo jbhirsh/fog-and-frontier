@@ -41,7 +41,7 @@ function Path() {
 }
 
 function renderMap(path = '/?view=map') {
-  const auth: AuthState = { isLoaded: true, email: null, getToken: () => Promise.resolve(null) };
+  const auth: AuthState = { isLoaded: true, email: null, name: null };
   return render(
     <AuthCtx.Provider value={auth}>
       <MemoryRouter initialEntries={[path]}>

@@ -16,7 +16,7 @@ export function useOwner(): {
   const { isLoaded, email } = useAuthState();
   const lower = email?.trim().toLowerCase() ?? null;
   // Dev/test-only escape hatch so Playwright can exercise owner-gated UI
-  // without a real Clerk session. Production strictly ignores the flag —
+  // without a real session. Production strictly ignores the flag —
   // the env-mode check is evaluated at build time, so a hostile script in
   // prod can never flip owner status by setting window.__TEST_FORCE_OWNER__.
   const forceOwner =

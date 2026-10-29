@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apolloClient, setAuthTokenGetter } from './apolloClient';
+import { apolloClient } from './apolloClient';
 import { COMPLETED_QUERY } from './gqlDocs';
 
 afterEach(async () => {
   vi.unstubAllGlobals();
-  setAuthTokenGetter(() => Promise.resolve(null));
   await apolloClient.clearStore();
 });
 
@@ -38,14 +37,15 @@ describe('apolloClient', () => {
     expect(sentHeaders(fetchMock).accept).toBe('application/json');
   });
 
-  it('sends the bearer token the auth bridge registered', async () => {
+  // The session is a cookie on this origin, which only goes with the
+  // request when credentials are on for it.
+  it('sends the session cookie with each request', async () => {
     const fetchMock = stubFetch();
-    setAuthTokenGetter(() => Promise.resolve('tok'));
     await apolloClient.query({ query: COMPLETED_QUERY, fetchPolicy: 'network-only' });
-    expect(sentHeaders(fetchMock).authorization).toBe('Bearer tok');
+    expect(fetchMock.mock.calls[0]?.[1]?.credentials).toBe('same-origin');
   });
 
-  it('sends no Authorization header while signed out', async () => {
+  it('sends no Authorization header: the cookie is the sign-in', async () => {
     const fetchMock = stubFetch();
     await apolloClient.query({ query: COMPLETED_QUERY, fetchPolicy: 'network-only' });
     expect(sentHeaders(fetchMock)).not.toHaveProperty('authorization');

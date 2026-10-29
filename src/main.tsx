@@ -1,10 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ClerkProvider } from '@clerk/clerk-react';
 import { ApolloProvider } from '@apollo/client/react';
 import './index.css';
 import App from './App.tsx';
-import { ClerkAuthProvider } from './lib/authShimClerk';
+import { AuthProvider } from './lib/authSession';
+import { SIGN_IN_ENABLED } from './lib/authShim';
 import { apolloClient } from './lib/apolloClient';
 import { Sentry, initSentry } from './lib/sentry';
 import { dropLegacyPhotos } from './lib/userPhotos';
@@ -14,36 +14,16 @@ initSentry();
 // copies took.
 dropLegacyPhotos();
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-// ApolloProvider wraps App in both paths so the data layer works whether or
-// not Clerk is configured. It sits *inside* the Clerk providers so the auth
-// bridge (ClerkAuthProvider) can register the live token getter before any
-// query fires; the no-Clerk path falls back to anonymous (no-token) requests.
+// ApolloProvider wraps App either way, so the data layer works whether or
+// not this build can sign anyone in. Requests carry the session cookie on
+// their own, so no read waits for the session to load.
 const app = (
   <ApolloProvider client={apolloClient}>
     <App />
   </ApolloProvider>
 );
 
-// Clerk is still on its development instance (a production one needs a domain
-// of our own), which tags its menus "Development mode". Hide the tag: it means
-// nothing to the people signing in.
-const clerkAppearance = { layout: { unsafe_disableDevelopmentModeWarnings: true } };
-
-const tree = publishableKey ? (
-  <ClerkProvider publishableKey={publishableKey} appearance={clerkAppearance}>
-    <ClerkAuthProvider>{app}</ClerkAuthProvider>
-  </ClerkProvider>
-) : (
-  app
-);
-
-if (!publishableKey) {
-  console.warn(
-    '[auth] VITE_CLERK_PUBLISHABLE_KEY is not set — running in public-only mode. Owner-gated actions are disabled until Clerk is configured.',
-  );
-}
+const tree = SIGN_IN_ENABLED ? <AuthProvider>{app}</AuthProvider> : app;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -42,7 +42,7 @@ import {
 
 const EVAL_DIR = path.dirname(fileURLToPath(import.meta.url));
 // The server gate is requireOwnerCtx, which only inspects this object — no
-// Clerk or DB involved, so a fabricated owner is enough to call resolvers.
+// sign-in or DB involved, so a fabricated owner is enough to call resolvers.
 const CTX: GqlContext = { caller: { email: 'eval@local', role: 'owner' } };
 
 // --- CLI / env ---------------------------------------------------------------

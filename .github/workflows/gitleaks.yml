@@ -1,6 +1,7 @@
 # Secret scanning (gitleaks). GitHub-native secret scanning is off for this
-# repo, and the wiring here touches real credentials — GEMINI_API_KEY, Clerk,
-# Turso, and VERCEL_AUTOMATION_BYPASS_SECRET — so a leaked key needs a sensor
+# repo, and the wiring here touches real credentials — GEMINI_API_KEY, the
+# sign-in secrets (Better Auth's, the OAuth proxy's, Google's), Turso, and
+# VERCEL_AUTOMATION_BYPASS_SECRET — so a leaked key needs a sensor
 # that fires *before* it settles into main. .gitignore keeps .env.local out of
 # the index and the Claude review can flag a committed secret, but both are
 # advisory; this job makes a leak a red check instead.

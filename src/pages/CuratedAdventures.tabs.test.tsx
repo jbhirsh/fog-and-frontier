@@ -37,7 +37,7 @@ function State() {
 }
 
 function renderAt(entry: InitialEntry, email: string | null = null) {
-  const auth: AuthState = { isLoaded: true, email, getToken: () => Promise.resolve(null) };
+  const auth: AuthState = { isLoaded: true, email, name: null };
   return render(
     <AuthCtx.Provider value={auth}>
       <MemoryRouter initialEntries={[entry]}>

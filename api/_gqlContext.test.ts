@@ -1,15 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Request } from 'express';
 
-// Unit tests for the GraphQL context: Bearer-token extraction in buildContext
+// Unit tests for the GraphQL context: the session cookie read in buildContext
 // and the auth guards (requireUserCtx / requireOwnerCtx / requireMemberCtx /
 // requireCreatorCtx / loadTripForMemberOrNull), which are the server-side gate
-// for every resolver. The token→caller resolution and the trip reads are
-// mocked at their module boundaries (_auth.test.ts and _trips.test.ts cover
-// them).
+// for every resolver. Better Auth's session lookup, the session→caller
+// mapping and the trip reads are mocked at their module boundaries
+// (_betterAuth.test.ts, _auth.test.ts and _trips.test.ts cover them).
 
-const { getCurrentUserFromToken } = vi.hoisted(() => ({
-  getCurrentUserFromToken: vi.fn(),
+const { getSession, callerFromSession, logServerError } = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  callerFromSession: vi.fn(),
+  logServerError: vi.fn(),
 }));
 const { getTripRow, isTripMember, getTripDetail } = vi.hoisted(() => ({
   getTripRow: vi.fn(),
@@ -17,11 +19,14 @@ const { getTripRow, isTripMember, getTripDetail } = vi.hoisted(() => ({
   getTripDetail: vi.fn(),
 }));
 
-vi.mock('./_auth.js', () => ({ getCurrentUserFromToken }));
+vi.mock('./_betterAuth.js', () => ({ auth: () => ({ api: { getSession } }) }));
+vi.mock('./_auth.js', () => ({ callerFromSession }));
+vi.mock('./_log.js', () => ({ logServerError }));
 vi.mock('./_trips.js', () => ({ getTripRow, isTripMember, getTripDetail }));
 
 const {
   buildContext,
+  hasSessionCookie,
   requireUserCtx,
   requireOwnerCtx,
   requireMemberCtx,
@@ -35,42 +40,61 @@ const TRIP_ID = 'trip-abc-123';
 // The trip row only needs creator_email for the guards.
 const TRIP_BY_OWNER = { id: TRIP_ID, creator_email: OWNER.email };
 
-function req(authorization?: string): Request {
-  return {
-    headers: authorization === undefined ? {} : { authorization },
-  } as unknown as Request;
+const COOKIE = '__Secure-better-auth.session_token=abc.def';
+const SESSION = { user: { email: OWNER.email, name: 'Jess', emailVerified: true } };
+
+function req(cookie?: string): Request {
+  return { headers: cookie === undefined ? {} : { cookie } } as unknown as Request;
 }
 
 afterEach(() => {
-  getCurrentUserFromToken.mockReset();
+  getSession.mockReset();
+  callerFromSession.mockReset();
+  logServerError.mockReset();
   getTripRow.mockReset();
   isTripMember.mockReset();
   getTripDetail.mockReset();
 });
 
-describe('buildContext', () => {
-  it('resolves the caller from the Bearer token', async () => {
-    getCurrentUserFromToken.mockResolvedValue(OWNER);
-    expect(await buildContext(req('Bearer tok_123'))).toEqual({ caller: OWNER });
-    expect(getCurrentUserFromToken).toHaveBeenCalledWith('tok_123');
-  });
-
-  it('trims whitespace around the token', async () => {
-    getCurrentUserFromToken.mockResolvedValue(OWNER);
-    await buildContext(req('Bearer   tok_123  '));
-    expect(getCurrentUserFromToken).toHaveBeenCalledWith('tok_123');
-  });
-
+describe('hasSessionCookie', () => {
   it.each([
-    ['no Authorization header', undefined],
-    ['an empty Bearer token', 'Bearer '],
-    ['a whitespace-only Bearer token', 'Bearer    '],
-    ['a non-Bearer scheme', 'Basic dXNlcjpwYXNz'],
-    ['a bare token with no scheme', 'tok_123'],
-  ])('passes a null token for %s', async (_label, authorization) => {
-    getCurrentUserFromToken.mockResolvedValue(null);
-    expect(await buildContext(req(authorization))).toEqual({ caller: null });
-    expect(getCurrentUserFromToken).toHaveBeenCalledWith(null);
+    ['the secure cookie', '__Secure-better-auth.session_token=x', true],
+    ['the plain cookie (http, local)', 'better-auth.session_token=x', true],
+    ['it among others', 'theme=dark; better-auth.session_token=x; a=b', true],
+    ['no cookie header', undefined, false],
+    ['other cookies only', 'theme=dark; better-auth.session_data=x', false],
+    ['a cookie whose name only ends the same', 'notbetter-auth.session_token=x', false],
+  ])('%s → %s', (_label, cookie, expected) => {
+    expect(hasSessionCookie(cookie)).toBe(expected);
+  });
+});
+
+describe('buildContext', () => {
+  it('reads the caller from the session the cookie names', async () => {
+    getSession.mockResolvedValue(SESSION);
+    callerFromSession.mockReturnValue(OWNER);
+    expect(await buildContext(req(COOKIE))).toEqual({ caller: OWNER });
+    expect(callerFromSession).toHaveBeenCalledWith(SESSION);
+    const { headers } = getSession.mock.calls[0]?.[0] as { headers: Headers };
+    expect(headers.get('cookie')).toBe(COOKIE);
+  });
+
+  it('is signed out, with no lookup, when there is no session cookie', async () => {
+    expect(await buildContext(req())).toEqual({ caller: null });
+    expect(await buildContext(req('theme=dark'))).toEqual({ caller: null });
+    expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it('is signed out when the cookie names no live session', async () => {
+    getSession.mockResolvedValue(null);
+    callerFromSession.mockReturnValue(null);
+    expect(await buildContext(req(COOKIE))).toEqual({ caller: null });
+  });
+
+  it('is signed out, and says so in the log, when the lookup fails', async () => {
+    getSession.mockRejectedValue(new Error('BETTER_AUTH_SECRET not set'));
+    expect(await buildContext(req(COOKIE))).toEqual({ caller: null });
+    expect(logServerError).toHaveBeenCalledOnce();
   });
 });
 

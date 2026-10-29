@@ -11,6 +11,9 @@ const { execute, batch } = vi.hoisted(() => ({ execute: vi.fn(), batch: vi.fn() 
 vi.mock('./_db.js', () => ({ db: () => ({ execute, batch }) }));
 
 process.env.OWNER_EMAILS = 'owner@example.com';
+process.env.BETTER_AUTH_SECRET = 's'.repeat(32);
+process.env.OAUTH_PROXY_SECRET = 'p'.repeat(32);
+process.env.GOOGLE_CLIENT_ID = 'id.apps.googleusercontent.com';
 
 const app = (await import('./graphql.js')).default;
 
@@ -39,7 +42,7 @@ beforeAll(async () => {
         ],
       });
     }
-    return Promise.resolve({ rows: [] });
+    return Promise.resolve({ rows: [], rowsAffected: 0 });
   });
   batch.mockResolvedValue([]);
   await new Promise<void>((resolve) => {
@@ -66,14 +69,15 @@ type GqlResponse = {
 // ("offline"), which would otherwise intercept this real in-process request.
 function post(
   query: string,
-  auth?: string,
+  cookie?: string,
+  contentType = 'application/json',
 ): Promise<{ status: number; json: GqlResponse; serverTiming?: string | string[] }> {
   const body = JSON.stringify({ query });
   const headers: Record<string, string | number> = {
-    'content-type': 'application/json',
+    'content-type': contentType,
     'content-length': Buffer.byteLength(body),
   };
-  if (auth !== undefined) headers.authorization = auth;
+  if (cookie !== undefined) headers.cookie = cookie;
   return new Promise((resolve, reject) => {
     const req = http.request(
       url,
@@ -96,6 +100,21 @@ function post(
     req.on('error', reject);
     req.write(body);
     req.end();
+  });
+}
+
+// A GET to a sign-in route (/api/auth/*), its status and body. The path goes
+// out as written (no URL parsing here, which would turn a `\` into a `/`).
+function get(path: string): Promise<{ status: number; body: string }> {
+  const { hostname, port } = new URL(url);
+  return new Promise((resolve, reject) => {
+    http
+      .get({ hostname, port, path }, (res) => {
+        let data = '';
+        res.on('data', (chunk: Buffer) => (data += chunk.toString()));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));
+      })
+      .on('error', reject);
   });
 }
 
@@ -126,17 +145,38 @@ describe('api/graphql.ts express app (real wiring)', () => {
     expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
   });
 
-  // buildContext → bearer() token extraction: an empty "Bearer " and a
-  // non-empty but unverifiable token both resolve to anon (no CLERK_SECRET_KEY
-  // configured here), exercising both sides of the token-trim branch.
-  it('empty Bearer token resolves to anon', async () => {
-    const r = await post('{ trips { id } }', 'Bearer ');
+  // buildContext reads the session cookie: one that names no live session
+  // (here, one Better Auth can't verify) is signed out, not an error.
+  it('a session cookie naming no session resolves to anon', async () => {
+    const r = await post('{ trips { id } }', '__Secure-better-auth.session_token=forged.value');
+    expect(r.status).toBe(200);
     expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
   });
 
-  it('unverifiable Bearer token resolves to anon', async () => {
-    const r = await post('{ trips { id } }', 'Bearer sometoken');
-    expect(r.json.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  // The session is a cookie, so a cross-site form post would carry it:
+  // Apollo's CSRF prevention refuses a request a form could make.
+  it('refuses a request a cross-site form could send', async () => {
+    const r = await post('{ activities { id } }', undefined, 'text/plain');
+    expect(r.status).toBe(400);
+  });
+
+  // Sign-in (Better Auth) is mounted on the same function, at /api/auth/*.
+  it('serves the sign-in routes', async () => {
+    const r = await get('/api/auth/ok');
+    expect(r.status).toBe(200);
+    expect(JSON.parse(r.body)).toEqual({ ok: true });
+  });
+
+  it('refuses the OAuth proxy’s completion on production', async () => {
+    process.env.VERCEL_ENV = 'production';
+    try {
+      expect((await get('/api/auth/callback/google/oauth-proxy?callbackURL=x')).status).toBe(404);
+      expect((await get('/api/auth/oauth-proxy-callback?callbackURL=x')).status).toBe(404);
+      // Express reads this path as is; Better Auth as a URL, with a `/`.
+      expect((await get('/api/auth/callback/google\\oauth-proxy?callbackURL=x')).status).toBe(404);
+    } finally {
+      delete process.env.VERCEL_ENV;
+    }
   });
 
   // formatError logs only genuine server errors (#20); an expected,

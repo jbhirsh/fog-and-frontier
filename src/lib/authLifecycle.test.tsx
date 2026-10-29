@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createElement, type ReactNode } from 'react';
+import { createElement, useContext, type ReactNode } from 'react';
 import { renderHook, render as rtlRender, waitFor } from '@testing-library/react';
 import { ApolloProvider } from '@apollo/client/react';
 import { AuthCtx, type AuthState } from './authShim';
@@ -16,8 +16,8 @@ function jsonResponse(obj: unknown): Response {
 }
 
 // --- MAJOR-1: auth-readiness gating ----------------------------------------
-// Auth-gated reads (TRIPS_QUERY/TRIP_QUERY) must NOT fire before Clerk is
-// loaded — an anon request returns UNAUTHENTICATED and the link has no retry,
+// Auth-gated reads (TRIPS_QUERY/TRIP_QUERY) must NOT fire before the session
+// is loaded — an anon request returns UNAUTHENTICATED and the link has no retry,
 // so a signed-in user's first load would stick on an error. They must fire
 // once isLoaded flips true.
 
@@ -25,7 +25,7 @@ function authWrapper(isLoaded: boolean) {
   const value: AuthState = {
     isLoaded,
     email: isLoaded ? 'owner@example.com' : null,
-    getToken: () => Promise.resolve(isLoaded ? 'tok' : null),
+    name: null,
   };
   return function Wrapper({ children }: { children: ReactNode }) {
     return createElement(ApolloProvider, {
@@ -86,79 +86,136 @@ describe('auth-readiness gating (MAJOR-1)', () => {
 // Switching accounts in-tab (or signing out) must reset the Apollo cache so
 // account A's member-scoped data can't bleed into account B's session.
 
-const clerk = vi.hoisted(() => ({
-  isLoaded: true,
-  user: null as null | { id: string },
+const session = vi.hoisted(() => ({
+  isPending: false,
+  user: null as null | { id: string; email: string; name: string },
 }));
 
-vi.mock('@clerk/clerk-react', () => ({
-  useUser: () => ({ isLoaded: clerk.isLoaded, user: clerk.user }),
-  useAuth: () => ({ getToken: () => Promise.resolve('tok') }),
+vi.mock('./authClient', () => ({
+  authClient: {
+    useSession: () => ({
+      isPending: session.isPending,
+      data: session.user ? { user: session.user } : null,
+    }),
+  },
 }));
+
+const as = (id: string) => ({ id, email: `${id.toLowerCase()}@example.com`, name: id });
 
 describe('cache reset on account change (MAJOR-2)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    clerk.isLoaded = true;
-    clerk.user = null;
+    session.isPending = false;
+    session.user = null;
   });
 
   it('resets the cache on account switch and sign-out, but not on initial sign-in', async () => {
-    const { ClerkAuthProvider } = await import('./authShimClerk');
+    const { AuthProvider } = await import('./authSession');
     const reset = vi.spyOn(apolloClient, 'resetStore').mockResolvedValue([]);
 
-    clerk.user = { id: 'A' };
-    const { rerender } = rtlRender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.user = as('A');
+    const { rerender } = rtlRender(createElement(AuthProvider, { children: 'x' }));
     expect(reset).not.toHaveBeenCalled(); // initial sign-in: no prior user
 
-    clerk.user = { id: 'B' }; // in-tab account switch
-    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.user = as('B'); // in-tab account switch
+    rerender(createElement(AuthProvider, { children: 'x' }));
     expect(reset).toHaveBeenCalledTimes(1);
 
-    clerk.user = null; // sign-out
-    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.user = null; // sign-out
+    rerender(createElement(AuthProvider, { children: 'x' }));
     expect(reset).toHaveBeenCalledTimes(2);
+  });
+
+  // A reset that fails (offline) is let go: a mock's own promise tracking
+  // would hide an unhandled rejection, so this checks the .catch itself.
+  it('lets a failed reset go, rather than leaving its rejection unhandled', async () => {
+    const { AuthProvider } = await import('./authSession');
+    const failed = Promise.reject(new Error('offline'));
+    const caught = vi.spyOn(failed, 'catch');
+    vi.spyOn(apolloClient, 'resetStore').mockReturnValue(failed);
+
+    session.user = as('A');
+    const { rerender } = rtlRender(createElement(AuthProvider, { children: 'x' }));
+    session.user = null;
+    rerender(createElement(AuthProvider, { children: 'x' }));
+    expect(caught).toHaveBeenCalledOnce();
   });
 
   // Reads made signed-out (the catalog, without contributors, #9) must
   // refetch as the caller once they sign in from the page.
   it('resets the cache when a signed-out visitor signs in', async () => {
-    const { ClerkAuthProvider } = await import('./authShimClerk');
+    const { AuthProvider } = await import('./authSession');
     const reset = vi.spyOn(apolloClient, 'resetStore').mockResolvedValue([]);
 
-    clerk.user = null;
-    const { rerender } = rtlRender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.user = null;
+    const { rerender } = rtlRender(createElement(AuthProvider, { children: 'x' }));
     expect(reset).not.toHaveBeenCalled();
 
-    clerk.user = { id: 'A' };
-    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.user = as('A');
+    rerender(createElement(AuthProvider, { children: 'x' }));
     expect(reset).toHaveBeenCalledTimes(1);
   });
 
-  it('does not reset when Clerk finishes loading an account', async () => {
-    const { ClerkAuthProvider } = await import('./authShimClerk');
+  it('does not reset when the session finishes loading an account', async () => {
+    const { AuthProvider } = await import('./authSession');
     const reset = vi.spyOn(apolloClient, 'resetStore').mockResolvedValue([]);
 
-    clerk.isLoaded = false;
-    clerk.user = null;
-    const { rerender } = rtlRender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.isPending = true;
+    session.user = null;
+    const { rerender } = rtlRender(createElement(AuthProvider, { children: 'x' }));
 
-    clerk.isLoaded = true;
-    clerk.user = { id: 'A' };
-    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.isPending = false;
+    session.user = as('A');
+    rerender(createElement(AuthProvider, { children: 'x' }));
     expect(reset).not.toHaveBeenCalled();
   });
 
-  it('does not reset when Clerk reloads the same account', async () => {
-    const { ClerkAuthProvider } = await import('./authShimClerk');
+  it('does not reset when the session reloads the same account', async () => {
+    const { AuthProvider } = await import('./authSession');
     const reset = vi.spyOn(apolloClient, 'resetStore').mockResolvedValue([]);
 
-    clerk.user = { id: 'A' };
-    const { rerender } = rtlRender(createElement(ClerkAuthProvider, { children: 'x' }));
-    clerk.isLoaded = false;
-    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
-    clerk.isLoaded = true;
-    rerender(createElement(ClerkAuthProvider, { children: 'x' }));
+    session.user = as('A');
+    const { rerender } = rtlRender(createElement(AuthProvider, { children: 'x' }));
+    session.isPending = true;
+    rerender(createElement(AuthProvider, { children: 'x' }));
+    session.isPending = false;
+    rerender(createElement(AuthProvider, { children: 'x' }));
     expect(reset).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthProvider', () => {
+  afterEach(() => {
+    session.isPending = false;
+    session.user = null;
+  });
+
+  async function stateWith(user: typeof session.user, isPending = false) {
+    const { AuthProvider } = await import('./authSession');
+    session.user = user;
+    session.isPending = isPending;
+    const seen: { state: AuthState | null } = { state: null };
+    function Probe() {
+      seen.state = useContext(AuthCtx);
+      return null;
+    }
+    rtlRender(createElement(AuthProvider, { children: createElement(Probe) }));
+    return seen.state;
+  }
+
+  it('gives the signed-in account’s email, lowercased, and its first name', async () => {
+    expect(await stateWith({ id: 'A', email: ' Jess@Example.com ', name: ' Jess ' })).toEqual({
+      isLoaded: true,
+      email: 'jess@example.com',
+      name: 'Jess',
+    });
+  });
+
+  it('gives no name for an account without one', async () => {
+    expect((await stateWith({ id: 'A', email: 'a@example.com', name: '' }))?.name).toBeNull();
+  });
+
+  it('is signed out and still loading until the session answers', async () => {
+    expect(await stateWith(null, true)).toEqual({ isLoaded: false, email: null, name: null });
   });
 });

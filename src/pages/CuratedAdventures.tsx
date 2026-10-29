@@ -248,7 +248,7 @@ export function CuratedAdventures() {
     acceptTarget ? initialTarget : null,
   );
   // Selection is a signed-in mode (#112), so restart it whenever sign-in
-  // changes. Clerk resolves the session after the first render, so a trip
+  // changes. The session loads after the first render, so a trip
   // target that arrived with location.state (a reload keeps it) is applied
   // once the user is known; signing out drops any selection, whose
   // "Cancel select" toggle is hidden from signed-out visitors.

@@ -27,7 +27,7 @@ const users: MockedResponse = {
 };
 
 function signedIn(email: string | null) {
-  return { isLoaded: true, email, getToken: () => Promise.resolve(null) };
+  return { isLoaded: true, email, name: null };
 }
 
 describe('PeopleProvider', () => {

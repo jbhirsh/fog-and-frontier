@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import type { SharedPlace, SharedPlaces } from '../lib/sharedPlaces';
@@ -24,16 +24,18 @@ vi.mock('../lib/sharedPlaces', async (importOriginal) => ({
   findSharedPlaces: found.fn,
 }));
 
-// Clerk's sign-in, when the app has Clerk (it doesn't under test).
-const clerk = vi.hoisted(() => ({ enabled: false }));
+// Sign-in, where the build offers it (a test build doesn't).
+const signIn = vi.hoisted(() => ({ enabled: false }));
 vi.mock('../lib/authShim', () => ({
-  get CLERK_ENABLED() {
-    return clerk.enabled;
+  get SIGN_IN_ENABLED() {
+    return signIn.enabled;
   },
 }));
-vi.mock('@clerk/clerk-react', () => ({
+vi.mock('../components/SignIn', () => ({
   SignInButton: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="clerk-sign-in">{children}</div>
+    <button type="button" data-testid="sign-in">
+      {children}
+    </button>
   ),
 }));
 
@@ -141,7 +143,7 @@ function renderAt(path: string) {
 const shareUrl = (url = REEL) => `/share?url=${encodeURIComponent(url)}`;
 
 beforeEach(() => {
-  clerk.enabled = false;
+  signIn.enabled = false;
   Object.assign(ownerState, { isLoaded: true, email: 'owner@example.com', isOwner: true });
   found.fn.mockReset();
   opened.fn.mockReset();
@@ -240,19 +242,17 @@ describe('SharePage — signed out', () => {
     renderAt(shareUrl());
     expect(screen.getByRole('heading', { name: 'Sign in to add places' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open on Instagram' })).toHaveAttribute('href', REEL);
-    // No Clerk, no sign-in button: the header's sign-in is the stub's.
+    // No sign-in in this build, so no sign-in button here.
     expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 10));
     expect(found.fn).not.toHaveBeenCalled();
   });
 
-  it('offers Clerk’s sign-in where the app has it', () => {
-    clerk.enabled = true;
+  it('offers sign-in where the build has it', () => {
+    signIn.enabled = true;
     Object.assign(ownerState, { email: null, isOwner: false });
     renderAt(shareUrl());
-    expect(
-      within(screen.getByTestId('clerk-sign-in')).getByRole('button', { name: 'Sign in' }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('sign-in')).toHaveTextContent('Sign in');
   });
 
   it('reads the post as soon as sign-in has loaded', async () => {

@@ -38,7 +38,7 @@ function Path() {
 
 function renderList(path = '/?view=list', email: string | null = null) {
   return render(
-    <AuthCtx.Provider value={{ isLoaded: true, email, getToken: () => Promise.resolve(null) }}>
+    <AuthCtx.Provider value={{ isLoaded: true, email, name: null }}>
       <MemoryRouter initialEntries={[path]}>
         <ActivityPermalinkRoutes>
           <Route path="*" element={<CuratedAdventures />} />

@@ -1,10 +1,10 @@
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { SignInButton } from '@clerk/clerk-react';
 import { AddActivity } from '../components/AddActivity';
 import { CdnImage } from '../components/CdnImage';
 import { useOpenActivity } from '../lib/activityRoute';
-import { CLERK_ENABLED } from '../lib/authShim';
+import { SIGN_IN_ENABLED } from '../lib/authShim';
+import { SignInButton } from '../components/SignIn';
 import {
   SOURCE_LABEL,
   bareSharedPost,
@@ -155,13 +155,7 @@ function SharedPost({ link }: { link: string }) {
         <p className="font-body-md text-on-surface-variant">
           Sign in, and the places in this post are listed here for you to add.
         </p>
-        {CLERK_ENABLED && (
-          <SignInButton mode="modal">
-            <button type="button" className={PRIMARY}>
-              Sign in
-            </button>
-          </SignInButton>
-        )}
+        {SIGN_IN_ENABLED && <SignInButton className={PRIMARY}>Sign in</SignInButton>}
         <PostLink url={link} />
       </Page>
     );
