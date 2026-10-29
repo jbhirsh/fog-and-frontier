@@ -1,10 +1,9 @@
-// Google's button in the sign-in card on production (#319): on main the
-// card drew this app's Google button, then swapped in Google's own once it
-// loaded, so Continue with Google flashed each time it opened; on the
-// branch the space waits, framed, for Google's. The card opens, closes and
-// opens again. Google's button draws only on production, with One Tap's
-// client, so record as production does (a stand-in client: Google draws
-// its button for it all the same):
+// Google's button in the sign-in card on production (#319): Google's
+// own button drew itself, then (for a browser signed in to Google) swapped
+// itself for a personalized one, a flash; the card now draws its own. The
+// card opens, closes and opens again. Google's button drew only on
+// production, with One Tap's client, so record as production does (a
+// stand-in client: Google draws its button for it all the same):
 //
 //   VITE_VERCEL_ENV=production \
 //     VITE_GOOGLE_ONE_TAP_CLIENT_ID=123-test.apps.googleusercontent.com \

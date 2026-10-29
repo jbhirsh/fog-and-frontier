@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
-// Google's own sign-in on production: the One Tap prompt, put off until the
-// page has settled and is idle, and Google's button, which falls back to the
-// app's own.
+// Google's One Tap prompt on production, put off until the page has settled
+// and is idle, and kept away while the sign-in card is open.
 
 const client = vi.hoisted(() => ({
   oneTap: vi.fn<(opts: unknown) => Promise<void>>(),
@@ -17,12 +16,9 @@ vi.mock('./authClient', () => ({
   },
 }));
 
-const { holdOneTapPrompt, renderGoogleButton, useOneTapPrompt } = await import('./oneTap');
+const { holdOneTapPrompt, useOneTapPrompt } = await import('./oneTap');
 
-type Opts = {
-  button?: { container: HTMLElement; config: { width: number } };
-  fetchOptions: { onSuccess: () => void };
-};
+type Opts = { fetchOptions: { onSuccess: () => void } };
 const lastOpts = () => client.oneTap.mock.calls.at(-1)?.[0] as Opts;
 
 type IdleWindow = {
@@ -153,74 +149,5 @@ describe('useOneTapPrompt', () => {
     renderHook(() => useOneTapPrompt(true));
     vi.advanceTimersByTime(3000);
     expect(caught).toHaveBeenCalledOnce();
-  });
-});
-
-describe('renderGoogleButton', () => {
-  const drawn = (container: HTMLElement) => {
-    client.oneTap.mockImplementation(() => {
-      container.append(document.createElement('iframe'));
-      return Promise.resolve();
-    });
-  };
-
-  it('draws Google’s button into the container, as wide as asked', async () => {
-    const container = document.createElement('div');
-    drawn(container);
-    await expect(renderGoogleButton(container, 352, () => {})).resolves.toBe(true);
-    expect(lastOpts().button).toEqual({
-      container,
-      config: {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'continue_with',
-        shape: 'rectangular',
-        logo_alignment: 'center',
-        width: 352,
-      },
-    });
-  });
-
-  it.each([
-    [120, 200],
-    [999, 400],
-    [300.6, 301],
-  ])('keeps a width of %s within Google’s 200 to 400 (%s)', async (asked, width) => {
-    const container = document.createElement('div');
-    drawn(container);
-    await renderGoogleButton(container, asked, () => {});
-    expect(lastOpts().button?.config.width).toBe(width);
-  });
-
-  it('re-reads the session and tells the caller after a sign-in', async () => {
-    const container = document.createElement('div');
-    drawn(container);
-    const onSignedIn = vi.fn();
-    await renderGoogleButton(container, 300, onSignedIn);
-    lastOpts().fetchOptions.onSuccess();
-    expect(client.notify).toHaveBeenCalledWith('$sessionSignal');
-    expect(onSignedIn).toHaveBeenCalledOnce();
-  });
-
-  it('says it drew nothing when the library drew nothing (its prompt still open)', async () => {
-    await expect(renderGoogleButton(document.createElement('div'), 300, () => {})).resolves.toBe(
-      false,
-    );
-  });
-
-  it('says it drew nothing when Google’s script is blocked', async () => {
-    client.oneTap.mockRejectedValue(new Error('blocked'));
-    await expect(renderGoogleButton(document.createElement('div'), 300, () => {})).resolves.toBe(
-      false,
-    );
-  });
-
-  it('draws nothing off production', async () => {
-    client.id = '';
-    await expect(renderGoogleButton(document.createElement('div'), 300, () => {})).resolves.toBe(
-      false,
-    );
-    expect(client.oneTap).not.toHaveBeenCalled();
   });
 });

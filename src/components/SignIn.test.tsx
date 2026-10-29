@@ -5,25 +5,20 @@ import { SignInButton, SignInDialog } from './SignIn';
 const client = vi.hoisted(() => ({
   social: vi.fn(),
   passkey: vi.fn(),
-  flags: { apple: true, oneTap: '' },
+  flags: { apple: true },
 }));
 vi.mock('../lib/authClient', () => ({
   authClient: { signIn: { social: client.social, passkey: client.passkey } },
   get APPLE_SIGN_IN() {
     return client.flags.apple;
   },
-  get ONE_TAP_CLIENT_ID() {
-    return client.flags.oneTap;
-  },
 }));
-const google = vi.hoisted(() => ({
-  render: vi.fn<(c: HTMLElement, w: number, done: () => void) => Promise<boolean>>(),
-  release: vi.fn(),
-  hold: vi.fn(),
-}));
-vi.mock('../lib/oneTap', () => ({
-  renderGoogleButton: google.render,
-  holdOneTapPrompt: google.hold,
+const google = vi.hoisted(() => ({ release: vi.fn(), hold: vi.fn() }));
+vi.mock('../lib/oneTap', () => ({ holdOneTapPrompt: google.hold }));
+const dom = vi.hoisted(() => ({ preconnect: vi.fn<(href: string) => void>() }));
+vi.mock('react-dom', async (actual) => ({
+  ...(await actual<typeof import('react-dom')>()),
+  preconnect: dom.preconnect,
 }));
 
 type PasskeyWindow = { PublicKeyCredential?: unknown };
@@ -36,8 +31,6 @@ beforeEach(() => {
   client.social.mockResolvedValue({ data: { url: 'https://accounts.google.com/x' }, error: null });
   client.passkey.mockResolvedValue({ data: { session: {} }, error: null });
   client.flags.apple = true;
-  client.flags.oneTap = '';
-  google.render.mockResolvedValue(false);
   google.hold.mockReturnValue(google.release);
   withPasskeys(true);
 });
@@ -45,7 +38,7 @@ beforeEach(() => {
 afterEach(() => {
   client.social.mockReset();
   client.passkey.mockReset();
-  google.render.mockReset();
+  dom.preconnect.mockReset();
   google.hold.mockReset();
   google.release.mockReset();
   withPasskeys(false);
@@ -66,11 +59,52 @@ describe('SignInDialog', () => {
   it.each([
     ['Apple', 'apple'],
     ['Google', 'google'],
-  ])('signs in with %s, coming back to this page', (label, provider) => {
+  ])('signs in with %s, coming back to this page, and says it’s on its way', (label, provider) => {
     render(<SignInDialog onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: `Continue with ${label}` }));
     expect(client.social).toHaveBeenCalledWith({ provider, callbackURL: window.location.href });
-    expect(screen.getByRole('button', { name: `Continue with ${label}` })).toBeDisabled();
+    expect(screen.getByRole('button', { name: `Opening ${label}…` })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /^Opening/ })).toHaveLength(1);
+    // Every other way in waits too.
+    for (const button of screen.getAllByRole('button', { name: /^(Continue|Sign in) with/ })) {
+      expect(button).toBeDisabled();
+    }
+  });
+
+  it('stands down when the browser brings the page back from Google’s or Apple’s', () => {
+    render(<SignInDialog onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Apple' }));
+    expect(screen.getByRole('button', { name: 'Opening Apple…' })).toBeDisabled();
+    const restored = new Event('pageshow') as PageTransitionEvent;
+    Object.defineProperty(restored, 'persisted', { value: true });
+    act(() => {
+      window.dispatchEvent(restored);
+    });
+    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeEnabled();
+  });
+
+  it('says a sign-in didn’t start when the request itself fails', async () => {
+    client.social.mockRejectedValue(new Error('offline'));
+    render(<SignInDialog onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Google sign-in didn’t start');
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeEnabled();
+  });
+
+  it('connects to Apple’s and Google’s sign-in hosts as it opens', () => {
+    render(<SignInDialog onClose={() => {}} />);
+    expect(dom.preconnect.mock.calls.map(([host]) => host)).toEqual([
+      'https://appleid.apple.com',
+      'https://accounts.google.com',
+    ]);
+  });
+
+  it('connects only to Google’s until Apple is set up', () => {
+    client.flags.apple = false;
+    render(<SignInDialog onClose={() => {}} />);
+    expect(dom.preconnect.mock.calls.map(([host]) => host)).toEqual([
+      'https://accounts.google.com',
+    ]);
   });
 
   it('says so when a sign-in doesn’t start, and lets it be tried again', async () => {
@@ -78,6 +112,7 @@ describe('SignInDialog', () => {
     render(<SignInDialog onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Apple sign-in didn’t start');
+    // Back to Continue, ready to try again.
     expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeEnabled();
   });
 
@@ -94,7 +129,7 @@ describe('SignInDialog', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Opening Google…' })).toBeDisabled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -106,6 +141,7 @@ describe('SignInDialog', () => {
     client.social.mockReturnValue(new Promise(() => {}));
     fireEvent.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Opening Apple…' })).toBeDisabled();
   });
 
   it('holds every button while a passkey is asked for, and frees them if it fails', async () => {
@@ -134,146 +170,12 @@ describe('SignInDialog', () => {
     expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
   });
 
-  it('asks for Google’s own button only where One Tap’s client is', () => {
-    render(<SignInDialog onClose={() => {}} />);
-    expect(google.render).not.toHaveBeenCalled();
-  });
-
-  it('shows Google’s own button once it’s drawn, in place of its own', async () => {
-    client.flags.oneTap = 'one-tap-client';
-    google.render.mockResolvedValue(true);
-    render(<SignInDialog onClose={() => {}} />);
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: 'Continue with Google' }),
-      ).not.toBeInTheDocument(),
-    );
-    expect(google.render).toHaveBeenCalledOnce();
-  });
-
-  it('keeps its own Google button where Google’s can’t be drawn', async () => {
-    client.flags.oneTap = 'one-tap-client';
-    const drawn = Promise.resolve(false);
-    google.render.mockReturnValue(drawn);
-    render(<SignInDialog onClose={() => {}} />);
-    await waitFor(() => expect(google.render).toHaveBeenCalledOnce());
-    // Past the answer, and the state it sets.
-    await act(() => drawn);
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
-  });
-
   it('holds One Tap’s prompt while it’s open, and lets go as it closes', () => {
     const { unmount } = render(<SignInDialog onClose={() => {}} />);
     expect(google.hold).toHaveBeenCalledOnce();
     expect(google.release).not.toHaveBeenCalled();
     unmount();
     expect(google.release).toHaveBeenCalledOnce();
-  });
-
-  it('holds Google’s place while Google’s button loads, showing neither', () => {
-    client.flags.oneTap = 'one-tap-client';
-    google.render.mockReturnValue(new Promise(() => {}));
-    render(<SignInDialog onClose={() => {}} />);
-    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
-    const slot = screen.getByTestId('google-slot');
-    expect(slot).toHaveClass('border');
-    expect(slot.parentElement).toHaveAttribute('aria-busy', 'true');
-  });
-
-  it('keeps Google’s button once drawn, past the wait', async () => {
-    vi.useFakeTimers();
-    try {
-      client.flags.oneTap = 'one-tap-client';
-      google.render.mockResolvedValue(true);
-      render(<SignInDialog onClose={() => {}} />);
-      await act(async () => {
-        await Promise.resolve();
-      });
-      await act(async () => {
-        vi.advanceTimersByTime(2500);
-        await Promise.resolve();
-      });
-      expect(
-        screen.queryByRole('button', { name: 'Continue with Google' }),
-      ).not.toBeInTheDocument();
-      const slot = screen.getByTestId('google-slot');
-      expect(slot).not.toHaveClass('border');
-      expect(slot.parentElement).toHaveAttribute('aria-busy', 'false');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('shows its own Google button once Google’s has taken too long', async () => {
-    vi.useFakeTimers();
-    try {
-      client.flags.oneTap = 'one-tap-client';
-      google.render.mockReturnValue(new Promise(() => {}));
-      render(<SignInDialog onClose={() => {}} />);
-      await act(async () => {
-        vi.advanceTimersByTime(2499);
-        await Promise.resolve();
-      });
-      expect(
-        screen.queryByRole('button', { name: 'Continue with Google' }),
-      ).not.toBeInTheDocument();
-      await act(async () => {
-        vi.advanceTimersByTime(1);
-        await Promise.resolve();
-      });
-      expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('keeps its own once shown, though Google’s comes late', async () => {
-    vi.useFakeTimers();
-    try {
-      client.flags.oneTap = 'one-tap-client';
-      let drawn: (ok: boolean) => void = () => {};
-      google.render.mockReturnValue(new Promise<boolean>((resolve) => (drawn = resolve)));
-      render(<SignInDialog onClose={() => {}} />);
-      await act(async () => {
-        vi.advanceTimersByTime(2500);
-        await Promise.resolve();
-      });
-      await act(async () => {
-        drawn(true);
-        await Promise.resolve();
-      });
-      expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('hides Google’s place where the card shows its own button', () => {
-    render(<SignInDialog onClose={() => {}} />);
-    expect(screen.getByTestId('google-slot')).toHaveClass('hidden');
-  });
-
-  it('closes with the dialog’s latest onClose, though it changed meanwhile', async () => {
-    client.flags.oneTap = 'one-tap-client';
-    google.render.mockResolvedValue(true);
-    const first = vi.fn();
-    const second = vi.fn();
-    const { rerender } = render(<SignInDialog onClose={first} />);
-    await waitFor(() => expect(google.render).toHaveBeenCalledOnce());
-    rerender(<SignInDialog onClose={second} />);
-    google.render.mock.calls[0][2]();
-    expect(second).toHaveBeenCalledOnce();
-    expect(first).not.toHaveBeenCalled();
-  });
-
-  it('closes once Google’s own button has signed someone in', async () => {
-    client.flags.oneTap = 'one-tap-client';
-    google.render.mockResolvedValue(true);
-    const onClose = vi.fn();
-    render(<SignInDialog onClose={onClose} />);
-    await waitFor(() => expect(google.render).toHaveBeenCalledOnce());
-    google.render.mock.calls[0][2]();
-    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('signs in with a passkey and closes', async () => {
