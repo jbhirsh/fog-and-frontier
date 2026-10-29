@@ -1,6 +1,7 @@
 // The account menu, on a phone (#317): signed in, the header's initial opens
-// a card with the account's name and email, its passkeys (Remove asks
-// first), Add a passkey and Sign out, and closes from its close button.
+// a card with the account's name and email, its sign-in methods (Connect
+// Apple), its passkeys (Remove asks first), Add a passkey and Sign out, and
+// closes from its close button.
 // Sign-in shows only in builds Vercel makes, so record with it turned on:
 //
 //   VITE_VERCEL_ENV=preview npm run gif -- \
@@ -48,6 +49,10 @@ const scenario: Scenario = {
     await page.route('**/api/auth/get-session', (route) => route.fulfill({ json: SESSION }));
     await page.route('**/api/auth/passkey/list-user-passkeys', (route) =>
       route.fulfill({ json: PASSKEYS }),
+    );
+    // Signed in with Google; Apple not yet connected.
+    await page.route('**/api/auth/list-accounts', (route) =>
+      route.fulfill({ json: [{ id: 'a1', providerId: 'google', accountId: 'g1' }] }),
     );
   },
   ready: catalogReady,

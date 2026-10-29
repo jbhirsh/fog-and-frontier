@@ -23,6 +23,8 @@ vi.mock('../lib/authClient', () => ({
     useListPasskeys: client.useList,
   },
 }));
+// Its own tests are SignInMethods.test.tsx.
+vi.mock('./SignInMethods', () => ({ SignInMethods: () => <p>The sign-in methods</p> }));
 
 const IPHONE: Listed = {
   id: 'p1',
@@ -39,12 +41,13 @@ type PasskeyWindow = { PublicKeyCredential?: unknown };
 const JESS: AuthState = { isLoaded: true, email: 'jess@example.com', name: 'Jess' };
 
 function Where() {
-  return <span data-testid="at">{useLocation().pathname}</span>;
+  const { pathname, search } = useLocation();
+  return <span data-testid="at">{pathname + search}</span>;
 }
 
-function show(auth: AuthState = JESS) {
+function show(auth: AuthState = JESS, at = '/trips') {
   return render(
-    <MemoryRouter initialEntries={['/trips']}>
+    <MemoryRouter initialEntries={[at]}>
       <AuthCtx.Provider value={auth}>
         <header>
           <Routes>
@@ -99,6 +102,40 @@ describe('AccountMenu', () => {
       within(screen.getByRole('dialog', { name: 'Your account' })).getByText('S', { exact: true }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/sam@example\.com/)).toHaveLength(1);
+  });
+
+  it('shows its sign-in methods', () => {
+    show();
+    open();
+    expect(screen.getByRole('region', { name: 'Sign-in methods' })).toHaveTextContent(
+      'The sign-in methods',
+    );
+  });
+
+  describe('back from connecting Google or Apple', () => {
+    it('opens, says it’s connected, and tidies the address', async () => {
+      show(JESS, '/trips?view=map&account=linked&provider=apple');
+      expect(screen.getByRole('dialog', { name: 'Your account' })).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Apple is connected.');
+      await waitFor(() =>
+        expect(screen.getByTestId('at')).toHaveTextContent(/^\/trips\?view=map$/),
+      );
+    });
+
+    it('opens, and says why it wasn’t', async () => {
+      show(
+        JESS,
+        '/trips?account=link-failed&provider=google&error=account_already_linked_to_different_user',
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent('already has its own account here');
+      await waitFor(() => expect(screen.getByTestId('at')).toHaveTextContent(/^\/trips$/));
+    });
+
+    it('stays closed on an ordinary visit', () => {
+      show(JESS, '/trips?view=map');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByTestId('at')).toHaveTextContent(/^\/trips\?view=map$/);
+    });
   });
 
   it('says who is signed in', () => {
@@ -286,7 +323,10 @@ describe('AccountMenu', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Remove iPhone/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Yes, remove iPhone' }));
       await screen.findByRole('alert');
-      expect(screen.getByRole('button', { name: /^Remove iPhone/ })).toHaveFocus();
+      // Focus moves in an effect, just after the alert shows.
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Remove iPhone/ })).toHaveFocus(),
+      );
     });
 
     it('gives focus back to Remove when it had dropped to the page meanwhile', async () => {
@@ -300,7 +340,10 @@ describe('AccountMenu', () => {
       (document.activeElement as HTMLElement).blur();
       done({ data: null, error: { message: 'nope' } });
       await screen.findByRole('alert');
-      expect(screen.getByRole('button', { name: /^Remove iPhone/ })).toHaveFocus();
+      // Focus moves in an effect, just after the alert shows.
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Remove iPhone/ })).toHaveFocus(),
+      );
     });
 
     it('leaves focus where it went if a failed removal comes back late', async () => {

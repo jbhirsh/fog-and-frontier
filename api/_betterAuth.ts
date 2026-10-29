@@ -203,7 +203,17 @@ export function authOptions(env: Env = process.env) {
     advanced: { database: { validateSchema: false } },
     user: { modelName: 'auth_user' },
     session: { modelName: 'auth_session' },
-    account: { modelName: 'auth_account' },
+    account: {
+      modelName: 'auth_account',
+      // Connecting Google or Apple from the account menu (linkSocial) may
+      // bring an email unlike the account's: an Apple ID hiding its own
+      // behind Apple's relay, say. The account keeps its own email, and so
+      // its owner or invitee standing; only a signed-in account can link,
+      // and only a provider account it signs in as. Signing in with an
+      // unlinked provider still joins an account only on the same verified
+      // email.
+      accountLinking: { allowDifferentEmails: true },
+    },
     verification: { modelName: 'auth_verification' },
     socialProviders: {
       ...appleProvider(env),
