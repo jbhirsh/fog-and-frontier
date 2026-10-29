@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { linkMessage, linkResult, withoutLinkResult } from '../lib/accountLinks';
 import { authClient } from '../lib/authClient';
 import { useAuthState } from '../lib/authShim';
 import { deviceName, passkeyAddError, passkeysSupported } from '../lib/passkeys';
 import { ModalShell } from './ModalShell';
+import { SignInMethods } from './SignInMethods';
 
 const ACTION =
   'flex min-h-12 w-full items-center gap-sm px-md text-left font-body-md text-body-sm text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50';
@@ -161,9 +163,26 @@ function PasskeyList() {
 export function AccountMenu() {
   const { email, name } = useAuthState();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  // Back from connecting Google or Apple (SignInMethods): open, saying how
+  // it went, and take the marks out of the address.
+  const [arrived] = useState(() => linkResult(location.search));
+  const [open, setOpen] = useState(arrived !== null);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ text: string; failed: boolean } | null>(null);
+  const [note, setNote] = useState<{ text: string; failed: boolean } | null>(() =>
+    arrived ? { text: linkMessage(arrived), failed: !arrived.linked } : null,
+  );
+  useEffect(() => {
+    if (!arrived || !linkResult(location.search)) return;
+    void navigate(
+      {
+        pathname: location.pathname,
+        search: withoutLinkResult(location.search),
+        hash: location.hash,
+      },
+      { replace: true },
+    );
+  }, [arrived, location.pathname, location.search, location.hash, navigate]);
   if (!email) return null;
   const label = name ?? email;
 
@@ -227,6 +246,15 @@ export function AccountMenu() {
                 )}
               </div>
             </div>
+            <section
+              aria-label="Sign-in methods"
+              className="border-t border-outline-variant/40 py-xs"
+            >
+              <h3 className="px-md pt-xs font-label-caps text-label-caps text-on-surface-variant uppercase">
+                Sign-in methods
+              </h3>
+              <SignInMethods />
+            </section>
             <section aria-label="Passkeys" className="border-t border-outline-variant/40 py-xs">
               <h3 className="px-md pt-xs font-label-caps text-label-caps text-on-surface-variant uppercase">
                 Passkeys

@@ -188,6 +188,15 @@ describe('appleClientSecret', () => {
   });
 });
 
+describe('account linking', () => {
+  it('lets a signed-in account connect Google or Apple under another email', () => {
+    expect(authOptions(PRODUCTION).account).toEqual({
+      modelName: 'auth_account',
+      accountLinking: { allowDifferentEmails: true },
+    });
+  });
+});
+
 describe('Apple', () => {
   it('is off until its Services ID is set', () => {
     expect('apple' in authOptions(PRODUCTION).socialProviders).toBe(false);
@@ -264,6 +273,14 @@ describe('production, answering', () => {
     '/oauth-proxy-callback?callbackURL=x',
   ])('refuses %s', async (path) => {
     expect((await call(path)).status).toBe(404);
+  });
+
+  it('links a provider only to a signed-in account', async () => {
+    const res = await call('/link-social', {
+      method: 'POST',
+      body: JSON.stringify({ provider: 'google', callbackURL: PRODUCTION_ORIGIN }),
+    });
+    expect(res.status).toBe(401);
   });
 
   it('refuses renaming an account', async () => {
