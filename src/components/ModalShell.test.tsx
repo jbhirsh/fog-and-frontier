@@ -16,6 +16,30 @@ describe('ModalShell', () => {
     expect(dialog).toHaveTextContent('Votes are kept.');
   });
 
+  it('as a card, is named by its title, leaving its heading to what it holds', async () => {
+    const onCancel = vi.fn();
+    render(
+      <ModalShell title="Sign in" layout="card" onCancel={onCancel}>
+        <h2>Sign in to Fog and Frontier</h2>
+      </ModalShell>,
+    );
+    expect(screen.getByRole('dialog', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading').map((h) => h.textContent)).toEqual([
+      'Sign in to Fog and Frontier',
+    ]);
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('has no close button of its own as a page', () => {
+    render(
+      <ModalShell title="Members" onCancel={() => {}}>
+        <p>x</p>
+      </ModalShell>,
+    );
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+  });
+
   it('closes from its backdrop', async () => {
     const onCancel = vi.fn();
     render(

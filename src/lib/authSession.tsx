@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { AuthCtx, type AuthState } from './authShim';
 import { apolloClient } from './apolloClient';
 import { authClient } from './authClient';
+import { useOneTapPrompt } from './oneTap';
 
 // Who is signed in, from the session cookie's account (Better Auth's
 // useSession, which asks /api/auth once as the app opens, beside its first
@@ -25,6 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     prevUserId.current = userId;
   }, [isPending, userId]);
+
+  useOneTapPrompt(!isPending && !user);
 
   const value: AuthState = {
     isLoaded: !isPending,

@@ -1,12 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The sign-in setup per deployment: what each one is bound to (its origin,
 // for cookies and passkeys), who it trusts, what it refuses (on production,
-// the OAuth proxy's completion and Google ID tokens: a preview holds the
-// proxy secret and is handed ID tokens), which secrets each needs, and what
-// a sign-in writes. Better Auth itself is the library's
+// the OAuth proxy's completion and Google and Apple ID tokens: a preview
+// holds the proxy secret and is handed ID tokens), which secrets each needs
+// (Apple's made from the team's key), where One Tap runs, and what a sign-in
+// writes. Better Auth itself is the library's
 // to test; this is our configuration of it.
 
+import { generateKeyPairSync, sign, verify } from 'node:crypto';
 import { betterAuth } from 'better-auth';
 import { getAuthTables } from 'better-auth/db';
 import { SCHEMA } from './_trips';
@@ -20,8 +22,15 @@ vi.mock('./_db.js', () => ({ db: () => ({ execute }) }));
 vi.mock('./_auth.js', () => ({ syncUserRow }));
 vi.mock('./_log.js', () => ({ logServerError }));
 
-const { PRODUCTION_ORIGIN, authOptions, authOrigin, isProduction, refusedRoute, trustedOrigins } =
-  await import('./_betterAuth.js');
+const {
+  PRODUCTION_ORIGIN,
+  appleClientSecret,
+  authOptions,
+  authOrigin,
+  isProduction,
+  refusedRoute,
+  trustedOrigins,
+} = await import('./_betterAuth.js');
 
 const SECRETS = {
   BETTER_AUTH_SECRET: 's'.repeat(32),
@@ -35,6 +44,16 @@ const PREVIEW = {
   VERCEL_BRANCH_URL: 'fog-and-frontier-git-claude-x-jbhirshs-projects.vercel.app',
   ...SECRETS,
 };
+
+// Apple's key is an EC P-256 key, as Apple's .p8 files are.
+const appleKey = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const APPLE = {
+  VITE_APPLE_CLIENT_ID: 'app.fogandfrontier.signin',
+  APPLE_TEAM_ID: 'TEAM123456',
+  APPLE_KEY_ID: 'KEY1234567',
+  APPLE_PRIVATE_KEY: appleKey.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(),
+};
+const ONE_TAP = { VITE_GOOGLE_ONE_TAP_CLIENT_ID: 'one-tap.apps.googleusercontent.com' };
 
 type Plugin = { id: string; options?: Record<string, unknown> };
 const plugin = (env: Record<string, string>, id: string) =>
@@ -80,6 +99,16 @@ describe('trustedOrigins', () => {
     expect(trustedOrigins(PRODUCTION)).toEqual([PRODUCTION_ORIGIN]);
   });
 
+  it('adds Apple, whose answer is a form post from its own origin, once Apple is on', () => {
+    expect(trustedOrigins({ ...PRODUCTION, ...APPLE })).toEqual([
+      PRODUCTION_ORIGIN,
+      'https://appleid.apple.com',
+    ]);
+    expect(trustedOrigins({ ...PREVIEW, ...APPLE })).toEqual([
+      `https://${PREVIEW.VERCEL_BRANCH_URL}`,
+    ]);
+  });
+
   it('is a preview’s branch and deployment addresses on a preview, and no wildcard', () => {
     expect(
       trustedOrigins({
@@ -120,10 +149,107 @@ describe('refusedRoute', () => {
   );
 });
 
+describe('appleClientSecret', () => {
+  const NOW = Date.UTC(2026, 9, 29);
+  const parts = (jwt: string) => jwt.split('.');
+  const decode = (part: string) => JSON.parse(Buffer.from(part, 'base64url').toString()) as unknown;
+
+  it('is a JWT Apple accepts: its key, team and Services ID, for six months', () => {
+    const [header, claims] = parts(appleClientSecret(APPLE, NOW));
+    expect(decode(header)).toEqual({ alg: 'ES256', kid: APPLE.APPLE_KEY_ID, typ: 'JWT' });
+    expect(decode(claims)).toEqual({
+      iss: APPLE.APPLE_TEAM_ID,
+      iat: NOW / 1000,
+      exp: NOW / 1000 + 180 * 24 * 60 * 60,
+      aud: 'https://appleid.apple.com',
+      sub: APPLE.VITE_APPLE_CLIENT_ID,
+    });
+  });
+
+  it('is signed with the team’s key', () => {
+    const [header, claims, signature] = parts(appleClientSecret(APPLE, NOW));
+    const signed = verify(
+      'sha256',
+      Buffer.from(`${header}.${claims}`),
+      { key: appleKey.publicKey, dsaEncoding: 'ieee-p1363' },
+      Buffer.from(signature, 'base64url'),
+    );
+    expect(signed).toBe(true);
+  });
+
+  it('takes a key whose line breaks were written as \\n', () => {
+    const oneLine = { ...APPLE, APPLE_PRIVATE_KEY: APPLE.APPLE_PRIVATE_KEY.replace(/\n/g, '\\n') };
+    expect(oneLine.APPLE_PRIVATE_KEY).not.toContain('\n');
+    expect(parts(appleClientSecret(oneLine, NOW))[1]).toBe(parts(appleClientSecret(APPLE, NOW))[1]);
+  });
+
+  it.each(['APPLE_KEY_ID', 'APPLE_TEAM_ID', 'APPLE_PRIVATE_KEY'])('needs %s', (name) => {
+    expect(() => appleClientSecret({ ...APPLE, [name]: '' })).toThrow(`${name} not set`);
+  });
+});
+
+describe('Apple', () => {
+  it('is off until its Services ID is set', () => {
+    expect('apple' in authOptions(PRODUCTION).socialProviders).toBe(false);
+  });
+
+  it('signs in on production with a secret made from the team’s key', () => {
+    const apple = authOptions({ ...PRODUCTION, ...APPLE }).socialProviders.apple;
+    expect(apple?.clientId).toBe(APPLE.VITE_APPLE_CLIENT_ID);
+    expect(apple?.clientSecret.split('.')).toHaveLength(3);
+  });
+
+  it.each([
+    ['missing', ''],
+    ['unreadable', 'not a key'],
+  ])('leaves Apple off, logged, when production’s key is %s, and Google on', (_, key) => {
+    const options = authOptions({ ...PRODUCTION, ...APPLE, APPLE_PRIVATE_KEY: key });
+    expect('apple' in options.socialProviders).toBe(false);
+    expect(options.socialProviders.google.clientId).toBe(SECRETS.GOOGLE_CLIENT_ID);
+    expect(logServerError).toHaveBeenCalledWith(expect.any(Error), {
+      route: '/api/auth',
+      detail: 'Apple sign-in off: its key won’t read',
+    });
+  });
+
+  it('needs no key on a preview, where production exchanges', () => {
+    const preview = { ...PREVIEW, VITE_APPLE_CLIENT_ID: APPLE.VITE_APPLE_CLIENT_ID };
+    expect(authOptions(preview).socialProviders.apple?.clientSecret).toBe(
+      'exchanged-by-production',
+    );
+  });
+
+  it('takes no Apple ID token, and keeps the name Apple gave at the first sign-in', () => {
+    const apple = authOptions({ ...PRODUCTION, ...APPLE }).socialProviders.apple;
+    expect(apple).toMatchObject({ disableIdTokenSignIn: true });
+    expect(apple).not.toHaveProperty('overrideUserInfoOnSignIn');
+  });
+
+  it('names an account by the first of the names Apple gives', () => {
+    const map = authOptions({ ...PRODUCTION, ...APPLE }).socialProviders.apple?.mapProfileToUser;
+    expect(map?.({ name: ' Tarun  Patel ' })).toEqual({ name: 'Tarun' });
+    expect(map?.({ name: '' })).toEqual({ name: '' });
+    expect(map?.({})).toEqual({ name: '' });
+  });
+});
+
+describe('Google One Tap', () => {
+  it('is production’s, on its own Google client, once that is set', () => {
+    expect(plugin({ ...PRODUCTION, ...ONE_TAP }, 'one-tap')?.options).toEqual({
+      clientId: ONE_TAP.VITE_GOOGLE_ONE_TAP_CLIENT_ID,
+    });
+    expect(plugin(PRODUCTION, 'one-tap')).toBeUndefined();
+  });
+
+  it('is never a preview’s, which could otherwise mint tokens for it', () => {
+    expect(plugin({ ...PREVIEW, ...ONE_TAP }, 'one-tap')).toBeUndefined();
+  });
+});
+
 // The real site's Better Auth, answering requests: what production refuses
 // it refuses however the path is spelled, since the hook sees the route.
 describe('production, answering', () => {
-  const site = () => betterAuth(authOptions(PRODUCTION));
+  const site = () => betterAuth(authOptions({ ...PRODUCTION, ...APPLE, ...ONE_TAP }));
   const call = (path: string, init?: RequestInit) =>
     site().handler(
       new Request(`${PRODUCTION_ORIGIN}/api/auth${path}`, {
@@ -145,13 +271,83 @@ describe('production, answering', () => {
     expect(res.status).toBe(404);
   });
 
-  it('takes no Google ID token, which a preview is handed', async () => {
-    const res = await call('/sign-in/social', {
+  it.each(['google', 'apple'])(
+    'takes no %s ID token, which a preview is handed',
+    async (provider) => {
+      const res = await call('/sign-in/social', {
+        method: 'POST',
+        body: JSON.stringify({ provider, idToken: { token: 'a.b.c' } }),
+      });
+      expect(res.status).toBe(404);
+      expect(((await res.json()) as { code?: string }).code).toBe('ID_TOKEN_NOT_SUPPORTED');
+    },
+  );
+
+  it('refuses a One Tap token that isn’t a token at all', async () => {
+    const res = await call('/one-tap/callback', {
       method: 'POST',
-      body: JSON.stringify({ provider: 'google', idToken: { token: 'a.b.c' } }),
+      body: JSON.stringify({ idToken: 'a.b.c' }),
     });
-    expect(res.status).toBe(404);
-    expect(((await res.json()) as { code?: string }).code).toBe('ID_TOKEN_NOT_SUPPORTED');
+    expect(res.status).toBe(400);
+  });
+
+  // Google's tokens, signed with a key the stubbed certificate list says is
+  // Google's: One Tap must take only those made for its own client, not the
+  // redirect client's, which previews are handed.
+  describe('One Tap’s audience', () => {
+    const googleKey = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const KID = 'test-google-key';
+    const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    const googleToken = (aud: string) => {
+      const now = Math.floor(Date.now() / 1000);
+      const head = `${b64({ alg: 'RS256', kid: KID, typ: 'JWT' })}.${b64({
+        iss: 'https://accounts.google.com',
+        aud,
+        sub: '1234567890',
+        email: 'jess@example.com',
+        email_verified: true,
+        given_name: 'Jess',
+        iat: now,
+        exp: now + 600,
+      })}`;
+      return `${head}.${sign('sha256', Buffer.from(head), googleKey.privateKey).toString('base64url')}`;
+    };
+
+    beforeEach(() => {
+      const jwk = {
+        ...googleKey.publicKey.export({ format: 'jwk' }),
+        kid: KID,
+        alg: 'RS256',
+        use: 'sig',
+      };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve(Response.json({ keys: [jwk] }))),
+      );
+      execute.mockResolvedValue({ rows: [], rowsAffected: 0 });
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    const signInWith = (aud: string) =>
+      call('/one-tap/callback', {
+        method: 'POST',
+        body: JSON.stringify({ idToken: googleToken(aud) }),
+      });
+
+    it('refuses a token made for the redirect client, as a preview could hold', async () => {
+      const res = await signInWith(SECRETS.GOOGLE_CLIENT_ID);
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { message?: string }).message).toBe('invalid id token');
+      expect(execute).not.toHaveBeenCalled();
+    });
+
+    it('takes a token made for One Tap’s own client, on to the account', async () => {
+      await signInWith(ONE_TAP.VITE_GOOGLE_ONE_TAP_CLIENT_ID);
+      // Past the token check: it looks the account up.
+      expect(execute).toHaveBeenCalled();
+    });
   });
 });
 

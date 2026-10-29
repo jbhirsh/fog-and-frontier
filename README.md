@@ -7,7 +7,7 @@ discovery.**
 🌉 **Live demo: [fog-and-frontier.vercel.app](https://fog-and-frontier.vercel.app)**
 
 React 19 + Vite front end · a single consolidated Apollo GraphQL serverless
-function · Turso (libSQL) edge database · Better Auth (Google, passkeys) · Leaflet maps · Sentry
+function · Turso (libSQL) edge database · Better Auth (Google, Apple, passkeys) · Leaflet maps · Sentry
 observability · Vitest + Playwright in CI.
 
 ![Split view — curated list alongside an interactive Leaflet map](docs/screenshots/home-split.png)
@@ -70,18 +70,18 @@ map, filter, and plan trips around.
 
 ## Tech stack
 
-| Layer             | Technology                                                                     |
-| ----------------- | ------------------------------------------------------------------------------ |
-| **Front end**     | React 19, Vite 8, TypeScript, React Router 7, Tailwind CSS v4                  |
-| **Maps**          | Leaflet + react-leaflet, CARTO Positron basemap                                |
-| **Data layer**    | Apollo Client 4, GraphQL, `graphql-codegen` (typed operations)                 |
-| **API**           | Apollo Server 5 on Express 5, one Vercel serverless function                   |
-| **Database**      | Turso / libSQL edge database (`@libsql/client`)                                |
-| **Auth**          | Better Auth: Google and passkeys, an HttpOnly session cookie, tables in Turso  |
-| **AI**            | Google Gemini (event discovery, activity generation, trip ideas)               |
-| **Observability** | Sentry (`@sentry/react`) with source-map upload; structured serverless logging |
-| **Testing / CI**  | Vitest (unit), Playwright (visual regression), GitHub Actions                  |
-| **Hosting**       | Vercel                                                                         |
+| Layer             | Technology                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------------- |
+| **Front end**     | React 19, Vite 8, TypeScript, React Router 7, Tailwind CSS v4                                       |
+| **Maps**          | Leaflet + react-leaflet, CARTO Positron basemap                                                     |
+| **Data layer**    | Apollo Client 4, GraphQL, `graphql-codegen` (typed operations)                                      |
+| **API**           | Apollo Server 5 on Express 5, one Vercel serverless function                                        |
+| **Database**      | Turso / libSQL edge database (`@libsql/client`)                                                     |
+| **Auth**          | Better Auth: Google (with One Tap), Apple and passkeys, an HttpOnly session cookie, tables in Turso |
+| **AI**            | Google Gemini (event discovery, activity generation, trip ideas)                                    |
+| **Observability** | Sentry (`@sentry/react`) with source-map upload; structured serverless logging                      |
+| **Testing / CI**  | Vitest (unit), Playwright (visual regression), GitHub Actions                                       |
+| **Hosting**       | Vercel                                                                                              |
 
 ## Engineering highlights
 

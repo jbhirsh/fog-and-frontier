@@ -1,6 +1,8 @@
+import { createPrivateKey, sign } from 'node:crypto';
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { oAuthProxy } from 'better-auth/plugins/oauth-proxy';
+import { oneTap } from 'better-auth/plugins/one-tap';
 import { passkey } from '@better-auth/passkey';
 import { db } from './_db.js';
 import { libsqlDialect } from './_kyselyLibsql.js';
@@ -9,7 +11,8 @@ import { logServerError } from './_log.js';
 
 // Files in api/ that start with `_` are not exposed as routes by Vercel.
 //
-// Sign-in (Better Auth): Google, and passkeys once signed in. The session is
+// Sign-in (Better Auth): Google, Apple (once VITE_APPLE_CLIENT_ID is set),
+// and passkeys once signed in. The session is
 // an HttpOnly cookie on this deployment's own origin, so every request
 // carries it and nothing waits on a sign-in service before the app's first
 // read. Its tables (auth_user, auth_session, auth_account, auth_verification,
@@ -22,15 +25,19 @@ import { logServerError } from './_log.js';
 // profile, and the preview makes the session in its own database. A
 // preview builds any PR's code, Dependabot's included, so it holds nothing
 // that makes a session on the real site: production keeps its own secret
-// and the real Google client secret (previews get a stand-in; only
-// production exchanges codes), refuses the proxy's completion routes
-// (refusedRoute), and takes no Google ID token (`disableIdTokenSignIn`),
-// which a preview is handed with each profile and production would
-// otherwise accept for an hour. What the proxy secret still gives whoever
-// holds it: production sends the Google profile (name, email, picture) of
-// whoever finishes a sign-in it started to any address it names.
+// and the real Google and Apple client secrets (previews get a stand-in;
+// only production exchanges codes), refuses the proxy's completion routes
+// (refusedRoute), and takes no Google or Apple ID token at sign-in
+// (`disableIdTokenSignIn`), which a preview is handed with each profile and
+// production would otherwise accept for an hour. Google One Tap, which does
+// sign in with an ID token, is production's alone and uses its own Google
+// client (VITE_GOOGLE_ONE_TAP_CLIENT_ID): it takes only tokens made for that
+// client, which no preview ever sees. What the proxy secret still gives
+// whoever holds it: production sends the Google or Apple profile (name,
+// email, picture, and that provider's tokens) of whoever finishes a sign-in
+// it started to any address it names.
 
-/** The production site, where Google sends every sign-in back to. */
+/** The production site, where Google and Apple send every sign-in back to. */
 export const PRODUCTION_ORIGIN = 'https://fog-and-frontier.vercel.app';
 
 type Env = Record<string, string | undefined>;
@@ -63,7 +70,8 @@ export function isProduction(env: Env = process.env): boolean {
  */
 export function trustedOrigins(env: Env = process.env): string[] {
   const own = authOrigin(env);
-  if (isProduction(env)) return [own];
+  // Apple answers with a form post from its own origin.
+  if (isProduction(env)) return env.VITE_APPLE_CLIENT_ID ? [own, APPLE_ORIGIN] : [own];
   if (env.VERCEL_ENV === 'preview') {
     return [...new Set([own, ...(env.VERCEL_URL ? [`https://${env.VERCEL_URL}`] : [])])];
   }
@@ -88,6 +96,87 @@ function required(env: Env, name: string): string {
   const value = env[name];
   if (!value) throw new Error(`${name} not set`);
   return value;
+}
+
+const APPLE_ORIGIN = 'https://appleid.apple.com';
+
+/** Apple's most a client secret may last: six months. */
+const APPLE_SECRET_SECONDS = 180 * 24 * 60 * 60;
+
+const base64url = (value: string | Buffer) => Buffer.from(value).toString('base64url');
+
+/**
+ * Apple's client secret: a JWT this server signs with the team's key
+ * (APPLE_PRIVATE_KEY, the .p8 file's text, its line breaks kept or written
+ * as \n), made as an instance starts, so it never needs renewing by hand.
+ */
+export function appleClientSecret(env: Env = process.env, now = Date.now()): string {
+  const iat = Math.floor(now / 1000);
+  const header = base64url(
+    JSON.stringify({ alg: 'ES256', kid: required(env, 'APPLE_KEY_ID'), typ: 'JWT' }),
+  );
+  const claims = base64url(
+    JSON.stringify({
+      iss: required(env, 'APPLE_TEAM_ID'),
+      iat,
+      exp: iat + APPLE_SECRET_SECONDS,
+      aud: APPLE_ORIGIN,
+      sub: required(env, 'VITE_APPLE_CLIENT_ID'),
+    }),
+  );
+  const key = createPrivateKey(required(env, 'APPLE_PRIVATE_KEY').replace(/\\n/g, '\n'));
+  const signature = sign('sha256', Buffer.from(`${header}.${claims}`), {
+    key,
+    dsaEncoding: 'ieee-p1363',
+  });
+  return `${header}.${claims}.${base64url(signature)}`;
+}
+
+/**
+ * A name as attributions show it: trimmed, and at most 50 characters (by
+ * code point, so an emoji isn't cut in half).
+ */
+export function clipName(name: string | undefined): string {
+  return Array.from((name ?? '').trim())
+    .slice(0, 50)
+    .join('')
+    .trimEnd();
+}
+
+/** The first of a full name's words (Apple gives the whole name). */
+export function firstWord(name: string | undefined): string {
+  return clipName((name ?? '').trim().split(/\s+/)[0]);
+}
+
+/**
+ * Apple's provider, once its Services ID is set. A production whose Apple
+ * key is missing or won't read leaves Apple off, logged, rather than every
+ * sign-in failing with it.
+ */
+function appleProvider(env: Env) {
+  const clientId = env.VITE_APPLE_CLIENT_ID;
+  if (!clientId) return {};
+  let clientSecret = 'exchanged-by-production';
+  if (isProduction(env)) {
+    try {
+      clientSecret = appleClientSecret(env);
+    } catch (err) {
+      logServerError(err, { route: '/api/auth', detail: 'Apple sign-in off: its key won’t read' });
+      return {};
+    }
+  }
+  return {
+    apple: {
+      clientId,
+      clientSecret,
+      // As Google's: sign-in is the redirect only.
+      disableIdTokenSignIn: true,
+      // Apple gives a name at an account's first sign-in alone, so the one
+      // it gave stays (no overrideUserInfoOnSignIn); it gives the whole
+      // name, of which attributions show the first word.
+      mapProfileToUser: (profile: { name?: string }) => ({ name: firstWord(profile.name) }),
+    },
+  };
 }
 
 /** Better Auth's options for this deployment. */
@@ -117,6 +206,7 @@ export function authOptions(env: Env = process.env) {
     account: { modelName: 'auth_account' },
     verification: { modelName: 'auth_verification' },
     socialProviders: {
+      ...appleProvider(env),
       google: {
         clientId: required(env, 'GOOGLE_CLIENT_ID'),
         // A preview never exchanges a code (production does, for it), but
@@ -132,7 +222,7 @@ export function authOptions(env: Env = process.env) {
         // The account's name is its first name: what attributions show
         // ("Tarun", not "Tarun Patel"), as Clerk's firstName was.
         mapProfileToUser: (profile: { given_name?: string; name?: string }) => ({
-          name: (profile.given_name || profile.name || '').trim().slice(0, 50),
+          name: clipName(profile.given_name || profile.name),
         }),
       },
     },
@@ -147,6 +237,9 @@ export function authOptions(env: Env = process.env) {
         productionURL: PRODUCTION_ORIGIN,
         secret: required(env, 'OAUTH_PROXY_SECRET'),
       }),
+      ...(isProduction(env) && env.VITE_GOOGLE_ONE_TAP_CLIENT_ID
+        ? [oneTap({ clientId: env.VITE_GOOGLE_ONE_TAP_CLIENT_ID })]
+        : []),
     ],
     databaseHooks: {
       session: {
