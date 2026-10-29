@@ -1,75 +1,33 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { APPLE_SIGN_IN, ONE_TAP_CLIENT_ID, authClient } from '../lib/authClient';
-import { holdOneTapPrompt, renderGoogleButton } from '../lib/oneTap';
+import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal, preconnect } from 'react-dom';
+import { APPLE_SIGN_IN, authClient } from '../lib/authClient';
+import { holdOneTapPrompt } from '../lib/oneTap';
+import { useOnPageRestore } from '../lib/pageRestore';
 import { passkeysSupported } from '../lib/passkeys';
 import { ModalShell } from './ModalShell';
 import { AppleLogo, GoogleLogo } from './ProviderLogos';
 
-/** How long the dialog waits for Google's button before showing its own. */
-const GOOGLE_BUTTON_WAIT_MS = 2500;
-
 const PROVIDER =
   'flex h-11 w-full items-center justify-center gap-sm rounded-lg border border-outline-variant bg-surface-container-lowest px-md font-body-md text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50';
 
+type Provider = 'google' | 'apple';
+
+const NAMES: Record<Provider, string> = { google: 'Google', apple: 'Apple' };
+
 /**
- * Google, as Google draws it where it can (production, with its own
- * client, which also offers One Tap), otherwise as this app does, through
- * the same redirect sign-in as Apple's.
+ * Google's and Apple's sign-in pages. The card connects to them as it
+ * opens, so a phone has done the handshake before it's sent there (most of
+ * the wait for Apple's is then Apple's own loading, from hosts its page
+ * reaches itself, which a connection from this site wouldn't serve).
  */
-function GoogleButton({
-  disabled,
-  onRedirect,
-  onSignedIn,
-}: {
-  disabled: boolean;
-  onRedirect: () => void;
-  onSignedIn: () => void;
-}) {
-  const wrap = useRef<HTMLDivElement>(null);
-  const slot = useRef<HTMLDivElement>(null);
-  // Waiting on Google's button (production), then Google's or this app's,
-  // so neither shows and then gives way to the other.
-  const [shown, setShown] = useState<'waiting' | 'google' | 'own'>(
-    ONE_TAP_CLIENT_ID ? 'waiting' : 'own',
-  );
-  // The latest onSignedIn, for a sign-in that ends after a re-render.
-  const signedIn = useRef(onSignedIn);
-  useEffect(() => {
-    signedIn.current = onSignedIn;
-  });
-  useEffect(() => {
-    if (!ONE_TAP_CLIENT_ID || !wrap.current || !slot.current) return;
-    // Google's script can be slow to come (or never, if blocked). Neither
-    // needs undoing on unmount: React drops a state update then.
-    window.setTimeout(() => {
-      setShown((now) => (now === 'waiting' ? 'own' : now));
-    }, GOOGLE_BUTTON_WAIT_MS);
-    void renderGoogleButton(slot.current, wrap.current.clientWidth, () => signedIn.current()).then(
-      (ok) => {
-        setShown((now) => (now === 'waiting' ? (ok ? 'google' : 'own') : now));
-      },
-    );
-  }, []);
-  return (
-    <div ref={wrap} aria-busy={shown === 'waiting'}>
-      <div
-        ref={slot}
-        data-testid="google-slot"
-        className={
-          shown === 'own'
-            ? 'hidden'
-            : `flex h-11 items-center justify-center ${shown === 'waiting' ? 'rounded-lg border border-outline-variant/60' : ''}`
-        }
-      />
-      {shown === 'own' && (
-        <button type="button" onClick={onRedirect} disabled={disabled} className={PROVIDER}>
-          <GoogleLogo />
-          Continue with Google
-        </button>
-      )}
-    </div>
-  );
+const SIGN_IN_HOSTS: Record<Provider, string> = {
+  google: 'https://accounts.google.com',
+  apple: 'https://appleid.apple.com',
+};
+
+/** The providers the card offers: Apple (once it's set up), then Google. */
+function signInProviders(): Provider[] {
+  return APPLE_SIGN_IN ? ['apple', 'google'] : ['google'];
 }
 
 /**
@@ -79,30 +37,39 @@ function GoogleButton({
  * a first sign-in makes the account.
  */
 export function SignInDialog({ onClose }: { onClose: () => void }) {
-  const [busy, setBusy] = useState(false);
+  const [opening, setOpening] = useState<Provider | null>(null);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const busy = opening !== null || checking;
+  const providers = signInProviders();
   // The dialog asks instead of One Tap's prompt while it's open.
   useEffect(() => holdOneTapPrompt(), []);
+  useOnPageRestore(() => setOpening(null));
+  useEffect(() => {
+    for (const provider of signInProviders()) preconnect(SIGN_IN_HOSTS[provider]);
+  }, []);
 
-  async function withProvider(provider: 'google' | 'apple', label: string) {
-    setBusy(true);
+  async function withProvider(provider: Provider) {
+    setOpening(provider);
     setError(null);
     // Sends the browser to Google or Apple, which come back here signed in.
-    const { error: failed } = await authClient.signIn.social({
-      provider,
-      callbackURL: window.location.href,
-    });
-    if (failed) {
-      setBusy(false);
-      setError(`${label} sign-in didn’t start. Try again.`);
+    const started = await authClient.signIn
+      .social({ provider, callbackURL: window.location.href })
+      .then(
+        ({ error: failed }) => !failed,
+        () => false,
+      );
+    if (!started) {
+      setOpening(null);
+      setError(`${NAMES[provider]} sign-in didn’t start. Try again.`);
     }
   }
 
   async function withPasskey() {
-    setBusy(true);
+    setChecking(true);
     setError(null);
     const result = await authClient.signIn.passkey();
-    setBusy(false);
+    setChecking(false);
     if (result.error) {
       setError('That passkey didn’t sign you in. Try Google or Apple, then add a passkey.');
       return;
@@ -129,22 +96,20 @@ export function SignInDialog({ onClose }: { onClose: () => void }) {
           </p>
         </header>
         <div className="space-y-sm">
-          {APPLE_SIGN_IN && (
+          {providers.map((provider) => (
             <button
+              key={provider}
               type="button"
-              onClick={() => void withProvider('apple', 'Apple')}
+              onClick={() => void withProvider(provider)}
               disabled={busy}
               className={PROVIDER}
             >
-              <AppleLogo />
-              Continue with Apple
+              {provider === 'apple' ? <AppleLogo /> : <GoogleLogo />}
+              {opening === provider
+                ? `Opening ${NAMES[provider]}…`
+                : `Continue with ${NAMES[provider]}`}
             </button>
-          )}
-          <GoogleButton
-            disabled={busy}
-            onRedirect={() => void withProvider('google', 'Google')}
-            onSignedIn={onClose}
-          />
+          ))}
         </div>
         {passkeysSupported() && (
           <>

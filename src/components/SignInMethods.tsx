@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { APPLE_SIGN_IN, authClient } from '../lib/authClient';
 import { PROVIDER_NAMES, linkReturnURL, type LinkProvider } from '../lib/accountLinks';
+import { useOnPageRestore } from '../lib/pageRestore';
 import { AppleLogo, GoogleLogo } from './ProviderLogos';
 
 const LOGOS: Record<LinkProvider, () => React.JSX.Element> = {
@@ -21,6 +22,8 @@ export function SignInMethods() {
   const [unread, setUnread] = useState(false);
   const [connecting, setConnecting] = useState<LinkProvider | null>(null);
   const [failed, setFailed] = useState<LinkProvider | null>(null);
+  // Back from Google's or Apple's page without connecting.
+  useOnPageRestore(() => setConnecting(null));
   useEffect(() => {
     void authClient.listAccounts().then(({ data, error }) => {
       if (error) setUnread(true);
@@ -32,13 +35,18 @@ export function SignInMethods() {
     setConnecting(provider);
     setFailed(null);
     const here = window.location.href;
-    const { error } = await authClient.linkSocial({
-      provider,
-      callbackURL: linkReturnURL(here, provider, 'linked'),
-      errorCallbackURL: linkReturnURL(here, provider, 'link-failed'),
-    });
-    // On success the browser is on its way to Google or Apple.
-    if (error) {
+    const started = await authClient
+      .linkSocial({
+        provider,
+        callbackURL: linkReturnURL(here, provider, 'linked'),
+        errorCallbackURL: linkReturnURL(here, provider, 'link-failed'),
+      })
+      .then(
+        ({ error }) => !error,
+        () => false,
+      );
+    // Started, the browser is on its way to Google or Apple.
+    if (!started) {
       setConnecting(null);
       setFailed(provider);
     }
@@ -68,7 +76,7 @@ export function SignInMethods() {
                   aria-label={`Connect ${name}`}
                   className="rounded-full px-sm py-xs font-body-md text-body-sm text-primary transition-colors hover:bg-surface-container-low disabled:opacity-50"
                 >
-                  Connect
+                  {connecting === provider ? 'Opening…' : 'Connect'}
                 </button>
               )}
             </li>

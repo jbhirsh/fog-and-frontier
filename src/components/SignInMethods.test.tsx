@@ -75,6 +75,7 @@ describe('SignInMethods', () => {
       errorCallbackURL: back('link-failed'),
     });
     expect(screen.getByRole('button', { name: 'Connect Apple' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Connect Apple' })).toHaveTextContent('Opening…');
   });
 
   it('says so when connecting doesn’t start, and lets it be tried again', async () => {
@@ -84,6 +85,7 @@ describe('SignInMethods', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Connect Google' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Connecting Google didn’t start');
     expect(screen.getByRole('button', { name: 'Connect Google' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Connect Google' })).toHaveTextContent(/^Connect$/);
     fireEvent.click(screen.getByRole('button', { name: 'Connect Google' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -100,6 +102,27 @@ describe('SignInMethods', () => {
     });
     expect(screen.getByRole('button', { name: 'Connect Apple' })).toBeDisabled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('stands down when the browser brings the page back without connecting', async () => {
+    render(<SignInMethods />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Connect Apple' }));
+    expect(screen.getByRole('button', { name: 'Connect Apple' })).toHaveTextContent('Opening…');
+    const restored = new Event('pageshow') as PageTransitionEvent;
+    Object.defineProperty(restored, 'persisted', { value: true });
+    act(() => {
+      window.dispatchEvent(restored);
+    });
+    expect(screen.getByRole('button', { name: 'Connect Apple' })).toHaveTextContent(/^Connect$/);
+    expect(screen.getByRole('button', { name: 'Connect Apple' })).toBeEnabled();
+  });
+
+  it('says connecting didn’t start when the request itself fails', async () => {
+    client.listAccounts.mockResolvedValue(accounts());
+    client.linkSocial.mockRejectedValue(new Error('offline'));
+    render(<SignInMethods />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Connect Google' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Connecting Google didn’t start');
   });
 
   it('says it’s loading, then what it read', async () => {

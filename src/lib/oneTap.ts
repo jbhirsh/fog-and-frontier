@@ -1,22 +1,16 @@
 import { useEffect } from 'react';
 import { ONE_TAP_CLIENT_ID, authClient } from './authClient';
 
-// Google's own sign-in on production, through Better Auth's One Tap client:
-// the One Tap prompt and Google's button, each handing back an ID token for
-// ONE_TAP_CLIENT_ID, which /api/auth/one-tap/callback turns into a session.
-// Google's script loads only once the page has settled and gone idle, so a
-// visit never waits on it. A sign-in through it neither leaves the page nor
-// re-reads the session by itself (there's no callbackURL), so it tells
-// useSession to.
+// Google's One Tap prompt on production, through Better Auth's One Tap
+// client: it hands back an ID token for ONE_TAP_CLIENT_ID, which
+// /api/auth/one-tap/callback turns into a session. Google's script loads
+// only once the page has settled and gone idle, so a visit never waits on
+// it. A sign-in through it neither leaves the page nor re-reads the session
+// by itself (there's no callbackURL), so it tells useSession to. (The
+// sign-in card draws its own Google button: Google's, once drawn, swapped
+// itself for a personalized one, a flash the card couldn't hide.)
 
-function signedIn(then?: () => void) {
-  return {
-    onSuccess: () => {
-      authClient.$store.notify('$sessionSignal');
-      then?.();
-    },
-  };
-}
+const signedIn = { onSuccess: () => authClient.$store.notify('$sessionSignal') };
 
 /**
  * How long the prompt waits before it loads Google's script: the app's
@@ -71,46 +65,11 @@ export function useOneTapPrompt(signedOut: boolean): void {
     if (!ONE_TAP_CLIENT_ID || !signedOut) return;
     const stop = whenSettled(() => {
       if (held) return;
-      authClient.oneTap({ fetchOptions: signedIn() }).catch(() => {});
+      authClient.oneTap({ fetchOptions: signedIn }).catch(() => {});
     });
     return () => {
       stop();
       cancelPrompt();
     };
   }, [signedOut]);
-}
-
-/**
- * Draws Google's "Continue with Google" button into `container`, `width`
- * wide, and says whether it did: not off production, nor where Google's
- * script is blocked, nor while the library's prompt is still open (it draws
- * no button then), where the caller shows its own.
- */
-export async function renderGoogleButton(
-  container: HTMLElement,
-  width: number,
-  onSignedIn: () => void,
-): Promise<boolean> {
-  if (!ONE_TAP_CLIENT_ID) return false;
-  try {
-    await authClient.oneTap({
-      button: {
-        container,
-        config: {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'continue_with',
-          shape: 'rectangular',
-          logo_alignment: 'center',
-          // Google draws 200 to 400 pixels wide.
-          width: Math.max(200, Math.min(400, Math.round(width))),
-        },
-      },
-      fetchOptions: signedIn(onSignedIn),
-    });
-  } catch {
-    return false;
-  }
-  return container.childElementCount > 0;
 }

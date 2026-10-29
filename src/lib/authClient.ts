@@ -7,7 +7,7 @@ import { passkeyClient } from '@better-auth/passkey/client';
 // carries. Nothing here gates a read; useSession is only what the UI shows.
 
 /**
- * Production's own Google client for One Tap and Google's button (oneTap.ts),
+ * Production's own Google client for One Tap (oneTap.ts),
  * or '' on any other deployment: the server takes One Tap only there, and
  * only for this client (see api/_betterAuth.ts).
  */
