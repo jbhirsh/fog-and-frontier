@@ -81,6 +81,52 @@ describe('SignInDialog', () => {
     expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeEnabled();
   });
 
+  it('draws each provider’s logo', () => {
+    render(<SignInDialog onClose={() => {}} />);
+    for (const name of ['Continue with Apple', 'Continue with Google']) {
+      expect(screen.getByRole('button', { name }).querySelector('svg')).not.toBeNull();
+    }
+  });
+
+  it('stays waiting once a sign-in has started, leaving the page to Google', async () => {
+    render(<SignInDialog onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('clears an old error as a sign-in is tried again', async () => {
+    client.social.mockResolvedValueOnce({ data: null, error: { message: 'nope' } });
+    render(<SignInDialog onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Apple' }));
+    await screen.findByRole('alert');
+    client.social.mockReturnValue(new Promise(() => {}));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Apple' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('holds every button while a passkey is asked for, and frees them if it fails', async () => {
+    let done: (result: unknown) => void = () => {};
+    client.passkey.mockReturnValue(new Promise((resolve) => (done = resolve)));
+    // An old error first (Apple's), which asking for a passkey clears.
+    client.social.mockResolvedValue({ data: null, error: { message: 'nope' } });
+    render(<SignInDialog onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Apple' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: /Sign in with a passkey/ }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sign in with a passkey/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
+    await act(async () => {
+      done({ data: null, error: { message: 'cancelled' } });
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('button', { name: /Sign in with a passkey/ })).toBeEnabled();
+  });
+
   it('offers no Apple until it’s set up', () => {
     client.flags.apple = false;
     render(<SignInDialog onClose={() => {}} />);
@@ -122,6 +168,102 @@ describe('SignInDialog', () => {
     expect(google.release).not.toHaveBeenCalled();
     unmount();
     expect(google.release).toHaveBeenCalledOnce();
+  });
+
+  it('holds Google’s place while Google’s button loads, showing neither', () => {
+    client.flags.oneTap = 'one-tap-client';
+    google.render.mockReturnValue(new Promise(() => {}));
+    render(<SignInDialog onClose={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
+    const slot = screen.getByTestId('google-slot');
+    expect(slot).toHaveClass('border');
+    expect(slot.parentElement).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('keeps Google’s button once drawn, past the wait', async () => {
+    vi.useFakeTimers();
+    try {
+      client.flags.oneTap = 'one-tap-client';
+      google.render.mockResolvedValue(true);
+      render(<SignInDialog onClose={() => {}} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(2500);
+        await Promise.resolve();
+      });
+      expect(
+        screen.queryByRole('button', { name: 'Continue with Google' }),
+      ).not.toBeInTheDocument();
+      const slot = screen.getByTestId('google-slot');
+      expect(slot).not.toHaveClass('border');
+      expect(slot.parentElement).toHaveAttribute('aria-busy', 'false');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows its own Google button once Google’s has taken too long', async () => {
+    vi.useFakeTimers();
+    try {
+      client.flags.oneTap = 'one-tap-client';
+      google.render.mockReturnValue(new Promise(() => {}));
+      render(<SignInDialog onClose={() => {}} />);
+      await act(async () => {
+        vi.advanceTimersByTime(2499);
+        await Promise.resolve();
+      });
+      expect(
+        screen.queryByRole('button', { name: 'Continue with Google' }),
+      ).not.toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+        await Promise.resolve();
+      });
+      expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps its own once shown, though Google’s comes late', async () => {
+    vi.useFakeTimers();
+    try {
+      client.flags.oneTap = 'one-tap-client';
+      let drawn: (ok: boolean) => void = () => {};
+      google.render.mockReturnValue(new Promise<boolean>((resolve) => (drawn = resolve)));
+      render(<SignInDialog onClose={() => {}} />);
+      await act(async () => {
+        vi.advanceTimersByTime(2500);
+        await Promise.resolve();
+      });
+      await act(async () => {
+        drawn(true);
+        await Promise.resolve();
+      });
+      expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides Google’s place where the card shows its own button', () => {
+    render(<SignInDialog onClose={() => {}} />);
+    expect(screen.getByTestId('google-slot')).toHaveClass('hidden');
+  });
+
+  it('closes with the dialog’s latest onClose, though it changed meanwhile', async () => {
+    client.flags.oneTap = 'one-tap-client';
+    google.render.mockResolvedValue(true);
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(<SignInDialog onClose={first} />);
+    await waitFor(() => expect(google.render).toHaveBeenCalledOnce());
+    rerender(<SignInDialog onClose={second} />);
+    google.render.mock.calls[0][2]();
+    expect(second).toHaveBeenCalledOnce();
+    expect(first).not.toHaveBeenCalled();
   });
 
   it('closes once Google’s own button has signed someone in', async () => {

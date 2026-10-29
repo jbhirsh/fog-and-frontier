@@ -5,6 +5,9 @@ import { holdOneTapPrompt, renderGoogleButton } from '../lib/oneTap';
 import { passkeysSupported } from '../lib/passkeys';
 import { ModalShell } from './ModalShell';
 
+/** How long the dialog waits for Google's button before showing its own. */
+const GOOGLE_BUTTON_WAIT_MS = 2500;
+
 const PROVIDER =
   'flex h-11 w-full items-center justify-center gap-sm rounded-lg border border-outline-variant bg-surface-container-lowest px-md font-body-md text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50';
 
@@ -55,7 +58,11 @@ function GoogleButton({
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const slot = useRef<HTMLDivElement>(null);
-  const [drawn, setDrawn] = useState(false);
+  // Waiting on Google's button (production), then Google's or this app's,
+  // so neither shows and then gives way to the other.
+  const [shown, setShown] = useState<'waiting' | 'google' | 'own'>(
+    ONE_TAP_CLIENT_ID ? 'waiting' : 'own',
+  );
   // The latest onSignedIn, for a sign-in that ends after a re-render.
   const signedIn = useRef(onSignedIn);
   useEffect(() => {
@@ -63,20 +70,29 @@ function GoogleButton({
   });
   useEffect(() => {
     if (!ONE_TAP_CLIENT_ID || !wrap.current || !slot.current) return;
-    let live = true;
+    // Google's script can be slow to come (or never, if blocked). Neither
+    // needs undoing on unmount: React drops a state update then.
+    window.setTimeout(() => {
+      setShown((now) => (now === 'waiting' ? 'own' : now));
+    }, GOOGLE_BUTTON_WAIT_MS);
     void renderGoogleButton(slot.current, wrap.current.clientWidth, () => signedIn.current()).then(
       (ok) => {
-        if (live) setDrawn(ok);
+        setShown((now) => (now === 'waiting' ? (ok ? 'google' : 'own') : now));
       },
     );
-    return () => {
-      live = false;
-    };
   }, []);
   return (
-    <div ref={wrap}>
-      <div ref={slot} className={drawn ? 'flex h-11 items-center justify-center' : 'hidden'} />
-      {!drawn && (
+    <div ref={wrap} aria-busy={shown === 'waiting'}>
+      <div
+        ref={slot}
+        data-testid="google-slot"
+        className={
+          shown === 'own'
+            ? 'hidden'
+            : `flex h-11 items-center justify-center ${shown === 'waiting' ? 'rounded-lg border border-outline-variant/60' : ''}`
+        }
+      />
+      {shown === 'own' && (
         <button type="button" onClick={onRedirect} disabled={disabled} className={PROVIDER}>
           <GoogleLogo />
           Continue with Google
@@ -117,7 +133,7 @@ export function SignInDialog({ onClose }: { onClose: () => void }) {
     setError(null);
     const result = await authClient.signIn.passkey();
     setBusy(false);
-    if (result?.error) {
+    if (result.error) {
       setError('That passkey didn’t sign you in. Try Google or Apple, then add a passkey.');
       return;
     }
