@@ -17,8 +17,10 @@ on:
 jobs:
   visual:
     runs-on: ubuntu-latest
+    # actions: read lets the job summary read the run's steps and earlier runs.
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v7
 
@@ -70,3 +72,14 @@ jobs:
           name: playwright-report-${{ github.run_id }}
           path: playwright-report/
           retention-days: 14
+
+      # The job's summary and report (jbhirsh/ci's job-summary): its steps
+      # and screenshot tests (each named with its Playwright project, as the
+      # desktop pages run in three engines) beside its recent runs, published
+      # on the repository's Pages by job-reports.yml once the run finishes.
+      - name: Job summary
+        if: ${{ !cancelled() }}
+        uses: jbhirsh/ci/job-summary@main
+        with:
+          job: visual
+          junit: test-results/junit.xml

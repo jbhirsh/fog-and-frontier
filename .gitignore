@@ -67,6 +67,10 @@ eval/results.json
 .stryker-tmp*
 reports/mutation
 reports/stryker-incremental.json
+
+# The unit tests' JUnit, for CI's job summary (ci.yml)
+reports/junit.xml
+
 jscpd-report/
 knip-report.json
 knip-report.md
