@@ -7,7 +7,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
+  // In CI, JUnit too, for the job summary (jbhirsh/ci's job-summary, in
+  // visual.yml): each test named with its project, since the desktop pages
+  // run the same tests in three engines.
+  reporter: process.env.CI
+    ? [
+        ['github'],
+        ['html', { open: 'never' }],
+        ['junit', { outputFile: 'test-results/junit.xml', includeProjectInTestName: true }],
+      ]
+    : 'list',
   expect: {
     // 1% pixel diff absorbs font-aliasing flake; real regressions blow past this.
     toHaveScreenshot: {

@@ -25,11 +25,13 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # code-quality: write lets the coverage upload below reach GitHub.
+    # code-quality: write lets the coverage upload below reach GitHub;
+    # actions: read lets the job summary read the run's steps and earlier runs.
     permissions:
       contents: read
       code-quality: write
       pull-requests: read
+      actions: read
     steps:
       - uses: actions/checkout@v7
 
@@ -99,8 +101,11 @@ jobs:
       - name: GraphQL codegen drift
         run: npm run codegen && git diff --exit-code src/gql/
 
+      # JUnit for the job summary below; `default` and `github-actions` keep
+      # the log and Vitest's own annotations and summary, which naming any
+      # reporter would otherwise drop.
       - name: Unit tests + coverage
-        run: npm run test:coverage
+        run: npm run test:coverage -- --reporter=default --reporter=github-actions --reporter=junit --outputFile.junit=reports/junit.xml
 
       # GitHub-native coverage: the main ruleset's code coverage rule reads
       # this report (Code Quality must be enabled). The action credits it to
@@ -143,3 +148,13 @@ jobs:
       # Dependabot handles on its own cadence.
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+      # The job's summary and report (jbhirsh/ci's job-summary): its steps
+      # and unit tests beside its recent runs, published on the repository's
+      # Pages by job-reports.yml once the run finishes.
+      - name: Job summary
+        if: ${{ !cancelled() }}
+        uses: jbhirsh/ci/job-summary@main
+        with:
+          job: test
+          junit: reports/junit.xml

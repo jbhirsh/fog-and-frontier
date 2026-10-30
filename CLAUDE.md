@@ -140,14 +140,14 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   [jbhirsh/ci](https://github.com/jbhirsh/ci), run from its `main` (no
   version pin): mutation testing, Claude Review and autofix, PR GIFs, PR
   visuals, the commit check, the weekly audit, the README screenshot bot,
-  Dependabot auto-merge and the secret and SAST scans. The workflows here
-  keep their triggers and job names (the required checks) and call it; this
-  repo's settings for each tool are its key in `.github/ci.json`, and how a
-  tool works is in its headers there. Change a tool in jbhirsh/ci (cloned
-  beside this repo as `../ci`), never by copying it back here. A new
-  pull-request workflow goes in `claude-autofix.yml`'s trigger list, or in
-  `.github/ci.json`'s `autofix.exempt` with its reason; CI's autofix
-  trigger check fails a PR that does neither.
+  the job summaries, Dependabot auto-merge and the secret and SAST scans.
+  The workflows here keep their triggers and job names (the required
+  checks) and call it; this repo's settings for each tool are its key in
+  `.github/ci.json`, and how a tool works is in its headers there. Change a
+  tool in jbhirsh/ci (cloned beside this repo as `../ci`), never by copying
+  it back here. A new pull-request workflow goes in `claude-autofix.yml`'s
+  trigger list, or in `.github/ci.json`'s `autofix.exempt` with its reason;
+  CI's autofix trigger check fails a PR that does neither.
 - Vercel function handlers: Node-style `(req, res)` — Web API style hangs in `vercel dev`.
 - **Tests ship with the code.** Any new resolver, reducer, or pure util needs its own unit test; run `npm run test:coverage` before pushing (CI enforces an 80% per-file gate — plain `vitest run` skips it). The coverage backlog in `vite.config.ts` (pre-gate files excluded from it) may only shrink: `src/test/coverageBacklog.test.ts` pins it to an explicit list and fails when a file is added (write tests instead), when one leaves the backlog without leaving the pinned list too (delete it there, so the pin ratchets down), or when an entry names a file that no longer exists. Tests are pure logic or RTL — no real network, DB, or browser. Multi-write DB paths get a test asserting a single `db().batch(stmts, 'write')` (see `transitionToPast`/`createTrip`/`patchTrip`).
 - **Property tests fuzz the pure helpers** (`fast-check`, in
@@ -196,6 +196,18 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   your own feature branch freely before it merges, but never amend, rebase, or
   force-push `main`. CI's commit-message step (jbhirsh/ci's `commits`)
   enforces the shape.
+- **Job summaries and reports.** CI's `test` job and Visual regression's
+  `visual` job end with jbhirsh/ci's `job-summary`: its run summary gives
+  the verdict and what needs attention (failed tests, steps and tests
+  getting slower or flaky across runs) and links to the job's report, a
+  page with every step and test beside the job's recent runs (Vitest's
+  JUnit in `reports/junit.xml`; Playwright's, CI only, in
+  `test-results/junit.xml`, each test named with its project). `ci.yml`
+  and `visual.yml` also run on every push to `main`, so a PR's report has
+  main's runs to compare with; a step that reads a pull request runs only
+  for one. `job-reports.yml` publishes the reports to the repository's
+  Pages (the `job-reports` branch, served from Settings → Pages → Deploy
+  from a branch → `job-reports`, `/ (root)`) once each run finishes.
 - **The weekly audit sweeps the whole repo** (`weekly-audit.yml`, Monday
   06:00 UTC with the other sweeps, or by hand): knip (`knip.json`: unused
   files, exports, types and dependencies, and used ones `package.json`
@@ -214,8 +226,9 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   separate on `main`), not as a stack of PRs. Once it merges, restart the same
   branch from `main` for the next change. Don't push helper branches: the
   visual workflow commits regenerated baselines onto the PR's own branch, and
-  screenshots share one branch (below). The one other branch is the bot's,
-  `bot/readme-screenshots` (next).
+  screenshots share one branch (below). The two other branches are
+  workflows': the bot's, `bot/readme-screenshots` (next), and the job
+  reports' site, `job-reports` (above).
 - **The README's screenshots keep themselves current.** On a push to
   `main` that changed what they show (the `readme-screenshots` key of
   `.github/ci.json`), `readme-screenshots.yml` retakes `docs/screenshots/`
