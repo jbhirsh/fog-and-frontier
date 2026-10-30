@@ -9,12 +9,21 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   // In CI, JUnit too, for the job summary (jbhirsh/ci's job-summary, in
   // visual.yml): each test named with its project, since the desktop pages
-  // run the same tests in three engines.
+  // run the same tests in three engines, and with its retries, so a test
+  // that passed only on a retry shows as flaky in the report (each failed
+  // try a <flakyFailure>) rather than as a plain pass.
   reporter: process.env.CI
     ? [
         ['github'],
         ['html', { open: 'never' }],
-        ['junit', { outputFile: 'test-results/junit.xml', includeProjectInTestName: true }],
+        [
+          'junit',
+          {
+            outputFile: 'test-results/junit.xml',
+            includeProjectInTestName: true,
+            includeRetries: true,
+          },
+        ],
       ]
     : 'list',
   expect: {

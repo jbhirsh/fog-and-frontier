@@ -33,6 +33,10 @@ jobs:
       pull-requests: read
       actions: read
     steps:
+      # The job summary's report charts the machine's CPU across the job:
+      # first, so the chart covers every step (jbhirsh/ci's sample-load).
+      - uses: jbhirsh/ci/job-summary/sample-load@main
+
       - uses: actions/checkout@v7
 
       # Subject length, body, fixup and merge-commit rules (jbhirsh/ci).

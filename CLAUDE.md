@@ -202,12 +202,17 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   getting slower or flaky across runs) and links to the job's report, a
   page with every step and test beside the job's recent runs (Vitest's
   JUnit in `reports/junit.xml`; Playwright's, CI only, in
-  `test-results/junit.xml`, each test named with its project). `ci.yml`
-  and `visual.yml` also run on every push to `main`, so a PR's report has
-  main's runs to compare with; a step that reads a pull request runs only
-  for one. `job-reports.yml` publishes the reports to the repository's
-  Pages (the `job-reports` branch, served from Settings → Pages → Deploy
-  from a branch → `job-reports`, `/ (root)`) once each run finishes.
+  `test-results/junit.xml`, each test named with its project and its
+  retries recorded, so a test that passed only on a retry shows as flaky
+  there). Each job's first step, jbhirsh/ci's `job-summary/sample-load`,
+  samples the machine's CPU for the report's chart, and the `visual` job's
+  `job-summary/note` adds the Playwright and browser versions to its
+  Environment, beside the machine. `ci.yml` and `visual.yml` also run on
+  every push to `main`, so a PR's report has main's runs to compare with;
+  a step that reads a pull request runs only for one. `job-reports.yml`
+  publishes the reports to the repository's Pages (the `job-reports`
+  branch, served from Settings → Pages → Deploy from a branch →
+  `job-reports`, `/ (root)`) once each run finishes.
 - **The weekly audit sweeps the whole repo** (`weekly-audit.yml`, Monday
   06:00 UTC with the other sweeps, or by hand): knip (`knip.json`: unused
   files, exports, types and dependencies, and used ones `package.json`
