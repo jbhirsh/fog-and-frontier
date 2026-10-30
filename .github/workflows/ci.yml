@@ -155,10 +155,24 @@ jobs:
 
       # The job's summary and report (jbhirsh/ci's job-summary): its steps
       # and unit tests beside its recent runs, published on the repository's
-      # Pages by job-reports.yml once the run finishes.
+      # Pages by the reports job below.
       - name: Job summary
         if: ${{ !cancelled() }}
         uses: jbhirsh/ci/job-summary@main
         with:
           job: test
           junit: reports/junit.xml
+
+  # Publishes this run's job reports to the repository's Pages and keeps
+  # one comment on the PR with every job's summary (jbhirsh/ci's
+  # job-reports.yml), once the test job is done, failed or not. As part of
+  # the run, it runs from the PR's own branch. Not a required check; it
+  # never fails a run for a report.
+  reports:
+    needs: [test]
+    if: ${{ !cancelled() }}
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    uses: jbhirsh/ci/.github/workflows/job-reports.yml@main
