@@ -22,6 +22,10 @@ jobs:
       contents: read
       actions: read
     steps:
+      # The job summary's report charts the machine's CPU across the job:
+      # first, so the chart covers every step (jbhirsh/ci's sample-load).
+      - uses: jbhirsh/ci/job-summary/sample-load@main
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
@@ -37,6 +41,26 @@ jobs:
         # Chromium (desktop), WebKit (the iPhone and desktop Safari) and
         # Firefox (desktop): see the projects in playwright.config.ts.
         run: npx playwright install --with-deps chromium webkit firefox
+
+      # What a slow or flaky run's report is worth seeing beside its tests:
+      # the Playwright release and the browsers it drove, with their
+      # versions (a dry run prints them, without installing anything). Never
+      # fails the job: a missing note only leaves the report without it.
+      - name: Read the Playwright and browser versions
+        id: playwright
+        continue-on-error: true
+        run: |
+          echo "version=$(npx playwright --version | sed 's/^Version //')" >> "$GITHUB_OUTPUT"
+          echo "browsers=$(npx playwright install --dry-run chromium webkit firefox | awk '/^[^ ]/ && !/^FFmpeg/ { sub(/ \(playwright.*/, ""); printf "%s%s", sep, $0; sep = ", " }')" >> "$GITHUB_OUTPUT"
+
+      # Shown in the report's Environment, with the machine the first note
+      # adds (jbhirsh/ci's job-summary/note).
+      - name: Note them for the job summary
+        uses: jbhirsh/ci/job-summary/note@main
+        with:
+          notes: |
+            Playwright: ${{ steps.playwright.outputs.version }}
+            Browsers: ${{ steps.playwright.outputs.browsers }}
 
       # Detect Linux baselines anywhere under tests/visual. `compgen -G "**/*.png"`
       # does NOT recurse into subdirectories unless `shopt -s globstar` is set,
