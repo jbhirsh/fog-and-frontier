@@ -2,9 +2,15 @@ name: Visual regression
 
 # The pages' screenshots, compared with their Linux baselines (see the
 # projects in playwright.config.ts). visual-baselines.yml, run by hand,
-# rewrites those baselines and commits them to its branch.
+# rewrites those baselines and commits them to its branch. It also runs on
+# every push to main, so the job's report (jbhirsh/ci's job-summary) has
+# main's runs to compare a PR's with; nothing in it reads a pull request or
+# writes anything back, and with no concurrency group a push to main never
+# cancels a PR's run.
 on:
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
   workflow_dispatch:
 
