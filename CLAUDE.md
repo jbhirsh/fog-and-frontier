@@ -209,10 +209,13 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
   `job-summary/note` adds the Playwright and browser versions to its
   Environment, beside the machine. `ci.yml` and `visual.yml` also run on
   every push to `main`, so a PR's report has main's runs to compare with;
-  a step that reads a pull request runs only for one. `job-reports.yml`
-  publishes the reports to the repository's Pages (the `job-reports`
-  branch, served from Settings → Pages → Deploy from a branch →
-  `job-reports`, `/ (root)`) once each run finishes.
+  a step that reads a pull request runs only for one. Each workflow's last
+  job, `reports` (jbhirsh/ci's `job-reports.yml`), publishes the run's
+  reports to the repository's Pages (the `job-reports` branch, served from
+  Settings → Pages → Deploy from a branch → `job-reports`, `/ (root)`)
+  and keeps one comment on the PR with every job's summary, updated after
+  each run. It runs from the PR's own branch, as part of the run, so a
+  change to it shows on the PR that makes it.
 - **The weekly audit sweeps the whole repo** (`weekly-audit.yml`, Monday
   06:00 UTC with the other sweeps, or by hand): knip (`knip.json`: unused
   files, exports, types and dependencies, and used ones `package.json`
