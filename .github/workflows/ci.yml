@@ -3,8 +3,14 @@ name: CI
 # Lint, type-check and unit tests on every PR to main. smoke.yml/visual.yml
 # only exercise the deployed preview, so without this job the Vitest suite,
 # ESLint and tsc never gate a PR (they ran only transitively in Vercel's build).
+# It also runs on every push to main, so the job's report (jbhirsh/ci's
+# job-summary) has main's runs to compare a PR's with; the steps that read a
+# pull request (commit messages, autofix triggers) run only for one. No
+# concurrency group, so a push to main never cancels a PR's run.
 on:
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 env:
