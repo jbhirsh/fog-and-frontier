@@ -6,7 +6,19 @@
 // grading from memory failed true, documented specifics the grounded resolver
 // had found (Duarte's half-and-half soup, its knotty-pine room) as
 // "unverifiable". Scores from before the switch (2026-10-14), graded by a
-// gemini-2.5-flash judge without search, aren't directly comparable. The API
+// gemini-2.5-flash judge without search, aren't directly comparable.
+//
+// The judge is Gemini grading Gemini. Its rubric was calibrated in owner
+// review (2026-07-10) after three runs each failed a different true but
+// unlisted fact (Big Basin's reservations, Duarte's cioppino and 1930s era,
+// Castle Rock's climbing): it passes widely documented attributes a case's
+// notes omit and fails anything false or contradictory. Since 2026-10-14 it
+// searches before failing a specific, and fails only what search contradicts
+// or can't support. The events judge gets "Today is <date>" and each event's
+// ISO startDate: without them it once read events named "2026" as
+// contradicting their dates (disc-week, 7/11 plausible).
+//
+// The API
 // key is read from process.env.GEMINI_API_KEY at call time and passed via the
 // x-goog-api-key header (never the URL).
 //

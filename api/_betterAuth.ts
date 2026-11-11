@@ -173,7 +173,10 @@ function appleProvider(env: Env) {
       disableIdTokenSignIn: true,
       // Apple gives a name at an account's first sign-in alone, so the one
       // it gave stays (no overrideUserInfoOnSignIn); it gives the whole
-      // name, of which attributions show the first word.
+      // name, of which attributions show the first word. A first Apple
+      // sign-in made on a preview leaves the production account unnamed
+      // (shown by its email) until that person signs in with Google, or
+      // revokes the app in their Apple ID settings and signs in again.
       mapProfileToUser: (profile: { name?: string }) => ({ name: firstWord(profile.name) }),
     },
   };

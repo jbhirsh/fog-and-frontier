@@ -4,7 +4,7 @@
 # enforces (plain `vitest run` skips them), plus the production build.
 # `vite build` can fail where `tsc -b` passes (a Vercel cache-free install once
 # surfaced a TS2550 `Error.cause` error a warm local typecheck hid — see
-# CONTRIBUTING.md), so building here closes that gap before it reaches CI.
+# tsconfig.api.json's lib), so building here closes that gap before it reaches CI.
 #
 # No-op in CI (see pre-commit).
 [ -n "$CI" ] && exit 0

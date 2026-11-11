@@ -1,3 +1,9 @@
+// Visual regression (npm run test:visual, visual.yml): the desktop pages in
+// Chromium, Firefox and WebKit and the mobile ones on an iPhone (WebKit), each
+// against its own Linux baselines in tests/visual/*-snapshots/. The baselines
+// come from CI, never a laptop, whose fonts render differently: run
+// visual-baselines.yml by hand on the branch, which commits them there. Data
+// is stubbed (blank covers, outside images blanked).
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({

@@ -2,6 +2,8 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.api.tsbuildinfo",
     "target": "es2023",
+    // Named in full: a Vercel build installs from scratch, and once failed
+    // with TS2550 (`Error.cause` missing) where a warm local tsc -b passed.
     "lib": ["ES2022", "ES2023"],
     "module": "esnext",
     "types": ["node"],

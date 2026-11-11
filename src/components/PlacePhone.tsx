@@ -171,7 +171,7 @@ function ActionIcon({ name }: { name: string }) {
 /**
  * Directions, Trip and Done in a row. Trip is for a signed-in account (#112);
  * Done is a toggle for the owners and, for anyone else, a badge shown only
- * once it's done (CLAUDE.md's role-gated rules).
+ * once it's done (owner writes are hidden from everyone else, never greyed).
  */
 export function PhoneActions({
   activity,

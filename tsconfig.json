@@ -1,4 +1,8 @@
 {
+  // The solution file for tsc -b: one project per surface, so each (and its
+  // type-aware lint) gets the right libraries. app: src/ and shared/ (DOM,
+  // Vitest); api: api/ and shared/ (Node); node: vite.config.ts; eval: the
+  // Gemini eval; scripts: scripts/**/*.ts. npm run typecov counts app and api.
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

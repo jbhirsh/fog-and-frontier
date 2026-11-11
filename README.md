@@ -1,58 +1,43 @@
 # Fog & Frontier
 
-**A full-stack map-based tracker for Bay Area adventures — hikes, food, scenic
-drives, and culture — with collaborative trip planning and AI-assisted
-discovery.**
+**A map-based tracker for West Coast adventures (hikes, food, scenic drives and culture) with
+collaborative trip planning and AI-assisted discovery.**
 
-🌉 **Live demo: [fog-and-frontier.vercel.app](https://fog-and-frontier.vercel.app)**
-
-React 19 + Vite front end · a single consolidated Apollo GraphQL serverless
-function · Turso (libSQL) edge database · Better Auth (Google, Apple, passkeys) · Leaflet maps · Sentry
-observability · Vitest + Playwright in CI.
+🌉 **Live: [fog-and-frontier.vercel.app](https://fog-and-frontier.vercel.app)**
 
 ![Split view — curated list alongside an interactive Leaflet map](docs/screenshots/home-split.png)
 
 ## What it does
 
-Fog & Frontier is a curated catalog of Bay Area outdoor activities you can browse,
-map, filter, and plan trips around.
-
-- **Browse & filter** a catalog of curated adventures — filter by distance from
-  home, duration, category (hiking, cycling, water, food, culture, scenic,
-  climbing, camping), park designation, dog-friendliness, and "Completed only"
-  (the places you've already done). Results are sorted by distance.
-- **Three synced views** — a segmented **List · Split · Map** toggle. Split view
-  puts the catalog next to a live map; panning/zooming narrows the list to
-  what's in view ("Showing N in this area"), and hovering a card highlights its
-  map pin and vice-versa.
-- **Interactive map** — Leaflet with a CARTO Positron basemap and custom circular
-  glyph pins colored by completion status (to-do / completed) and iconed by
-  category.
-- **Activity detail** — rich detail cards with AllTrails ratings, trail
-  stats, park type, and per-activity user photo uploads.
-- **Trip planning** — create a trip, invite members, shortlist activities, and
-  **vote**; trips move through a `voting → planning → past` lifecycle with a
-  day-by-day itinerary (day index, start time, ordering).
-- **AI discovery ("Explore")** — pick a date window (today / tomorrow / this
-  weekend / next 7 days) and Google Gemini searches for local events to do.
-- **Share from Instagram** — share a post or reel to the app and Gemini lists
-  the places in it (from the caption, the geotag, and what's shown or said in
-  the video), each added one at a time. For owners only. Android
-  offers the installed app in its share sheet. On iPhone, where Safari can't
+- **Browse and filter** a curated catalog: by distance from home (road miles), duration, category
+  (hiking, cycling, water, food, culture, scenic, climbing, camping), park designation,
+  dog-friendliness, who added it and "Completed only", sorted by distance.
+- **Three synced views**, List, Split and Map. Split puts the catalog beside a live map: panning
+  and zooming narrows the list to what's in view, and hovering a card highlights its pin and the
+  other way round.
+- **An interactive map** with circular glyph pins, coloured by completion and iconed by category,
+  grouped where they crowd.
+- **Activity detail** with AllTrails ratings, trail stats, park type, reviews and the owners'
+  photos.
+- **Trip planning**: create a trip, invite members, shortlist activities and **vote**; a trip
+  moves through `voting → planning → past` with a day-by-day itinerary.
+- **AI discovery ("Explore")**: pick a date window (today, tomorrow, this weekend, the next seven
+  days) and Google Gemini searches for local events.
+- **Suggestions**: any signed-in account can suggest an activity, drafted by Gemini or by hand,
+  for the owners to accept or reject.
+- **Share from Instagram**: share a post or reel to the app and Gemini lists the places in it
+  (from the caption, the geotag and what the video shows or says), each added one at a time. For
+  owners only. Android offers the installed app in its share sheet. On iPhone, where Safari can't
   receive shares, a Shortcut does it, made once in the Shortcuts app:
-  1. New shortcut → in its details (ⓘ), turn on **Show in Share Sheet**, and
-     set it to receive **URLs** (and Text) from the share sheet.
+  1. New shortcut → in its details (ⓘ), turn on **Show in Share Sheet**, and set it to receive
+     **URLs** (and Text) from the share sheet.
   2. Add **URL Encode** on the Shortcut Input.
-  3. Add **Open URLs** with
-     `https://fog-and-frontier.vercel.app/share?url=` followed by the URL
+  3. Add **Open URLs** with `https://fog-and-frontier.vercel.app/share?url=` followed by the URL
      Encoded Text.
   4. Name it "Fog and Frontier". In Instagram, Share → More → Fog and Frontier.
 
-  It opens Safari, so sign in there once. Without the Shortcut, copy the
-  post's link and paste it at `/share`.
-
-- **Owner-gated editing** — add / edit / delete / mark-complete are gated to
-  owners, **enforced server-side** (the client gate is a UI hint only).
+  It opens Safari, so sign in there once. Without the Shortcut, copy the post's link and paste it
+  at `/share`.
 
 ## Screenshots
 
@@ -60,7 +45,7 @@ map, filter, and plan trips around.
 | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | ![Full map view with category glyph pins across the Bay Area](docs/screenshots/map.png) | ![Activity detail modal with AllTrails rating and completion badge](docs/screenshots/activity-detail.png) |
 
-**AI-assisted "Explore" — pick a date window and let Gemini find local events:**
+**AI-assisted "Explore": pick a date window and let Gemini find local events.**
 
 ![Explore — Gemini-powered event discovery by date window](docs/screenshots/explore.png)
 
@@ -68,237 +53,68 @@ map, filter, and plan trips around.
 | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | <img src="docs/screenshots/mobile-list.png" alt="Mobile list view" width="270"> | <img src="docs/screenshots/mobile-map.png" alt="Mobile map view" width="270"> |
 
-## Tech stack
+The screenshots retake themselves when a change to what they show merges.
 
-| Layer             | Technology                                                                                          |
-| ----------------- | --------------------------------------------------------------------------------------------------- |
-| **Front end**     | React 19, Vite 8, TypeScript, React Router 7, Tailwind CSS v4                                       |
-| **Maps**          | Leaflet + react-leaflet, CARTO Positron basemap                                                     |
-| **Data layer**    | Apollo Client 4, GraphQL, `graphql-codegen` (typed operations)                                      |
-| **API**           | Apollo Server 5 on Express 5, one Vercel serverless function                                        |
-| **Database**      | Turso / libSQL edge database (`@libsql/client`)                                                     |
-| **Auth**          | Better Auth: Google (with One Tap), Apple and passkeys, an HttpOnly session cookie, tables in Turso |
-| **AI**            | Google Gemini (event discovery, activity generation, trip ideas)                                    |
-| **Observability** | Sentry (`@sentry/react`) with source-map upload; structured serverless logging                      |
-| **Testing / CI**  | Vitest (unit), Playwright (visual regression), GitHub Actions                                       |
-| **Hosting**       | Vercel                                                                                              |
+## Technologies, and what each gives it
 
-## Engineering highlights
+- **React 19, TypeScript (strict) and Vite 8, with React Router 7 and Tailwind CSS 4:** a fast
+  single-page app with every value typed (type coverage at 100%, no `any`) and every style a
+  linted class from one set of tokens.
+- **Leaflet (react-leaflet)** with a CARTO Positron basemap: the maps, with one shared pin and
+  basemap treatment across the app.
+- **GraphQL: Apollo Server 5 on Express 5, in one Vercel function, and Apollo Client 4 with
+  `graphql-codegen`:** one schema-first API, typed end to end, inside Vercel Hobby's function cap
+  (eleven REST endpoints were consolidated behind it).
+- **Turso (libSQL):** the catalog, trips, reviews, suggestions and sessions, in one edge
+  database, with a local SQLite snapshot for development.
+- **Better Auth:** sign-in with Google (and One Tap), Apple and passkeys, as an HttpOnly session
+  cookie on the site's own origin, so nothing waits on a sign-in service before the first read.
+- **Google Gemini:** activity drafts, event discovery, trip ideas and reading shared Instagram
+  posts, grounded in Google Search, with a hike's AllTrails page found by an Agent Search app.
+- **Vercel Blob and Vercel's image CDN:** the owners' private photos, and cover photos resized
+  and cached per card.
+- **OpenRouteService:** road miles from home, under an hourly budget.
+- **Sentry:** browser errors and tracing, with query strings scrubbed from every captured URL and
+  hidden source maps uploaded at build time and removed from the public bundle; the API logs one
+  JSON line per failure, never a body or a key, for Vercel's observability.
+- **Vitest, React Testing Library, fast-check and StrykerJS:** unit, component and property tests
+  under an 80% per-file coverage gate, and mutation testing that checks the tests would fail if
+  the code changed.
+- **Playwright:** visual regression of the desktop pages in Chromium, Firefox and WebKit and the
+  mobile ones on an iPhone.
 
-A few things in here worth a closer look:
+## Architecture
 
-- **Schema-first GraphQL, one function.** Eleven REST endpoints were consolidated
-  behind a single Apollo Server handler (`api/graphql.ts`) to stay under Vercel
-  Hobby's 12-function cap — schema in `api/_schema.ts`, resolvers in
-  `api/_resolvers/*`, typed end-to-end via `graphql-codegen`.
-- **Auth you can't bypass from the client.** `requireOwnerCtx` (on the session cookie,
-  with `requireMemberCtx` / `requireCreatorCtx` for trips) gates every owner
-  mutation and paid AI call server-side; the one exception is a signed-in
-  account's suggestion and its capped Gemini draft (#73, `requireUserCtx`).
-  The client `useOwner()` hook only decides what to _render_.
-- **A production safety net born from an outage.** Earlier work shipped a bug that
-  404'd the API and blanked the CSS in prod. The response — a **smoke gate**
-  (canary checks against the real Vercel deployment, including detection of
-  Vercel's no-build cached stubs) and **Playwright visual-regression** on desktop
-  and mobile — is documented in [`PLAN.md`](./PLAN.md).
-- **A strict, type-checked lint setup with a no-suppressions rule.** ESLint runs
-  with type-aware rules, `jsx-a11y`, and import-cycle detection, and the project
-  forbids `eslint-disable` / `@ts-ignore` outright.
-- **Privacy-conscious observability.** Sentry runs with `sendDefaultPii: false`,
-  scrubs query strings from breadcrumbs and events, uploads hidden source maps to
-  de-minify stack traces, and deletes them from the public bundle at build time.
+- **`src/`, the app:** the pages (`src/pages/`), components (`src/components/`), hooks and pure
+  helpers (`src/lib/`), the Activity model (`src/data/`) and the generated GraphQL operations
+  (`src/gql/`).
+- **`api/`, the one function:** the GraphQL handler (`api/graphql.ts`), its schema and resolvers,
+  sign-in at `/api/auth/*`, and the server-side gates every write and paid call passes through.
+- **`shared/`:** the data both sides read (regions), since the app and the API never import each
+  other.
+- **`eval/`:** a golden-set harness that grades what Gemini actually returns.
+- **`scripts/`:** the smoke gate, database snapshot and seed helpers, the card-copy and region
+  generators, the link and Instagram audits, and the PR GIF and README screenshot recorders.
+- **`tests/visual/`:** the Playwright visual-regression specs and their baselines.
 
-## Getting started
+## Built to be trusted
 
-```sh
-npm ci                       # install exactly what package-lock.json pins
-npm run dev                  # Vite dev server on http://localhost:5173
-```
+- **Auth you can't bypass from the client.** Every owner write and paid AI call is gated on the
+  server; the client's owner check only decides what to render, and owner-only controls are
+  hidden rather than greyed out. A signed-in account's suggestion, and its Gemini draft under a
+  daily cap, is the one exception.
+- **A production safety net born from an outage.** A lint change once shipped a build that 404'd
+  the API and blanked the CSS in production. The response was a **smoke gate** (canary checks
+  against each real Vercel deployment, catching its no-build cached stubs; #10), a local snapshot
+  of production's data (#11) and **visual regression** on desktop and mobile (#12).
+- **No suppressions.** ESLint runs type-aware with `jsx-a11y` and import-cycle detection, and the
+  project forbids `eslint-disable` and `@ts-ignore` outright.
+- **Gemini's answers are measured.** A golden set of cases, each citing its source, grades the
+  drafts, the AllTrails lookups, event discovery and trip suggestions, mostly with deterministic
+  checks and a narrow search-grounded judge only for what a check can't assert; a run passes at
+  90%. The latest full run scored 100% (22/22 graded, 2026-10-14).
+- **Weekly sweeps**: every outbound link in the live catalog, the Instagram pages sharing reads,
+  unused code and duplication.
 
-`npm run dev` serves the UI on port 5173 and needs no secrets to boot. The client
-calls the GraphQL API at the relative path `/api/graphql`, so to develop against
-live data run `vercel dev` (which serves the serverless function) with a
-`.env.local` — see [`CONTRIBUTING.md`](./CONTRIBUTING.md). Outside a build Vercel
-makes, the app is in a public, signed-out mode (no sign-in; owner-only editing
-controls are hidden).
-
-Common scripts:
-
-```sh
-npm run lint         # ESLint + Stylelint
-npm run typecheck    # tsc -b (app + node + api + eval projects)
-npm run test         # Vitest unit tests
-npm run test:visual  # Playwright visual regression
-npm run eval         # Gemini output-quality eval (paid; needs GEMINI_API_KEY)
-npm run build        # lint → typecheck → vite build
-```
-
-For the full developer guide — architecture, the multi-tsconfig layout, the
-Sentry/observability wiring, CI details, and the lint policy — see
-[`CONTRIBUTING.md`](./CONTRIBUTING.md).
-
-## Output-quality evaluation (Gemini)
-
-The Gemini calls are the one part of the app whose output a type-checker can't
-vouch for — a well-formed response can still be wrong. `eval/` is a golden-set
-harness (issue #122) that grades what the model actually returns across the
-four AI surfaces:
-
-- **`generateActivity`** — turning a title into a structured activity record.
-- **`alltrailsLookup`** — pulling rating / distance / elevation for a trail.
-- **`discover`** — the "Explore" event search over a date window.
-- **`tripSuggestions`** — ranking catalog activities for a new trip's request
-  (#78), graded over a fixed catalog: the picks must include a clear fit and
-  nothing that breaks a hard constraint like "dogs" or "indoors".
-
-Most of the grading is **mechanical and deterministic**: schema and enum
-legality, expected-enum membership (category / region / park type / duration),
-coordinate tolerance against a cited source, and the right graceful-failure
-codes on adversarial input. On top of that sits a **narrow, search-grounded
-LLM judge** used _only_ for the things a check can't assert — the plausibility of a
-generated description or a discovered event. Nothing else is judged by a model.
-
-**Model and generation settings.** The resolvers call `gemini-3.8-flash` with
-Google Search and URL context turned on, so they look facts up and read the
-links they're given rather than answer from memory, and a JSON schema still
-shapes every reply. Trip suggestions are the exception: they only choose from
-the catalog they're given, so they search nothing. Issue #122 asked for temperature-0 eval calls; the harness
-deliberately deviates and exercises the production resolvers at their
-production settings — Gemini 3.8 Flash ignores temperature, and the search
-results are live — so it measures what actually ships, not a determinized
-variant of it. The trade-off is that individual case results rotate
-run-to-run (typically ~1 case flips between otherwise-identical runs) while
-the overall score stays in band, so compare runs by score, not by which case
-failed. The judge runs on `gemini-3.8-flash` with Google Search too, so it
-checks a specific the way the resolver found it rather than from memory.
-
-**How to run:**
-
-```sh
-vercel env pull .env.local   # provides GEMINI_API_KEY
-npm run eval                          # every case, judged
-npm run eval -- --hikes --no-judge    # the 7 hikes graded on their AllTrails link, unjudged
-npm run eval -- --parks --no-judge    # the 8 drafts graded on their park (or none), unjudged
-npm run eval -- --feature generateActivity --no-judge   # every draft, unjudged
-```
-
-`--no-judge` leaves out the judge calls, about 40% of a full run's cost,
-for a change that can't affect the descriptions they grade (a judge is a
-second grounded call per case). Run with them when Gemini's prompt or model
-changes. Each run ends with its **usage**: drafts, the Google and AllTrails
-searches they ran, judge calls, the drafts' tokens, where a draft's time went (Gemini's
-answer, then its cover, trail and park), and roughly what its searches cost
-past Google's free ones.
-
-A full run has 26 cases, 22 of them paid Gemini calls (`gemini-3.8-flash`,
-most with a few Google searches), plus up to 19 judge calls (also grounded
-`gemini-3.8-flash`); judges are skipped once a mechanical check has already
-failed a case. Each Google search is billed on its own, at about $14 per
-1,000 past the month's first 5,000, and each AllTrails search at about $4
-per 1,000, so a full run costs about $2, `--no-judge` about $1 and
-`--hikes --no-judge` well under that: the usage lines say what a run spent.
-It is **not** part of `npm test`: it's opt-in because it costs money and hits
-the network.
-
-Cases run **four at a time** (`EVAL_CONCURRENCY` or `--concurrency` sets
-another number; `1` runs them one after another), since each one waits
-mostly on Gemini. Each event line a case logs prints after its case's id
-(`[gen-big-basin] {"event":"draft.trail_search",…}`), and is graded with
-that case alone.
-
-**Threshold semantics.** A run passes at **90%** by default, overridable with
-`EVAL_THRESHOLD` or `--threshold` — both take a fraction (e.g. `0.85`), not a
-percentage. Infrastructure errors (transport failures, a
-judge that dies after retry, per-case timeouts) are **excluded from the
-denominator** so flaky infra can't fail the quality gate — but if they collapse
-too much of the set, the run is reported **inconclusive** and exits non-zero
-below an **80% graded floor**.
-
-**CI.** `.github/workflows/eval.yml` runs only when asked: from the
-Actions tab's **Run workflow** button, on the branch to grade, choosing
-`hikes` or `parks` (the cheapest, unjudged), `drafts` (every draft, unjudged) or
-`full` (every case, judged). It used to run on its own, on pushes to ready
-PRs that touched the AI code, and that ran into the project's monthly
-spend cap more than once while one PR was worked on. Grade a PR once, when its AI changes are settled, and only as
-much as the change can affect; a change that can't reach Gemini's answers
-(the form, say) needs no run at all. There's no schedule (the calls are
-paid), and it **skips green** when `GEMINI_API_KEY` is absent
-(forks, or the secret unset), so it never blocks contributors who can't make the
-calls. Hikes are searched for on AllTrails only when the
-`AGENT_SEARCH_API_KEY` secret is set too.
-
-**Golden set status.** The golden set was **reviewed on 2026-10-25** (#280):
-each case was checked against the source its notes cite, and corrected where
-it had drifted (two pins, a city and a region that accepted too much, stale
-fees and stats, and a nonsense title one letter from a real place). Each case
-cites the provenance of its expected coordinates/data and an as-of date;
-review it again when a case's place changes.
-
-**Known limitations.** The plausibility judge is Gemini grading Gemini (both
-3.8 Flash). Its rubric was calibrated during owner review (2026-07-10) after
-three consecutive runs each failed a _different_ true-but-unlisted fact (Big
-Basin's reservation system, Duarte's cioppino/1930s restaurant era, Castle
-Rock's world-class climbing reputation): the judge passes widely-documented
-famous attributes even when a case's notes omit them and fails anything
-false/contradictory. Since 2026-10-14 it searches before it fails a specific
-and fails only what search contradicts or can't support, so a true obscure
-detail the grounded resolver found no longer fails as "unverifiable" (see
-`eval/judge.ts`). Scores graded before then, by a 2.5 Flash judge without
-search, aren't directly comparable. One case is marked `xfail` (expected
-failure) to document that the response schema forces the model to fabricate a
-record on pure-nonsense input rather than decline.
-
-**Current score: 100%** (22/22 graded, before the two trip-suggestion cases were added; threshold 90%) on search-grounded
-`gemini-3.8-flash`, graded by the search-grounded judge, 2026-10-14 (eval
-workflow run 38511460561). Before the judge could search, the same resolvers
-scored 95.5% (run 38501577212). The one difference is `gen-duartes-tavern`:
-the memory-only judge failed true, documented details of the place (the
-half-and-half artichoke-and-green-chile soup, the knotty-pine room, weekend
-cioppino) as unverifiable, and the searching judge confirms them. A perfect
-score from a more capable grader is worth watching rather than celebrating:
-`gen-nonsense` still fabricates a record (counted via its `xfail`), and if the
-judge ever passes a description a person would call wrong, the search-backed
-rubric has become too lenient.
-
-The first grounded run (90.9%, run 38489973906) also failed `gen-muir-woods`
-on a **real model error**: its description put Bohemian Grove, a private club
-in Sonoma County, inside Muir Woods. The prompt now lets a description name a
-place or thing inside the activity only when a source the model found names
-it there, and that case passed on the next run.
-
-Because the resolvers are evaluated at their production settings (see above),
-_which_ case fails rotates run-to-run — the ≥90% threshold is the contract,
-not any single case's verdict. The last 2.5 Flash score was 95.5% (21/22, run
-29061551986, 2026-07-10). Findings from the 2.5 runs, reported as-is per issue
-#122 ("failures are real signal"):
-
-- On that run, `disc-week` failed `judge:events` (7/11 plausible) —
-  a **judge bug, not a model finding**: lacking today's date, the judge graded
-  events named "2026" as contradicting their own dates. Fixed since: the
-  events judge now gets a "Today is <date>" preamble and each event's ISO
-  `startDate`.
-- Other runs have surfaced **genuine model findings** — e.g. `gen-muir-woods`
-  failing `judge:descriptions` after the generated description called the
-  trees "thousands of years old," when Muir Woods' oldest redwoods are ~1,200
-  years (NPS). Left standing deliberately; enriching the case can't and
-  shouldn't fix a model exaggeration.
-- `gen-nonsense` fails as predicted on every run (counted via its `xfail`
-  annotation): the response schema offers no refusal affordance, so the model
-  fabricates a record for garbage input. Candidate follow-up: a
-  refusal/uncertainty field in `ACTIVITY_SCHEMA`.
-
-## Project structure
-
-```
-src/            React app — pages/, components/, lib/ (hooks + data layer), gql/ (generated)
-api/            Apollo GraphQL serverless function — _schema.ts, _resolvers/*, _auth.ts, _db.ts
-scripts/        DB snapshot / seed / migration helpers, CI smoke script
-tests/visual/   Playwright visual-regression specs + baselines
-docs/           Screenshots
-```
-
-## About
-
-A personal project built and maintained with a
-[Claude Code](https://claude.com/claude-code) workflow — see
-[`CLAUDE.md`](./CLAUDE.md) for the working conventions.
+Working on it: [`CONTRIBUTING.md`](CONTRIBUTING.md). Built and maintained with a
+[Claude Code](https://claude.com/claude-code) workflow.
