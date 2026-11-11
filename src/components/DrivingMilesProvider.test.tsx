@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MockedProvider } from '@apollo/client/testing/react';
 import type { MockedResponse } from '@apollo/client/testing';
 import userEvent from '@testing-library/user-event';
@@ -61,7 +61,10 @@ describe('DrivingMilesProvider', () => {
       </MockedProvider>,
     );
     await screen.findByText('71 mi');
-    await userEvent.click(screen.getByRole('button', { name: 'share location' }));
+    // fireEvent, not userEvent: userEvent awaits between pointer events, which
+    // lets the mocked reply land before the estimate is checked. A synchronous
+    // click leaves no gap for it, so the estimate is always what shows first.
+    fireEvent.click(screen.getByRole('button', { name: 'share location' }));
     // The home origin's road miles never stand in for the visitor's.
     expect(screen.getByText('≈12 mi')).toBeInTheDocument();
     expect(await screen.findByText('19 mi')).toBeInTheDocument();
