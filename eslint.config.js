@@ -62,6 +62,17 @@ export default defineConfig([
     },
   },
 
+  // type-coverage counts every `any` (npm run typecov, at 100%), and its
+  // ignore comments would hide one where no review sees it; type the value
+  // where it enters instead. Its ignored files are only generated code, each
+  // named with its reason in package.json's "//typeCoverage".
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      'no-warning-comments': ['error', { terms: ['type-coverage:ignore'], location: 'anywhere' }],
+    },
+  },
+
   // App code (browser + tests). Type-aware via tsconfig.app.json.
   // Tailwind v4 class linting via eslint-plugin-better-tailwindcss (the v4
   // successor of eslint-plugin-tailwindcss; Phase C of Issue #1). Correctness:
