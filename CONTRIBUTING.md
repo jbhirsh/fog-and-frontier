@@ -1,248 +1,212 @@
-# Contributing / Developer notes
+# Contributing
 
-Deep implementation notes for working in this repo. For the project overview and
-screenshots, see [`README.md`](./README.md). For AI-assistant working
-conventions, see [`CLAUDE.md`](./CLAUDE.md).
+## Setup
 
-## Local development
+Node 24, as CI uses (`.nvmrc`).
 
 ```sh
-npm ci                       # install exactly what package-lock.json pins
-npm run dev                  # Vite, port 5173 by default
+git clone https://github.com/jbhirsh/fog-and-frontier.git
+cd fog-and-frontier
+npm ci                              # exactly what package-lock.json pins; points core.hooksPath at .githooks/
+cp .env.local.example .env.local    # fill in what you need; never commit it
+npm run dev                         # Vite on http://localhost:5173
 ```
 
-The UI boots without any secrets: outside a build Vercel makes (`vercel dev`,
-a preview, production), `src/lib/authShim.ts` offers no sign-in (every visitor
-is signed-out; owner-gated controls are hidden).
+`npm run dev` needs no secrets. Outside a build Vercel makes (production, a preview, `vercel dev`)
+the app is signed out with no sign-in offered (`src/lib/authShim.ts`), so owner controls are
+hidden. The client calls the API at `/api/graphql`, which plain Vite doesn't serve: for data, run
+`vercel dev`, which serves the function, with `.env.local` (`vercel env pull .env.local` brings
+the project's variables down). Set `DEV_DB_PATH` to a local SQLite snapshot
+(`npm run db:snapshot`) to read a file instead of Turso.
 
-The Apollo client calls the API at the relative path `/api/graphql`, and plain
-`vite` doesn't serve it. For local data, run `vercel dev` (which serves the
-serverless function) — or point `DEV_DB_PATH` at a local SQLite snapshot (see
-`scripts/snapshot-prod-db.mjs`) so the function reads from a file instead of
-Turso. Copy `.env.local.example` to `.env.local` and fill in the keys you need.
+`.env.local.example` lists every variable, with what each does and which environment holds it.
+Sentry's are set in Vercel:
 
-## Lint, type-check, build, test
+| Variable                     | Where                         | Purpose                                                                                                                       |
+| ---------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SENTRY_DSN`            | Vercel (all environments)     | Turns on browser Sentry; leave it out locally                                                                                 |
+| `SENTRY_AUTH_TOKEN`          | Vercel (build, all)           | Lets `@sentry/vite-plugin` upload the hidden source maps (scope `project:releases`, from Sentry → Settings → Auth Tokens)     |
+| `VITE_VERCEL_ENV`            | injected from `VERCEL_ENV`    | Sentry's environment tag; on a deployment it also turns on sign-in and the image CDN for covers (`vite.config.ts`'s `define`) |
+| `VITE_VERCEL_GIT_COMMIT_SHA` | injected from the build's SHA | Sentry's release, so stack frames map to the source                                                                           |
 
-| Command               | What it does                                                             |
-| --------------------- | ------------------------------------------------------------------------ |
-| `npm run lint`        | `eslint .` + `stylelint src/**/*.css` (CI gate)                          |
-| `npm run lint:js`     | ESLint only                                                              |
-| `npm run lint:css`    | Stylelint only                                                           |
-| `npm run lint:fix`    | Auto-fixers for both (review the CSS diff before committing — see below) |
-| `npm run typecheck`   | `tsc -b` across the `app`, `node`, `api`, and `eval` projects            |
-| `npm run codegen`     | `graphql-codegen` → typed operations in `src/gql/`                       |
-| `npm run build`       | `lint` → `tsc -b` → `vite build`                                         |
-| `npm run test`        | Vitest unit tests                                                        |
-| `npm run test:visual` | Playwright visual regression against a `--mode test` `vite preview`      |
+## Commands
 
-### Lint policy — no rule suppressions
+| Command                                                      | What it does                                                                                              |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `npm run dev` / `npm run preview`                            | the Vite dev server / the production build, served locally                                                |
+| `npm run build`                                              | lint, `tsc -b`, then `vite build`                                                                         |
+| `npm run typecheck` / `npm run typecov`                      | `tsc -b` over every project (`tsconfig.json` lists them) / type coverage at 100% over the app and the API |
+| `npm run lint` / `npm run lint:fix`                          | ESLint and Stylelint / their fixes (check the CSS diff: below)                                            |
+| `npm run format` / `npm run format:check`                    | Prettier over the whole repo                                                                              |
+| `npm run depcruise`                                          | the import layering rules (`.dependency-cruiser.cjs`)                                                     |
+| `npm run codegen`                                            | typed GraphQL operations into `src/gql/` from `api/_schema.ts`                                            |
+| `npm test` / `npm run test:watch` / `npm run test:coverage`  | Vitest; only `test:coverage` applies the 80% per-file gate CI runs                                        |
+| `npm run test:mutation`                                      | StrykerJS over the files coverage measures (`stryker.config.json`)                                        |
+| `npm run test:visual` / `npm run test:visual:update`         | Playwright visual regression against a `--mode test` build (baselines come from CI: below)                |
+| `npx knip` / `npx jscpd`                                     | the weekly audit's unused-code and duplication checks, expected to report nothing                         |
+| `npm run eval`                                               | the Gemini eval (paid; below)                                                                             |
+| `npm run gif -- <scenario.ts> --dir <PR>`                    | a PR's before/after GIFs, recorded by jbhirsh/ci's `gif` tool (`scripts/gif.mjs`; needs ffmpeg)           |
+| `npm run db:snapshot` / `npm run db:seed-preview`            | production's Turso into `dev-db.sqlite` / the preview database seeded from production                     |
+| `npm run cards -- draft` / `save` (`cards -- dogs draft`...) | card copy (#295) and dog rules (#296) for places saved without them, through a review file                |
+| `npm run regions:gen`                                        | `shared/isoRegions.ts` from ISO 3166 (needs Debian's `iso-codes`)                                         |
+| `npm run links:check` / `npm run instagram:check`            | every outbound link in the live catalog (#68) / Instagram's pages as sharing reads them (#6); both weekly |
 
-ESLint runs type-checked (`tseslint.configs.recommendedTypeChecked`) with
-`jsx-a11y`, `import-x/no-cycle`, `no-floating-promises`, and `no-misused-promises`
-enabled. **Per project policy there are no rule suppressions** — no
-`eslint-disable`, no `@ts-ignore`/`@ts-expect-error`, and no downgrading a rule in
-config to make a violation pass. Fix the underlying code instead.
+The git hooks run Prettier on the staged files, ESLint, Stylelint, the layering rules and
+`tsc -b` on commit, and the tests under the coverage gate plus the build on push; both do
+nothing when `$CI` is set.
 
-### Four TypeScript projects
+**Don't run `lint:fix` on the CSS blind.** `src/index.css` uses Tailwind 4's `@theme`, `@utility`
+and `@layer`, so Stylelint has only `stylelint-config-recommended`'s structural rules: an earlier
+`--fix` over that file shipped broken CSS to production (#1). Read the CSS diff, and let the visual
+tests check the built CSS.
 
-`tsc -b` builds four referenced projects (`tsconfig.json` is the solution file)
-so the type-aware ESLint rules get correct lib/DOM types per surface:
+## Tests
 
-- `tsconfig.app.json` — `src/**/*.{ts,tsx}` (DOM + Vitest globals)
-- `tsconfig.api.json` — `api/**/*.ts` (Node, no DOM; `strict`)
-- `tsconfig.node.json` — `vite.config.ts` and tooling
-- `tsconfig.eval.json` — `eval/**/*.ts` (Node; the Gemini output-quality harness)
+- **Unit tests** sit beside their source (`*.test.ts(x)`, property tests in
+  `*.property.test.ts`), run by Vitest in jsdom with React Testing Library.
+- **Coverage** measures `src/` and `api/` at 80% per file, apart from entry points, generated
+  code and a backlog of files that predate the gate (`vite.config.ts`), which may only shrink:
+  `src/test/coverageBacklog.test.ts` pins it.
+- **Mutation testing** (`mutation.yml`) mutates the lines a PR changed in the files coverage
+  measures, and a monthly sweep (`mutation-sweep.yml`) covers everything.
+- **Visual regression** (`npm run test:visual`, `playwright.config.ts` says what it runs) compares
+  against Linux baselines that only CI writes: run **Update visual baselines**
+  (`visual-baselines.yml`) by hand on the branch, which commits them there, then push again so the
+  checks run on them.
 
-> Gotcha: a Vercel build can fail with `TS2550: Property 'cause' does not exist on
-type 'Error'` even when a clean local `tsc -b` passes, because Vercel builds from
-> a cache-free install. `tsconfig.api.json` therefore pins `"lib": ["ES2022",
-"ES2023"]` explicitly. Don't trust a green local typecheck as proof Vercel will
-> build.
+### The Gemini eval
 
-### CSS caveat — don't blindly `--fix`
+The Gemini calls are the one part of the app whose output a type-checker can't vouch for: a
+well-formed response can still be wrong. `eval/` is a golden-set harness (#122) that grades what
+the model returns across four surfaces:
 
-`src/index.css` uses Tailwind v4's `@theme` / `@utility` / `@layer` directives.
-Stylelint is intentionally configured with only `stylelint-config-recommended`
-(structural rules), not the stylistic `--standard` preset, because a prior
-auto-fix pass on this file produced broken output in production (see `PLAN.md`).
-If you run `lint:fix`, eyeball the CSS diff and let the visual-regression suite
-verify the built CSS in `dist/assets/*.css` before merging.
+- **`generateActivity`**: a title turned into a structured activity record.
+- **`alltrailsLookup`**: a trail's rating, distance and elevation.
+- **`discover`**: Explore's event search over a date window.
+- **`tripSuggestions`**: catalog activities ranked for a new trip's request (#78), over a fixed
+  catalog: the picks must include a clear fit and nothing that breaks a hard constraint like
+  "dogs" or "indoors".
 
-## Architecture notes
+Most grading is mechanical: schema and enum legality, expected categories, regions, park types
+and durations, coordinates within tolerance of a cited source, and the right failure codes on
+adversarial input. A narrow, search-grounded LLM judge grades only what a check can't: whether a
+generated description or a discovered event is plausible.
 
-### GraphQL: one serverless function (issue #91)
+**Settings.** The resolvers call `gemini-3.8-flash` with Google Search and URL context, so they
+look facts up and read the links they're given, with a JSON schema shaping every reply; trip
+suggestions only choose from the catalog, so they search nothing. #122 asked for temperature-0
+calls; the harness instead runs the production resolvers at their production settings (Gemini 3.8
+Flash ignores temperature, and search results are live), so it measures what ships. Individual
+cases rotate run to run (typically about one flips) while the score stays in band: compare runs by
+score, not by which case failed. The judge also runs on `gemini-3.8-flash` with Google Search.
 
-Every former REST endpoint now lives behind a single Apollo Server handler at
-`api/graphql.ts`, permanently clearing Vercel Hobby's 12-function cap. It runs
-Apollo Server 5 on Express 5 (`@as-integrations/express5`); the schema (SDL) is
-`api/_schema.ts` and resolvers live in `api/_resolvers/*`. The client uses Apollo
-Client 4 with `graphql-codegen`'s client-preset (`src/gql/`, a generated
-artifact excluded from the strict app typecheck roots).
+**Running it:**
 
-- API handlers use Node-style `(req, res)` signatures (`@vercel/node`). Web-API
-  style hangs in `vercel dev`. `graphql.ts` exports the bare Express app so
-  `@vercel/node` detects `.listen` and skips its own body parser.
-- libsql row values are typed as `InValue` (a union including binary/Date). When
-  reading the `id` column, narrow with `typeof === 'string' | 'number' |
-'bigint'` before stringifying — don't `String(row.id)`, which can drop rows or
-  stringify Buffers to `"[object ArrayBuffer]"`. (This exact bug once shipped to
-  prod — see `PLAN.md`.)
+```sh
+vercel env pull .env.local                             # provides GEMINI_API_KEY
+npm run eval                                           # every case, judged
+npm run eval -- --hikes --no-judge                     # the 7 hikes, graded on their AllTrails link
+npm run eval -- --parks --no-judge                     # the 8 drafts graded on their park (or none)
+npm run eval -- --feature generateActivity --no-judge  # every draft, unjudged
+```
 
-### Auth model
+`--no-judge` drops the judge calls, about 40% of a full run's cost, for a change that can't affect
+the descriptions they grade; run with them when the prompt or model changes. Each run ends with its
+usage: drafts, the Google and AllTrails searches they ran, judge calls, tokens, where a draft's
+time went, and roughly what its searches cost past Google's free ones. A full run has 26 cases, 22
+of them paid Gemini calls, plus up to 19 judge calls (skipped once a mechanical check has failed a
+case). A Google search costs about $14 per 1,000 past the month's first 5,000 and an AllTrails
+search about $4 per 1,000, so a full run costs about $2, `--no-judge` about $1 and
+`--hikes --no-judge` well under that. It isn't part of `npm test`: it costs money and uses the
+network.
 
-- **Server is the real gate.** `requireOwnerCtx` in `api/_gqlContext.ts`
-  (on Better Auth's session cookie) enforces owner-only writes and paid calls (e.g. Gemini,
-  apart from the capped drafts non-owners get for suggestions, #73);
-  `requireMemberCtx` / `requireCreatorCtx` gate trip-scoped actions, and
-  `requireUserCtx` admits any signed-in account where something else
-  authorizes the write (`claimInvite`: the invite token), and for
-  suggestions and their capped Gemini drafts (#73).
-- Client-side, `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner
-  emails come from `VITE_OWNER_EMAILS`; keep it in sync with the server's
-  `OWNER_EMAILS`.
-- **Role-gated UI convention (issue #67):** owner-guarded _mutating_ controls are
-  **hidden** from non-owners, not disabled/greyed. The full convention (and the
-  exceptions — sign-in-gated and trip-creator-gated controls) is documented in
-  [`CLAUDE.md`](./CLAUDE.md).
+Cases run four at a time (`EVAL_CONCURRENCY` or `--concurrency`; `1` runs them in turn). Each
+event line a case logs prints after its case's id, and is graded with that case alone.
 
-### Production error monitoring (issue #20)
+**Thresholds.** A run passes at 90% (`EVAL_THRESHOLD` or `--threshold`, as a fraction such as
+`0.85`). Infrastructure errors (transport failures, a judge that dies after its retry, per-case
+timeouts) leave the denominator, so flaky infrastructure can't fail the gate; but if they take too
+much of the set, the run is inconclusive and fails below an 80% graded floor.
 
-Two layers, both off-by-default for local dev:
+**CI.** `eval.yml` runs only by hand (Run workflow, on the branch to grade): `hikes` or `parks`
+(the cheapest, unjudged), `drafts` (every draft, unjudged) or `full`. It once ran on pushes to
+ready PRs touching the AI code, which hit the project's monthly spend cap more than once on one PR.
+Grade a PR once its AI changes are settled, and only as much as the change can affect; a change
+that can't reach Gemini's answers needs no run. It has no schedule, skips green without
+`GEMINI_API_KEY`, and searches AllTrails only with `AGENT_SEARCH_API_KEY` set too.
 
-- **Serverless** — `api/_log.ts` emits a single-line JSON entry to stderr
-  (`{ level, source, ts, route, method, status, err }`) for unhandled throws and
-  non-user GraphQL errors, so Vercel Observability can filter by route/status.
-  Request bodies and the `Authorization` header are never logged; the Gemini API
-  key only lives in outgoing URLs, which are not logged.
-- **Client** — `src/lib/sentry.ts` initializes `@sentry/react` when
-  `VITE_SENTRY_DSN` is present. `Sentry.ErrorBoundary` wraps the React tree in
-  `src/main.tsx`. URL query strings are stripped from breadcrumbs and the event
-  request URL as defense-in-depth (`scrubBreadcrumb` / `scrubEvent`).
-  `sendDefaultPii: false` — no IP, no cookies, no user emails.
-- **Tracing** — `Sentry.reactRouterV7BrowserTracingIntegration` captures
-  page-load + route-change transactions; `App.tsx` wraps `Routes` with
-  `Sentry.withSentryReactRouterV7Routing` so spans use parameterised path names
-  (e.g. `/explore`). Sample rate is 10% in production (free-tier quota), 100% in
-  preview/dev.
+The golden set's review history, the judge's calibration and past scores are in the headers of
+`eval/run-eval.ts` and `eval/judge.ts`.
 
-#### Source-map upload (de-minified stack traces)
+## Required checks
 
-`vite.config.ts` registers `sentryVitePlugin` whenever `SENTRY_AUTH_TOKEN` is
-set:
+`main` takes a PR only once these pass:
 
-1. Vite emits hidden source maps (`build.sourcemap: 'hidden'`) — no
-   `//# sourceMappingURL` comment, so browsers never fetch the maps.
-2. The Sentry plugin uploads the `.map` files, tagged with the release (the
-   Vercel commit SHA).
-3. `filesToDeleteAfterUpload` removes the `.map` files from `dist/` before Vercel
-   publishes — maps live on Sentry only, not the public CDN.
+| Check (workflow)                                       | What it runs                                                                                                                                                                                                               |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test` (`ci.yml`)                                      | commit messages, autofix triggers, pins, lint, Prettier, layering, type-check, type coverage, codegen drift, unit tests with coverage, build, bundle budget, `npm audit --omit=dev` (high and up)                          |
+| `Claude Review` (`claude-review.yml`)                  | jbhirsh/ci's AI review; this repo's guide is `.github/claude-review.md`                                                                                                                                                    |
+| `Mutation Tests (Stryker)` (`mutation.yml`)            | mutation testing of the lines a PR changed                                                                                                                                                                                 |
+| `visual` (`visual.yml`)                                | Playwright visual regression                                                                                                                                                                                               |
+| `smoke` (`smoke.yml`)                                  | canary checks against the PR's Vercel preview (real data from `/api/graphql`, an anonymous trips query refused, the HTML linking built CSS), catching Vercel's no-build cached stubs; again against production after merge |
+| `Secret scan` (`gitleaks.yml`), `Scan` (`semgrep.yml`) | secrets and static analysis                                                                                                                                                                                                |
+| `Vercel`                                               | the preview deploy                                                                                                                                                                                                         |
 
-Create the auth token at _Sentry → Settings → Auth Tokens_ with scope
-`project:releases`.
+The ruleset also asks for a linear history, resolved review threads, CodeQL with no high alerts
+and 80% coverage on GitHub's code coverage rule (the `test` job uploads its report). **PR visuals**
+(`pr-visuals.yml`) fails a UI change with no pictures in its description, and its message says how
+to record them; it isn't a required check.
 
-#### GitHub ↔ Sentry source linking (one-time)
+## Deployment
 
-1. _Sentry → Settings → Integrations → GitHub_ — install the app on this repo.
-2. _Sentry GitHub integration → Configurations → Code Mappings_ — add the project,
-   branch `main`, source root `./`. Stack-trace root is typically `~/` for Vite
-   browser builds. Once mapped, issue frames link to source on GitHub and the
-   Sentry bot comments on PRs touching code with open issues.
+Vercel (`vercel.json`): the SPA from `dist/`, every non-API route falling back to `index.html`,
+`/api/auth/*` rewritten to the one function, and the image CDN's sizes and allowed photo hosts.
+Every PR gets a preview, reading the preview Turso database (seed it from production with
+`npm run db:seed-preview` after rotating its credentials or adding activities the smoke gate
+needs), and `main` deploys to production. Production builds upload hidden source maps to Sentry
+and delete them from `dist/` before Vercel publishes.
 
-#### Alerts / weekly digest
+## Dependency updates
 
-- **Vercel** — _Project → Observability → Alerts_ to email on 5xx-rate spikes
-  from `/api/*`.
-- **Sentry** — _Project Settings → Alerts → Issue Owners_ + the default weekly
-  digest.
+Dependabot (`.github/dependabot.yml`, whose header says why) opens one grouped PR per ecosystem
+each Monday at 06:00 UTC, majors included, and a security group as soon as an alert fires.
 
-### Sentry env vars
+- **npm PRs merge themselves**: `claude-autofix.yml` turns on auto-merge once the first check
+  completes, GitHub merges once every required check is green and every thread resolved, and a
+  red check is handed to autofix on the PR's branch. Nothing to do unless one stays open.
+- **GitHub Actions PRs are merged by hand**, since the Actions token can't merge a change to
+  `.github/workflows/`: skim a major's release notes, check CI, merge.
 
-| Var                          | Where                           | Purpose                                                                                                                                                                  |
-| ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `VITE_SENTRY_DSN`            | Vercel (all envs)               | Enables browser Sentry. Omit to disable (local dev).                                                                                                                     |
-| `SENTRY_AUTH_TOKEN`          | Vercel (build env, all)         | Lets `@sentry/vite-plugin` upload source maps (`project:releases`).                                                                                                      |
-| `VITE_VERCEL_ENV`            | Vite-injected from `VERCEL_ENV` | Sentry environment tag; on a deployment (`production` or `preview`), also turns on the image CDN for covers (`src/lib/imageCdn.ts`). Wired in `vite.config.ts` `define`. |
-| `VITE_VERCEL_GIT_COMMIT_SHA` | Vite-injected from build env    | Tagged as the Sentry release so frames symbolicate correctly.                                                                                                            |
+When a grouped npm PR is stuck, read the failing check: usually one package's major. If that major
+waits on another package's peer range, give it a `blocked-<package>` group in `dependabot.yml`
+naming what it waits on; it gets a PR of its own, red until that package catches up, and merges
+itself once green. If it needs code changes, upgrade it in its own PR. The blocked groups today are
+`blocked-graphql` (until Apollo Server takes graphql 17) and `blocked-typescript` (until
+typescript-eslint and type-coverage take TypeScript 7); their red PRs aren't stuck.
 
-## CI
+## One-time setup
 
-Among the GitHub Actions workflows that guard `main` (all live at the repo root —
-Actions only reads `.github/workflows/` there):
-
-- **Smoke gate** (`.github/workflows/smoke.yml`) — waits for the Vercel
-  deployment matching the head SHA, then runs `scripts/smoke.mjs` canary checks
-  (`/api/graphql` returns real data, an anonymous trips query is refused with
-  `UNAUTHENTICATED`, the HTML links a built CSS asset). It
-  detects and retries Vercel's occasional no-build cached-stub deployments and
-  fails with an actionable message. Re-runs against prod after merge.
-- **Visual regression** (`.github/workflows/visual.yml`) — Playwright
-  `toHaveScreenshot()` on desktop (1280×800) and mobile (390×844). Baselines
-  live under `tests/visual/**/*-snapshots/` and are only regenerated by
-  running `.github/workflows/visual-baselines.yml` by hand on the branch —
-  never by a pull request's own run.
-- **PR visuals** (`.github/workflows/pr-visuals.yml`) — fails a PR that
-  changes a component or stylesheet when its description has no image, GIF or
-  video and "No visible UI change" isn't ticked. It re-runs on description
-  edits. Pictures show the app as production does (real catalog, photos,
-  fonts and map), never the visual tests' blank fixtures. For a GIF, write a
-  scenario (the mouse and keyboard steps; see `scripts/gif-scenarios/` and
-  the rules in jbhirsh/ci's `gif/moves.mjs`) and run
-  `npm run gif -- scripts/gif-scenarios/<flow>.ts --dir <PR number>`. It
-  records local production builds of `main` and the branch, reading
-  production's data and photos, with the pointer and keys drawn in, at real
-  speed (`--side-by-side` adds a joined GIF), commits them and prints the
-  Before/After table. Owner-only screens work the same way, signed in
-  through the test flags. It needs ffmpeg. Commit images to the one `screenshots` branch, in a
-  folder named for the PR (`<number>/`); its tree carries a `vercel.json` with
-  deploys off. Link them by their `raw.githubusercontent.com` URL at that
-  commit's SHA.
-
-### Dependency updates (Dependabot)
-
-`.github/dependabot.yml` runs a weekly sweep (Monday 06:00 UTC) for npm and
-GitHub Actions. Each ecosystem opens **one grouped PR** with every available
-bump, majors included, plus a separate security group that opens as soon as an
-alert fires. The header comment in that file explains the trade-off.
-
-What happens to each PR:
-
-- **npm PRs merge themselves.** `claude-autofix.yml` turns on auto-merge once
-  the PR's first check completes, and GitHub merges only when every required
-  check on `main` is green and every review thread is resolved. If a check goes red, `claude-autofix.yml` tries
-  to fix it on the PR branch. Nothing for you to do unless a PR stays open.
-- **GitHub Actions PRs are merged by hand.** The Actions token can't merge a PR
-  that edits `.github/workflows/`. Skim the release notes of any major, check
-  CI is green, and merge.
-
-When a grouped npm PR is stuck (red after autofix, or an unresolved review
-thread):
-
-1. Read the failing check. A peer-dependency conflict or a changed API is
-   usually one package's major.
-2. If that major waits on another package (a peer range that doesn't take it
-   yet), give it a `blocked-<package>` group in `dependabot.yml`, with a
-   comment naming what it waits on. It then gets a PR of its own, red until
-   that package catches up, and merges itself once green. If it needs real code
-   changes instead, do the upgrade in its own PR.
-3. Never fix a peer conflict with `legacy-peer-deps`; see the overrides note in
-   `CLAUDE.md`.
-
-The blocked groups today are `blocked-graphql` (until Apollo Server accepts
-graphql 17) and `blocked-typescript` (until typescript-eslint and
-type-coverage take TypeScript 7). Their PRs staying red is expected; they
-aren't stuck.
-
-## Product context lives in GitHub issues
-
-Issues carry the full rationale — scope decisions, cross-feature coordination,
-acceptance criteria — and reference each other (e.g. "coordinates with #16",
-"supersedes #7"). Check `gh issue list` / `gh issue view <n>` before designing a
-feature; the codebase alone won't tell you _why_ something was built a certain
-way. `PLAN.md` captures a multi-issue production-safety-net effort (#10–#12).
-
-## Commit / PR conventions
-
-- Conventional-commit style subjects (`feat(map): …`, `fix(trips): …`).
-- Squash noisy commits (fixups, reverts, "address review") into clean, atomic
-  commits before opening a PR.
-- No rule suppressions (see above) — this is a hard project rule.
+- **Actions secrets:** `CLAUDE_CODE_OAUTH_TOKEN` (Claude Review and autofix), `GEMINI_API_KEY`
+  and `AGENT_SEARCH_API_KEY` (the eval), `VERCEL_AUTOMATION_BYPASS_SECRET` (lets the smoke gate
+  through Vercel Authentication on previews), `VERCEL_TOKEN` (optional: the smoke gate inspects a
+  failed deployment with it), and `BOT_PR_TOKEN`, a fine-grained token for this repository with
+  Contents and Pull requests read and write. The README screenshot bot opens its PR from
+  `bot/readme-screenshots` with it: a PR the default Actions token opens starts no workflows, so
+  its required checks would never report and it would never merge. Without it the default token
+  is used, which works at all only with Settings → Actions → General: "Allow GitHub Actions to
+  create and approve pull requests".
+- **Pages:** Settings → Pages: Deploy from a branch, `job-reports`, `/ (root)`, for each job's
+  report.
+- **The `screenshots` branch** hosts every PR's pictures, in a folder named for the PR
+  (`<number>/`; older PRs' pictures, once on `pr-screenshots/<topic>` branches, are under
+  `<topic>/`), linked at a commit SHA so a later push can't change what a PR shows. Its tree holds
+  a `vercel.json` of `{"git":{"deploymentEnabled":false}}`, so it costs no deploy.
+- **Sentry:** install the GitHub integration on this repository (Sentry → Settings →
+  Integrations → GitHub) and add a code mapping (the project, branch `main`, source root `./`,
+  stack-trace root usually `~/`), so frames link to the source and Sentry comments on PRs touching
+  code with open issues. For alerts: Vercel → Project → Observability → Alerts on `/api/*` 5xx
+  spikes, and Sentry's Issue Owners alerts with its weekly digest.
+- **The shared Claude rules:** sessions read them from jbhirsh/ci; on your own computer, link
+  them once as its `CONTRIBUTING.md` says ("The shared Claude rules").
+- **Blame:** `git config blame.ignoreRevsFile .git-blame-ignore-revs`, so local blame skips the
+  one-time reformat (GitHub's blame already does).

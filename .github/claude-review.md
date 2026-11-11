@@ -17,8 +17,8 @@ site's own origin, `api/_betterAuth.ts`) for auth.
   paid/external call (e.g. Gemini) MUST be guarded server-side by
   `requireOwnerCtx` (or `requireMemberCtx` / `requireCreatorCtx` for
   trip-scoped actions, or `requireUserCtx` where something else authorizes
-  the write, e.g. `claimInvite`'s invite token, or where CLAUDE.md records
-  the decision, as for suggestions and their capped drafts). `useOwner()` in
+  the write, e.g. `claimInvite`'s invite token, or where CLAUDE.md's auth
+  model records the decision, as for suggestions and their capped drafts). `useOwner()` in
   `src/lib/useOwner.ts` is a UI hint ONLY, never the real authorization.
   Flag any mutating resolver path that reaches a write or paid call without
   one of these guards, and any code that treats the client-side owner check

@@ -18,7 +18,10 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 //   - api/**/*.ts           → Vercel serverless handlers, parsed against tsconfig.api.json (Node, no DOM)
 //   - vite/playwright/scripts → tooling, parsed against tsconfig.node.json or untyped
 //
-// No rule suppressions anywhere in the codebase by policy (see PLAN.md, durable preference).
+// No rule suppressions anywhere in the codebase, by the owner's standing rule:
+// fix the code, never silence the check. The no-use rule below fails a
+// suppression comment, but nothing fails a rule turned off or downgraded in
+// this file: never do that to make a violation pass.
 export default defineConfig([
   globalIgnores([
     'dist',
@@ -119,7 +122,7 @@ export default defineConfig([
       'better-tailwindcss/no-conflicting-classes': 'error',
       'better-tailwindcss/no-duplicate-classes': 'error',
       // Plain CSS classes, not utilities: the icon font's (src/index.css)
-      // and Leaflet's.
+      // and Leaflet's. Another class the plugin can't see goes here too.
       'better-tailwindcss/no-unknown-classes': [
         'error',
         { ignore: ['^material-symbols-outlined$', '^leaflet-'] },

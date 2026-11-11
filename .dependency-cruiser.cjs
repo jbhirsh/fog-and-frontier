@@ -1,6 +1,6 @@
 /**
- * Architecture rules (dependency-cruiser). CONTRIBUTING.md / CLAUDE.md describe
- * the layering as prose — "src/ is the React app", "api/ is the GraphQL
+ * Architecture rules (dependency-cruiser). The layering was once only prose
+ * — "src/ is the React app", "api/ is the GraphQL
  * function", "src/lib holds hooks and pure helpers", "src/data/types.ts is the
  * Activity model" — and the AI review re-checks it per PR, but nothing failed a
  * build on a violation. eslint's `import-x/no-cycle` catches cycles within each

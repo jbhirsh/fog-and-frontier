@@ -16,6 +16,10 @@ import { deleteBlobs, deletePhotosOf, pathnamesFrom } from './photos.js';
 // reads parse and validate each row (parseCatalogActivity) and writes
 // JSON.stringify the input.
 
+// libsql types a row's values as InValue (binary and Date included). An id is
+// a string or a number in practice; anything else is skipped, never
+// String()'d into "[object ArrayBuffer]". Narrowing to strings alone once
+// dropped every row in production (#1's first attempt).
 function rowIdToString(id: unknown): string | null {
   if (typeof id === 'string') return id;
   if (typeof id === 'number') return id.toString();

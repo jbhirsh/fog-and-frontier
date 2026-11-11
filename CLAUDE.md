@@ -1,264 +1,129 @@
 # CLAUDE.md
 
-Guidance for Claude Code working in this repo.
+**Fog and Frontier**: a personal West Coast adventures app, React 19 + TypeScript + Vite on
+Vercel with one GraphQL function, Turso (libSQL), Better Auth and Leaflet. The shared rules every
+repo here follows come from jbhirsh/ci (`claude-rules/CLAUDE.md`); setup, the commands, the
+required checks and one-time settings are in `CONTRIBUTING.md`. Each module's header says what it
+does and why: read it before changing the module.
 
-## Project
+## Commands that aren't obvious
 
-**Fog and Frontier** — a personal West Coast adventures app. Vite + React 19 + TypeScript on the front end, Vercel serverless functions in `api/`, Turso (libSQL) for persistence, Better Auth for sign-in (Google, Apple and passkeys), Leaflet for maps.
+- `npm test` skips the 80% per-file coverage gate CI runs; `npm run test:coverage` applies it.
+- `npm run codegen` after changing `api/_schema.ts` or an operation, and commit `src/gql/`.
+- Changing owner-gated presentation changes the visual baselines.
+- `shared/isoRegions.ts` is generated (`npm run regions:gen`): never hand-edit it.
+- The catalog lives only in Turso, with no static seed.
 
-Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel serverless function** — `api/graphql.ts`, an Apollo Server on Express (issue #91) — with the schema in `api/_schema.ts` and resolvers in `api/_resolvers/*`. The `api/_*.ts` files are its helpers, not separate functions. New function-style handlers, if any, must be Node-style `(req, res)`.
+## Where names don't tell
 
-## Scripts
+- `api/graphql.ts` is the one Vercel function (Apollo Server on Express, #91): SDL in
+  `api/_schema.ts`, resolvers in `api/_resolvers/`. The `api/_*.ts` files are its helpers, not
+  functions (Vercel skips `_` files). Not Next.js, not the Edge runtime.
+- `api/_gqlContext.ts` holds the server's auth gates; `api/_betterAuth.ts` sign-in, its preview
+  proxy and what each deployment trusts.
+- `shared/` is what the app and the API both read (regions, #274), since neither may import the
+  other; each side keeps its own logic (`api/_regions.ts`, `src/lib/regions.ts`).
+- Every API response carries a `Server-Timing` header (`api/_serverTiming.ts`): read it in the
+  browser's network panel when something is slow.
 
-- `npm run dev` — Vite dev server. For full-stack local dev (API + client) use `vercel dev`.
-- `npm run build` — `lint`, then `tsc -b`, then `vite build`.
-- `npm run codegen` — `graphql-codegen` → typed GraphQL operations in `src/gql/`.
-- `npm run lint` — ESLint flat config.
-- `npm run typecov` — type-coverage over `tsconfig.app.json` and `tsconfig.api.json`: fails on any identifier typed `any`, and names it.
-- `npm run format` / `format:check` — Prettier over the whole repo (`.prettierrc.json`: single quotes, 100 columns; `.prettierignore` leaves out the lockfile, `src/gql/` and `public/`).
-- `npm test` / `test:watch` / `test:coverage` — Vitest.
-- `npm run test:mutation` — StrykerJS over the files the coverage gate measures (`stryker.config.json`).
-- `npm run test:visual` — Playwright visual regression: the desktop pages in Chromium, Firefox and WebKit (`desktop`, `desktop-firefox`, `desktop-webkit`) and the mobile ones on an iPhone (WebKit), each against its own Linux baselines. Baselines come from CI, not a laptop (fonts differ): run `visual-baselines.yml` by hand on the branch, which commits them there.
-- `npm run db:snapshot` / `db:seed-preview` — Turso helpers in `scripts/`. The catalog lives only in Turso; there is no static seed.
-- `npm run cards -- draft` / `cards -- save` — card copy (#295) for places saved without it: Gemini drafts a review file, an owner edits it, then saves it to production. `cards -- dogs draft` / `dogs save` do the same for dog-friendly places' dog rules pages (#296), with Google Search.
-- `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/gif.mjs`, which runs jbhirsh/ci's `gif` tool; the `PR visuals` check's message says how to record them).
-- `npm run regions:gen` — regenerate `shared/isoRegions.ts` from ISO 3166 (Debian's `iso-codes` package, `apt install iso-codes`), when a new release adds or renames regions.
-- `npm run links:check` — audit every outbound link in the live catalog (#68): dead links fail it, bot-blocked ones (AllTrails) are listed for checking by hand. Runs weekly in `links.yml`.
-- `npm run instagram:check` — read a few known public Instagram posts the way sharing does (#6), failing when Instagram's pages no longer give what the reader needs. Runs weekly in `instagram.yml`.
+## Traps that cross files
 
-## Layout
+- **Handlers are Node-style `(req, res)`**: a Web API style handler hangs in `vercel dev`.
+- **Multi-write database paths are one batch**: a test asserts a single
+  `db().batch(stmts, 'write')` (as for `transitionToPast`, `createTrip`, `patchTrip`).
+- **A new cover-photo host goes in two places**: `vercel.json`'s `images.remotePatterns` and
+  `CDN_HOSTS` (`src/lib/imageCdn.ts`, a test holds them equal); a photo on any other host skips
+  the image CDN and loads from its own URL.
+- **Owner emails are set twice**: `VITE_OWNER_EMAILS` (the UI hint) and `OWNER_EMAILS` (the
+  server's gate). If they drift, owner UI shows but its calls fail.
+- **Sign-in shows only in builds Vercel makes** (`SIGN_IN_ENABLED`: production, previews,
+  `vercel dev`), so the visual tests, PR GIFs and README screenshots show the signed-out app;
+  owner and signed-in views are reached through the test-only `window.__TEST_FORCE_OWNER__`
+  (`src/lib/useOwner.ts`) and `__TEST_FORCE_EMAIL__` (`src/lib/authShim.ts`), which the `signIn`
+  helper in `tests/visual/helpers.ts` sets.
+- **The auth tables are the app's**: Better Auth's (`auth_*`) are created with the app's
+  (`SCHEMA` in `api/_trips.ts`, its own startup check off), and a test fails when what it writes
+  outgrows them. Roles and names stay in the app's `users` table.
+- **No `legacy-peer-deps`**: installs are plain `npm ci`. A peer conflict (or an advisory with no
+  upstream fix) takes a version bump or a narrow `overrides` entry, with its reason and when to
+  delete it in `package.json`'s `//overrides`.
+- **Tests are pure**: logic or React Testing Library, with no real network, database or browser;
+  the browser is the visual tests' (`tests/visual/`).
 
-- `src/` — React app. `src/pages/`, `src/components/`, `src/lib/`, `src/data/types.ts` (Activity model).
-- `api/` — the GraphQL function. `graphql.ts` is the handler; `_schema.ts` is the SDL; `_resolvers/*` implement it. `_gqlContext.ts` has the server auth gates (`requireOwnerCtx`, `requireMemberCtx` / `requireCreatorCtx` for trips, and `requireUserCtx` for any signed-in account), built on the session cookie (`_betterAuth.ts`, mapped to a caller by `_auth.ts`); `_db.ts` is the Turso client. Every response carries a `Server-Timing` header (`_serverTiming.ts`): the cold-start schema wait, the sign-in check and the operation, in milliseconds, which the browser's network panel shows when something is slow.
-- `shared/` — data the app and the API both read, since neither may import the other. Today that's regions (#274). An activity's region is one of California's areas (`sf` … `socal`) or the ISO 3166 code of anywhere else: a country's first-level subdivision (`US-OR`, `JP-26`, `CA-BC`), or a country with none (`HK`). `shared/regions.ts` holds the California areas and the `Region` type, and `shared/isoRegions.ts` the generated ISO list. Each side keeps its own logic: `api/_regions.ts` validates on save, on read (where `oregon` and `washington`, saved before #274, become `US-OR` and `US-WA`) and on a draft; `src/lib/regions.ts` and `RegionPicker` give the form's search. The app loads the ISO list as its own chunk, only when the form needs it.
-- `public/` — static assets.
-- Cover photos load through Vercel's image CDN on deployments (`src/lib/imageCdn.ts`, `CdnImage`): resized per card, cached a month, so visitors don't each go to Wikimedia, which hosts most of them and throttles a busy machine. Only the hosts in `vercel.json`'s `images.remotePatterns` (kept equal to `CDN_HOSTS` by a test) go through it; a photo on any other host loads from its own URL, so add a new host to both.
-- `scripts/` — DB / migration helpers (Node, `--experimental-strip-types` for `.mts/.ts`).
-- `tests/` — Playwright visual specs. Unit tests live next to source as `*.test.ts(x)`.
+## The auth model
 
-## Auth model
+**The server is the gate.** `requireOwnerCtx` (`api/_gqlContext.ts`) guards every owner-only write
+and paid call (Gemini, apart from the capped drafts below); `requireMemberCtx` and
+`requireCreatorCtx` guard trip-scoped actions; `requireUserCtx` admits any signed-in account only
+where something else authorizes the action (`claimInvite`, whose invite token does) or where a
+decision below says so. `useOwner()` (`src/lib/useOwner.ts`) is a UI hint only. A new public
+external call, or a new `requireUserCtx` use, needs its own decision recorded here.
 
-- Sign-in is Better Auth (`api/_betterAuth.ts`), mounted on the one function at `/api/auth/*` (a `vercel.json` rewrite), ahead of `express.json()`. Google or Apple signs people in, from a card-style dialog (`SignInDialog`; Apple once `VITE_APPLE_CLIENT_ID`, its Services ID, is set, its client secret signed from the team's key as each instance starts, `appleClientSecret`, and left off, logged, on a production whose key won't read, rather than breaking every sign-in); a passkey (Face ID, Touch ID) can be added from the account menu once signed in, and signs them in after; the menu lists an account's passkeys, each named for the device that made it, and removes one after asking. The menu also connects Google or Apple to the signed-in account (Better Auth's `linkSocial`, `SignInMethods`), whatever that provider account's email (`allowDifferentEmails`): so an account made with a passkey or Google can add the other ways in, and an Apple ID hidden behind Apple's relay can join an owner's or invitee's account, which keeps its real email. Signing in with a provider not yet connected still joins an account only on the same verified email. Connecting goes to Google or Apple and comes back to the same page, which opens the menu saying how it went (`src/lib/accountLinks.ts`). An Apple account that hides its email behind Apple's relay isn't recognised as an owner or an invitee, whose emails are their real ones, until it's connected to their account that way. On production only, Google One Tap (`src/lib/oneTap.ts`, through Better Auth's One Tap client) signs in with an ID token, on a second Google client of its own (`VITE_GOOGLE_ONE_TAP_CLIENT_ID`), whose tokens no preview ever sees; the prompt loads Google's script three seconds after the session answers, once the browser is idle, so a visit never waits on it, and stays away while the sign-in card is open. The card draws its own Google and Apple buttons: Google's own button, once drawn, swapped itself for a personalized one, a flash the card couldn't hide. While the browser is on its way to Google or Apple, the button says so ("Opening Apple…"), and the card connects to their sign-in hosts as it opens (`preconnect`), since most of the wait for Apple's page is Apple's own loading. The session is an HttpOnly cookie on the site's own origin, which every API request carries, so nothing waits on a sign-in service before the first read (`buildContext` looks it up in Turso, 5 ms). Its tables (`auth_user`, `auth_session`, `auth_account`, `auth_verification`, `auth_passkey`) are created with the app's (`SCHEMA` in `api/_trips.ts`, Better Auth's own startup check turned off), and a test fails when what Better Auth writes outgrows them. The app's own `users` table keeps roles and names. Each deployment is bound to its origin (production's address; a preview's branch address, so its passkeys work there and not at the per-deployment one). Previews sign in through production with the OAuth proxy: Google calls back only to production, which hands the preview an encrypted profile for its own database. A preview, which builds any PR (Dependabot's too), holds the proxy secret and is handed each profile's Google or Apple ID token, so production refuses the proxy's completion routes (`refusedRoute`, a Better Auth hook that matches the route, not the raw path, which Express and Better Auth read differently), takes no Google or Apple ID token at `/sign-in/social` (`disableIdTokenSignIn`; One Tap takes only its own client's), keeps `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET` and Apple's key to itself, and trusts no preview origin; previews trust their own two addresses, never a `vercel.app` wildcard. What a leaked proxy secret still gives: production would send the Google or Apple profile (name, email, picture, that provider's tokens) of someone finishing a sign-in it started to any address it names, but no session on the real site. An account's name is Google's given name, taken again at each sign-in (`overrideUserInfoOnSignIn`), or the first word of the name Apple gives at an account's first sign-in with this app (its only one: a first Apple sign-in made on a preview leaves the production account unnamed, shown by its email, until that person signs in with Google or revokes the app in their Apple ID settings), and Better Auth's `/update-user` is refused, so no one renames themselves in attributions. Sign-in shows only in builds Vercel makes (`SIGN_IN_ENABLED`: production, previews, `vercel dev`), so the visual tests, PR GIFs and README screenshots show the signed-out app.
-- Server-side: `requireOwnerCtx` in `api/_gqlContext.ts` is the real gate for owner-only writes and paid calls (e.g. Gemini, apart from the capped drafts below); trip-scoped actions are gated by `requireMemberCtx` / `requireCreatorCtx` in the same file, and `requireUserCtx` admits any signed-in account: where something else authorizes the action (`claimInvite`, whose invite token is the authorization), and for suggestions and their capped drafts (#73, below).
-- Client-side: `useOwner()` in `src/lib/useOwner.ts` is a UI hint only. Owner emails come from `VITE_OWNER_EMAILS`.
-- Public by decision: `drivingMiles` (#66) calls OpenRouteService with no auth gate, because the owner chose road miles for every visitor. It's a free service rather than a paid one, and a Turso-counted hourly budget (`ors_usage`) caps it: 20 uncached lookups an hour, of which signed-out callers may use 12, for West Coast origins only. Over budget it returns nothing and the client shows the "≈" straight-line estimate. Any other public external call needs its own recorded decision here.
-- Owner photos (#19) live in a private Vercel Blob store (`BLOB_READ_WRITE_TOKEN`, from the store connected to the project). The bytes never pass through the function: `photoUpload` hands the browser a client token that can write one JPEG pathname for ten minutes, and `activityPhotos` returns signed links that expire within the hour. Every photo call is owner-only, and an activity holds at most 20, which keeps the store inside the Hobby limits (exceeding them pauses Blob for 30 days).
-- Contributors (#9): who added each activity (`contributors`, account emails) goes to any signed-in account and to no one else. The `Activity` / `ActivitySnapshot` field resolver in `api/_resolvers/catalog.ts` returns null to a signed-out caller, so the public catalog never says who added what; the UI simply has nothing to show them. `saveActivity` credits the caller on a new activity, keeps the stored list when the input omits it, and only credits emails with a `users` row. An activity saved before #9 stays uncredited until the backfill credits it. People are shown by their first name (`users.display_name`, which each sign-in fills from the Google account's given name, kept as the account's name: an owner's row, created or updated, and an editor's existing row, never a new one, and when they claim an invite), through `PeopleProvider`'s users list for a signed-in reader; reviews carry their author's name (`authorName`) for everyone, since reviews are public. Anyone with no name yet, or sharing a first name with another account, is named from their email.
-- Suggestions and capped AI drafts (#73), by decision: any signed-in account may suggest an activity (`suggestActivity`, `requireUserCtx`), with at most 10 of its own waiting at once. It waits in the `suggestions` table, which the public catalog read never touches, until an owner accepts it into the catalog (credited to its suggester, who then gets a `users` row) or rejects it; `pendingSuggestions`, `acceptSuggestion` and `rejectSuggestion` are owner-only. A suggestion keeps only http(s) links (`keepSavableLinks` in `api/_links.ts`), since these are the first links written by non-owners. Nor does it keep a park (`parentId`, #269): an owner sets that once it's accepted, since only an owner chooses what a park holds. To draft one, a signed-in non-owner may use `generateActivity`, the paid Gemini call, capped by a Turso-counted daily budget (`gemini_assists`, `api/_assistBudget.ts`): 5 drafts per account and 30 in all per UTC day, and each draft's title, notes and links are bounded (200 and 2000 characters, five links), since every link is read and billed. Over the cap, the call is refused with `assist_limit` before Gemini is reached. A hike's draft gets its AllTrails page searched for on AllTrails itself (`api/_allTrailsSearch.ts`, #6), since AllTrails often lists a place under another name: Gemini, with no Google Search, is given the draft's facts and a `search_alltrails` tool, which the server runs on an Agent Search app (Google Cloud's Discovery Engine `searchLite`, project `gen-lang-client-0818068083`) that indexes `www.alltrails.com/trail/*` and nothing else, with its own key (`AGENT_SEARCH_API_KEY`, restricted to that API). It searches by as many names as it needs, at most 6 searches in 3 rounds, then picks a trail with `choose_trail`, naming up to three others it might have meant, and the pick is kept only if one of its searches returned that page (so are the others). The form draws the trail in use as a card (`TrailPicker`): its picture, rating and count, distance and climb, and description, as far as its page gave them to the search (`trailStats`; pictures load straight from AllTrails' or Google's thumbnail host), and a link to it on AllTrails. "Not the right trail?" turns the card into a list of every trail found, to check on AllTrails and select another. A draft's own link (from its Google Search) is passed to it as a lead, and is replaced by what the search finds, nothing included; it stays only when the search fails, or, without the key, doesn't run. It's part of the same draft, so it isn't counted again, and one that fails isn't given back either: the draft was billed, and simply keeps what it had. A draft whose request to Gemini fails (no answer, a non-2xx, or none begun within its 90 seconds, which the caller is told to retry) is given back (`releaseAssist`); one Gemini answered stays counted, however unusable, since it was billed. Owners aren't counted. Every other Gemini call stays owner-only. A draft isn't required: the suggest dialog can be filled in by hand, offered from the start and in Generate's place once today's drafts are used up (#260), and the client holds back any suggestion without a name, a short description, a category, a region, a duration, a city and a pin (a hand-filled one guesses none of them), since the owners can't edit one before accepting it.
-- Sharing from Instagram (#6), owner-only: `findSharedPlaces` (`requireOwnerCtx`) reads a shared Instagram post and has Gemini name its places, which an owner then adds one at a time through the usual dialog, `/share`. Phones reach it from the share sheet: Android through the manifest's `share_target`, iPhone through a Shortcut that opens `/share?url=…` (Safari has no share target). The reader, `api/_instagram.ts`, makes these outside calls, each on its own time limit, and never throws. First, two pages read side by side. Instagram's public embed page gives the caption, author and picture. The post page gives the video files and the geotag, and answers only a plain `curl` user agent carrying the cookies from Instagram's home page. Either alone is enough for a share, so if Instagram stops serving one, sharing still works from the other and the weekly canary fails. Then the smallest video (up to 60 MB), or else the picture (4 MB), only from Instagram's own media hosts and within 20 seconds. A video up to 14 MB goes to Gemini inline, within a request's 20 MB; a bigger one (some reels come only at a high bitrate) is uploaded through Gemini's Files API (`api/_geminiFiles.ts`), within 45 seconds, and deleted once Gemini has answered. Gemini is given whatever answered, with Google Search but not URL reading (the caption is a stranger's text), and isn't called when nothing answered and there's no hint. The page keeps each post's places for the session, so a reload doesn't pay for the same read again. A geotag is only a hint: they're often wrong. An activity added from a post keeps the post's link as its `sourceUrl`, which the detail shows to everyone ("Seen on Instagram"); the weekly link audit reads it through the embed page, which says when a post has been taken down or made private, and fails on one. Each share logs one `share.places` line saying which sources answered, and `instagram.yml` reads known posts weekly, so a change on Instagram's side shows up there.
-- Role-gated UI: owner-guarded _mutating_ controls are **hidden** from non-owners (not disabled/greyed). See the Role-gated UI section below.
+- **Sign-in** (`api/_betterAuth.ts`, at `/api/auth/*` ahead of `express.json()`): Google or
+  Apple, then passkeys added from the account menu, which also connects the other providers to the
+  signed-in account whatever their email (`allowDifferentEmails`), so an Apple ID behind Apple's
+  relay joins an owner's or invitee's real-email account. A provider not yet connected joins an
+  account only on the same verified email; until then a relay-hidden Apple account isn't an owner
+  or an invitee. The session is an HttpOnly cookie on the site's own origin, each deployment bound
+  to its origin (a preview to its branch address). Google One Tap is production's alone, on its own
+  Google client.
+- **Previews hold nothing that makes a session on the real site.** A preview builds any PR's
+  code, Dependabot's included, and signs in through production's OAuth proxy, so production
+  refuses the proxy's completion routes (`refusedRoute`, matching Better Auth's route, not the raw
+  path), takes no Google or Apple ID token at `/sign-in/social` (`disableIdTokenSignIn`), keeps
+  `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET` and Apple's key to itself, and trusts no preview
+  origin; a preview trusts its own two addresses, never a `vercel.app` wildcard. A leaked proxy
+  secret still gives away the provider profile (name, email, picture, its tokens) of someone
+  finishing a sign-in production started, never a session.
+- **Names come from the provider**: Google's given name at each sign-in, or the first word of
+  Apple's at the first; `/update-user` is refused, so no one renames themselves in attributions.
+- **Public by decision: `drivingMiles`** (#66) calls OpenRouteService for every visitor, a free
+  service capped by a Turso-counted hourly budget (`ors_usage`: 20 uncached lookups, of which
+  signed-out callers may use 12, West Coast origins only); over it the client shows the "≈"
+  straight-line estimate.
+- **Owner photos** (#19) are owner-only both ways, in a private Vercel Blob store the bytes reach
+  without passing through the function (a ten-minute client token per JPEG, signed links that
+  expire within the hour), at most 20 per activity to stay inside the Hobby limits (exceeding them
+  pauses Blob for 30 days).
+- **Contributors** (#9), who added each activity, go to signed-in accounts only: the field
+  resolver in `api/_resolvers/catalog.ts` returns null to a signed-out caller, so the public
+  catalog never says who added what. People show by first name (`users.display_name`), or by email
+  without one or when it's shared; reviews carry their author's name for everyone, since reviews
+  are public.
+- **Suggestions and capped drafts** (#73): any signed-in account may suggest an activity (at most
+  10 waiting at once), kept in `suggestions`, which the catalog read never touches, until an owner
+  accepts (crediting the suggester) or rejects it. A suggestion keeps only http(s) links
+  (`keepSavableLinks`) and no park (`parentId`): only owners choose what a park holds. A
+  non-owner's Gemini draft (`generateActivity`) is capped in Turso (`api/_assistBudget.ts`: 5 per
+  account, 30 in all per UTC day, owners uncounted), with bounded input (200 and 2,000 characters,
+  five links), refused with `assist_limit` before Gemini is reached. A draft Gemini never answered
+  is given back (`releaseAssist`); one it answered stays counted, since it was billed. Its AllTrails
+  search (`api/_allTrailsSearch.ts`) keeps only a trail page one of its searches returned. A draft
+  isn't required, and the client holds back a suggestion missing any field an owner would need,
+  since owners can't edit one before accepting it. Every other Gemini call stays owner-only.
+- **Sharing from Instagram** (#6) is owner-only (`findSharedPlaces`), as reading a post is a paid
+  Gemini call; the post's text is a stranger's, so Gemini gets Google Search but not URL reading.
+  `api/_instagram.ts` says what it reads and its limits, and never throws.
 
-## Role-gated UI — hide owner-guarded controls from non-owners
+## Role-gated UI: hide, never grey out
 
-**Convention (current):** owner-guarded _mutating_ affordances (add / edit /
-delete / and other write actions) are **not rendered at all for non-owners.**
-Do not render them disabled with a "Sign in to edit"-style tooltip.
-
-> History: an earlier convention rendered these controls **disabled + tooltip**
-> (greyed out). That was intentionally reversed in issue #67 — hide, don't grey
-> out. If you find a greyed-out owner control, treat it as a bug to fix, not a
-> pattern to copy.
-
-Rules of thumb:
-
-- **Mutating + owner-gated → hide.** Gate the JSX on `isOwner` (e.g.
-  `{isOwner && <button …/>}`). No `disabled={!isOwner}`, no
-  `title="Sign in to edit"`.
-- **Reads stay.** If a surface is a _read_ (viewing data — e.g. a
-  completion-status badge, or the owners' reviews), keep it visible to
-  everyone; only the _write_ affordance inside it is hidden. The completion
-  **status** in `ActivityDetail` is rendered as a static badge for non-owners;
-  only the interactive toggle is owner-only.
-- **Owner-only reads are an explicit decision, recorded here.** The first is
-  the **Explore** surface (#111): its one action, Discover, is a paid
-  owner-only call, so non-owners would only reach a dead end. Decision: hide
-  the tab _and_ guard the route — the `/explore` NavLink in `Layout.tsx` is
-  gated on `isOwner`, and `OwnerRoute` (`src/components/OwnerRoute.tsx`)
-  renders nothing until auth loads, then redirects non-owners to `/`. The
-  second is the **Your Photos** gallery (#19): the photos are the owners' own,
-  so `ActivityDetail` renders the whole section only for owners, and the
-  server's `activityPhotos` read is owner-gated too. The third is the
-  **review queue** (#73): pending suggestions, with Accept / Reject, above
-  the catalog list (`PendingSuggestions`). Only owners can decide them, so
-  `CuratedAdventures` asks for `pendingSuggestions` only for owners, and
-  shows the section only while something is waiting. Its count is a Review
-  button in the toolbar (and the mobile map's sheet), so it shows in every
-  view (#259). The fourth is **sharing from Instagram** (#6): reading a post is a
-  paid Gemini call, so `/share` sends a signed-in non-owner home. A
-  signed-out visitor is asked to sign in instead, since an owner opening a
-  share in Safari (from the iPhone Shortcut) may not be signed in there yet.
-
-Gates that are **not** the owner gate:
-
-- **Sign-in-gated CTAs** ("is signed in", i.e. `useOwner().email`), e.g.
-  "Select for trip" and "Add to trip" in `CuratedAdventures`, follow the same hide
-  rule (#112): **not rendered for signed-out visitors** — no disabled state,
-  no "Sign in to…" tooltip. Signed-in users (owners _and_ invited editors) see
-  them, since adding to a trip is a member power (#51). The per-card "Add to
-  trip" renders only while building a trip (selection mode, which an incoming
-  trip target also opens), keeping the default browse view uncluttered.
-- **Suggest activity** (#73) is a sign-in-gated CTA for non-owners: signed-in
-  non-owners see it where owners see "Add activity", and signed-out visitors
-  see neither.
-- The **Contributors filter** (#9) is a read, but signed-out visitors get no
-  contributor data to filter on, so it isn't rendered for them, and a shared
-  `?contributors=` link is ignored rather than emptying their list.
-- **Trip-creator-gated** controls in `TripDetail` (reopen voting, mark past,
-  delete trip, finalize voting, remove member) — gated on being _this trip's_
-  creator, a per-trip role shown to trip members, not the global owner gate.
-  They keep their existing presentation for the members who see them.
-
-**Server is the real gate.** `useOwner()` is a UI hint only. `requireOwnerCtx`
-in `api/_gqlContext.ts` (and `requireMemberCtx` / `requireCreatorCtx` for
-trip-scoped actions, `requireUserCtx` for any signed-in account) is the actual
-enforcement and is unchanged by any of the
-above — hiding a control never replaces server-side authorization.
-
-- Visual regression: owner-gated UI is exercised in Playwright via the
-  dev/test-only `window.__TEST_FORCE_OWNER__` flag (see `src/lib/useOwner.ts`),
-  and signed-in views (the trips pages, #59) via `window.__TEST_FORCE_EMAIL__`
-  (see `src/lib/authShim.ts`; the `signIn` helper in `tests/visual/helpers.ts`
-  sets both).
-  Default (non-owner) snapshots must therefore show owner controls _absent_.
-  Run `npm run test:visual:update` after changing owner-gated presentation.
-
-## GitHub issues are the source of truth for product context
-
-**Always check `gh issue list` (and `gh issue view <n>`) before designing or implementing a feature.** Issues in this repo carry the full rationale — scope decisions, cross-feature coordination, acceptance criteria, deferred questions — and frequently reference each other (e.g. "coordinates with #16", "supersedes #7"). The codebase alone will not tell you why something was built the way it was.
-
-When picking up a task:
-
-1. `gh issue list --state all` to see what's in flight / closed.
-2. `gh issue view <n>` for any issue the user mentions or that matches the task.
-3. Skim issues that the relevant issue cross-references.
-
-When filing a new feature request, follow the existing issue style (Problem / What to add / Scope / Coordinates with / Acceptance criteria) and link related issues explicitly.
-
-## Conventions
-
-- **CI tooling is shared** with sift and BoardGames in
-  [jbhirsh/ci](https://github.com/jbhirsh/ci), run from its `main` (no
-  version pin): mutation testing, Claude Review and autofix, PR GIFs, PR
-  visuals, the commit check, the weekly audit, the README screenshot bot,
-  the job summaries, Dependabot auto-merge and the secret and SAST scans.
-  The workflows here keep their triggers and job names (the required
-  checks) and call it; this repo's settings for each tool are its key in
-  `.github/ci.json`, and how a tool works is in its headers there. Change a
-  tool in jbhirsh/ci (cloned beside this repo as `../ci`), never by copying
-  it back here. A new pull-request workflow goes in `claude-autofix.yml`'s
-  trigger list, or in `.github/ci.json`'s `autofix.exempt` with its reason;
-  CI's autofix trigger check fails a PR that does neither.
-- Vercel function handlers: Node-style `(req, res)` — Web API style hangs in `vercel dev`.
-- **Tests ship with the code.** Any new resolver, reducer, or pure util needs its own unit test; run `npm run test:coverage` before pushing (CI enforces an 80% per-file gate — plain `vitest run` skips it). The coverage backlog in `vite.config.ts` (pre-gate files excluded from it) may only shrink: `src/test/coverageBacklog.test.ts` pins it to an explicit list and fails when a file is added (write tests instead), when one leaves the backlog without leaving the pinned list too (delete it there, so the pin ratchets down), or when an entry names a file that no longer exists. Tests are pure logic or RTL — no real network, DB, or browser. Multi-write DB paths get a test asserting a single `db().batch(stmts, 'write')` (see `transitionToPast`/`createTrip`/`patchTrip`).
-- **Property tests fuzz the pure helpers** (`fast-check`, in
-  `*.property.test.ts` beside the example tests): input a person, a shared
-  link or the browser hands over (history state, `?contributors=`, a
-  suggestion's links, pointer positions) is generated by the hundred, and
-  each test states what must hold for all of it (never throws, reads back
-  what it wrote, stays in range). A failure prints its seed and the smallest
-  counterexample; fix the code, or the property if it claimed too much.
-- **Mutation testing checks the assertions.** A PR's run mutates only the lines it changed in the files the `mutate` globs in `stryker.config.json` cover, and fails below the `break` score; a monthly sweep (8 parallel shards, `mutation-sweep.yml`) covers everything. `mutation.yml` calls jbhirsh/ci's `mutation` tool, whose module headers say what counts as a change, when Stryker is skipped and how results are cached; this repo's settings for it are the `mutation` key of `.github/ci.json`. A surviving mutant means a missing assertion: add the test, or delete the code if it can never matter. The globs mirror the coverage scope in `vite.config.ts`, backlog included, and `src/test/mutationScope.test.ts` fails if the two drift apart.
-- **Prettier formats everything** (code, CSS, Markdown, YAML, JSON); ESLint
-  checks correctness only, and `eslint-config-prettier`, last in the flat
-  config, turns off any rule that would argue with it. CI's "Format
-  (Prettier)" step fails an unformatted file and the pre-commit hook checks
-  the staged ones: run `npm run format`, never hand-align around it.
-  `.git-blame-ignore-revs` lists the one-time reformat (#267) by its SHA on
-  `main`, so GitHub's blame skips it; for local blame, set
-  `git config blame.ignoreRevsFile .git-blame-ignore-revs` once.
-- **No `any` anywhere.** CI's "Type coverage" step (`npm run typecov`)
-  holds `src/` and `api/` at 100%: an identifier whose type is `any`
-  fails it, wherever it came from (a `JSON.parse`, a mock's calls, an
-  `Array.isArray` on `unknown`, a library's loose type). Give it a real type
-  (annotate the parameter `unknown` and narrow, declare the `VITE_`
-  variable in `src/vite-env.d.ts`, type the router state
-  `Location<unknown>`); there are no ignore comments, and only the generated
-  `src/gql/` is skipped. The strict figure, which also counts casts, is in
-  the job summary for information.
-- **JSDoc that's written must be right; none is required.**
-  `eslint-plugin-jsdoc` (its TypeScript-flavoured recommended rules, every
-  `require-*` rule off) fails a `@param` naming no parameter, an unknown
-  tag, a malformed block or a type in braces in TypeScript (types live in
-  the code; plain `.js`/`.mjs` may use them). Change the comment with the
-  code it describes.
-- **Tailwind classes are linted** (`eslint-plugin-better-tailwindcss`, its
-  rules listed in `eslint.config.js`): conflicting, duplicate, unknown or
-  deprecated classes fail, and one class order and the canonical spelling
-  (`size-4` for `w-4 h-4`, a scale step for an arbitrary value it equals)
-  are enforced, but two different tokens that share a value (`px-gutter`
-  and `py-md`) stay as written. `npm run lint:fix` rewrites them; a plain
-  CSS class the plugin can't see goes in the rule's `ignore`.
-- **No `legacy-peer-deps`.** Installs are plain `npm ci`. Resolve a peer conflict (or a security advisory with no upstream fix) with a version bump, or with a narrow `overrides` entry, its reason (and when to delete it) written beside it in `package.json`'s `//overrides`. Any other pin (a range short of the next major, a Dependabot `ignore`, an action below its major) gets its reason beside it too, in `//pins` or a YAML comment: CI's Pins step (jbhirsh/ci's `pins`) fails one without.
-- **Commit hygiene.** Imperative subject ≤72 chars; body explains _why_; end
-  with the `Co-Authored-By:` trailer. One logical change per commit; squash
-  noisy commits (fixups, reverts, "address review") into a clean history before
-  opening or updating a PR. Linear history (rebase, not merge). Amend or squash
-  your own feature branch freely before it merges, but never amend, rebase, or
-  force-push `main`. CI's commit-message step (jbhirsh/ci's `commits`)
-  enforces the shape.
-- **Job summaries and reports.** CI's `test` job and Visual regression's
-  `visual` job end with jbhirsh/ci's `job-summary`: its run summary gives
-  the verdict and what needs attention (failed tests, steps and tests
-  getting slower or flaky across runs) and links to the job's report, a
-  page with every step and test beside the job's recent runs (Vitest's
-  JUnit in `reports/junit.xml`; Playwright's, CI only, in
-  `test-results/junit.xml`, each test named with its project and its
-  retries recorded, so a test that passed only on a retry shows as flaky
-  there). Each job's first step, jbhirsh/ci's `job-summary/sample-load`,
-  samples the machine's CPU for the report's chart, and the `visual` job's
-  `job-summary/note` adds the Playwright and browser versions to its
-  Environment, beside the machine. `ci.yml` and `visual.yml` also run on
-  every push to `main`, so a PR's report has main's runs to compare with;
-  a step that reads a pull request runs only for one. Each workflow's last
-  job, `reports` (jbhirsh/ci's `job-reports.yml`), publishes the run's
-  reports to the repository's Pages (the `job-reports` branch, served from
-  Settings → Pages → Deploy from a branch → `job-reports`, `/ (root)`)
-  and keeps one comment on the PR with every job's summary, updated after
-  each run. It runs from the PR's own branch, as part of the run, so a
-  change to it shows on the PR that makes it.
-- **The weekly audit sweeps the whole repo** (`weekly-audit.yml`, Monday
-  06:00 UTC with the other sweeps, or by hand): knip (`knip.json`: unused
-  files, exports, types and dependencies, and used ones `package.json`
-  doesn't list), jscpd (`.jscpd.json`: duplicated code, tests aside, since
-  parallel test cases are meant to read alike), lychee (every Markdown
-  link, local file and `#anchor`), and a dependency-cruiser graph of
-  `src/` and `api/` as an artifact. Each finding keeps one issue labelled
-  `weekly-audit` (jbhirsh/ci's `audit` workflow), updated each week and
-  closed once clean; the run
-  stays green unless a tool breaks. Run `npx knip` and `npx jscpd` before
-  pushing a refactor: both are expected to report nothing, so a finding
-  is fixed, not left for the issue (an unused export goes; a genuine
-  duplicate becomes a shared helper).
-- **Few branches.** Work on one branch, with one PR open at a time. Related
-  changes go in as separate commits on that PR (a rebase-merge keeps them
-  separate on `main`), not as a stack of PRs. Once it merges, restart the same
-  branch from `main` for the next change. Don't push helper branches: the
-  visual workflow commits regenerated baselines onto the PR's own branch, and
-  screenshots share one branch (below). The two other branches are
-  workflows': the bot's, `bot/readme-screenshots` (next), and the job
-  reports' site, `job-reports` (above).
-- **The README's screenshots keep themselves current.** On a push to
-  `main` that changed what they show (the `readme-screenshots` key of
-  `.github/ci.json`), `readme-screenshots.yml` retakes `docs/screenshots/`
-  with `scripts/readme-screenshots.ts`: a local production build reading
-  production's catalog and photos, as `npm run gif` records (so the map
-  shows OpenStreetMap's tiles, not CARTO's, whose key only Vercel has).
-  jbhirsh/ci's `readme-screenshots` tool decides which differ enough to
-  replace and keeps the one bot PR from `bot/readme-screenshots`; its
-  headers say how. Add a screenshot to
-  the README and to `SHOTS` together (a test holds them equal).
-  `BOT_PR_TOKEN` is a fine-grained token with Contents and Pull requests
-  write on this repo: GitHub runs no checks on a PR the Actions token
-  makes, so without it the PR never merges, and the Actions token works at
-  all only if Settings → Actions → General allows Actions to create pull
-  requests.
-- **Never** `git add -A`/`git add .` (stage files explicitly), modify a test to
-  make it pass (fix the implementation instead), install packages outside the
-  project root, or use `--no-verify`.
-- **Review before raising a PR.** Review the full diff (e.g. a review subagent
-  reading it) before opening the PR — review gates PR creation, rather than
-  opening first and reviewing after.
-- Rules already enforced by tooling — committing secrets (gitleaks), pushing to
-  `main` (branch protection), and inline lint/type suppression (the `no-use`
-  and `ban-ts-comment` lint rules) — are the source of truth and aren't
-  repeated here.
+- **An owner-gated write is not rendered for non-owners** (#67): gate the JSX on `isOwner`, never
+  `disabled={!isOwner}` or a "Sign in to edit" tooltip. A greyed-out owner control is a bug.
+  Default (non-owner) visual snapshots show owner controls absent.
+- **Reads stay visible**; only the write inside one is hidden (`ActivityDetail`'s completion
+  status is a badge for non-owners, the toggle owner-only).
+- **Owner-only reads are recorded decisions**: Explore (#111: its tab hidden, and `OwnerRoute`
+  waits for auth then sends non-owners to `/`); the Your Photos gallery (#19, the server read
+  owner-gated too); the review queue (#73: `pendingSuggestions` asked for only by owners, the
+  section shown only while something waits, its count a Review button in the toolbar and the
+  mobile map's sheet, #259); and `/share` (#6), which sends a signed-in non-owner home and asks a
+  signed-out visitor to sign in, since an owner opening a share from the iPhone Shortcut may not be
+  signed in yet in Safari.
+- **Sign-in-gated actions hide the same way** (#112) from signed-out visitors: "Select for trip"
+  and "Add to trip" (a member power, #51; the per-card one only while building a trip), and
+  Suggest activity (#73), where owners see Add activity. The Contributors filter (#9) isn't
+  rendered for them, and a shared `?contributors=` link is ignored rather than emptying their list.
+- **Trip-creator controls** in `TripDetail` (reopen or finalize voting, mark past, delete the trip,
+  remove a member) are gated on this trip's creator, a per-trip role, and keep their presentation
+  for the members who see them.
+- Hiding a control never replaces the server's gate.

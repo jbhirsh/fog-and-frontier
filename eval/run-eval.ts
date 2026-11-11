@@ -4,6 +4,31 @@
 // judge calls only where prose plausibility can't be checked in code — and
 // exits non-zero when the score drops below the threshold or the run is
 // inconclusive. Paid Gemini calls: not part of `npm test`.
+//
+// The golden set (golden-set.json) was reviewed on 2026-10-25 (#280): each
+// case checked against the source its notes cite and corrected where it had
+// drifted (two pins, a city and a region that accepted too much, stale fees
+// and stats, and a nonsense title one letter from a real place). Each case
+// cites its data's provenance and an as-of date; review it again when a
+// case's place changes. One case is xfail: the response schema forces the
+// model to fabricate a record for nonsense input (gen-nonsense) rather than
+// decline; a refusal or uncertainty field in ACTIVITY_SCHEMA is the candidate
+// fix.
+//
+// Scores: 100% (22/22 graded, before the two trip-suggestion cases
+// were added) on search-grounded gemini-3.8-flash, by the searching judge,
+// 2026-10-14 (run 38511460561). Before the judge could search, the same
+// resolvers scored 95.5% (run 38501577212): gen-duartes-tavern failed true
+// details as unverifiable, which the searching judge confirms. A perfect score
+// from a more capable grader is worth watching: a description a person would
+// call wrong passing would mean the rubric has become too lenient. The first
+// grounded run (90.9%, run 38489973906) failed gen-muir-woods on a real model
+// error, putting Bohemian Grove (a private club in Sonoma County) inside Muir
+// Woods; the prompt now names a place inside an activity only when a source
+// the model found does. The last 2.5 Flash score was 95.5% (21/22, run
+// 29061551986, 2026-07-10), when gen-muir-woods once failed for calling the
+// trees "thousands of years old" (the oldest are about 1,200, per NPS), a
+// model exaggeration left standing.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
