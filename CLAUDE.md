@@ -21,7 +21,7 @@ Not a Next.js project. Not Edge runtime. The deployed API is a **single Vercel s
 - `npm run test:visual` — Playwright visual regression: the desktop pages in Chromium, Firefox and WebKit (`desktop`, `desktop-firefox`, `desktop-webkit`) and the mobile ones on an iPhone (WebKit), each against its own Linux baselines. Baselines come from CI, not a laptop (fonts differ): run `visual-baselines.yml` by hand on the branch, which commits them there.
 - `npm run db:snapshot` / `db:seed-preview` — Turso helpers in `scripts/`. The catalog lives only in Turso; there is no static seed.
 - `npm run cards -- draft` / `cards -- save` — card copy (#295) for places saved without it: Gemini drafts a review file, an owner edits it, then saves it to production. `cards -- dogs draft` / `dogs save` do the same for dog-friendly places' dog rules pages (#296), with Google Search.
-- `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/gif.mjs`, which runs jbhirsh/ci's `gif` tool; below, "Show UI changes in the PR").
+- `npm run gif -- <scenario.ts> --dir <PR>` — before/after GIFs of a UI change for its PR (`scripts/gif.mjs`, which runs jbhirsh/ci's `gif` tool; the `PR visuals` check's message says how to record them).
 - `npm run regions:gen` — regenerate `shared/isoRegions.ts` from ISO 3166 (Debian's `iso-codes` package, `apt install iso-codes`), when a new release adds or renames regions.
 - `npm run links:check` — audit every outbound link in the live catalog (#68): dead links fail it, bot-blocked ones (AllTrails) are listed for checking by hand. Runs weekly in `links.yml`.
 - `npm run instagram:check` — read a few known public Instagram posts the way sharing does (#6), failing when Instagram's pages no longer give what the reader needs. Runs weekly in `instagram.yml`.
@@ -255,36 +255,6 @@ When filing a new feature request, follow the existing issue style (Problem / Wh
 - **Never** `git add -A`/`git add .` (stage files explicitly), modify a test to
   make it pass (fix the implementation instead), install packages outside the
   project root, or use `--no-verify`.
-- **Show UI changes in the PR.** A PR that changes a component or stylesheet
-  puts before/after visuals in its description (`.github/pull_request_template.md`):
-  screenshots for how things look, GIFs for how things move or respond (drag,
-  animation, open/close, scroll, multi-step flows). Host the images on the one
-  `screenshots` branch, in a folder named for the PR (`<number>/`), and link
-  them by commit SHA so a later push can't change what a PR shows. Its tree has
-  a `vercel.json` with `{"git":{"deploymentEnabled":false}}`, so it costs no
-  deploy. (Older PRs' pictures, once on `pr-screenshots/<topic>` branches, now
-  live there under `<topic>/`.) The
-  `PR visuals` check (jbhirsh/ci's `visuals`; what counts as UI is the
-  `visuals` key of `.github/ci.json`) fails a UI change with
-  no picture unless "No visible UI change" is ticked; Claude Review asks for a
-  GIF when motion changes.
-  Pictures show the app exactly as production does: the real catalog, photos,
-  fonts and map, never the visual tests' stub (its fixtures have blank covers
-  and it blanks every outside image). So take them from local production
-  builds of `main` ("before") and the branch ("after"), never the dev server,
-  with their reads sent to production's API and their photos through
-  production's image CDN; owner-only screens the same way, signed in through
-  the test flags. Record GIFs with
-  `npm run gif -- <scenario.ts> --dir <PR number>`
-  (`scripts/gif.mjs`, which runs jbhirsh/ci's `gif` tool with this repo's
-  live-site setup, `scripts/gif-setup.ts`): it builds both, records the
-  scenario (`scripts/gif-scenarios/`) against each with the pointer and keys
-  drawn in, at the speed the page moved, commits the GIFs to `screenshots`
-  and prints the Before/After table. A scenario's `play(page, gif)` moves
-  with `gif.glide`, `click`, `drag` and `scroll`, which go by the clock, with
-  pauses, never `locator.click()` or a bare `page.mouse` (the rules are in
-  jbhirsh/ci's `gif/moves.mjs`); the pointer kept in frame; ending on a
-  pause. Check a few frames, and the long ones, before publishing.
 - **Review before raising a PR.** Review the full diff (e.g. a review subagent
   reading it) before opening the PR — review gates PR creation, rather than
   opening first and reviewing after.
