@@ -82,10 +82,14 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      # No `any` anywhere in src/ or api/: every identifier has a real type
-      # (src/gql, generated, aside). Fails on the first one and names it.
+      # No `any` anywhere in src/, shared/ or api/: every identifier has a real
+      # type (src/gql, generated, aside). Fails on the first one and names it.
       - name: Type coverage (no any)
-        run: npm run typecov
+        run: |
+          npm run typecov || {
+            echo "::error title=Type coverage::An identifier is typed any (named above). Give it its type where it enters: annotate a JSON.parse, res.json() or mock-call result unknown and narrow it, declare a VITE_ variable in src/vite-env.d.ts, or type the library field (router state as Location<unknown>). No ignore comments; an ignored path needs its reason in package.json's //typeCoverage."
+            exit 1
+          }
 
       # Strict mode also counts `as` casts and `any[]`-typed values; shown in
       # the job summary for information, never a gate.
