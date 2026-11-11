@@ -19,8 +19,15 @@
     }
   },
   "visuals": {
-    "ui": ["src/**/*.{tsx,css}"],
-    "notUi": ["**/*.test.tsx", "src/test/**"]
+    "ui": [
+      "src/**/*.{tsx,css}",
+      "src/lib/mapPins.ts",
+      "src/lib/iconMetrics.ts",
+      "index.html",
+      "public/**"
+    ],
+    "notUi": ["**/*.test.tsx", "src/test/**"],
+    "advice": "Add before/after pictures to the description: screenshots for looks, a GIF for motion (drag, animation, open/close, scroll, a multi-step flow). Show the app as production does, never the visual tests' blank fixtures: `npm run gif -- scripts/gif-scenarios/<flow>.ts --dir <PR number>` builds main and this branch for production, reading production's catalog and photos (owner-only screens signed in through the test flags), records the scenario against each with the pointer and keys drawn in, commits the GIFs to the `screenshots` branch under `<PR number>/` and prints the Before/After table to paste. A scenario's play(page, gif) moves with gif.glide, click, drag and scroll, with pauses, never locator.click() or a bare page.mouse (jbhirsh/ci's gif/moves.mjs has the rules), keeps the pointer in frame and ends on a pause; check a few frames, and the long ones, before publishing. Host stills on the `screenshots` branch too, linked at a commit SHA. Or tick \"No visible UI change\" in the template. Editing the description re-runs this check."
   },
   "audit": {
     "graph": ["src", "api"]
