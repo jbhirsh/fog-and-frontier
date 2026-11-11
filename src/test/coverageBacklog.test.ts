@@ -38,14 +38,33 @@ const PINNED_BACKLOG = [
   'src/pages/NewTrip.tsx',
   'src/pages/TripDetail.tsx',
   'src/pages/Trips.tsx',
+  'eval/checks.ts',
+  'eval/judge.ts',
+  'eval/report.ts',
+  'eval/run-eval.ts',
+  'scripts/card-copy.ts',
+  'scripts/check-links.mjs',
+  'scripts/gen-regions.ts',
+  'scripts/gif.mjs',
+  'scripts/local-build.ts',
+  'scripts/readme-screenshots.ts',
+  'scripts/seed-preview-db.mjs',
+  'scripts/smoke.mjs',
+  'scripts/snapshot-prod-db.mjs',
 ];
 
 // Every source file the coverage gate could measure, as repo-relative paths.
 // Lazy globs: only the keys are read, nothing is imported.
 const sourceFiles = new Set(
-  Object.keys(import.meta.glob(['/src/**/*.{ts,tsx}', '/api/**/*.ts'])).map((path) =>
-    path.slice(1),
-  ),
+  Object.keys(
+    import.meta.glob([
+      '/src/**/*.{ts,tsx}',
+      '/api/**/*.ts',
+      '/shared/**/*.ts',
+      '/scripts/**/*.{ts,mjs}',
+      '/eval/**/*.ts',
+    ]),
+  ).map((path) => path.slice(1)),
 );
 
 describe('coverage backlog', () => {

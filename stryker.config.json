@@ -7,6 +7,9 @@
   "mutate": [
     "src/**/*.{ts,tsx}",
     "api/**/*.ts",
+    "shared/**/*.ts",
+    "scripts/**/*.{ts,mjs}",
+    "eval/**/*.ts",
     "!**/*.d.ts",
     "!src/main.tsx",
     "!src/vite-env.d.ts",
@@ -15,7 +18,11 @@
     "!src/data/types.ts",
     "!api/**/*.test.ts",
     "!api/_schema.ts",
+    "!scripts/**/*.test.{ts,mjs}",
+    "!eval/**/*.test.ts",
+    "!scripts/gif-scenarios/**",
     "!src/gql/**",
+    "!shared/isoRegions.ts",
     "!api/_db.ts",
     "!api/_gqlMap.ts",
     "!api/_resolvers/gemini.ts",
@@ -46,7 +53,20 @@
     "!src/pages/Explore.tsx",
     "!src/pages/NewTrip.tsx",
     "!src/pages/TripDetail.tsx",
-    "!src/pages/Trips.tsx"
+    "!src/pages/Trips.tsx",
+    "!eval/checks.ts",
+    "!eval/judge.ts",
+    "!eval/report.ts",
+    "!eval/run-eval.ts",
+    "!scripts/card-copy.ts",
+    "!scripts/check-links.mjs",
+    "!scripts/gen-regions.ts",
+    "!scripts/gif.mjs",
+    "!scripts/local-build.ts",
+    "!scripts/readme-screenshots.ts",
+    "!scripts/seed-preview-db.mjs",
+    "!scripts/smoke.mjs",
+    "!scripts/snapshot-prod-db.mjs"
   ],
   "mutator": {
     "excludedMutations": ["StringLiteral"]

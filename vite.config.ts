@@ -70,7 +70,13 @@ export default defineConfig({
       // (CI used to run `npm test`, which skips coverage, so the gate never
       // actually held). Shrink the backlog as tests land — do NOT lower the
       // thresholds and do NOT add newly-written files to it.
-      include: ['src/**/*.{ts,tsx}', 'api/**/*.ts'],
+      include: [
+        'src/**/*.{ts,tsx}',
+        'api/**/*.ts',
+        'shared/**/*.ts',
+        'scripts/**/*.{ts,mjs}',
+        'eval/**/*.ts',
+      ],
       exclude: [
         // Entry points / non-executable / test scaffolding.
         'src/main.tsx',
@@ -80,9 +86,15 @@ export default defineConfig({
         'src/data/types.ts',
         'api/**/*.test.ts',
         'api/_schema.ts', // SDL string — no executable branches.
+        'scripts/**/*.test.{ts,mjs}',
+        'eval/**/*.test.ts',
+        // Recorded flows for npm run gif, run in a browser by jbhirsh/ci's gif
+        // tool, as tests/visual's specs are by Playwright: data, not logic.
+        'scripts/gif-scenarios/**',
         // Generated artifacts (graphql-codegen client-preset), like eslint's
         // globalIgnores for src/gql.
         'src/gql/**',
+        'shared/isoRegions.ts', // npm run regions:gen writes it from ISO 3166.
         // ---- Coverage backlog: pre-existing files below the 80% per-file gate
         // when it was first enforced in CI. Tracked for follow-up; each removal
         // must come with real tests, never a threshold change. The list may
@@ -122,6 +134,21 @@ export default defineConfig({
         'src/pages/NewTrip.tsx',
         'src/pages/TripDetail.tsx',
         'src/pages/Trips.tsx',
+        // eval/ and scripts/, measured since the gate widened to them: the
+        // command-line entry points and the eval's graders, untested before.
+        'eval/checks.ts',
+        'eval/judge.ts',
+        'eval/report.ts',
+        'eval/run-eval.ts',
+        'scripts/card-copy.ts',
+        'scripts/check-links.mjs',
+        'scripts/gen-regions.ts',
+        'scripts/gif.mjs',
+        'scripts/local-build.ts',
+        'scripts/readme-screenshots.ts',
+        'scripts/seed-preview-db.mjs',
+        'scripts/smoke.mjs',
+        'scripts/snapshot-prod-db.mjs',
       ],
       thresholds: {
         perFile: true,
