@@ -46,7 +46,7 @@
   },
   "visual-baselines": {
     "folders": ["tests/visual/*-snapshots"],
-    "command": "npx playwright install --with-deps chromium webkit firefox && npm run test:visual:update"
+    "command": "npx playwright install --with-deps webkit && npm run test:visual:update"
   },
   "gif": {
     "setup": "scripts/gif-setup.ts",

@@ -1,5 +1,5 @@
 // Visual regression (npm run test:visual, visual.yml): the desktop pages in
-// Chromium, Firefox and WebKit and the mobile ones on an iPhone (WebKit), each
+// Desktop Safari and the mobile ones on an iPhone 17 Pro, both WebKit, each
 // against its own Linux baselines in tests/visual/*-snapshots/. The baselines
 // come from CI, never a laptop, whose fonts render differently: run
 // visual-baselines.yml by hand on the branch, which commits them there. Data
@@ -14,10 +14,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   // In CI, JUnit too, for the job summary (jbhirsh/ci's job-summary, in
-  // visual.yml): each test named with its project, since the desktop pages
-  // run the same tests in three engines, and with its retries, so a test
-  // that passed only on a retry shows as flaky in the report (each failed
-  // try a <flakyFailure>) rather than as a plain pass.
+  // visual.yml): each test named with its project (desktop or mobile), and
+  // with its retries, so a test that passed only on a retry shows as flaky
+  // in the report (each failed try a <flakyFailure>) rather than as a plain
+  // pass.
   reporter: process.env.CI
     ? [
         ['github'],
@@ -54,29 +54,21 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },
+  // Safari only, as the owner uses (#330): Playwright's own descriptors for
+  // Desktop Safari and the iPhone 17 Pro (the iPhone 18 Pro's screen), both
+  // WebKit, each against its own Linux baselines. Linux WebKit is Safari's
+  // engine, not Apple's build: fonts and safe-area insets still differ from
+  // a real iPhone's.
   projects: [
     {
       name: 'desktop',
-      testMatch: /pages\.desktop\.spec\.ts/,
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
-    },
-    // The same desktop pages in Firefox and Safari's engine, the free stand-in
-    // for a cross-browser service: layout that only one engine gets wrong
-    // shows up as a diff against that engine's own baselines.
-    {
-      name: 'desktop-firefox',
-      testMatch: /pages\.desktop\.spec\.ts/,
-      use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 800 } },
-    },
-    {
-      name: 'desktop-webkit',
       testMatch: /pages\.desktop\.spec\.ts/,
       use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } },
     },
     {
       name: 'mobile',
       testMatch: /pages\.mobile\.spec\.ts/,
-      use: { ...devices['iPhone 14'], viewport: { width: 390, height: 844 } },
+      use: { ...devices['iPhone 17 Pro'] },
     },
   ],
 });

@@ -94,10 +94,9 @@ export const SHOTS: readonly Shot[] = [
 ];
 
 async function take(shot: Shot, url: string): Promise<Buffer> {
-  const { chromium } = await import('@playwright/test');
-  const browser = await chromium.launch({
-    executablePath: process.env.PR_GIF_CHROMIUM || undefined,
-  });
+  // WebKit, Safari's engine, as the visual tests run (#330).
+  const { webkit } = await import('@playwright/test');
+  const browser = await webkit.launch();
   try {
     const context = await browser.newContext({
       viewport: shot.viewport,

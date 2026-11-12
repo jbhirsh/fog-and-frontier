@@ -301,7 +301,7 @@ export function seedPhotos(page: Page, activityId: string, count = 2) {
 
 // Fails the test if anything in the page extends past the viewport on the x
 // axis — the cheapest reliable way to catch the "filter pill row makes the
-// whole page scroll sideways at 390px" class of mobile regression.
+// whole page scroll sideways at 402px" class of mobile regression.
 export async function assertNoHorizontalOverflow(page: Page) {
   const { scrollWidth, innerWidth } = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,

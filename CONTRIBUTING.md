@@ -12,6 +12,9 @@ cp .env.local.example .env.local    # fill in what you need; never commit it
 npm run dev                         # Vite on http://localhost:5173
 ```
 
+The visual tests and the PR GIFs run in WebKit, Safari's engine: install it once with
+`npx playwright install --with-deps webkit` (on Linux, `--with-deps` adds its system libraries).
+
 `npm run dev` needs no secrets. Outside a build Vercel makes (production, a preview, `vercel dev`)
 the app is signed out with no sign-in offered (`src/lib/authShim.ts`), so owner controls are
 hidden. The client calls the API at `/api/graphql`, which plain Vite doesn't serve: for data, run
@@ -42,10 +45,10 @@ Sentry's are set in Vercel:
 | `npm run codegen`                                            | typed GraphQL operations into `src/gql/` from `api/_schema.ts`                                            |
 | `npm test` / `npm run test:watch` / `npm run test:coverage`  | Vitest; only `test:coverage` applies the 80% per-file gate CI runs                                        |
 | `npm run test:mutation`                                      | StrykerJS over the files coverage measures (`stryker.config.json`)                                        |
-| `npm run test:visual` / `npm run test:visual:update`         | Playwright visual regression against a `--mode test` build (baselines come from CI: below)                |
+| `npm run test:visual` / `npm run test:visual:update`         | Playwright visual regression in WebKit against a `--mode test` build (baselines come from CI: below)      |
 | `npx knip` / `npx jscpd`                                     | the weekly audit's unused-code and duplication checks, expected to report nothing                         |
 | `npm run eval`                                               | the Gemini eval (paid; below)                                                                             |
-| `npm run gif -- <scenario.ts> --dir <PR>`                    | a PR's before/after GIFs, recorded by jbhirsh/ci's `gif` tool (`scripts/gif.mjs`; needs ffmpeg)           |
+| `npm run gif -- <scenario.ts> --dir <PR>`                    | a PR's before/after GIFs, recorded by jbhirsh/ci's `gif` tool (`scripts/gif.mjs`; needs ffmpeg, WebKit)   |
 | `npm run db:snapshot` / `npm run db:seed-preview`            | production's Turso into `dev-db.sqlite` / the preview database seeded from production                     |
 | `npm run cards -- draft` / `save` (`cards -- dogs draft`...) | card copy (#295) and dog rules (#296) for places saved without them, through a review file                |
 | `npm run regions:gen`                                        | `shared/isoRegions.ts` from ISO 3166 (needs Debian's `iso-codes`)                                         |
