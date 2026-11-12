@@ -63,6 +63,14 @@ async function fetchCatalog() {
 // a browser's user agent gets a page with no post data in it.
 const INSTAGRAM_USER_AGENT = 'FogAndFrontier/1.0 (+https://fog-and-frontier.vercel.app)';
 
+// The most specific reason a failed request gives: undici hangs it on cause
+// (ENOTFOUND, a redirect loop). The first that is a non-empty string, as an
+// empty or non-string one would print as a blank or an object in the report.
+function reason(err) {
+  const given = [err?.cause?.code, err?.cause?.message, err?.code, err?.message];
+  return given.find((r) => typeof r === 'string' && r !== '') ?? 'fetch failed';
+}
+
 // An Instagram post: its embed page, read for whether the post is still up.
 async function probeInstagram(embedUrl) {
   try {
@@ -79,9 +87,7 @@ async function probeInstagram(embedUrl) {
     };
   } catch (err) {
     if (err?.name === 'TimeoutError') return { error: 'timeout' };
-    return {
-      error: err?.cause?.code ?? err?.cause?.message ?? err?.code ?? err?.message ?? 'fetch failed',
-    };
+    return { error: reason(err) };
   }
 }
 
@@ -110,10 +116,7 @@ async function probe(url) {
     }
   } catch (err) {
     if (err?.name === 'TimeoutError') return { error: 'timeout' };
-    // undici hangs the specific reason (ENOTFOUND, a redirect loop) on cause.
-    return {
-      error: err?.cause?.code ?? err?.cause?.message ?? err?.code ?? err?.message ?? 'fetch failed',
-    };
+    return { error: reason(err) };
   }
 }
 
