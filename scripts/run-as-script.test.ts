@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { runAsScript } from './run-as-script.ts';
+import { ScriptError, runAsScript } from './run-as-script.ts';
 
 const argv = process.argv;
 const entry = resolve('scripts/some-script.ts');
@@ -45,5 +45,23 @@ describe('runAsScript', () => {
       }),
     );
     await vi.waitFor(() => expect(error).toHaveBeenCalledWith('plain'));
+  });
+
+  it('exits with the code main resolves to, and leaves it alone otherwise', async () => {
+    process.argv = ['node', entry];
+    runAsScript(url, () => Promise.resolve(3));
+    await vi.waitFor(() => expect(process.exitCode).toBe(3));
+    process.exitCode = undefined;
+    runAsScript(url, () => Promise.resolve('done'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it("exits with a ScriptError's own code", async () => {
+    process.argv = ['node', entry];
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    runAsScript(url, () => Promise.reject(new ScriptError('eval: no cases selected', 2)));
+    await vi.waitFor(() => expect(process.exitCode).toBe(2));
+    expect(error).toHaveBeenCalledWith('eval: no cases selected');
   });
 });
