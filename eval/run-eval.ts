@@ -64,6 +64,7 @@ import {
   type GoldenSet,
   type ResolverOutcome,
 } from './types.js';
+import { ScriptError, runAsScript } from '../scripts/run-as-script.ts';
 
 const EVAL_DIR = path.dirname(fileURLToPath(import.meta.url));
 // The server gate is requireOwnerCtx, which only inspects this object — no
@@ -91,7 +92,7 @@ interface CliOptions {
 // 429 would leave a case ungraded).
 const DEFAULT_CONCURRENCY = 4;
 
-function parseArgs(argv: string[]): CliOptions {
+export function parseArgs(argv: readonly string[], env = process.env): CliOptions {
   let only: string[] | null = null;
   let feature: Feature | null = null;
   let hikes = false;
@@ -100,9 +101,9 @@ function parseArgs(argv: string[]): CliOptions {
   let threshold = DEFAULT_THRESHOLD;
   let concurrency = DEFAULT_CONCURRENCY;
 
-  const envThreshold = process.env.EVAL_THRESHOLD;
+  const envThreshold = env.EVAL_THRESHOLD;
   if (envThreshold) threshold = Number(envThreshold);
-  const envConcurrency = process.env.EVAL_CONCURRENCY;
+  const envConcurrency = env.EVAL_CONCURRENCY;
   if (envConcurrency) concurrency = Number(envConcurrency);
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -149,17 +150,18 @@ function parseArgs(argv: string[]): CliOptions {
   return { only, feature, hikes, parks, judge, threshold, concurrency };
 }
 
+// A configuration problem: the run stops before any paid call, with exit 2.
 function exitConfig(message: string): never {
-  console.error(`eval: ${message}`);
-  process.exit(2);
+  throw new ScriptError(`eval: ${message}`, 2);
 }
 
 // Best-effort local-dev key pickup: real env always wins, and only this one
-// variable is read — not a general dotenv load.
-function ensureApiKey(): void {
+// variable is read — not a general dotenv load. `dir` is the eval's folder,
+// beside the env files.
+export function ensureApiKey(dir = EVAL_DIR): void {
   if (process.env.GEMINI_API_KEY) return;
   for (const file of ['.env.local', '.env']) {
-    const p = path.join(EVAL_DIR, '..', file);
+    const p = path.join(dir, '..', file);
     if (!existsSync(p)) continue;
     const line = readFileSync(p, 'utf8')
       .split('\n')
@@ -181,8 +183,8 @@ function ensureApiKey(): void {
 
 // --- golden set --------------------------------------------------------------
 
-function loadGoldenSet(): GoldenSet {
-  const raw = readFileSync(path.join(EVAL_DIR, 'golden-set.json'), 'utf8');
+export function loadGoldenSet(dir = EVAL_DIR): GoldenSet {
+  const raw = readFileSync(path.join(dir, 'golden-set.json'), 'utf8');
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -314,7 +316,7 @@ const unjudged = (name: string): CheckResult => ({
   detail: 'not judged (--no-judge)',
 });
 
-async function gradeCase(
+export async function gradeCase(
   goldenCase: GoldenCase,
   judge: boolean,
 ): Promise<{ checks: CheckResult[]; output: unknown; events: Record<string, unknown>[] }> {
@@ -396,7 +398,7 @@ function noFailures(checks: CheckResult[]): boolean {
   return !checks.some((c) => c.status === 'fail');
 }
 
-function caseStatus(goldenCase: GoldenCase, checks: CheckResult[]): CaseStatus {
+export function caseStatus(goldenCase: GoldenCase, checks: CheckResult[]): CaseStatus {
   const anyFail = checks.some((c) => c.status === 'fail');
   const anyError = checks.some((c) => c.status === 'error');
   // Real failures outrank infra errors: a case that already failed a quality
@@ -411,10 +413,14 @@ function caseStatus(goldenCase: GoldenCase, checks: CheckResult[]): CaseStatus {
 
 // --- main --------------------------------------------------------------------
 
-async function main(): Promise<void> {
-  const options = parseArgs(process.argv.slice(2));
-  ensureApiKey();
-  const goldenSet = loadGoldenSet();
+/**
+ * Runs the eval and resolves to its exit code. `dir` holds the golden set
+ * and gets results.json: the eval's own folder, but for the tests.
+ */
+export async function main(argv: readonly string[], dir = EVAL_DIR): Promise<number> {
+  const options = parseArgs(argv);
+  ensureApiKey(dir);
+  const goldenSet = loadGoldenSet(dir);
 
   let cases = goldenSet.cases;
   if (options.only) {
@@ -476,11 +482,10 @@ async function main(): Promise<void> {
   });
   console.log(`\n${renderScorecard(evalResults)}`);
   console.log(`\n${renderUsage(usageOf(usages))}\n`);
-  writeResults(path.join(EVAL_DIR, 'results.json'), evalResults);
+  writeResults(path.join(dir, 'results.json'), evalResults);
   console.log(`Results written to eval/results.json`);
 
   const failed = evalResults.summary.inconclusive || evalResults.summary.score < options.threshold;
-  process.exitCode = failed ? 1 : 0;
 
   // A timed-out case leaves its resolver fetch un-aborted (the production
   // resolvers expose no AbortController), and that open socket would hold the
@@ -490,9 +495,10 @@ async function main(): Promise<void> {
     r.checks.some((c) => c.detail.includes('timed out after')),
   );
   if (sawTimeout) process.exit(failed ? 1 : 0);
+  return failed ? 1 : 0;
 }
 
-function statusGlyph(status: CaseStatus): string {
+export function statusGlyph(status: CaseStatus): string {
   switch (status) {
     case 'pass':
       return '✓';
@@ -505,4 +511,4 @@ function statusGlyph(status: CaseStatus): string {
   }
 }
 
-await main();
+runAsScript(import.meta.url, main);
