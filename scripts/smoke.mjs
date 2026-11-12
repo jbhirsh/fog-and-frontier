@@ -24,286 +24,302 @@
  */
 
 import { judgeTripsCanary, TRIPS_QUERY } from './smoke-trips.mjs';
+import { runAsScript } from './run-as-script.ts';
 
 const SENTINEL_ACTIVITY_SLUG = 'the-horse-park-at-woodside';
 const TIMEOUT_MS = 15_000;
-
-// Regression floor for the activities catalog (incident #24 follow-up). If a
-// deploy would publish fewer activities than the floor, fail closed. Override
-// via MIN_ACTIVITIES env when seeding new content legitimately raises the floor.
-const MIN_ACTIVITIES = Number(process.env.MIN_ACTIVITIES ?? 64);
-
-// On Preview, the deployed app reads from a Turso replica that may not match
-// Production's row set (same DB credentials, divergent reads observed in CI).
-// Sentinel-by-slug is only meaningful when we know the read target is the same
-// DB Production reads. Default to strict so local runs against prod stay strict.
-const STRICT = (process.env.SMOKE_ENV ?? 'Production') === 'Production';
 
 const EXIT_OK = 0;
 const EXIT_REGRESSION = 1;
 const EXIT_NOT_BUILT = 2;
 const EXIT_USAGE = 3;
 
-const baseUrl = process.argv[2] ?? process.env.SMOKE_BASE_URL;
-if (!baseUrl) {
-  console.error('usage: node scripts/smoke.mjs <baseUrl>');
-  process.exit(EXIT_USAGE);
-}
+/**
+ * Runs the checks against a deployment and resolves to the exit code above.
+ * The environment and fetch come in as dependencies, for the tests.
+ * @param {readonly string[]} argv `[baseUrl]`
+ * @param {{ env?: NodeJS.ProcessEnv, fetch?: typeof fetch }} [deps]
+ * @returns {Promise<number>}
+ */
+export async function main(argv, { env = process.env, fetch = globalThis.fetch } = {}) {
+  // Regression floor for the activities catalog (incident #24 follow-up). If a
+  // deploy would publish fewer activities than the floor, fail closed. Override
+  // via MIN_ACTIVITIES env when seeding new content legitimately raises the floor.
+  const MIN_ACTIVITIES = Number(env.MIN_ACTIVITIES ?? 64);
 
-// Vercel preview URLs have deployment protection. Bypass via the
-// "Protection Bypass for Automation" secret. Sent both as a header and
-// as a query param so CDN edge auth doesn't strip it.
-const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-const bypassHeaders = bypass ? { 'x-vercel-protection-bypass': bypass } : {};
-function withBypass(url) {
-  if (!bypass) return url;
-  const u = new URL(url);
-  u.searchParams.set('x-vercel-protection-bypass', bypass);
-  u.searchParams.set('x-vercel-set-bypass-cookie', 'true');
-  return u.toString();
-}
+  // On Preview, the deployed app reads from a Turso replica that may not match
+  // Production's row set (same DB credentials, divergent reads observed in CI).
+  // Sentinel-by-slug is only meaningful when we know the read target is the same
+  // DB Production reads. Default to strict so local runs against prod stay strict.
+  const STRICT = (env.SMOKE_ENV ?? 'Production') === 'Production';
 
-const results = [];
-let hadFailure = false;
-
-// Build-presence signals. We use these to decide between "regression" and
-// "not yet built" when something fails. A no-build cached preview returns
-// HTML without a hashed /assets/*.css link and 404s the GraphQL route.
-const signals = {
-  cssLinkPresent: false,
-  graphqlStatus: null,
-};
-
-function record(name, ok, detail) {
-  results.push({ name, ok, detail });
-  hadFailure = hadFailure || !ok;
-  const marker = ok ? 'PASS' : 'FAIL';
-  console.log(`[${marker}] ${name}${detail ? ` — ${detail}` : ''}`);
-}
-
-async function fetchWithTimeout(url, opts = {}) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  try {
-    return await fetch(withBypass(url), {
-      ...opts,
-      headers: { ...bypassHeaders, ...(opts.headers ?? {}) },
-      signal: ctrl.signal,
-    });
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-// Read-only GraphQL canary: one POST that pulls both catalog reads at once.
-async function checkGraphql() {
-  const url = new URL('/api/graphql', baseUrl).toString();
-  let res;
-  try {
-    res = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ query: '{ activities { id } completed { id } }' }),
-    });
-  } catch (err) {
-    record('POST /api/graphql', false, `request failed: ${err.message ?? err}`);
-    return;
-  }
-  signals.graphqlStatus = res.status;
-  if (res.status !== 200) {
-    record('POST /api/graphql', false, `expected 200, got ${res.status}`);
-    return;
-  }
-  const ctype = res.headers.get('content-type') ?? '';
-  if (!ctype.includes('application/json')) {
-    record('POST /api/graphql', false, `expected JSON, got ${ctype}`);
-    return;
+  const baseUrl = argv[0] ?? env.SMOKE_BASE_URL;
+  if (!baseUrl) {
+    console.error('usage: node scripts/smoke.mjs <baseUrl>');
+    return EXIT_USAGE;
   }
 
-  let payload;
-  try {
-    payload = await res.json();
-  } catch (err) {
-    record('POST /api/graphql', false, `body was not JSON: ${err.message ?? err}`);
-    return;
+  // Vercel preview URLs have deployment protection. Bypass via the
+  // "Protection Bypass for Automation" secret. Sent both as a header and
+  // as a query param so CDN edge auth doesn't strip it.
+  const bypass = env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  const bypassHeaders = bypass ? { 'x-vercel-protection-bypass': bypass } : {};
+  function withBypass(url) {
+    if (!bypass) return url;
+    const u = new URL(url);
+    u.searchParams.set('x-vercel-protection-bypass', bypass);
+    u.searchParams.set('x-vercel-set-bypass-cookie', 'true');
+    return u.toString();
   }
 
-  if (payload?.errors?.length) {
-    record(
-      'POST /api/graphql',
-      false,
-      `GraphQL errors: ${payload.errors
-        .map((e) => e.message)
-        .join('; ')
-        .slice(0, 300)}`,
-    );
-    return;
+  const results = [];
+  let hadFailure = false;
+
+  // Build-presence signals. We use these to decide between "regression" and
+  // "not yet built" when something fails. A no-build cached preview returns
+  // HTML without a hashed /assets/*.css link and 404s the GraphQL route.
+  const signals = {
+    cssLinkPresent: false,
+    graphqlStatus: null,
+  };
+
+  function record(name, ok, detail) {
+    results.push({ name, ok, detail });
+    hadFailure = hadFailure || !ok;
+    const marker = ok ? 'PASS' : 'FAIL';
+    console.log(`[${marker}] ${name}${detail ? ` — ${detail}` : ''}`);
   }
 
-  const activities = payload?.data?.activities;
-  const completed = payload?.data?.completed;
-  if (!Array.isArray(activities)) {
-    record('POST /api/graphql', false, 'data.activities is not an array');
-    return;
+  async function fetchWithTimeout(url, opts = {}) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      return await fetch(withBypass(url), {
+        ...opts,
+        headers: { ...bypassHeaders, ...(opts.headers ?? {}) },
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(t);
+    }
   }
-  if (!Array.isArray(completed)) {
-    record('POST /api/graphql', false, 'data.completed is not an array');
-    return;
-  }
-  record('GraphQL completed read', true, `${completed.length} entries`);
 
-  if (STRICT) {
-    if (activities.length === 0) {
-      record('GraphQL activities read', false, 'zero activities (DB empty or rows dropped)');
+  // Read-only GraphQL canary: one POST that pulls both catalog reads at once.
+  async function checkGraphql() {
+    const url = new URL('/api/graphql', baseUrl).toString();
+    let res;
+    try {
+      res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: '{ activities { id } completed { id } }' }),
+      });
+    } catch (err) {
+      record('POST /api/graphql', false, `request failed: ${err.message ?? err}`);
       return;
     }
-    if (activities.length < MIN_ACTIVITIES) {
+    signals.graphqlStatus = res.status;
+    if (res.status !== 200) {
+      record('POST /api/graphql', false, `expected 200, got ${res.status}`);
+      return;
+    }
+    const ctype = res.headers.get('content-type') ?? '';
+    if (!ctype.includes('application/json')) {
+      record('POST /api/graphql', false, `expected JSON, got ${ctype}`);
+      return;
+    }
+
+    let payload;
+    try {
+      payload = await res.json();
+    } catch (err) {
+      record('POST /api/graphql', false, `body was not JSON: ${err.message ?? err}`);
+      return;
+    }
+
+    if (payload?.errors?.length) {
       record(
-        'GraphQL activities read',
+        'POST /api/graphql',
         false,
-        `regression: ${activities.length} activities < MIN_ACTIVITIES floor (${MIN_ACTIVITIES})`,
+        `GraphQL errors: ${payload.errors
+          .map((e) => e.message)
+          .join('; ')
+          .slice(0, 300)}`,
       );
       return;
     }
-    if (!activities.some((a) => a?.id === SENTINEL_ACTIVITY_SLUG)) {
+
+    const activities = payload?.data?.activities;
+    const completed = payload?.data?.completed;
+    if (!Array.isArray(activities)) {
+      record('POST /api/graphql', false, 'data.activities is not an array');
+      return;
+    }
+    if (!Array.isArray(completed)) {
+      record('POST /api/graphql', false, 'data.completed is not an array');
+      return;
+    }
+    record('GraphQL completed read', true, `${completed.length} entries`);
+
+    if (STRICT) {
+      if (activities.length === 0) {
+        record('GraphQL activities read', false, 'zero activities (DB empty or rows dropped)');
+        return;
+      }
+      if (activities.length < MIN_ACTIVITIES) {
+        record(
+          'GraphQL activities read',
+          false,
+          `regression: ${activities.length} activities < MIN_ACTIVITIES floor (${MIN_ACTIVITIES})`,
+        );
+        return;
+      }
+      if (!activities.some((a) => a?.id === SENTINEL_ACTIVITY_SLUG)) {
+        record(
+          'GraphQL activities read',
+          false,
+          `sentinel "${SENTINEL_ACTIVITY_SLUG}" missing (got ${activities.length} activities; first: ${activities[0]?.id})`,
+        );
+        return;
+      }
       record(
         'GraphQL activities read',
-        false,
-        `sentinel "${SENTINEL_ACTIVITY_SLUG}" missing (got ${activities.length} activities; first: ${activities[0]?.id})`,
+        true,
+        `${activities.length} activities (≥${MIN_ACTIVITIES}), sentinel present`,
       );
       return;
     }
     record(
       'GraphQL activities read',
       true,
-      `${activities.length} activities (≥${MIN_ACTIVITIES}), sentinel present`,
+      `${activities.length} activities (shape-only check on non-Production)`,
     );
-    return;
   }
-  record(
-    'GraphQL activities read',
-    true,
-    `${activities.length} activities (shape-only check on non-Production)`,
-  );
-}
 
-// Anonymous trips canary (#58): no token, so the API must refuse, and refusing
-// proves the query validates and the resolver and its auth gate run.
-async function checkTrips() {
-  const url = new URL('/api/graphql', baseUrl).toString();
-  let res;
-  try {
-    res = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ query: TRIPS_QUERY }),
-    });
-  } catch (err) {
-    record('GraphQL trips (anonymous)', false, `request failed: ${err.message ?? err}`);
-    return;
-  }
-  const contentType = res.headers.get('content-type') ?? '';
-  let payload = null;
-  try {
-    payload = await res.json();
-  } catch (err) {
-    // A JSON content type with a body that won't parse is its own failure;
-    // for any other type, judgeTripsCanary reports the content type.
-    if (res.status === 200 && contentType.includes('application/json')) {
-      record('GraphQL trips (anonymous)', false, `body was not JSON: ${err.message ?? err}`);
+  // Anonymous trips canary (#58): no token, so the API must refuse, and refusing
+  // proves the query validates and the resolver and its auth gate run.
+  async function checkTrips() {
+    const url = new URL('/api/graphql', baseUrl).toString();
+    let res;
+    try {
+      res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: TRIPS_QUERY }),
+      });
+    } catch (err) {
+      record('GraphQL trips (anonymous)', false, `request failed: ${err.message ?? err}`);
       return;
     }
+    const contentType = res.headers.get('content-type') ?? '';
+    let payload = null;
+    try {
+      payload = await res.json();
+    } catch (err) {
+      // A JSON content type with a body that won't parse is its own failure;
+      // for any other type, judgeTripsCanary reports the content type.
+      if (res.status === 200 && contentType.includes('application/json')) {
+        record('GraphQL trips (anonymous)', false, `body was not JSON: ${err.message ?? err}`);
+        return;
+      }
+    }
+    const { ok, detail } = judgeTripsCanary({ status: res.status, contentType, payload });
+    record('GraphQL trips (anonymous)', ok, detail);
   }
-  const { ok, detail } = judgeTripsCanary({ status: res.status, contentType, payload });
-  record('GraphQL trips (anonymous)', ok, detail);
-}
 
-async function checkHtmlAndCss() {
-  const url = new URL('/', baseUrl).toString();
-  let html;
-  try {
-    const res = await fetchWithTimeout(url);
-    if (res.status !== 200) {
-      record('GET /', false, `expected 200, got ${res.status}`);
+  async function checkHtmlAndCss() {
+    const url = new URL('/', baseUrl).toString();
+    let html;
+    try {
+      const res = await fetchWithTimeout(url);
+      if (res.status !== 200) {
+        record('GET /', false, `expected 200, got ${res.status}`);
+        return;
+      }
+      html = await res.text();
+    } catch (err) {
+      record('GET /', false, `request failed: ${err.message ?? err}`);
       return;
     }
-    html = await res.text();
-  } catch (err) {
-    record('GET /', false, `request failed: ${err.message ?? err}`);
-    return;
-  }
 
-  if (!html.includes('<title>')) {
-    record('GET /', false, 'HTML missing <title> — index.html may not be served');
-    return;
-  }
-  record('GET /', true, `${html.length} bytes`);
-
-  const cssMatch = html.match(/href="(\/assets\/[^"]+\.css)"/);
-  if (!cssMatch) {
-    record('Locate built CSS asset', false, 'no /assets/*.css link in HTML');
-    return;
-  }
-  signals.cssLinkPresent = true;
-  const cssPath = cssMatch[1];
-  record('Locate built CSS asset', true, cssPath);
-
-  const cssUrl = new URL(cssPath, baseUrl).toString();
-  try {
-    const res = await fetchWithTimeout(cssUrl);
-    if (res.status !== 200) {
-      record('GET CSS asset', false, `expected 200, got ${res.status}`);
+    if (!html.includes('<title>')) {
+      record('GET /', false, 'HTML missing <title> — index.html may not be served');
       return;
     }
-    const body = await res.text();
-    if (body.length < 1000) {
-      record('GET CSS asset', false, `CSS suspiciously small (${body.length} bytes)`);
+    record('GET /', true, `${html.length} bytes`);
+
+    const cssMatch = html.match(/href="(\/assets\/[^"]+\.css)"/);
+    if (!cssMatch) {
+      record('Locate built CSS asset', false, 'no /assets/*.css link in HTML');
       return;
     }
-    if (!body.includes('tailwindcss')) {
-      record('GET CSS asset', false, 'CSS missing Tailwind banner — build may have dropped styles');
-      return;
+    signals.cssLinkPresent = true;
+    const cssPath = cssMatch[1];
+    record('Locate built CSS asset', true, cssPath);
+
+    const cssUrl = new URL(cssPath, baseUrl).toString();
+    try {
+      const res = await fetchWithTimeout(cssUrl);
+      if (res.status !== 200) {
+        record('GET CSS asset', false, `expected 200, got ${res.status}`);
+        return;
+      }
+      const body = await res.text();
+      if (body.length < 1000) {
+        record('GET CSS asset', false, `CSS suspiciously small (${body.length} bytes)`);
+        return;
+      }
+      if (!body.includes('tailwindcss')) {
+        record(
+          'GET CSS asset',
+          false,
+          'CSS missing Tailwind banner — build may have dropped styles',
+        );
+        return;
+      }
+      record('GET CSS asset', true, `${body.length} bytes, Tailwind banner present`);
+    } catch (err) {
+      record('GET CSS asset', false, `request failed: ${err.message ?? err}`);
     }
-    record('GET CSS asset', true, `${body.length} bytes, Tailwind banner present`);
-  } catch (err) {
-    record('GET CSS asset', false, `request failed: ${err.message ?? err}`);
   }
-}
 
-console.log(
-  `Smoke gate against ${baseUrl} (SMOKE_ENV=${process.env.SMOKE_ENV ?? 'Production (default)'}, strict=${STRICT})`,
-);
-await checkGraphql();
-await checkTrips();
-await checkHtmlAndCss();
-
-const passed = results.filter((r) => r.ok).length;
-const total = results.length;
-console.log(`\n${passed}/${total} checks passed`);
-
-if (!hadFailure) {
-  process.exit(EXIT_OK);
-}
-
-// Decide between regression and not-yet-built. Vercel's no-build cached
-// preview signature: HTML served (so we got past GET /) but no hashed CSS
-// link AND the GraphQL route 404s. If we see that combination, tell the
-// caller this is a stub, not a regression.
-const graphql404 = signals.graphqlStatus === 404;
-const looksUnbuilt = !signals.cssLinkPresent && graphql404;
-
-if (looksUnbuilt) {
   console.log(
-    '\n[SMOKE_UNBUILT] preview looks like a Vercel no-build cached stub ' +
-      '(no /assets/*.css link in HTML AND /api/graphql 404). ' +
-      'Not treating as a regression yet — caller should retry or escalate.',
+    `Smoke gate against ${baseUrl} (SMOKE_ENV=${env.SMOKE_ENV ?? 'Production (default)'}, strict=${STRICT})`,
   );
-  process.exit(EXIT_NOT_BUILT);
+  await checkGraphql();
+  await checkTrips();
+  await checkHtmlAndCss();
+
+  const passed = results.filter((r) => r.ok).length;
+  const total = results.length;
+  console.log(`\n${passed}/${total} checks passed`);
+
+  if (!hadFailure) {
+    return EXIT_OK;
+  }
+
+  // Decide between regression and not-yet-built. Vercel's no-build cached
+  // preview signature: HTML served (so we got past GET /) but no hashed CSS
+  // link AND the GraphQL route 404s. If we see that combination, tell the
+  // caller this is a stub, not a regression.
+  const graphql404 = signals.graphqlStatus === 404;
+  const looksUnbuilt = !signals.cssLinkPresent && graphql404;
+
+  if (looksUnbuilt) {
+    console.log(
+      '\n[SMOKE_UNBUILT] preview looks like a Vercel no-build cached stub ' +
+        '(no /assets/*.css link in HTML AND /api/graphql 404). ' +
+        'Not treating as a regression yet — caller should retry or escalate.',
+    );
+    return EXIT_NOT_BUILT;
+  }
+
+  console.log(
+    '\n[SMOKE_REGRESSION] preview appears to be a real build but at least one check failed. ' +
+      `Signals: cssLinkPresent=${signals.cssLinkPresent}, ` +
+      `graphqlStatus=${signals.graphqlStatus}.`,
+  );
+  return EXIT_REGRESSION;
 }
 
-console.log(
-  '\n[SMOKE_REGRESSION] preview appears to be a real build but at least one check failed. ' +
-    `Signals: cssLinkPresent=${signals.cssLinkPresent}, ` +
-    `graphqlStatus=${signals.graphqlStatus}.`,
-);
-process.exit(EXIT_REGRESSION);
+runAsScript(import.meta.url, main);

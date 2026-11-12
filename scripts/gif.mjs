@@ -22,33 +22,55 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runAsScript } from './run-as-script.ts';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const given = process.env.CI_TOOLING_DIR;
-const tooling = given ? path.resolve(given) : path.resolve(root, '..', 'ci');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Runs git, its output shown; says whether it worked. */
-function git(args) {
-  return spawnSync('git', args, { stdio: 'inherit' }).status === 0;
-}
+/**
+ * Fetches the GIF tool (unless CI_TOOLING_DIR names a clone) and runs it with
+ * these arguments; resolves to its exit code.
+ * @param {readonly string[]} argv
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} root the checkout, beside which ../ci is cloned: given
+ *   always, so a test can't reach a real one
+ * @returns {Promise<number>}
+ */
+export function run(argv, env, root) {
+  const given = env.CI_TOOLING_DIR;
+  const tooling = given ? path.resolve(given) : path.resolve(root, '..', 'ci');
+  /** Runs git, its output shown; says whether it worked. */
+  const git = (/** @type {string[]} */ args) =>
+    spawnSync('git', args, { stdio: 'inherit', env }).status === 0;
 
-if (!given) {
-  if (existsSync(path.join(tooling, '.git'))) {
-    if (!git(['-C', tooling, 'pull', '--ff-only', '--quiet'])) {
-      console.warn(`gif: couldn't update ${tooling}; running it as it is`);
+  if (!given) {
+    if (existsSync(path.join(tooling, '.git'))) {
+      if (!git(['-C', tooling, 'pull', '--ff-only', '--quiet'])) {
+        console.warn(`gif: couldn't update ${tooling}; running it as it is`);
+      }
+    } else if (!git(['clone', '--quiet', 'https://github.com/jbhirsh/ci', tooling])) {
+      console.error(`gif: couldn't clone jbhirsh/ci into ${tooling}`);
+      return Promise.resolve(1);
     }
-  } else if (!git(['clone', '--quiet', 'https://github.com/jbhirsh/ci', tooling])) {
-    console.error(`gif: couldn't clone jbhirsh/ci into ${tooling}`);
-    process.exit(1);
   }
+  const cli = path.join(tooling, 'gif', 'cli.mjs');
+  if (!existsSync(cli)) {
+    console.error(`gif: ${cli} isn't there: is ${tooling} a clone of jbhirsh/ci?`);
+    return Promise.resolve(1);
+  }
+  const result = spawnSync(process.execPath, [cli, ...argv], {
+    stdio: 'inherit',
+    env: { ...env, APP_ROOT: root },
+  });
+  return Promise.resolve(result.status ?? 1);
 }
-const cli = path.join(tooling, 'gif', 'cli.mjs');
-if (!existsSync(cli)) {
-  console.error(`gif: ${cli} isn't there: is ${tooling} a clone of jbhirsh/ci?`);
-  process.exit(1);
+
+/**
+ * `npm run gif`: runs the tool for this checkout, with this process's
+ * environment.
+ * @param {readonly string[]} argv
+ */
+export function main(argv) {
+  return run(argv, process.env, ROOT);
 }
-const result = spawnSync(process.execPath, [cli, ...process.argv.slice(2)], {
-  stdio: 'inherit',
-  env: { ...process.env, APP_ROOT: root },
-});
-process.exitCode = result.status ?? 1;
+
+runAsScript(import.meta.url, main);

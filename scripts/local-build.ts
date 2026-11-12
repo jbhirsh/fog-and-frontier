@@ -55,14 +55,16 @@ export function build(root: string, cwd: string, outDir: string, mode: string) {
 
 /**
  * Serves `outDir` with `vite preview` on a free port, and resolves once it
- * answers. On localhost: tests/visual/helpers.ts's mockApis lets anything
- * that isn't through to the network.
+ * answers, failing if it hasn't within `timeoutMs`. On localhost:
+ * tests/visual/helpers.ts's mockApis lets anything that isn't through to
+ * the network.
  */
 export async function serve(
   root: string,
   cwd: string,
   outDir: string,
   servers: ChildProcess[],
+  timeoutMs = 30_000,
 ): Promise<string> {
   const port = await freePort();
   const server = spawn(
@@ -80,7 +82,7 @@ export async function serve(
   );
   servers.push(server);
   const url = `http://localhost:${port}`;
-  const deadline = Date.now() + 30_000;
+  const deadline = Date.now() + timeoutMs;
   for (;;) {
     if (server.exitCode !== null)
       throw new Error(`vite preview for ${outDir} exited (${server.exitCode})`);
