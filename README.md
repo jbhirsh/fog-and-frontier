@@ -80,8 +80,8 @@ The screenshots retake themselves when a change to what they show merges.
 - **Vitest, React Testing Library, fast-check and StrykerJS:** unit, component and property tests
   under an 80% per-file coverage gate, and mutation testing that checks the tests would fail if
   the code changed.
-- **Playwright:** visual regression of the desktop pages in Chromium, Firefox and WebKit and the
-  mobile ones on an iPhone.
+- **Playwright:** visual regression in WebKit, Safari's engine, the one browser the app is for:
+  the desktop pages in Desktop Safari and the mobile ones on an iPhone 17 Pro.
 
 ## Architecture
 

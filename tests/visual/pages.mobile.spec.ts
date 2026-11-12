@@ -10,10 +10,11 @@ import {
   stubGenerateActivity,
 } from './helpers';
 
-// Mobile visual sweep at 390x844 (iPhone 14). Each snapshot targets a specific
-// Phase B regression risk — filter wrapping, hero scaling, the dvh fix, dialog
-// touch targets, form stacking, the LocationPicker map, and the Leaflet popup
-// link tap area. Runs only under the `mobile` project — see playwright.config.
+// Mobile visual sweep on an iPhone 17 Pro (402x681 under Safari's bars). Each
+// snapshot targets a specific Phase B regression risk — filter wrapping, hero
+// scaling, the dvh fix, dialog touch targets, form stacking, the LocationPicker
+// map, and the Leaflet popup link tap area. Runs only under the `mobile`
+// project — see playwright.config.
 
 const COMPLETED_FIXTURE_ID = 'fixture-completed-scenic';
 

@@ -65,9 +65,9 @@ jobs:
       - if: steps.decide.outputs.capture == 'true'
         run: npm ci
 
-      - name: Install Chromium
+      - name: Install WebKit
         if: steps.decide.outputs.capture == 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps webkit
 
       - name: Retake the screenshots
         if: steps.decide.outputs.capture == 'true'

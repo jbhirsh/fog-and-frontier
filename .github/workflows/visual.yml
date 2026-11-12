@@ -38,9 +38,9 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        # Chromium (desktop), WebKit (the iPhone and desktop Safari) and
-        # Firefox (desktop): see the projects in playwright.config.ts.
-        run: npx playwright install --with-deps chromium webkit firefox
+        # WebKit only, for the iPhone and Desktop Safari (#330): see the
+        # projects in playwright.config.ts.
+        run: npx playwright install --with-deps webkit
 
       # What a slow or flaky run's report is worth seeing beside its tests:
       # the Playwright release and the browsers it drove, with their
@@ -51,7 +51,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "version=$(npx playwright --version | sed 's/^Version //')" >> "$GITHUB_OUTPUT"
-          echo "browsers=$(npx playwright install --dry-run chromium webkit firefox | awk '/^[^ ]/ && !/^FFmpeg/ { sub(/ \(playwright.*/, ""); printf "%s%s", sep, $0; sep = ", " }')" >> "$GITHUB_OUTPUT"
+          echo "browsers=$(npx playwright install --dry-run webkit | awk '/^[^ ]/ && !/^FFmpeg/ { sub(/ \(playwright.*/, ""); printf "%s%s", sep, $0; sep = ", " }')" >> "$GITHUB_OUTPUT"
 
       # Shown in the report's Environment, with the machine the first note
       # adds (jbhirsh/ci's job-summary/note).
@@ -98,8 +98,8 @@ jobs:
           retention-days: 14
 
       # The job's summary and report (jbhirsh/ci's job-summary): its steps
-      # and screenshot tests (each named with its Playwright project, as the
-      # desktop pages run in three engines) beside its recent runs, published
+      # and screenshot tests (each named with its Playwright project, desktop
+      # or mobile) beside its recent runs, published
       # on the repository's Pages by the reports job below.
       - name: Job summary
         if: ${{ !cancelled() }}
