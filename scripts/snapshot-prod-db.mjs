@@ -9,76 +9,104 @@
  */
 
 import { createClient } from '@libsql/client';
-import { existsSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { resolve } from 'node:path';
+import { parseEnv } from 'node:util';
+import { runAsScript } from './run-as-script.ts';
 
-// Load .env.local if present (Vercel env pull writes to this path). Use the
-// built-in Node parser (added in 21.7+, available in our Node 22 CI) so values
-// containing '=' or quotes round-trip correctly.
-const envPath = resolve(process.cwd(), '.env.local');
-if (existsSync(envPath)) {
-  process.loadEnvFile(envPath);
-}
-
-const sourceUrl = process.env.TURSO_DATABASE_URL;
-const sourceToken = process.env.TURSO_AUTH_TOKEN;
-const targetPath = process.env.DEV_DB_PATH ?? 'dev-db.sqlite';
-
-if (!sourceUrl) {
-  console.error('TURSO_DATABASE_URL not set. Run `vercel env pull .env.local` first.');
-  process.exit(2);
-}
-
-if (existsSync(targetPath)) {
+/** Asks a question on the terminal and resolves to the answer. */
+async function askTerminal(/** @type {string} */ question) {
   const rl = createInterface({ input: stdin, output: stdout });
-  const answer = await rl.question(
-    `${targetPath} already exists and will be OVERWRITTEN (local dev changes will be lost). Continue? [y/N] `,
+  try {
+    return await rl.question(question);
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * Copies production's tables into the local file; resolves to the exit code.
+ * It takes no arguments; the database client and the prompt come in as
+ * dependencies, for the tests.
+ * @param {readonly string[]} _argv
+ * @param {{
+ *   env?: NodeJS.ProcessEnv,
+ *   cwd?: string,
+ *   connect?: typeof createClient,
+ *   ask?: (question: string) => Promise<string>,
+ * }} [deps]
+ * @returns {Promise<number>}
+ */
+export async function main(
+  _argv,
+  { env = process.env, cwd = process.cwd(), connect = createClient, ask = askTerminal } = {},
+) {
+  // .env.local, if present (Vercel env pull writes to this path), read with
+  // Node's own parser so values containing '=' or quotes round-trip; a
+  // variable already set wins, as with process.loadEnvFile.
+  const envPath = resolve(cwd, '.env.local');
+  const vars = existsSync(envPath) ? { ...parseEnv(readFileSync(envPath, 'utf8')), ...env } : env;
+
+  const sourceUrl = vars.TURSO_DATABASE_URL;
+  const sourceToken = vars.TURSO_AUTH_TOKEN;
+  const targetPath = vars.DEV_DB_PATH ?? 'dev-db.sqlite';
+  const targetFile = resolve(cwd, targetPath);
+
+  if (!sourceUrl) {
+    console.error('TURSO_DATABASE_URL not set. Run `vercel env pull .env.local` first.');
+    return 2;
+  }
+
+  if (existsSync(targetFile)) {
+    const answer = await ask(
+      `${targetPath} already exists and will be OVERWRITTEN (local dev changes will be lost). Continue? [y/N] `,
+    );
+    if (!/^y(es)?$/i.test(answer.trim())) {
+      console.log('Aborted.');
+      return 0;
+    }
+    unlinkSync(targetFile);
+  }
+
+  console.log(`Connecting to prod Turso...`);
+  const source = connect({ url: sourceUrl, authToken: sourceToken });
+
+  console.log(`Opening local SQLite at ${targetPath}...`);
+  const target = connect({ url: `file:${targetFile}` });
+
+  // Schema mirrors what api/activities.ts and api/completed.ts create on first
+  // run. Keep in sync if those schemas change.
+  await target.execute(
+    'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
   );
-  rl.close();
-  if (!/^y(es)?$/i.test(answer.trim())) {
-    console.log('Aborted.');
-    process.exit(0);
+  await target.execute('CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)');
+
+  /**
+   * @param {string} name
+   * @param {string[]} columns
+   * @param {string} numeric the column stored as a number; the rest as text
+   */
+  async function copyTable(name, columns, numeric) {
+    const rs = await source.execute(`SELECT ${columns.join(', ')} FROM ${name}`);
+    console.log(`Copying ${rs.rows.length} rows from ${name}...`);
+    for (const row of rs.rows) {
+      const args = columns.map((col) => (col === numeric ? Number(row[col]) : String(row[col])));
+      const placeholders = columns.map(() => '?').join(', ');
+      await target.execute({
+        sql: `INSERT INTO ${name} (${columns.join(', ')}) VALUES (${placeholders})`,
+        args,
+      });
+    }
   }
-  unlinkSync(targetPath);
+
+  await copyTable('a', ['id', 'j', 't'], 't');
+  await copyTable('c', ['id', 'v'], 'v');
+
+  console.log(`\nDone. Snapshot at ${targetPath}.`);
+  console.log(`To use in dev: DEV_DB_PATH=${targetPath} vercel dev`);
+  return 0;
 }
 
-console.log(`Connecting to prod Turso...`);
-const source = createClient({ url: sourceUrl, authToken: sourceToken });
-
-console.log(`Opening local SQLite at ${targetPath}...`);
-const target = createClient({ url: `file:${targetPath}` });
-
-// Schema mirrors what api/activities.ts and api/completed.ts create on first
-// run. Keep in sync if those schemas change.
-await target.execute(
-  'CREATE TABLE IF NOT EXISTS a (id TEXT PRIMARY KEY, j TEXT NOT NULL, t INTEGER NOT NULL)',
-);
-await target.execute('CREATE TABLE IF NOT EXISTS c (id TEXT PRIMARY KEY, v INTEGER NOT NULL)');
-
-async function copyTable(name, columns, valueFor) {
-  const rs = await source.execute(`SELECT ${columns.join(', ')} FROM ${name}`);
-  console.log(`Copying ${rs.rows.length} rows from ${name}...`);
-  for (const row of rs.rows) {
-    const args = columns.map((col) => valueFor(col, row[col]));
-    const placeholders = columns.map(() => '?').join(', ');
-    await target.execute({
-      sql: `INSERT INTO ${name} (${columns.join(', ')}) VALUES (${placeholders})`,
-      args,
-    });
-  }
-}
-
-await copyTable('a', ['id', 'j', 't'], (col, val) => {
-  if (col === 't') return Number(val);
-  return String(val);
-});
-
-await copyTable('c', ['id', 'v'], (col, val) => {
-  if (col === 'v') return Number(val);
-  return String(val);
-});
-
-console.log(`\nDone. Snapshot at ${targetPath}.`);
-console.log(`To use in dev: DEV_DB_PATH=${targetPath} vercel dev`);
+runAsScript(import.meta.url, main);

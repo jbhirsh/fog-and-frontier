@@ -24,9 +24,9 @@ import {
   report,
   retryDelayMs,
 } from './link-check.mjs';
+import { runAsScript } from './run-as-script.ts';
 
-const baseUrl =
-  process.argv[2] ?? process.env.LINKS_BASE_URL ?? 'https://fog-and-frontier.vercel.app';
+const PRODUCTION = 'https://fog-and-frontier.vercel.app';
 const TIMEOUT_MS = 15_000;
 // Says who's asking, as Wikimedia's policy for automated clients requires
 // (it rate-limits anonymous scripts hard), in the browser-compatible form
@@ -36,9 +36,23 @@ const USER_AGENT =
 // Pace per host, and how often to retry a 429 before calling it "review".
 const HOST_GAP_MS = 750;
 const RATE_LIMIT_RETRIES = 2;
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchCatalog() {
+/**
+ * The network, which the tests replace.
+ * @typedef {{ fetch: typeof fetch, sleep: (ms: number) => Promise<void> }} Net
+ */
+/** @type {Net} */
+const NET = {
+  fetch: (...args) => fetch(...args),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+/**
+ * The catalog, through the public `activities` query.
+ * @param {string} baseUrl
+ * @param {Net} net
+ */
+export async function fetchCatalog(baseUrl, { fetch } = NET) {
   const res = await fetch(new URL('/api/graphql', baseUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -63,16 +77,21 @@ async function fetchCatalog() {
 // a browser's user agent gets a page with no post data in it.
 const INSTAGRAM_USER_AGENT = 'FogAndFrontier/1.0 (+https://fog-and-frontier.vercel.app)';
 
-// The most specific reason a failed request gives: undici hangs it on cause
-// (ENOTFOUND, a redirect loop). The first that is a non-empty string, as an
-// empty or non-string one would print as a blank or an object in the report.
-function reason(err) {
+/**
+ * A failed request's reason: a timeout, or the most specific reason undici
+ * gives (on `cause`: ENOTFOUND, a redirect loop). The first that is a
+ * non-empty string, as an empty or non-string one would print as a blank or
+ * an object in the report.
+ * @param {unknown} err
+ */
+export function failure(err) {
+  if (err?.name === 'TimeoutError') return { error: 'timeout' };
   const given = [err?.cause?.code, err?.cause?.message, err?.code, err?.message];
-  return given.find((r) => typeof r === 'string' && r !== '') ?? 'fetch failed';
+  return { error: given.find((r) => typeof r === 'string' && r !== '') ?? 'fetch failed' };
 }
 
 // An Instagram post: its embed page, read for whether the post is still up.
-async function probeInstagram(embedUrl) {
+async function probeInstagram(embedUrl, fetch) {
   try {
     const res = await fetch(embedUrl, {
       headers: { 'user-agent': INSTAGRAM_USER_AGENT },
@@ -86,16 +105,20 @@ async function probeInstagram(embedUrl) {
       ...(res.ok ? { post: embedHasPost(html) } : {}),
     };
   } catch (err) {
-    if (err?.name === 'TimeoutError') return { error: 'timeout' };
-    return { error: reason(err) };
+    return failure(err);
   }
 }
 
 // GET, not HEAD: plenty of hosts answer HEAD wrongly. The body is dropped
 // unread once the status and type are in.
-async function probe(url) {
+/**
+ * One link's response: its status, type and final URL, or why it failed.
+ * @param {string} url
+ * @param {Net} net
+ */
+export async function probe(url, { fetch, sleep } = NET) {
   const embedUrl = instagramEmbedUrl(url);
-  if (embedUrl) return probeInstagram(embedUrl);
+  if (embedUrl) return probeInstagram(embedUrl, fetch);
   try {
     for (let attempt = 0; ; attempt++) {
       const res = await fetch(url, {
@@ -115,8 +138,7 @@ async function probe(url) {
       };
     }
   } catch (err) {
-    if (err?.name === 'TimeoutError') return { error: 'timeout' };
-    return { error: reason(err) };
+    return failure(err);
   }
 }
 
@@ -124,7 +146,12 @@ async function probe(url) {
 // side by side. A host that keeps refusing (429s or timeouts in a row) isn't
 // probed further: its remaining links go to review, so one host can't stall
 // the run past its time limit.
-async function checkAll(links) {
+/**
+ * Every link judged, by activity and field.
+ * @param {ReturnType<typeof collectLinks>} links
+ * @param {Net} net
+ */
+export async function checkAll(links, net = NET) {
   const byHost = new Map();
   for (const link of links) {
     const host = URL.canParse(link.url) ? new URL(link.url).hostname : '';
@@ -139,8 +166,8 @@ async function checkAll(links) {
           results.push({ ...link, ...judge(link, { skipped: 'host kept refusing; not probed' }) });
           continue;
         }
-        if (i > 0) await sleep(HOST_GAP_MS);
-        const outcome = URL.canParse(link.url) ? await probe(link.url) : { error: 'bad url' };
+        if (i > 0) await net.sleep(HOST_GAP_MS);
+        const outcome = URL.canParse(link.url) ? await probe(link.url, net) : { error: 'bad url' };
         strikes = outcome.status === 429 || outcome.error === 'timeout' ? strikes + 1 : 0;
         results.push({ ...link, ...judge(link, outcome) });
       }
@@ -150,10 +177,23 @@ async function checkAll(links) {
   return results.sort((a, b) => order(a).localeCompare(order(b)));
 }
 
-const activities = await fetchCatalog();
-const results = await checkAll(collectLinks(activities));
-const markdown = report(results);
-process.stdout.write(markdown);
-if (process.env.LINKS_REPORT) writeFileSync(process.env.LINKS_REPORT, markdown);
-// exitCode, not exit(): lets a piped stdout finish flushing first.
-process.exitCode = results.some((r) => r.verdict === 'dead') ? 1 : 0;
+/**
+ * Checks the catalog's links, prints the report and resolves to the exit
+ * code: 1 when any link is dead.
+ * @param {readonly string[]} argv `[baseUrl]`
+ * @param {{ env?: NodeJS.ProcessEnv, net?: Net, write?: (markdown: string) => void }} [deps]
+ */
+export async function main(
+  argv,
+  { env = process.env, net = NET, write = (markdown) => process.stdout.write(markdown) } = {},
+) {
+  const baseUrl = argv[0] ?? env.LINKS_BASE_URL ?? PRODUCTION;
+  const activities = await fetchCatalog(baseUrl, net);
+  const results = await checkAll(collectLinks(activities), net);
+  const markdown = report(results);
+  write(markdown);
+  if (env.LINKS_REPORT) writeFileSync(env.LINKS_REPORT, markdown);
+  return results.some((r) => r.verdict === 'dead') ? 1 : 0;
+}
+
+runAsScript(import.meta.url, main);
