@@ -134,21 +134,6 @@ export default defineConfig({
         'src/pages/NewTrip.tsx',
         'src/pages/TripDetail.tsx',
         'src/pages/Trips.tsx',
-        // eval/ and scripts/, measured since the gate widened to them: the
-        // command-line entry points and the eval's graders, untested before.
-        'eval/checks.ts',
-        'eval/judge.ts',
-        'eval/report.ts',
-        'eval/run-eval.ts',
-        'scripts/card-copy.ts',
-        'scripts/check-links.mjs',
-        'scripts/gen-regions.ts',
-        'scripts/gif.mjs',
-        'scripts/local-build.ts',
-        'scripts/readme-screenshots.ts',
-        'scripts/seed-preview-db.mjs',
-        'scripts/smoke.mjs',
-        'scripts/snapshot-prod-db.mjs',
       ],
       thresholds: {
         perFile: true,
