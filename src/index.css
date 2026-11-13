@@ -1,13 +1,13 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-display: 'Hanken Grotesk', sans-serif;
-  --font-headline-lg: 'Hanken Grotesk', sans-serif;
-  --font-headline-md: 'Hanken Grotesk', sans-serif;
-  --font-body-lg: 'Inter', sans-serif;
-  --font-body-md: 'Inter', sans-serif;
-  --font-body-sm: 'Inter', sans-serif;
-  --font-label-caps: 'Hanken Grotesk', sans-serif;
+  --font-display: 'Hanken Grotesk Variable', sans-serif;
+  --font-headline-lg: 'Hanken Grotesk Variable', sans-serif;
+  --font-headline-md: 'Hanken Grotesk Variable', sans-serif;
+  --font-body-lg: 'Inter Variable', sans-serif;
+  --font-body-md: 'Inter Variable', sans-serif;
+  --font-body-sm: 'Inter Variable', sans-serif;
+  --font-label-caps: 'Hanken Grotesk Variable', sans-serif;
 
   --text-display: 48px;
   --text-display--line-height: 1.1;
