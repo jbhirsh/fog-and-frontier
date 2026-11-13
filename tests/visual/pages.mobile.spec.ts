@@ -31,7 +31,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/');
     await waitForVisualReady(page);
     await assertNoHorizontalOverflow(page);
-    await expect(page).toHaveScreenshot('curated-mobile.png', {
+    await expect(page).toHaveScreenshot('curated.png', {
       fullPage: true,
     });
   });
@@ -40,7 +40,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/?completed=1');
     await waitForVisualReady(page);
     await assertNoHorizontalOverflow(page);
-    await expect(page).toHaveScreenshot('curated-mobile-filters-on.png', { fullPage: false });
+    await expect(page).toHaveScreenshot('curated-filters-on.png', { fullPage: false });
   });
 
   test('curated list — the Filters sheet', async ({ page }) => {
@@ -50,7 +50,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('dialog', { name: 'Filters' }).waitFor();
     // Past the sheet's rise.
     await page.waitForTimeout(400);
-    await expect(page).toHaveScreenshot('curated-mobile-filter-sheet.png', { fullPage: false });
+    await expect(page).toHaveScreenshot('curated-filter-sheet.png', { fullPage: false });
   });
 
   test('explore empty state', async ({ page }) => {
@@ -62,7 +62,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/explore');
     await waitForVisualReady(page);
     await assertNoHorizontalOverflow(page);
-    await expect(page).toHaveScreenshot('explore-empty-mobile.png', {
+    await expect(page).toHaveScreenshot('explore-empty.png', {
       fullPage: true,
     });
   });
@@ -79,7 +79,7 @@ test.describe('visual regression — mobile', () => {
     // Viewport, not fullPage: the mobile map is a position:fixed full-screen
     // backdrop with a fixed list sheet over it (#96), which fullPage
     // stitching renders unreliably. The viewport is exactly what the user sees.
-    await expect(page).toHaveScreenshot('map-mobile.png', { fullPage: false });
+    await expect(page).toHaveScreenshot('map.png', { fullPage: false });
   });
 
   test('map page — list sheet at half (#96)', async ({ page }) => {
@@ -91,7 +91,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('button', { name: /Resize list/ }).click();
     // Let the 0.3s height transition and the tiles settle.
     await page.waitForTimeout(600);
-    await expect(page).toHaveScreenshot('map-sheet-half-mobile.png', {
+    await expect(page).toHaveScreenshot('map-sheet-half.png', {
       fullPage: false,
     });
   });
@@ -117,7 +117,7 @@ test.describe('visual regression — mobile', () => {
     await markers.nth(1).click({ force: true });
     await page.locator('.leaflet-popup').waitFor();
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('map-popup-mobile.png', {
+    await expect(page).toHaveScreenshot('map-popup.png', {
       fullPage: false,
     });
   });
@@ -130,7 +130,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('button', { name: /Deliberately Long Activity Name/ }).click();
     await page.getByRole('dialog').waitFor();
     await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('activity-detail-mobile.png', {
+    await expect(page).toHaveScreenshot('activity-detail.png', {
       fullPage: true,
     });
   });
@@ -141,7 +141,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/activity/fixture-short-food');
     await page.getByRole('dialog').waitFor();
     await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('activity-permalink-mobile.png', {
+    await expect(page).toHaveScreenshot('activity-permalink.png', {
       fullPage: true,
     });
   });
@@ -150,7 +150,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/activity/no-such-activity');
     await page.getByRole('dialog', { name: 'Activity not found' }).waitFor();
     await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('activity-not-found-mobile.png', {
+    await expect(page).toHaveScreenshot('activity-not-found.png', {
       fullPage: true,
     });
   });
@@ -173,7 +173,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByAltText('Completed Scenic Drive 2').waitFor();
     await page.getByRole('heading', { name: 'Your Photos' }).scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('activity-detail-photos-mobile.png', {
+    await expect(page).toHaveScreenshot('activity-detail-photos.png', {
       fullPage: false,
     });
   });
@@ -194,7 +194,7 @@ test.describe('visual regression — mobile', () => {
     const dialog = page.getByRole('dialog', { name: 'Add activity' });
     await dialog.waitFor();
     await waitForVisualReady(page);
-    await expect(page).toHaveScreenshot('add-activity-form-mobile.png', {
+    await expect(page).toHaveScreenshot('add-activity-form.png', {
       fullPage: true,
     });
   });
@@ -218,7 +218,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('heading', { name: 'Review & save' }).waitFor();
     await page.locator('.leaflet-container').waitFor();
     await page.waitForTimeout(500);
-    await expect(page).toHaveScreenshot('add-activity-review-mobile.png', {
+    await expect(page).toHaveScreenshot('add-activity-review.png', {
       fullPage: true,
     });
   });
