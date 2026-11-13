@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   TRIP_VIEWS,
+  expectNoOffsiteRequests,
   mockApis,
   settleTripView,
   signIn,
@@ -11,6 +12,9 @@ import {
 // Desktop visual sweep — runs only under the `desktop` project (1280x800).
 // Mobile coverage lives in pages.mobile.spec.ts; each project's testMatch in
 // playwright.config.ts keeps the right spec on the right viewport.
+
+// After each test in the file: nothing it asked for went outside unanswered.
+test.afterEach(({ page }) => expectNoOffsiteRequests(page));
 
 test.describe('visual regression — desktop', () => {
   test.beforeEach(async ({ page }) => {

@@ -7,12 +7,35 @@
 // Do NOT auto-generate from prod — adding an activity in prod must not change
 // visual baselines.
 //
-// 1x1 transparent PNG keeps fixtures self-contained — no network image needed
-// during tests, so screenshots are deterministic offline.
+// Photos (#338): small real ones, kept in tests/visual/photos/ (WebP, at most
+// 512 px on the long edge, metadata stripped), so a card shows how a photo
+// sits in it, as a visitor sees. Each is at PHOTO_HOST, a reserved .test
+// name that never resolves, which mockApis answers from that folder, so no
+// test reaches the network for one. All public domain or CC0:
+//
+//   hike.webp       hiking fixture      "Headwaters Forest Reserve", BLM California,
+//                                       flickr.com/photos/50976304@N07/33025496163 (Public Domain Mark)
+//   food.webp       food fixture        "Fish Tacos Pronto!", cogdogblog,
+//                                       flickr.com/photos/37996646802@N01/46808436981 (CC0 1.0)
+//   scenic.webp     scenic fixture      "Lost Coast Headlands", BLM California,
+//                                       flickr.com/photos/50976304@N07/28356714391 (Public Domain Mark)
+//   owner1.webp     owner photo 1       "Piedras Blancas Light Station", BLM California,
+//                                       flickr.com/photos/50976304@N07/34038050175 (Public Domain Mark)
+//   owner2.webp     owner photo 2       "Headwaters Forest Reserve", BLM California,
+//                                       flickr.com/photos/50976304@N07/33798168846 (Public Domain Mark)
+//   generated.webp  add-activity review "Lost Coast Headlands", BLM California,
+//                                       flickr.com/photos/50976304@N07/29323308154 (Public Domain Mark)
+//
+// BLM California's are US federal works.
 import type { Activity } from '../../src/data/types';
 
-const BLANK_PNG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
+/** The host the fixture photos are served at (see above). */
+export const PHOTO_HOST = 'photos.fixture.test';
+
+/** A fixture photo's URL, by its file in tests/visual/photos/. */
+export function fixturePhoto(file: string): string {
+  return `https://${PHOTO_HOST}/${file}`;
+}
 
 const FIXTURES: Activity[] = [
   {
@@ -27,7 +50,7 @@ const FIXTURES: Activity[] = [
     duration: 'Half Day',
     difficulty: 'moderate',
     dogFriendly: true,
-    coverImage: BLANK_PNG,
+    coverImage: fixturePhoto('hike.webp'),
     allTrailsRating: 4.4,
     completed: false,
   },
@@ -40,7 +63,7 @@ const FIXTURES: Activity[] = [
     region: 'south-bay',
     location: { city: 'Campbell', coords: { lat: 37.287, lng: -121.95 } },
     duration: '1-2 Hours',
-    coverImage: BLANK_PNG,
+    coverImage: fixturePhoto('food.webp'),
     completed: false,
   },
   {
@@ -55,7 +78,7 @@ const FIXTURES: Activity[] = [
     duration: 'Full Day',
     difficulty: 'easy',
     dogFriendly: false,
-    coverImage: BLANK_PNG,
+    coverImage: fixturePhoto('scenic.webp'),
     allTrailsRating: 4.8,
     completed: true,
     completedDate: '2024-01-15',

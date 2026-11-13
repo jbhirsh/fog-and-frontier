@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   TRIP_VIEWS,
+  expectNoOffsiteRequests,
   mockApis,
   settleTripView,
   signIn,
@@ -17,6 +18,9 @@ import {
 // project — see playwright.config.
 
 const COMPLETED_FIXTURE_ID = 'fixture-completed-scenic';
+
+// After each test in the file: nothing it asked for went outside unanswered.
+test.afterEach(({ page }) => expectNoOffsiteRequests(page));
 
 test.describe('visual regression — mobile', () => {
   test.beforeEach(async ({ page }) => {

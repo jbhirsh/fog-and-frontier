@@ -3,7 +3,8 @@
 // against its own Linux baselines in tests/visual/*-snapshots/. The baselines
 // come from CI, never a laptop, whose fonts render differently: run
 // visual-baselines.yml by hand on the branch, which commits them there. Data
-// is stubbed (blank covers, outside images blanked).
+// is stubbed: a few fixture photos (tests/visual/photos/), map tiles blanked,
+// and nothing else outside answered (tests/visual/helpers.ts).
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
