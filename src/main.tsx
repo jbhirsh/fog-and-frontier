@@ -2,6 +2,14 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ApolloProvider } from '@apollo/client/react';
 import './index.css';
+// The text faces (#338), served from the app's own origin with its other
+// assets, rather than from Google Fonts: each a variable font, one file per
+// face for every weight, of which a browser fetches only the subsets the page
+// uses (Latin). After index.css, whose Tailwind banner must open the
+// stylesheet: the minifier drops a banner that doesn't, and the smoke gate
+// looks for it. Font faces apply in any order.
+import '@fontsource-variable/inter';
+import '@fontsource-variable/hanken-grotesk';
 import App from './App.tsx';
 import { AuthProvider } from './lib/authSession';
 import { SIGN_IN_ENABLED } from './lib/authShim';

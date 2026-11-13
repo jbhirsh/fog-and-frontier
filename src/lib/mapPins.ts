@@ -112,7 +112,7 @@ const PIN_SIZE_HIGHLIGHTED = 40;
 // the circle rather than a pixel high, as a line box's room for descenders
 // would put them.
 const COUNT_STYLE =
-  'font-weight:600;line-height:1;color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif;text-box:trim-both cap alphabetic;';
+  "font-weight:600;line-height:1;color:#fff;font-family:'Inter Variable',system-ui,-apple-system,sans-serif;text-box:trim-both cap alphabetic;";
 
 function glyphPinHtml(color: string, glyph: PinGlyph, opts: PinOptions = {}): string {
   const { highlighted = false } = opts;

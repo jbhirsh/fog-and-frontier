@@ -62,7 +62,7 @@ describe('glyphPin', () => {
     expect(icon.options.html).not.toContain('material-symbols-outlined');
     expect(icon.options.html).toContain('border:3px solid #fff');
     // Set in the app's face, trimmed to the digits so they sit mid-circle.
-    expect(icon.options.html).toContain('font-family:Inter,');
+    expect(icon.options.html).toContain("font-family:'Inter Variable',");
     expect(icon.options.html).toContain('text-box:trim-both cap alphabetic');
   });
 });
