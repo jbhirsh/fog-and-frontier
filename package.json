@@ -40,6 +40,7 @@
     "cards": "node --experimental-strip-types scripts/card-copy.ts",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
+    "jscpd": "jscpd",
     "eval": "TZ=America/Los_Angeles tsx eval/run-eval.ts"
   },
   "dependencies": {

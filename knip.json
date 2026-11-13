@@ -1,5 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["scripts/gif-scenarios/*.ts", "scripts/gif-setup.ts"],
-  "ignoreDependencies": ["jscpd", "pixelmatch", "pngjs"]
+  "ignoreDependencies": ["pixelmatch", "pngjs"]
 }
