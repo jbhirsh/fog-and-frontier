@@ -65,11 +65,8 @@ describe('liveSite', () => {
   });
   const read = (name: string) => ({ operationName: name, query: `query ${name} { a }` });
 
-  it('routes the API, then the fonts', async () => {
-    expect((await routes()).map(([match]) => String(match))).toEqual([
-      '**/api/graphql',
-      String(/fonts\.(googleapis|gstatic)\.com/),
-    ]);
+  it('routes only the API', async () => {
+    expect((await routes()).map(([match]) => String(match))).toEqual(['**/api/graphql']);
   });
 
   it('answers every read from production', async () => {
@@ -142,13 +139,6 @@ describe('liveSite', () => {
     } finally {
       warn.mockRestore();
     }
-  });
-
-  it('lets the fonts through to the network', async () => {
-    const [, [, fonts]] = await routes();
-    const r = readRoute(null);
-    await fonts(r);
-    expect(r.continue).toHaveBeenCalledTimes(1);
   });
 });
 

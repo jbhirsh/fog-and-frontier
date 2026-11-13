@@ -47,8 +47,8 @@ export function osmTile(url: string): string | null {
  * production can't answer goes to the stub: one it refuses without a real
  * sign-in (trips, owner-only reads, for the test flags' signed-in account),
  * or one asking for a field this branch adds. Writes go to the stub too.
- * Google Fonts load for real, which the stub refuses: a build from before
- * #338, such as a PR's "before", still loads its fonts and icons from there.
+ * Anything else outside (Google Fonts, for a build from before #338 such as
+ * a PR's "before") goes through the stub to the network.
  */
 export async function liveSite(page: Pick<Page, 'route'>, api = LIVE_GRAPHQL): Promise<void> {
   const stubbed = new Set<string>();
@@ -72,7 +72,6 @@ export async function liveSite(page: Pick<Page, 'route'>, api = LIVE_GRAPHQL): P
     }
     return route.fallback();
   });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.continue());
 }
 
 /**

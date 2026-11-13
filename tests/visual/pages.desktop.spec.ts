@@ -18,7 +18,7 @@ test.afterEach(({ page }) => expectNoOffsiteRequests(page));
 
 test.describe('visual regression — desktop', () => {
   test.beforeEach(async ({ page }) => {
-    await mockApis(page);
+    await mockApis(page, { refuseOffsite: true });
   });
 
   test('home / curated list', async ({ page }) => {
@@ -109,7 +109,7 @@ test.describe('visual regression — desktop', () => {
 test.describe('visual regression — trips (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
-    await mockApis(page);
+    await mockApis(page, { refuseOffsite: true });
   });
 
   for (const view of TRIP_VIEWS) {

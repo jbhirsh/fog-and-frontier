@@ -24,7 +24,7 @@ test.afterEach(({ page }) => expectNoOffsiteRequests(page));
 
 test.describe('visual regression — mobile', () => {
   test.beforeEach(async ({ page }) => {
-    await mockApis(page);
+    await mockApis(page, { refuseOffsite: true });
   });
 
   test('curated list (filter pill wrap)', async ({ page }) => {
@@ -234,7 +234,7 @@ test.describe('visual regression — mobile', () => {
 test.describe('visual regression — trips (mobile)', () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
-    await mockApis(page);
+    await mockApis(page, { refuseOffsite: true });
   });
 
   for (const view of TRIP_VIEWS) {

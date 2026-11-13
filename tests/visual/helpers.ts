@@ -162,7 +162,14 @@ export async function settleTripView(page: Page, view: { ready: string }) {
   await waitForVisualReady(page);
 }
 
-export async function mockApis(page: Page) {
+/**
+ * Stubs everything the app asks the network for. `refuseOffsite`, which the
+ * visual specs pass, aborts any outside request the stub doesn't answer, for
+ * expectNoOffsiteRequests to fail on; without it such a request goes through,
+ * as the PR GIFs and README screenshots need (One Tap's script from
+ * accounts.google.com, for one).
+ */
+export async function mockApis(page: Page, { refuseOffsite = false } = {}) {
   // Distances measure from the visitor once they share a location (#66). Pin
   // the snapshots to the "declined" answer so they always read "from
   // San Jose", whatever a headless browser does with the location prompt.
@@ -258,16 +265,16 @@ export async function mockApis(page: Page) {
       body: JSON.stringify({ data }),
     });
   });
-  // Nothing leaves the machine. The fixture photos come from
-  // tests/visual/photos/; any other outside image (map tiles) is a 1x1 PNG,
-  // so the page reaches a stable state whatever the network does. Anything
-  // else outside is refused, and noted for expectNoOffsiteRequests, which the
-  // specs call after each test: the fonts and icons are the build's own, so
-  // nothing should ask. The PR GIFs' scenarios use this stub too, under
+  // The fixture photos come from tests/visual/photos/; any other outside
+  // image (map tiles) is a 1x1 PNG, so the page reaches a stable state
+  // whatever the network does. With refuseOffsite nothing else leaves the
+  // machine: it's refused, and noted for expectNoOffsiteRequests, which the
+  // specs call after each test (the fonts and icons are the build's own, so
+  // nothing should ask). The PR GIFs' scenarios use this stub too, under
   // scripts/live-site.ts's routes, which take production's data and photos
   // before a request gets here.
   const offsite: string[] = [];
-  offsiteRequests.set(page, offsite);
+  if (refuseOffsite) offsiteRequests.set(page, offsite);
   await page.route(/^https?:\/\/(?!localhost)/i, async (route) => {
     const url = new URL(route.request().url());
     if (url.hostname === PHOTO_HOST) {
@@ -286,6 +293,10 @@ export async function mockApis(page: Page) {
       });
       return;
     }
+    if (!refuseOffsite) {
+      await route.continue();
+      return;
+    }
     offsite.push(url.href);
     await route.abort();
   });
@@ -294,9 +305,15 @@ export async function mockApis(page: Page) {
 // The outside requests mockApis refused, by page.
 const offsiteRequests = new WeakMap<Page, readonly string[]>();
 
-/** Fails the test if the page asked for anything outside that the stub doesn't answer. */
+/**
+ * Fails the test if the page asked for anything outside that the stub doesn't
+ * answer, or if the page's stub wasn't set
+ * to refuse such requests (mockApis(page, { refuseOffsite: true })).
+ */
 export function expectNoOffsiteRequests(page: Page) {
-  expect(offsiteRequests.get(page) ?? [], 'outside requests the stub refused').toEqual([]);
+  const refused = offsiteRequests.get(page);
+  expect(refused, 'mockApis(page, { refuseOffsite: true }) before the test').toBeDefined();
+  expect(refused, 'outside requests the stub refused').toEqual([]);
 }
 
 /**
