@@ -2,24 +2,27 @@ name: PR visuals
 
 # A PR that changes the UI must show it: jbhirsh/ci's visuals action fails
 # when a component or stylesheet (the `visuals` globs in .github/ci.json)
-# changes and the description has no image, GIF or video and no ticked "No
-# visible UI change". It runs on description edits too, so adding the
-# pictures turns it green without a new push. Whether a change to motion
-# needs a GIF rather than a still is a judgment call that Claude Review makes
-# (claude-review.yml).
+# changes and the PR shows none of it (its check.mjs says what counts),
+# unless "No visible UI change" is ticked. With `visuals.fromBaselines` on,
+# it also keeps a comment with the before/after table of the baselines the
+# PR changed, which needs pull-requests write. It runs on description edits
+# too, so adding the pictures turns it green without a new push. Whether a
+# change to motion needs a GIF rather than a still is a judgment call that
+# Claude Review makes (claude-review.yml).
 on:
   pull_request:
     branches: [main]
     types: [opened, edited, synchronize, reopened, ready_for_review]
 
-# A new push or edit supersedes the previous run.
+# A new push or edit supersedes the previous run, and only one run at a time
+# keeps the table comment.
 concurrency:
   group: pr-visuals-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   visuals:

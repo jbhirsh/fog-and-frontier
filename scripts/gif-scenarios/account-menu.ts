@@ -2,18 +2,20 @@
 // a card with the account's name and email, its sign-in methods (Connect
 // Apple), its passkeys (Remove asks first), Add a passkey and Sign out, and
 // closes from its close button.
-// Sign-in shows only in builds Vercel makes, so record with it turned on:
 //
-//   VITE_VERCEL_ENV=preview npm run gif -- \
-//     scripts/gif-scenarios/account-menu.ts --dir <PR>
+//   npm run gif -- scripts/gif-scenarios/account-menu.ts
 //
 // (--after-only where main has no account menu to show.)
+//
+// Add a passkey shows only where the browser has PublicKeyCredential, so
+// setup gives the page one (withPasskeys).
 //
 // Production's catalog, signed in as a stand-in account (its session
 // answered here; the catalog read is production's public one).
 
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
+import { withPasskeys } from '../gif-passkeys.ts';
 import { PHONE, catalogReady } from './phone.ts';
 
 const AT = '2026-10-01T00:00:00.000Z';
@@ -46,6 +48,7 @@ const scenario: Scenario = {
   ...PHONE,
   async setup(page) {
     await mockApis(page);
+    await withPasskeys(page);
     await page.route('**/api/auth/get-session', (route) => route.fulfill({ json: SESSION }));
     await page.route('**/api/auth/passkey/list-user-passkeys', (route) =>
       route.fulfill({ json: PASSKEYS }),

@@ -2,7 +2,7 @@
 // main, Back and Save sit at the very end; on the branch they stay pinned to
 // the bottom of the dialog the whole way (#287).
 //
-//   npm run gif -- scripts/gif-scenarios/review-footer.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/review-footer.ts
 //
 // Gemini's draft is stubbed (its key is only on the deployment), with no
 // cover, so Commons isn't asked.

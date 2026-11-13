@@ -45,7 +45,8 @@ does and why: read it before changing the module.
 - **Owner emails are set twice**: `VITE_OWNER_EMAILS` (the UI hint) and `OWNER_EMAILS` (the
   server's gate). If they drift, owner UI shows but its calls fail.
 - **Sign-in shows only in builds Vercel makes** (`SIGN_IN_ENABLED`: production, previews,
-  `vercel dev`), so the visual tests, PR GIFs and README screenshots show the signed-out app;
+  `vercel dev`), so the visual tests show the app without it, while PR GIFs and README screenshots
+  build as production does and show it signed out, with its Sign in button;
   owner and signed-in views are reached through the test-only `window.__TEST_FORCE_OWNER__`
   (`src/lib/useOwner.ts`) and `__TEST_FORCE_EMAIL__` (`src/lib/authShim.ts`), which the `signIn`
   helper in `tests/visual/helpers.ts` sets.
@@ -57,6 +58,8 @@ does and why: read it before changing the module.
   delete it in `package.json`'s `//overrides`.
 - **Tests are pure**: logic or React Testing Library, with no real network, database or browser;
   the browser is the visual tests' (`tests/visual/`).
+- **PR pictures never go on the `screenshots` branch**: the PR template says where they come
+  from.
 
 ## Visual review
 

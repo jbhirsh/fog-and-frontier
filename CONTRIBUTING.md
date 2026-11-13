@@ -48,7 +48,7 @@ Sentry's are set in Vercel:
 | `npm run test:visual` / `npm run test:visual:update`         | Playwright visual regression in WebKit against a `--mode test` build (baselines come from CI: below)      |
 | `npx knip` / `npm run jscpd`                                 | the weekly audit's unused-code and duplication checks, expected to report nothing                         |
 | `npm run eval`                                               | the Gemini eval (paid; below)                                                                             |
-| `npm run gif -- <scenario.ts> --dir <PR>`                    | a PR's before/after GIFs, recorded by jbhirsh/ci's `gif` tool (`scripts/gif.mjs`; needs ffmpeg, WebKit)   |
+| `npm run gif -- <scenario.ts>`                               | a scenario's GIFs into `pr-gif/`, to try it before a push records and attaches it (`pr-gif.yml`)          |
 | `npm run db:snapshot` / `npm run db:seed-preview`            | production's Turso into `dev-db.sqlite` / the preview database seeded from production                     |
 | `npm run cards -- draft` / `save` (`cards -- dogs draft`...) | card copy (#295) and dog rules (#296) for places saved without them, through a review file                |
 | `npm run regions:gen`                                        | `shared/isoRegions.ts` from ISO 3166 (needs Debian's `iso-codes`)                                         |
@@ -172,8 +172,8 @@ The golden set's review history, the judge's calibration and past scores are in 
 
 The ruleset also asks for a linear history, resolved review threads, CodeQL with no high alerts
 and 80% coverage on GitHub's code coverage rule (the `test` job uploads its report). **PR visuals**
-(`pr-visuals.yml`) fails a UI change with no pictures in its description, and its message says how
-to record them; it isn't a required check.
+(`pr-visuals.yml`) fails a UI change that shows none of it (its changed baselines, which it puts in
+a before/after comment, or a GIF), and its message says how to add them; it isn't a required check.
 
 ## Deployment
 
@@ -217,7 +217,8 @@ typescript-eslint and type-coverage take TypeScript 7); their red PRs aren't stu
   merge. Without it the default token is used, which works at all only with Settings → Actions →
   General: "Allow GitHub Actions to create and approve pull requests". Visual review uploads its
   tables' pictures with it, as GitHub takes attachments only from a person's token, on a PR or,
-  for a mockup, on its issue (hence Issues write).
+  for a mockup, on its issue (hence Issues write). PR GIFs attach (`pr-gif-attach.yml`), and PR
+  GIFs (`pr-gif.yml`) run by hand, need it too, to attach GIFs, for the same reason.
 - **Claude Review and autofix** sign in by workload identity federation: the workflows pass the IDs
   of a rule in the Anthropic Console (Workload identity). The IDs aren't secret. Review and
   autofix run on the Agent SDK (`"engine": "sdk"` in `.github/ci.json`), which the Max plan's API
@@ -228,10 +229,6 @@ typescript-eslint and type-coverage take TypeScript 7); their red PRs aren't stu
   once; without it, such a stop fails the check (jbhirsh/ci#57).
 - **Pages:** Settings → Pages: Deploy from a branch, `job-reports`, `/ (root)`, for each job's
   report.
-- **The `screenshots` branch** hosts every PR's pictures, in a folder named for the PR
-  (`<number>/`; older PRs' pictures, once on `pr-screenshots/<topic>` branches, are under
-  `<topic>/`), linked at a commit SHA so a later push can't change what a PR shows. Its tree holds
-  a `vercel.json` of `{"git":{"deploymentEnabled":false}}`, so it costs no deploy.
 - **Sentry:** install the GitHub integration on this repository (Sentry → Settings →
   Integrations → GitHub) and add a code mapping (the project, branch `main`, source root `./`,
   stack-trace root usually `~/`), so frames link to the source and Sentry comments on PRs touching

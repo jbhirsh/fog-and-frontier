@@ -4,7 +4,7 @@
 // places and Nearby as lists of rows. Scrolled down to Nearby and
 // back.
 //
-//   npm run gif -- scripts/gif-scenarios/place-page.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/place-page.ts
 //
 // Production's catalog, signed out.
 

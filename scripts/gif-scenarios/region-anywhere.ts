@@ -2,7 +2,7 @@
 // draft could only file under a California area before, and finds its real
 // region by typing it.
 //
-//   npm run gif -- scripts/gif-scenarios/region-anywhere.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/region-anywhere.ts
 //
 // Gemini's draft is stubbed (its key is only on the deployment), filed under
 // SoCal as main's region list forced, with the cover the real lookup finds.

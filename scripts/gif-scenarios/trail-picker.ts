@@ -2,7 +2,7 @@
 // an owner drafts Alamere Falls, finds its trail drawn under the AllTrails
 // URL field, opens "Not the right trail?" and selects another.
 //
-//   npm run gif -- scripts/gif-scenarios/trail-picker.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/trail-picker.ts
 //
 // Gemini's draft is stubbed (its key is only on the deployment), and with it
 // the trails its search found: their names and addresses are AllTrails'

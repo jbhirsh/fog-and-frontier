@@ -2,7 +2,7 @@
 // message squeezed into an 80px column (`max-w-xl` read the theme's 80px
 // spacing, not 36rem); on the branch it wraps at 36rem.
 //
-//   npm run gif -- scripts/gif-scenarios/explore-error.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/explore-error.ts
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';

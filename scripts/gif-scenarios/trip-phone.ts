@@ -3,7 +3,7 @@
 // the branch (#294) a short header, Plan / Ideas / Map, the days as
 // buttons, a day's places as rows, a handle's moves, and the ideas and map.
 //
-//   npm run gif -- scripts/gif-scenarios/trip-phone.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/trip-phone.ts
 //
 // Trips need a real sign-in, so the trip is the stub's, on production's
 // places and photos (live-trip.ts).

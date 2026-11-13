@@ -2,7 +2,7 @@
 // screen; on the branch wider, its photo taller, and Nearby's places two to
 // a row. Scrolled down to Nearby and back.
 //
-//   npm run gif -- scripts/gif-scenarios/wide-detail.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/wide-detail.ts
 //
 // Production's catalog, signed out.
 
