@@ -3,7 +3,7 @@
 // landed; on the branch its whole page slides in, so nothing changes when it
 // lands.
 //
-//   npm run gif -- scripts/gif-scenarios/swipe-step.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/swipe-step.ts
 //
 // Production's catalog, signed out. The detail steps on touch, so the swipes
 // are gif.swipe's, a finger's, not drag's mouse.

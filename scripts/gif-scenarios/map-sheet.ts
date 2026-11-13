@@ -4,7 +4,7 @@
 // sight, the tops of the cards in their place; on the branch the sheet
 // stays as it was.
 //
-//   npm run gif -- scripts/gif-scenarios/map-sheet.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/map-sheet.ts
 //
 // Production's catalog, signed out.
 

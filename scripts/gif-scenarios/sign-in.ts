@@ -1,11 +1,15 @@
 // Signing in, on a phone (#317): the header's Sign in opens the card (Apple,
 // Google, a passkey below an "or"); a passkey that doesn't sign anyone in
 // says so and points to Google or Apple; the card closes from its close
-// button. Sign-in shows only in builds Vercel makes, and main's was Clerk's
-// hosted one, which needs Clerk's key, so this records the branch alone:
+// button. Sign-in shows only in builds Vercel makes: the GIF build
+// (gif.build.env in .github/ci.json) sets VERCEL_ENV=production, which turns it
+// on, and a stand-in VITE_APPLE_CLIENT_ID, without which the card has no Apple
+// button:
 //
-//   VITE_VERCEL_ENV=preview VITE_APPLE_CLIENT_ID=app.fogandfrontier.web \
-//     npm run gif -- scripts/gif-scenarios/sign-in.ts --dir <PR> --after-only
+//   npm run gif -- scripts/gif-scenarios/sign-in.ts
+//
+// The passkey button shows only where the browser has PublicKeyCredential, so
+// setup gives the page one (withPasskeys).
 //
 // Production's catalog, signed out. The passkey's options are refused here,
 // as a browser with no passkey for the site would end, so the error shows
@@ -13,6 +17,7 @@
 
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
+import { withPasskeys } from '../gif-passkeys.ts';
 import { PHONE, catalogReady } from './phone.ts';
 
 const scenario: Scenario = {
@@ -20,6 +25,7 @@ const scenario: Scenario = {
   ...PHONE,
   async setup(page) {
     await mockApis(page);
+    await withPasskeys(page);
     await page.route('**/api/auth/get-session', (route) => route.fulfill({ json: null }));
     await page.route('**/api/auth/passkey/**', (route) =>
       route.fulfill({ status: 400, json: { message: 'No passkey' } }),

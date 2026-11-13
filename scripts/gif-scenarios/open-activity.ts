@@ -1,7 +1,10 @@
 // Opening an activity from the catalog, then a few keys: an example scenario
-// for `npm run gif` (scripts/gif.mjs), and a starting point for a PR's own.
+// for `npm run gif` (scripts/gif.mjs), and a starting point for a PR's own:
+// a copy committed on the PR's branch, which each push that leaves the PR
+// changing it records (pr-gif.yml) and attaches to the PR
+// (pr-gif-attach.yml). To try one first:
 //
-//   npm run gif -- scripts/gif-scenarios/open-activity.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/open-activity.ts
 //
 // Recorded on local builds of main and the branch, reading production's
 // catalog and photos. setup stubs the API for anything production can't

@@ -5,7 +5,7 @@
 // picks hikes, a few hours' worth (1-2 Hours on main), dogs welcome and a
 // state park, then shows the places.
 //
-//   npm run gif -- scripts/gif-scenarios/filters-sheet.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/filters-sheet.ts
 //
 // Production's catalog, signed out.
 

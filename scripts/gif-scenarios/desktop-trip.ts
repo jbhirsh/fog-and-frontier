@@ -3,7 +3,7 @@
 // places); on the branch the phone's, in a column (a short header, Plan /
 // Ideas / Map, a day at a time). Steps a day, then shows the ideas and map.
 //
-//   npm run gif -- scripts/gif-scenarios/desktop-trip.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/desktop-trip.ts
 //
 // Trips need a real sign-in, so the trip is the stub's, on production's
 // places and photos (live-trip.ts).
