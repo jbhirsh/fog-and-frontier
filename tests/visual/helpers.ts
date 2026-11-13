@@ -1,6 +1,9 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { expect, type Page } from '@playwright/test';
 import {
+  PHOTO_HOST,
   FIXTURE_EMAIL,
+  fixturePhoto,
   FIXTURE_TRIP_CREATED_AT,
   fixtureActivities,
   fixtureCompleted,
@@ -11,16 +14,16 @@ import {
 import type { Activity } from '../../src/data/types';
 import { distanceMiles } from '../../src/data/home';
 
-// 1x1 transparent PNG. Returned for every external image so screenshots don't
-// depend on the network or on which remote photos happen to load.
+// 1x1 transparent PNG, for every outside image but the fixture photos (map
+// tiles, for one), so screenshots don't depend on the network.
 const BLANK_PNG_BYTES = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=',
   'base64',
 );
 
 // Owner photos (#19) by page: how many each activity has. `seedPhotos` fills
-// it, and the mocked `activityPhotos` read serves it. The photo links point
-// off-site, so the image stub below answers them with the blank PNG.
+// it, and the mocked `activityPhotos` read serves it, from the fixture
+// photos (tests/visual/fixtures.ts).
 const photoSeeds = new WeakMap<Page, Record<string, number>>();
 
 // Domain Activity -> the GraphQL `Activity` row the client now reads: camelCase
@@ -203,7 +206,7 @@ export async function mockApis(page: Page) {
             __typename: 'ActivityPhoto',
             id: `${activityId}-photo-${i + 1}`,
             activityId,
-            url: `https://blob.example/${activityId}/photo-${i + 1}.jpg`,
+            url: fixturePhoto(`owner${(i % 2) + 1}.webp`),
             createdAt: '2026-10-01T00:00:00.000Z',
           })),
         };
@@ -255,27 +258,27 @@ export async function mockApis(page: Page) {
       body: JSON.stringify({ data }),
     });
   });
-  // Stub every external image with a 1x1 PNG so the page reaches a stable
-  // visual state regardless of remote latency. Without this, lazy-loaded cover
-  // images keep mutating the page and `toHaveScreenshot` times out trying to
-  // capture two consecutive identical frames.
-  //
-  // Also stub all Google Fonts requests (CSS + font binaries) with empty
-  // bodies. With no @font-face declarations, the page renders entirely with
-  // browser-default sans-serif. That makes the screenshots deterministic
-  // across environments — production uses webfonts, but tests should never
-  // depend on the font CDN being reachable from a CI runner.
+  // Nothing leaves the machine. The fixture photos come from
+  // tests/visual/photos/; any other outside image (map tiles) is a 1x1 PNG,
+  // so the page reaches a stable state whatever the network does. Anything
+  // else outside is refused, and noted for expectNoOffsiteRequests, which the
+  // specs call after each test: the fonts and icons are the build's own, so
+  // nothing should ask. The PR GIFs' scenarios use this stub too, under
+  // scripts/live-site.ts's routes, which take production's data and photos
+  // before a request gets here.
+  const offsite: string[] = [];
+  offsiteRequests.set(page, offsite);
   await page.route(/^https?:\/\/(?!localhost)/i, async (route) => {
-    const url = route.request().url();
-    if (/fonts\.googleapis\.com|fonts\.gstatic\.com/.test(url)) {
-      await route.fulfill({
-        status: 200,
-        contentType: url.includes('.css') || url.includes('css2') ? 'text/css' : 'font/woff2',
-        body: '',
-      });
+    const url = new URL(route.request().url());
+    if (url.hostname === PHOTO_HOST) {
+      const file = new URL(`./photos/${url.pathname.slice(1)}`, import.meta.url);
+      const known = /^\/[a-z0-9]+\.webp$/.test(url.pathname) && existsSync(file);
+      await (known
+        ? route.fulfill({ status: 200, contentType: 'image/webp', body: readFileSync(file) })
+        : route.fulfill({ status: 404 }));
       return;
     }
-    if (/\.(png|jpe?g|gif|webp|svg|avif)(\?|$)/i.test(url)) {
+    if (/\.(png|jpe?g|gif|webp|svg|avif)$/i.test(url.pathname)) {
       await route.fulfill({
         status: 200,
         contentType: 'image/png',
@@ -283,13 +286,63 @@ export async function mockApis(page: Page) {
       });
       return;
     }
-    await route.continue();
+    offsite.push(url.href);
+    await route.abort();
   });
 }
 
+// The outside requests mockApis refused, by page.
+const offsiteRequests = new WeakMap<Page, readonly string[]>();
+
+/** Fails the test if the page asked for anything outside that the stub doesn't answer. */
+export function expectNoOffsiteRequests(page: Page) {
+  expect(offsiteRequests.get(page) ?? [], 'outside requests the stub refused').toEqual([]);
+}
+
+/**
+ * Waits until the page looks as a visitor would see it once it has loaded:
+ * the text faces in, and every photo that would be on screen loaded and
+ * decoded. It scrolls through the page and back first, so lazy covers below
+ * the fold load as they would for a visitor (leaving `loading` as it is,
+ * which a lazy-loading regression would show in). A photo that didn't load
+ * fails the test, rather than passing as a blank.
+ */
 export async function waitForVisualReady(page: Page) {
-  await page.evaluate(() => document.fonts.ready);
-  // Settle any layout from late-loading icons
+  const broken = await page.evaluate(async () => {
+    const frame = () => new Promise((done) => requestAnimationFrame(() => done(null)));
+    // The lazy ones that come into view, past any scroll box's clipping,
+    // including any the scroll itself mounts (a list's next page, say).
+    const seen = new Set<Element>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) if (entry.isIntersecting) seen.add(entry.target);
+    });
+    const observe = () => {
+      for (const img of document.images) observer.observe(img);
+    };
+    const top = scrollY;
+    for (let y = 0; y < document.documentElement.scrollHeight; y += innerHeight) {
+      scrollTo(0, y);
+      observe();
+      await frame();
+      await frame();
+    }
+    scrollTo(0, top);
+    observe();
+    await frame();
+    await frame();
+    observer.disconnect();
+    const due = [...document.images].filter((img) => img.loading !== 'lazy' || seen.has(img));
+    await Promise.all(due.map((img) => img.decode().catch(() => undefined)));
+    await Promise.all(
+      ['Inter Variable', 'Hanken Grotesk Variable'].map((face) =>
+        document.fonts.load(`16px "${face}"`),
+      ),
+    );
+    await document.fonts.ready;
+    return due.filter((img) => img.naturalWidth === 0).map((img) => img.currentSrc || img.src);
+  });
+  expect(broken, "photos that didn't load").toEqual([]);
+  // Let layout settle after the scroll back.
   await page.waitForTimeout(200);
 }
 
@@ -342,8 +395,7 @@ const STUB_GENERATED = {
   dietary: null,
   allTrailsUrl: null,
   notes: 'Stubbed notes for visual fixture.',
-  coverImage:
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=',
+  coverImage: fixturePhoto('generated.webp'),
   coverCredit: null,
 };
 

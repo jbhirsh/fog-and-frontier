@@ -203,6 +203,11 @@ describe('pictureSource', () => {
     expect(pictureSource('data:image/png;base64,AAAA')).toBeNull();
     expect(pictureSource('not a url.png')).toBeNull();
   });
+
+  it('leaves a .test host, which never resolves, to the stub: the visual fixtures’ photos', () => {
+    expect(pictureSource('https://photos.fixture.test/hike.webp')).toBeNull();
+    expect(pictureSource('https://photos.fixture.testing.example/a.jpg')).not.toBeNull();
+  });
 });
 
 describe('waitForPhotos', () => {

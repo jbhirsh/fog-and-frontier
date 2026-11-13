@@ -2,14 +2,15 @@
 // of it (PR GIFs, through jbhirsh/ci's GIF tool and scripts/gif-setup.ts;
 // the README's screenshots, scripts/readme-screenshots.ts) show it exactly
 // as production does: the real catalog, road miles and completions, every
-// photo as production's image CDN serves it, the real fonts, and the map's
-// tiles from OpenStreetMap (CARTO's need a key only Vercel has). Never the
-// visual tests' stub, whose fixtures have blank covers and which blanks
-// every outside image (tests/visual/helpers.ts's mockApis): over it,
-// liveSite sends every read to production's API, a read production refuses
-// (a signed-in one) gets the stub's answer, cachePhotos brings every
-// picture in through production's image CDN, and waitForPhotos holds a
-// capture until the photos in view load.
+// photo as production's image CDN serves it, and the map's tiles from
+// OpenStreetMap (CARTO's need a key only Vercel has). Never the visual
+// tests' stub alone, whose fixtures have their own few photos and which
+// blanks map tiles and refuses anything else outside
+// (tests/visual/helpers.ts's mockApis): over it, liveSite sends every read
+// to production's API, a read production refuses (a signed-in one) gets the
+// stub's answer, cachePhotos brings every picture in through production's
+// image CDN, and waitForPhotos holds a capture until the photos in view
+// load.
 
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -45,8 +46,9 @@ export function osmTile(url: string): string | null {
  * build shows production's catalog, road miles and completions. A read
  * production can't answer goes to the stub: one it refuses without a real
  * sign-in (trips, owner-only reads, for the test flags' signed-in account),
- * or one asking for a field this branch adds. Writes go to the stub too. The
- * fonts load for real, which the stub blanks.
+ * or one asking for a field this branch adds. Writes go to the stub too.
+ * Google Fonts load for real, which the stub refuses: a build from before
+ * #338, such as a PR's "before", still loads its fonts and icons from there.
  */
 export async function liveSite(page: Pick<Page, 'route'>, api = LIVE_GRAPHQL): Promise<void> {
   const stubbed = new Set<string>();
@@ -75,7 +77,9 @@ export async function liveSite(page: Pick<Page, 'route'>, api = LIVE_GRAPHQL): P
 
 /**
  * Where a recording fetches a picture from, or null to leave it to the
- * build's own server (its own assets):
+ * routes under it: the build's own assets, and any host under .test, a name
+ * that never resolves (the visual fixtures' photos, which a stubbed read,
+ * such as a trip's, names):
  *   - a CARTO map tile, from OpenStreetMap, since CARTO's need the site's
  *     key, which only Vercel has;
  *   - a request to the image CDN (/_vercel/image, which a local server
@@ -105,7 +109,11 @@ export function pictureSource(
       direct: parsed.searchParams.get('url') ?? undefined,
     };
   }
-  if (['localhost', '127.0.0.1'].includes(parsed.hostname) || !/^https?:$/.test(parsed.protocol))
+  if (
+    ['localhost', '127.0.0.1'].includes(parsed.hostname) ||
+    parsed.hostname.endsWith('.test') ||
+    !/^https?:$/.test(parsed.protocol)
+  )
     return null;
   return {
     url: `${production}/_vercel/image?url=${encodeURIComponent(url)}&w=${CDN_WIDTH}&q=${CDN_QUALITY}`,
