@@ -51,6 +51,9 @@ does and why: read it before changing the module.
   delete it in `package.json`'s `//overrides`.
 - **Tests are pure**: logic or React Testing Library, with no real network, database or browser;
   the browser is the visual tests' (`tests/visual/`).
+- **PR pictures never go on the `screenshots` branch**: the PR template says where they come
+  from. A GIF comes from pushing a scenario in `scripts/gif-scenarios/`, which records and
+  attaches it; don't run PR GIFs by hand except as the fallback.
 
 ## The auth model
 

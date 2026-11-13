@@ -5,7 +5,7 @@
 // hosted one, which needs Clerk's key, so this records the branch alone:
 //
 //   VITE_VERCEL_ENV=preview VITE_APPLE_CLIENT_ID=app.fogandfrontier.web \
-//     npm run gif -- scripts/gif-scenarios/sign-in.ts --dir <PR> --after-only
+//     npm run gif -- scripts/gif-scenarios/sign-in.ts --after-only
 //
 // Production's catalog, signed out. The passkey's options are refused here,
 // as a browser with no passkey for the site would end, so the error shows

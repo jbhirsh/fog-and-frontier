@@ -2,7 +2,7 @@
 // world shows with no pins on it; on the branch the view jumps back onto
 // the copy the pins are drawn on, so they stay in sight.
 //
-//   npm run gif -- scripts/gif-scenarios/map-world.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/map-world.ts
 //
 // Production's catalog, signed out, zoomed all the way out first.
 

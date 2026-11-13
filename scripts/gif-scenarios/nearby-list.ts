@@ -3,7 +3,7 @@
 // each place's photo, name, town, miles from here and time. Scrolled
 // through.
 //
-//   npm run gif -- scripts/gif-scenarios/nearby-list.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/nearby-list.ts
 //
 // Production's catalog, signed out, opened at Nearby.
 

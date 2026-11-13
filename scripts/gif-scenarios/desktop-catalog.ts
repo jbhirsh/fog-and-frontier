@@ -4,7 +4,7 @@
 // their facts on the photo, the Filters button and sheet, and the place's
 // page in a narrow dialog). Opens the filters, picks hikes, then a place.
 //
-//   npm run gif -- scripts/gif-scenarios/desktop-catalog.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/desktop-catalog.ts
 //
 // Production's catalog, signed out, in List.
 

@@ -8,7 +8,7 @@
 //   VITE_VERCEL_ENV=production \
 //     VITE_GOOGLE_ONE_TAP_CLIENT_ID=123-test.apps.googleusercontent.com \
 //     VITE_APPLE_CLIENT_ID=app.fogandfrontier.web \
-//     npm run gif -- scripts/gif-scenarios/sign-in-google.ts --dir <PR>
+//     npm run gif -- scripts/gif-scenarios/sign-in-google.ts
 //
 // Production's catalog, signed out.
 

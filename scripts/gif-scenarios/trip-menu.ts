@@ -2,7 +2,7 @@
 // wrap to the left under the title and the menu opens off the screen's left
 // edge; on the branch they keep to the right and it opens within it.
 //
-//   npm run gif -- scripts/gif-scenarios/trip-menu.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/trip-menu.ts
 //
 // The trip is the visual tests' voting fixture: production's trips need a
 // signed-in member, which a local build can't be.
