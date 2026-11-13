@@ -5,8 +5,8 @@ name: Update visual baselines
 # and commits them to that branch. jbhirsh/ci's visual-baselines/rewrite
 # does it; this app's settings (the folders, and the command that writes
 # them) are the `visual-baselines` key of .github/ci.json. The Actions
-# token's push starts no workflow, so push again afterwards for the PR's
-# checks to run on the new baselines.
+# token's push does start the PR's workflows, but each waits for a
+# maintainer to approve it on the PR, then runs as github-actions[bot].
 on:
   workflow_dispatch:
 

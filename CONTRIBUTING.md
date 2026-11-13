@@ -74,8 +74,8 @@ tests check the built CSS.
   measures, and a monthly sweep (`mutation-sweep.yml`) covers everything.
 - **Visual regression** (`npm run test:visual`, `playwright.config.ts` says what it runs) compares
   against Linux baselines that only CI writes: run **Update visual baselines**
-  (`visual-baselines.yml`) by hand on the branch, which commits them there, then push again so the
-  checks run on them.
+  (`visual-baselines.yml`) by hand on the branch, which commits them there, then approve the
+  checks its push starts on the PR.
 
 ### The Gemini eval
 
