@@ -15,6 +15,7 @@ import {
   useSwipe,
   type SwipeHandlers,
 } from './swipe';
+import { cssValue } from '../test/css';
 
 const BOTH = { hasPrev: true, hasNext: true };
 const NEITHER = { hasPrev: false, hasNext: false };
@@ -185,11 +186,13 @@ describe('useSwipe', () => {
   it('follows the finger sideways, then leaves and steps to the next one', () => {
     render(<Harness {...handlers} />);
     drag(-200, 10, panel(), false);
-    expect(panel().style.transform).toBe('translate(-200px, 0px)');
+    expect(panel().style.transform).toBe(cssValue('transform', 'translate(-200px, 0px)'));
     expect(panel().style.transition).toBe('none');
     vi.advanceTimersByTime(1000);
     touch(panel(), 'end', [[-100, 110]]);
-    expect(panel().style.transform).toBe(`translate(-${window.innerWidth}px, 0px)`);
+    expect(panel().style.transform).toBe(
+      cssValue('transform', `translate(-${window.innerWidth}px, 0px)`),
+    );
     expect(panel().style.transition).toBe(LEAVE);
     expect(handlers.onNext).not.toHaveBeenCalled();
     act(() => {
@@ -204,7 +207,9 @@ describe('useSwipe', () => {
     drag(200, 0);
     // Off by the window's width, or the panel's if wider.
     expect(window.innerWidth).toBeGreaterThan(SIZE.width);
-    expect(panel().style.transform).toBe(`translate(${window.innerWidth}px, 0px)`);
+    expect(panel().style.transform).toBe(
+      cssValue('transform', `translate(${window.innerWidth}px, 0px)`),
+    );
     act(() => {
       vi.advanceTimersByTime(SETTLE_MS);
     });
@@ -214,14 +219,14 @@ describe('useSwipe', () => {
   it('pulls down from the top to close, dimming the scrim as it goes', () => {
     render(<Harness {...handlers} />);
     drag(0, 400, panel(), false);
-    expect(panel().style.transform).toBe('translate(0px, 400px)');
+    expect(panel().style.transform).toBe(cssValue('transform', 'translate(0px, 400px)'));
     expect(scrim().style.opacity).toBe('0.5');
     expect(scrim().style.transition).toBe('none');
     vi.advanceTimersByTime(1000);
     touch(panel(), 'end', [[100, 500]]);
     // Off by the panel's height, or the window's if taller.
     expect(window.innerHeight).toBeLessThan(SIZE.height);
-    expect(panel().style.transform).toBe(`translate(0px, ${SIZE.height}px)`);
+    expect(panel().style.transform).toBe(cssValue('transform', `translate(0px, ${SIZE.height}px)`));
     expect(panel().style.transition).toBe(LEAVE);
     expect(scrim().style.opacity).toBe('0');
     expect(scrim().style.transition).toBe(`opacity ${SETTLE_MS}ms ease-out`);
@@ -334,7 +339,9 @@ describe('useSwipe', () => {
   it('resists past the end of the list, and stays put', () => {
     render(<Harness {...handlers} onNext={undefined} />);
     drag(-300, 0, panel(), false);
-    expect(panel().style.transform).toBe(`translate(${-300 * RESIST}px, 0px)`);
+    expect(panel().style.transform).toBe(
+      cssValue('transform', `translate(${-300 * RESIST}px, 0px)`),
+    );
     touch(panel(), 'end', [[-200, 100]]);
     expect(panel().style.transform).toBe('');
   });
@@ -454,7 +461,7 @@ describe('useSwipe', () => {
     unmount();
     vi.advanceTimersByTime(1000);
     touch(el, 'move', [[-200, 100]]);
-    expect(el.style.transform).toBe('translate(-200px, 0px)');
+    expect(el.style.transform).toBe(cssValue('transform', 'translate(-200px, 0px)'));
     touch(el, 'cancel', [[-200, 100]]);
     expect(el.style.transition).toBe('none');
     touch(el, 'end', [[-200, 100]]);
@@ -462,7 +469,7 @@ describe('useSwipe', () => {
       vi.advanceTimersByTime(SETTLE_MS);
     });
     expect(handlers.onNext).not.toHaveBeenCalled();
-    expect(el.style.transform).toBe('translate(-200px, 0px)');
+    expect(el.style.transform).toBe(cssValue('transform', 'translate(-200px, 0px)'));
   });
 
   it('does without a scrim, and does nothing without a panel', () => {
@@ -485,7 +492,7 @@ describe('useSwipe', () => {
       render(<Harness {...handlers} withTrack />);
       expect(track().dataset.swiping).toBeUndefined();
       drag(-60, 0, panel(), false);
-      expect(track().style.transform).toBe('translate(-60px, 0px)');
+      expect(track().style.transform).toBe(cssValue('transform', 'translate(-60px, 0px)'));
       expect(panel().style.transform).toBe('');
       expect(track().dataset.swiping).toBe('true');
       // Released short of a step: it settles back, and the mark goes once it has.
@@ -503,14 +510,18 @@ describe('useSwipe', () => {
     it('steps by exactly the panel and the gap, leaving the neighbour where the panel was', () => {
       render(<Harness {...handlers} withTrack />);
       drag(-200, 0);
-      expect(track().style.transform).toBe(`translate(${-(SIZE.width + PEEK_GAP)}px, 0px)`);
+      expect(track().style.transform).toBe(
+        cssValue('transform', `translate(${-(SIZE.width + PEEK_GAP)}px, 0px)`),
+      );
       expect(track().dataset.swiping).toBe('true');
       act(() => {
         vi.advanceTimersByTime(SETTLE_MS);
       });
       expect(handlers.onNext).toHaveBeenCalledTimes(1);
       drag(200, 0);
-      expect(track().style.transform).toBe(`translate(${SIZE.width + PEEK_GAP}px, 0px)`);
+      expect(track().style.transform).toBe(
+        cssValue('transform', `translate(${SIZE.width + PEEK_GAP}px, 0px)`),
+      );
     });
 
     it('keeps the mark through a new swipe started while settling', () => {
@@ -534,7 +545,7 @@ describe('useSwipe', () => {
     it('closes by moving the track down, unmarked', () => {
       render(<Harness {...handlers} withTrack />);
       drag(0, 400, panel(), false);
-      expect(track().style.transform).toBe('translate(0px, 400px)');
+      expect(track().style.transform).toBe(cssValue('transform', 'translate(0px, 400px)'));
       expect(track().dataset.swiping).toBeUndefined();
       // An entrance on the panel itself still gives way to the finger.
       expect(panel().style.animation).toBe('none');
