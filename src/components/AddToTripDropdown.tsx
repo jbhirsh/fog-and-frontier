@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addActivityToTrip, useTripsList } from '../lib/userTrips';
+import { Icon } from './Icon';
 
 type Props = {
   activityId: string;
@@ -45,9 +46,7 @@ export function AddToTripDropdown({ activityId, onAdded }: Props) {
         title="Add to trip"
         className="inline-flex items-center gap-xs rounded-full border border-primary bg-primary px-sm py-xs font-body-md text-sm text-on-primary shadow-md hover:opacity-90"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-          {open ? 'close' : 'add_circle'}
-        </span>
+        <Icon name={open ? 'close' : 'add_circle'} style={{ fontSize: 16 }} />
         Trip
       </button>
       {open && (

@@ -1,4 +1,5 @@
 import { CdnImage } from './CdnImage';
+import { Icon } from './Icon';
 
 // A trip activity's cover, name and city, as the itinerary's card
 // (TripActivityCard) and the voting card (VotingCandidateCard) both show it.
@@ -23,9 +24,7 @@ export function TripCardBody({
         {cover ? (
           <CdnImage alt="" src={cover} sizes="80px" className="size-full object-cover" />
         ) : (
-          <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>
-            landscape
-          </span>
+          <Icon name="landscape" className="text-outline" style={{ fontSize: 28 }} />
         )}
       </div>
       <div className="min-w-0 flex-1 space-y-xs">

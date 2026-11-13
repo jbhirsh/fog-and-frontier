@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { muirWoods } from '../test/fixtures';
 import type { Activity } from '../data/types';
 import { NearbyHeading, NearbyList } from './NearbyList';
+import { getIcon, textWithIcons } from '../test/icons';
 
 const near = (id: string, name: string, category: Activity['category']): Activity => ({
   ...muirWoods,
@@ -53,14 +54,14 @@ describe('NearbyList', () => {
   it('groups the places by kind, in the order given, under their kind’s heading', () => {
     show();
     const groups = screen.getAllByRole('region').filter((r) => r.getAttribute('aria-labelledby'));
-    expect(groups.map((g) => within(g).getByRole('heading', { level: 4 }).textContent)).toEqual([
-      'museumNearby culture',
-      'directions_walkNearby hikes',
+    expect(groups.map((g) => textWithIcons(within(g).getByRole('heading', { level: 4 })))).toEqual([
+      '<museum>Nearby culture',
+      '<directions_walk>Nearby hikes',
     ]);
     const hikes = within(groups[1]).getAllByRole('button');
-    expect(hikes.map((b) => b.textContent)).toEqual([
-      'Castle RockFelton · 6.4 mi · Half Daychevron_right',
-      'Mount Umunhum Summit TrailFelton · 6.8 mi · Half Daychevron_right',
+    expect(hikes.map(textWithIcons)).toEqual([
+      'Castle RockFelton · 6.4 mi · Half Day<chevron_right>',
+      'Mount Umunhum Summit TrailFelton · 6.8 mi · Half Day<chevron_right>',
     ]);
   });
 
@@ -81,6 +82,6 @@ describe('NearbyHeading', () => {
     render(<NearbyHeading id="h" category="water" />);
     const heading = screen.getByRole('heading', { level: 4, name: 'Nearby on the water' });
     expect(heading).toHaveAttribute('id', 'h');
-    expect(within(heading).getByText('water')).toHaveAttribute('aria-hidden', 'true');
+    expect(getIcon('water', heading)).toHaveAttribute('aria-hidden', 'true');
   });
 });

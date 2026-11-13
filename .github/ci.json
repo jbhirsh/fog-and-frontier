@@ -63,7 +63,7 @@
   },
   "review": {
     "instructions": ".github/claude-review.md",
-    "skip": ["src/gql/**", "shared/isoRegions.ts"]
+    "skip": ["src/gql/**", "shared/isoRegions.ts", "src/lib/iconPaths.ts"]
   },
   "autofix": {
     "ciFixChecks": [

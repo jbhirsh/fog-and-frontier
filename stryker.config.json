@@ -23,6 +23,7 @@
     "!scripts/gif-scenarios/**",
     "!src/gql/**",
     "!shared/isoRegions.ts",
+    "!src/lib/iconPaths.ts",
     "!api/_db.ts",
     "!api/_gqlMap.ts",
     "!api/_resolvers/gemini.ts",

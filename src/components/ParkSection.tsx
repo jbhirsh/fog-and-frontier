@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Activity } from '../data/types';
 import { parkSectionId } from '../lib/parks';
+import { Icon } from './Icon';
 
 interface SectionProps {
   park: Activity;
@@ -40,9 +41,7 @@ export function ParkSection({ park, children, gridClass, onViewPark, onClose }: 
           className="inline-flex min-h-11 shrink-0 items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-semibold whitespace-nowrap text-primary hover:bg-surface-container-low"
         >
           View park
-          <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18 }}>
-            arrow_forward
-          </span>
+          <Icon name="arrow_forward" style={{ fontSize: 18 }} />
         </button>
         <button
           type="button"
@@ -50,9 +49,7 @@ export function ParkSection({ park, children, gridClass, onViewPark, onClose }: 
           aria-label={`Close ${park.name}'s hikes and stops`}
           className="-mr-xs inline-flex size-11 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high"
         >
-          <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 22 }}>
-            close
-          </span>
+          <Icon name="close" style={{ fontSize: 22 }} />
         </button>
       </div>
       <div className={`grid gap-x-sm gap-y-md md:gap-gutter ${gridClass}`}>{children}</div>

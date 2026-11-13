@@ -7,6 +7,7 @@ import { useAuthState } from '../lib/authShim';
 import { deviceName, passkeyAddError, passkeysSupported } from '../lib/passkeys';
 import { ModalShell } from './ModalShell';
 import { SignInMethods } from './SignInMethods';
+import { Icon } from './Icon';
 
 const ACTION =
   'flex min-h-12 w-full items-center gap-sm px-md text-left font-body-md text-body-sm text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50';
@@ -94,12 +95,7 @@ function PasskeyList() {
           const name = passkey.name || 'Passkey';
           return (
             <li key={passkey.id} className="flex items-center gap-sm px-md py-xs">
-              <span
-                className="material-symbols-outlined text-icon-md text-on-surface-variant"
-                aria-hidden="true"
-              >
-                passkey
-              </span>
+              <Icon name="passkey" className="text-icon-md text-on-surface-variant" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-body-md text-body-sm text-on-surface">{name}</p>
                 {/* Wraps rather than truncates: Remove and Keep leave little room. */}
@@ -269,9 +265,7 @@ export function AccountMenu() {
                   disabled={busy}
                   className={ACTION}
                 >
-                  <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
-                    passkey
-                  </span>
+                  <Icon name="passkey" className="text-icon-md" />
                   Add a passkey
                 </button>
               )}
@@ -281,9 +275,7 @@ export function AccountMenu() {
                 disabled={busy}
                 className={ACTION}
               >
-                <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
-                  logout
-                </span>
+                <Icon name="logout" className="text-icon-md" />
                 Sign out
               </button>
             </div>

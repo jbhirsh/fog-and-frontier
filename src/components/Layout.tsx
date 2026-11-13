@@ -7,6 +7,7 @@ import { useOwner } from '../lib/useOwner';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { HeaderSlotContext } from '../lib/headerSlot';
 import { PhoneTabBar } from './PhoneTabBar';
+import { Icon } from './Icon';
 
 function navClass({ isActive }: { isActive: boolean }) {
   // Active state carries a non-color cue (underline + weight) as well as color,
@@ -100,7 +101,7 @@ export function Layout() {
               }`}
             >
               <label className="flex h-11 items-center gap-sm rounded-full border border-outline-variant bg-surface-container-lowest pr-xs pl-gutter shadow-sm transition-all focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20">
-                <span className="material-symbols-outlined text-outline">search</span>
+                <Icon name="search" className="text-outline" />
                 <input
                   value={q}
                   onChange={(e) => handleChange(e.target.value)}
@@ -115,9 +116,7 @@ export function Layout() {
                   aria-label="Search"
                   className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary text-on-secondary transition-opacity hover:opacity-90"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-                    arrow_forward
-                  </span>
+                  <Icon name="arrow_forward" style={{ fontSize: 20 }} />
                 </button>
               </label>
             </form>

@@ -95,6 +95,7 @@ export default defineConfig({
         // globalIgnores for src/gql.
         'src/gql/**',
         'shared/isoRegions.ts', // npm run regions:gen writes it from ISO 3166.
+        'src/lib/iconPaths.ts', // npm run icons:gen writes it from Material Symbols.
         // ---- Coverage backlog: pre-existing files below the 80% per-file gate
         // when it was first enforced in CI. Tracked for follow-up; each removal
         // must come with real tests, never a threshold change. The list may

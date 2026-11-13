@@ -94,14 +94,14 @@ describe('PendingSuggestions (#73)', () => {
     expect(screen.getAllByText(/Notes:/)).toHaveLength(1);
 
     // The chevron is pulled out by its glyph's side bearing, either way up.
-    const chevron = () => toggle.querySelector<HTMLElement>('.material-symbols-outlined');
-    expect(chevron()).toHaveTextContent('expand_less');
+    const chevron = () => toggle.querySelector<HTMLElement>('[data-icon]');
+    expect(chevron()).toHaveAttribute('data-icon', 'expand_less');
     expect(chevron()?.style.marginLeft).toBe('-0.25em');
 
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
-    expect(chevron()).toHaveTextContent('expand_more');
+    expect(chevron()).toHaveAttribute('data-icon', 'expand_more');
     expect(chevron()?.style.marginLeft).toBe('-0.25em');
     await userEvent.click(toggle);
     expect(screen.getAllByRole('listitem')).toHaveLength(2);

@@ -3,6 +3,7 @@ import type { Category } from '../data/types';
 import { CATEGORY_ICON } from '../lib/mapPins';
 import { CdnImage } from './CdnImage';
 import { isWebUrl } from '../lib/imageCdn';
+import { Icon } from './Icon';
 
 interface Props {
   /**
@@ -67,13 +68,7 @@ export function CoverImage({
       // stays invisible to assistive tech, as the empty-alt <img> was.
       {...(alt ? { role: 'img', 'aria-label': alt } : {})}
     >
-      <span
-        className="material-symbols-outlined"
-        aria-hidden="true"
-        style={{ fontSize: glyphSize }}
-      >
-        {CATEGORY_ICON[category]}
-      </span>
+      <Icon name={CATEGORY_ICON[category]} style={{ fontSize: glyphSize }} />
     </div>
   );
 }

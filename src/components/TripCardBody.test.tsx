@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TripCardBody } from './TripCardBody';
+import { queryIcon } from '../test/icons';
 
 const PHOTO = 'https://upload.wikimedia.org/wikipedia/commons/d/d5/Los_Gatos_Creek_Trail.jpg';
 
@@ -15,7 +16,7 @@ describe('TripCardBody', () => {
     expect(img).toHaveClass('size-full', 'object-cover');
     expect(screen.getByText('Creek Trail')).toBeInTheDocument();
     expect(screen.getByText('Campbell')).toBeInTheDocument();
-    expect(screen.queryByText('landscape')).not.toBeInTheDocument();
+    expect(queryIcon('landscape')).toBeNull();
     expect(screen.queryByText('Original activity was deleted.')).not.toBeInTheDocument();
   });
 
@@ -24,7 +25,7 @@ describe('TripCardBody', () => {
       <TripCardBody cover={null} name="Creek Trail" cityLine="" orphaned={false} />,
     );
     expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('landscape')).toHaveClass('material-symbols-outlined');
+    expect(queryIcon('landscape')).not.toBeNull();
     expect(screen.getByText('Creek Trail').parentElement?.children).toHaveLength(1);
   });
 

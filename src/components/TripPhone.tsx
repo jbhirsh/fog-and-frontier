@@ -14,6 +14,8 @@ import {
 import { dayCount, type Trip, type TripActivity } from '../lib/userTrips';
 import { CoverImage } from './CoverImage';
 import { ModalShell } from './ModalShell';
+import { Icon } from './Icon';
+import type { IconName } from '../lib/iconPaths';
 
 // A trip's page on a phone (#294): a short header, Plan / Ideas / Map as
 // one control, and the plan a day at a time, each place a compact row.
@@ -99,12 +101,7 @@ export function TripPhone(props: Props) {
             to="/trips"
             className="-ml-1.5 inline-flex min-h-11 items-center gap-0.5 text-[15px] font-medium text-primary"
           >
-            <span
-              className="material-symbols-outlined size-5 overflow-hidden text-[20px]"
-              aria-hidden="true"
-            >
-              chevron_left
-            </span>
+            <Icon name="chevron_left" className="size-5 overflow-hidden text-[20px]" />
             Trips
           </Link>
           {menu}
@@ -129,12 +126,7 @@ export function TripPhone(props: Props) {
             onClick={onInvite}
             className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-outline-variant bg-surface-container-lowest px-sm text-body-sm font-medium text-primary hover:bg-surface-container-low"
           >
-            <span
-              className="material-symbols-outlined size-4 overflow-hidden text-[16px]"
-              aria-hidden="true"
-            >
-              person_add
-            </span>
+            <Icon name="person_add" className="size-4 overflow-hidden text-[16px]" />
             Invite
           </button>
         </div>
@@ -294,12 +286,7 @@ function Days({
               onClick={() => (unscheduled.length > 0 ? setAdding(true) : onBrowse())}
               className="flex h-12 w-full items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-outline-variant text-[15px] font-medium text-primary hover:bg-surface-container-low"
             >
-              <span
-                className="material-symbols-outlined size-4.5 overflow-hidden text-[18px]"
-                aria-hidden="true"
-              >
-                add
-              </span>
+              <Icon name="add" className="size-4.5 overflow-hidden text-[18px]" />
               Add a place to {dayName(trip, day)}
             </button>
           </li>
@@ -414,12 +401,7 @@ function PlaceRow({
           aria-label={`Move or change ${name}`}
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-outline hover:bg-surface-container-low disabled:opacity-40"
         >
-          <span
-            className="material-symbols-outlined size-5 overflow-hidden text-[20px]"
-            aria-hidden="true"
-          >
-            drag_indicator
-          </span>
+          <Icon name="drag_indicator" className="size-5 overflow-hidden text-[20px]" />
         </button>
       )}
     </li>
@@ -452,13 +434,8 @@ function PlaceActions({
   };
   const item =
     'flex min-h-12 w-full items-center gap-sm border-b border-outline-variant/40 text-left text-body-md disabled:cursor-not-allowed disabled:opacity-50';
-  const icon = (name: string) => (
-    <span
-      className="material-symbols-outlined size-5 overflow-hidden text-[20px] text-on-surface-variant"
-      aria-hidden="true"
-    >
-      {name}
-    </span>
+  const icon = (name: IconName) => (
+    <Icon name={name} className="size-5 overflow-hidden text-[20px] text-on-surface-variant" />
   );
   return (
     <ModalShell title={activity.snapshot?.name ?? '(activity)'} onCancel={onClose}>

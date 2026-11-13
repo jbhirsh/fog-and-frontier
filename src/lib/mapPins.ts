@@ -3,6 +3,7 @@ import type { Category } from '../data/types';
 import { isWithinBounds, type MapBounds } from './mapBounds';
 import { GROUP_MAX_SIZE, groupSize } from './pinGroups';
 import { glyphNudge } from './iconMetrics';
+import { PIN_ICONS, type IconName, type PinIconName } from './iconPaths';
 
 // Shared map surface styling for every Leaflet map in the app (the standalone
 // `/map`, each trip's `TripMap`, and the #4 split view later). Keep the basemap
@@ -28,10 +29,11 @@ export function cartoTileUrl(apiKey: string | undefined): string {
 
 export const CARTO_TILE_URL = cartoTileUrl(import.meta.env.VITE_CARTO_API_KEY);
 
-// Material Symbols glyph per category: the semantic icon inside a pin, and the
-// single source for ActivityCard's category pill and the CoverImage fallback,
-// so a place reads the same on the map as it does in the catalog.
-export const CATEGORY_ICON: Record<Category, string> = {
+// Each category's icon: the semantic glyph inside a pin, and the single source
+// for ActivityCard's category pill and the CoverImage fallback, so a place
+// reads the same on the map as it does in the catalog. So each has a pin's cut
+// and an outlined one (`npm run icons:gen -- <name> <name>:pin`).
+export const CATEGORY_ICON: Record<Category, IconName & PinIconName> = {
   hiking: 'directions_walk',
   cycling: 'pedal_bike',
   water: 'water',
@@ -43,9 +45,9 @@ export const CATEGORY_ICON: Record<Category, string> = {
   other: 'explore',
 };
 
-// A pin's content is either a Material Symbols icon (semantic/category glyph) or
-// a short bit of text (a number, a ✓ — anything that fits in the circle).
-export type PinGlyph = { icon: string } | { text: string };
+// A pin's content is either an icon (semantic/category glyph), in its pin cut,
+// or a short bit of text (a number, a ✓ — anything that fits in the circle).
+export type PinGlyph = { icon: PinIconName } | { text: string };
 
 // Visual variants of a pin (#94). `highlighted` enlarges the disc and deepens
 // its shadow so the pin matching a hovered/focused card stands out.
@@ -128,7 +130,7 @@ function glyphPinHtml(color: string, glyph: PinGlyph, opts: PinOptions = {}): st
 
   const inner =
     'icon' in glyph
-      ? `<span class="material-symbols-outlined" style="font-size:${iconFontSize}px;color:#fff;font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20;${glyphNudge(glyph.icon)}">${glyph.icon}</span>`
+      ? `<span class="icon" data-icon="${glyph.icon}" aria-hidden="true" style="font-size:${iconFontSize}px;color:#fff;${glyphNudge(glyph.icon)}"><svg viewBox="0 -960 960 960" width="1em" height="1em" fill="currentColor"><path d="${PIN_ICONS[glyph.icon]}"/></svg></span>`
       : `<span style="font-size:${textFontSize}px;${COUNT_STYLE}">${glyph.text}</span>`;
 
   return `<div style="

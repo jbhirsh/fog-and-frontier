@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CoverImage } from './CoverImage';
 import { cdnUrl } from '../lib/imageCdn';
+import { getIcon, queryIcon } from '../test/icons';
 
 describe('CoverImage', () => {
   it('renders the cover image with its alt, classes and loading hint', () => {
@@ -19,7 +20,7 @@ describe('CoverImage', () => {
     expect(img).toHaveAttribute('src', 'https://img.test/a.jpg');
     expect(img).toHaveAttribute('loading', 'lazy');
     expect(img).toHaveClass('size-full', 'object-cover');
-    expect(screen.queryByText('directions_walk')).not.toBeInTheDocument();
+    expect(queryIcon('directions_walk')).toBeNull();
   });
 
   it('swaps to the category glyph when the image fails to load', () => {
@@ -29,21 +30,21 @@ describe('CoverImage', () => {
     const fallback = screen.getByRole('img', { name: 'Muir Woods' });
     expect(fallback.tagName).toBe('DIV');
     expect(fallback).not.toHaveAttribute('src');
-    const glyph = screen.getByText('directions_walk');
+    const glyph = getIcon('directions_walk');
     expect(glyph).toHaveAttribute('aria-hidden', 'true');
     expect(glyph).toHaveStyle({ fontSize: '44px' });
   });
 
   it('uses the glyph for the activity category at the requested size', () => {
     render(<CoverImage src="" alt="Diner" category="food" glyphSize={64} />);
-    expect(screen.getByText('restaurant')).toHaveStyle({ fontSize: '64px' });
+    expect(getIcon('restaurant')).toHaveStyle({ fontSize: '64px' });
   });
 
   it('falls back immediately when there is no cover', () => {
     const { container } = render(<CoverImage src={undefined} alt="Muir Woods" category="hiking" />);
     expect(container.querySelector('img')).toBeNull();
     expect(screen.getByRole('img', { name: 'Muir Woods' }).tagName).toBe('DIV');
-    expect(screen.getByText('directions_walk')).toBeInTheDocument();
+    expect(queryIcon('directions_walk')).not.toBeNull();
   });
 
   it('treats a cover that isn’t a web address as no cover', () => {
@@ -60,7 +61,7 @@ describe('CoverImage', () => {
     );
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
 
-    const fallback = screen.getByText('water').parentElement as HTMLElement;
+    const fallback = getIcon('water').parentElement as HTMLElement;
     expect(fallback).not.toHaveAttribute('role');
     expect(fallback).not.toHaveAttribute('aria-label');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
@@ -76,7 +77,7 @@ describe('CoverImage', () => {
     rerender(<CoverImage src="https://img.test/b.jpg" alt="B" category="scenic" />);
     const img = container.querySelector('img');
     expect(img).toHaveAttribute('src', 'https://img.test/b.jpg');
-    expect(screen.queryByText('landscape')).not.toBeInTheDocument();
+    expect(queryIcon('landscape')).toBeNull();
   });
 
   it('does not let an earlier failure hide a later cover that loads', () => {
@@ -113,7 +114,7 @@ describe('CoverImage', () => {
       expect(screen.getByRole('img', { name: 'Library' })).toHaveAttribute('src', COMMONS);
       fireEvent.error(screen.getByRole('img', { name: 'Library' }));
       expect(screen.getByRole('img', { name: 'Library' }).tagName).toBe('DIV');
-      expect(screen.getByText('museum')).toBeInTheDocument();
+      expect(queryIcon('museum')).not.toBeNull();
     });
   });
 });

@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NO_FILTERS, type FilterValues } from '../lib/catalogFilterOptions';
 import { FilterSheet, type FilterSheetProps } from './FilterSheet';
+import { textWithIcons } from '../test/icons';
 
 function renderSheet(props: Partial<FilterSheetProps> = {}) {
   const onChange = vi.fn<(patch: Partial<FilterValues>) => void>();
@@ -95,15 +96,15 @@ describe('FilterSheet', () => {
   it('names the main categories as tiles, each with its glyph', () => {
     renderSheet();
     const tiles = group('What').getAllByRole('button');
-    expect(tiles.map((t) => t.textContent)).toEqual([
-      'directions_walkHikes',
-      'restaurantFood',
-      'landscapeViews',
-      'waterWater',
-      'museumCulture',
-      'pedal_bikeBikes',
-      'forestCamping',
-      'more_horizMore',
+    expect(tiles.map(textWithIcons)).toEqual([
+      '<directions_walk>Hikes',
+      '<restaurant>Food',
+      '<landscape>Views',
+      '<water>Water',
+      '<museum>Culture',
+      '<pedal_bike>Bikes',
+      '<forest>Camping',
+      '<more_horiz>More',
     ]);
   });
 

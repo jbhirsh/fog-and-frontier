@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { usePersonLabel } from '../lib/people';
 import { useAddPicker } from '../lib/useAddPicker';
+import { Icon } from './Icon';
 
 interface Props {
   /** The accounts credited, in order. */
@@ -72,16 +73,11 @@ export function ContributorsField({ value, users, onChange }: Props) {
                 onClick={() => remove(email)}
                 className="inline-flex size-7 items-center justify-center rounded-full hover:bg-surface-variant"
               >
-                {/* Sized inline: the icon font's own rule outranks
-                    Tailwind's size utilities. The fixed box clips
-                    the ligature, so a missing icon font can't widen the chip. */}
-                <span
-                  className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+                <Icon
+                  name="close"
+                  className="inline-flex shrink-0 items-center justify-center overflow-hidden"
                   style={{ fontSize: 18, width: 18, height: 18 }}
-                  aria-hidden="true"
-                >
-                  close
-                </span>
+                />
               </button>
             )}
           </span>
@@ -107,13 +103,11 @@ export function ContributorsField({ value, users, onChange }: Props) {
                 </option>
               ))}
             </select>
-            <span
-              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
+            <Icon
+              name="expand_more"
+              className="inline-flex shrink-0 items-center justify-center overflow-hidden text-on-surface-variant"
               style={{ fontSize: 18, width: 18, height: 18 }}
-              aria-hidden="true"
-            >
-              expand_more
-            </span>
+            />
           </label>
         )}
       </div>

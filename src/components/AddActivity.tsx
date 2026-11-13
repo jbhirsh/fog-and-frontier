@@ -29,6 +29,7 @@ import { generateActivity, type GeneratedFields } from '../lib/generateActivity'
 import { CARD_LINE_MAX, CARD_NAME_MAX, cardCopyProblem, needsCardName } from '../lib/cardCopy';
 import { CardCopyField } from './CardCopyField';
 import { TrailPicker, type TrailOption } from './TrailPicker';
+import { Icon } from './Icon';
 
 interface Props {
   onClose: () => void;
@@ -485,7 +486,7 @@ export function AddActivity({
             // focus ring is drawn inside, where the panel can't clip it.
             className="mr-[-14.5px] flex size-11 items-center justify-center rounded-full transition-colors hover:bg-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset"
           >
-            <span className="material-symbols-outlined">close</span>
+            <Icon name="close" />
           </button>
         </div>
 
@@ -575,13 +576,11 @@ function SentStep({ onDone }: { onDone: () => void }) {
       {/* The glyph leaves 4px empty on its left and 1.3px on its right, so a
           centred box draws it 1.3px right of centre; shifted back by half
           the difference, its ink is centred instead. */}
-      <span
-        className="material-symbols-outlined text-primary"
+      <Icon
+        name="mark_email_read"
+        className="text-primary"
         style={{ fontSize: 48, transform: 'translateX(-0.028em)' }}
-        aria-hidden="true"
-      >
-        mark_email_read
-      </span>
+      />
       <p id={sentId} className="font-body-lg text-on-surface">
         Sent to the owners for review.
       </p>
@@ -707,7 +706,7 @@ function FormStep({
             type="submit"
             className="flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
           >
-            <span className="material-symbols-outlined text-icon-md">auto_awesome</span>
+            <Icon name="auto_awesome" className="text-icon-md" />
             Generate
           </button>
         )}

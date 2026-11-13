@@ -121,12 +121,9 @@ export default defineConfig([
       'import-x/no-named-as-default-member': 'off',
       'better-tailwindcss/no-conflicting-classes': 'error',
       'better-tailwindcss/no-duplicate-classes': 'error',
-      // Plain CSS classes, not utilities: the icon font's (src/index.css)
+      // Plain CSS classes, not utilities: the icons' (src/index.css)
       // and Leaflet's. Another class the plugin can't see goes here too.
-      'better-tailwindcss/no-unknown-classes': [
-        'error',
-        { ignore: ['^material-symbols-outlined$', '^leaflet-'] },
-      ],
+      'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^icon$', '^leaflet-'] }],
       'better-tailwindcss/no-deprecated-classes': 'error',
       'better-tailwindcss/no-unnecessary-whitespace': 'error',
       'better-tailwindcss/enforce-consistent-class-order': 'error',

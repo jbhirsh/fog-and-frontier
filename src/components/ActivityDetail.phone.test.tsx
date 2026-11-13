@@ -4,6 +4,7 @@ import { act, render, screen, within } from '../test/render';
 import type { Activity } from '../data/types';
 import { muirWoods } from '../test/fixtures';
 import { ActivityDetail } from './ActivityDetail';
+import { getIcon, queryIcon, textWithIcons } from '../test/icons';
 
 // A place's page on a phone (#293). jsdom matches no media query, so the
 // rest of the detail's tests see the desktop dialog; here the phone's query
@@ -165,7 +166,7 @@ describe('a place’s page on a phone (#293)', () => {
   it('lays the facts on one line: kind, duration, distance, rating and cost', () => {
     show(HIKE);
     const facts = screen.getByText('Hike').closest('p')!;
-    expect(facts).toHaveTextContent(/^Hike·Half Day·≈?[\d.]+ mi away·starRated 4\.6·Free$/);
+    expect(textWithIcons(facts)).toMatch(/^Hike·Half Day·≈?[\d.]+ mi away·<star>Rated 4\.6·Free$/);
     expect(within(facts).getByText('Free')).toHaveClass('font-medium');
   });
 
@@ -362,10 +363,10 @@ describe('a place’s page on a phone (#293)', () => {
     expect(within(own).getByRole('heading', { level: 3 })).toHaveClass('font-display');
     const rows = within(own).getAllByRole('button');
     // No town: the park's places share it.
-    expect(rows.map((b) => b.textContent)).toEqual([
-      `Test Canopy Traildirections_walkHike, ${HIKE.duration}chevron_right`,
+    expect(rows.map(textWithIcons)).toEqual([
+      `Test Canopy Trail<directions_walk>Hike, ${HIKE.duration}<chevron_right>`,
     ]);
-    expect(within(rows[0]).getByText('directions_walk')).toHaveAttribute('aria-hidden', 'true');
+    expect(getIcon('directions_walk', rows[0])).toHaveAttribute('aria-hidden', 'true');
     expect(within(rows[0]).getByText('Hike,')).toHaveClass('sr-only');
     expect(rows[0]).toHaveClass('min-h-14');
     await userEvent.click(rows[0]);
@@ -378,11 +379,9 @@ describe('a place’s page on a phone (#293)', () => {
       activities: [...ALL, sibling],
     });
     const also = screen.getByRole('region', { name: 'Also in Test Redwoods Park' });
-    expect(
-      within(also)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual([`Test FallswaterWater, ${HIKE.duration}chevron_right`]);
+    expect(within(also).getAllByRole('button').map(textWithIcons)).toEqual([
+      `Test Falls<water>Water, ${HIKE.duration}<chevron_right>`,
+    ]);
   });
 
   it('credits the cover at the foot of the page', () => {
@@ -403,7 +402,7 @@ describe('a place’s page on a phone (#293)', () => {
     });
     const prev = screen.getByTestId('peek-prev');
     expect(within(prev).getByText('Trailside Tacos')).toBeInTheDocument();
-    expect(within(prev).getByText('arrow_back')).toBeInTheDocument();
+    expect(queryIcon('arrow_back', prev)).not.toBeNull();
     expect(within(prev).getByText('1 of 3')).toBeInTheDocument();
     // A neighbour draws its whole page, as the page will once the step lands,
     // so nothing fills in after it: its park named as the page names it, its

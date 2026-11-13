@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ContributorsField } from './ContributorsField';
+import { iconNames } from '../test/icons';
 
 const TARUN = 'tarun@example.com';
 const JESS = 'jess.hirsh@example.com';
@@ -44,12 +45,11 @@ describe('ContributorsField (#9)', () => {
   });
 
   it('boxes the remove and caret icons at a fixed 18px', () => {
-    // Sized inline: the icon font's own rule would otherwise set them.
     const { container } = render(
       <ContributorsField value={[TARUN, JESS]} users={[TARUN, JESS, SAM]} onChange={() => {}} />,
     );
-    const icons = [...container.querySelectorAll<HTMLElement>('.material-symbols-outlined')];
-    expect(icons.map((i) => i.textContent)).toEqual(['close', 'close', 'expand_more']);
+    const icons = [...container.querySelectorAll<HTMLElement>('[data-icon]')];
+    expect(iconNames(container)).toEqual(['close', 'close', 'expand_more']);
     for (const icon of icons) {
       expect(icon.style).toMatchObject({ fontSize: '18px', width: '18px', height: '18px' });
     }

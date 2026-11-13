@@ -5,6 +5,7 @@ import { isEffectivelyCompleted, useOverrides } from '../lib/userCompleted';
 import { subItemsLabel } from '../lib/parks';
 import { CoverImage } from './CoverImage';
 import { DogIcon } from './DogIcon';
+import { Icon } from './Icon';
 
 interface Props {
   activity: Activity;
@@ -183,13 +184,7 @@ export function ActivityCard({
               </span>
               {activity.allTrailsRating != null && (
                 <span className="inline-flex items-center gap-0.5">
-                  <span
-                    className="material-symbols-outlined"
-                    aria-hidden="true"
-                    style={{ fontSize: 12, fontVariationSettings: "'FILL' 1" }}
-                  >
-                    star
-                  </span>
+                  <Icon name="star" fill style={{ fontSize: 12 }} />
                   {activity.allTrailsRating.toFixed(1)}
                 </span>
               )}
@@ -203,15 +198,7 @@ export function ActivityCard({
                 }`}
                 aria-hidden="true"
               >
-                {selected && (
-                  <span
-                    className="material-symbols-outlined"
-                    aria-hidden="true"
-                    style={{ fontSize: 20 }}
-                  >
-                    check
-                  </span>
-                )}
+                {selected && <Icon name="check" style={{ fontSize: 20 }} />}
               </div>
             )}
           </div>
@@ -264,12 +251,10 @@ export function ActivityCard({
                     stack.open ? 'bg-primary-fixed text-primary' : 'bg-primary text-on-primary'
                   }`}
                 >
-                  <span
-                    className="material-symbols-outlined inline-flex size-3.5 items-center justify-center overflow-hidden text-[14px]"
-                    aria-hidden="true"
-                  >
-                    stacks
-                  </span>
+                  <Icon
+                    name="stacks"
+                    className="inline-flex size-3.5 items-center justify-center overflow-hidden text-[14px]"
+                  />
                   {stack.count}
                 </button>
               )}
@@ -286,12 +271,10 @@ export function ActivityCard({
               {completed && (
                 // A check in the dog's circle.
                 <div className="inline-flex size-5.5 items-center justify-center rounded-full bg-primary-fixed text-primary">
-                  <span
-                    className="material-symbols-outlined inline-flex size-3.5 items-center justify-center overflow-hidden text-[14px]"
-                    aria-hidden="true"
-                  >
-                    check
-                  </span>
+                  <Icon
+                    name="check"
+                    className="inline-flex size-3.5 items-center justify-center overflow-hidden text-[14px]"
+                  />
                   <span className="sr-only">Completed</span>
                 </div>
               )}

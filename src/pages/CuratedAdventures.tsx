@@ -48,6 +48,7 @@ interface OpenPark {
 }
 import { rowEnd, useGridColumns } from '../lib/useGridColumns';
 import { type FilterValues } from '../lib/catalogFilterOptions';
+import { Icon } from '../components/Icon';
 
 type TargetTrip = { id: string; title: string };
 
@@ -673,13 +674,11 @@ export function CuratedAdventures() {
           aria-live="polite"
           className="flex items-center gap-sm rounded-lg border border-secondary/30 bg-secondary/5 px-sm py-xs text-body-sm text-on-surface"
         >
-          <span
-            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden text-secondary"
+          <Icon
+            name="my_location"
+            className="inline-flex shrink-0 items-center justify-center overflow-hidden text-secondary"
             style={{ fontSize: 18, width: 18, height: 18 }}
-            aria-hidden="true"
-          >
-            my_location
-          </span>
+          />
           <span>
             Showing <b>{visibleResults.length}</b> in this area
           </span>
@@ -688,13 +687,11 @@ export function CuratedAdventures() {
             onClick={clearBounds}
             className="ml-auto inline-flex items-center gap-xs font-semibold text-secondary hover:underline"
           >
-            <span
-              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            <Icon
+              name="close"
+              className="inline-flex shrink-0 items-center justify-center overflow-hidden"
               style={{ fontSize: 18, width: 18, height: 18 }}
-              aria-hidden="true"
-            >
-              close
-            </span>
+            />
             Clear bounds
           </button>
         </div>
@@ -723,12 +720,10 @@ export function CuratedAdventures() {
         }`}
       >
         {inRow ? (
-          <span
-            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
-            aria-hidden="true"
-          >
-            inbox
-          </span>
+          <Icon
+            name="inbox"
+            className="inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+          />
         ) : (
           'Review'
         )}
@@ -780,13 +775,11 @@ export function CuratedAdventures() {
           // A phone leaves by its Places tab (#289).
           className="hidden h-9 items-center gap-xs rounded-full border border-outline-variant/40 bg-surface-container-low px-sm text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-variant md:inline-flex"
         >
-          <span
-            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+          <Icon
+            name="close"
+            className="inline-flex shrink-0 items-center justify-center overflow-hidden"
             style={{ fontSize: 18, width: 18, height: 18 }}
-            aria-hidden="true"
-          >
-            close
-          </span>
+          />
           Hide map
         </button>
         {reviewButton(false)}
@@ -854,12 +847,10 @@ export function CuratedAdventures() {
           }}
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-outline-variant/40 bg-surface-container-low text-on-surface-variant transition-colors hover:bg-surface-variant"
         >
-          <span
-            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
-            aria-hidden="true"
-          >
-            {selectionMode ? 'close' : 'check_box'}
-          </span>
+          <Icon
+            name={selectionMode ? 'close' : 'check_box'}
+            className="inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+          />
         </button>
       )}
       {/* Owners add; any other signed-in account suggests one for the
@@ -873,12 +864,10 @@ export function CuratedAdventures() {
           // A phone adds from its tab bar (#289).
           className="hidden size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-opacity hover:opacity-90 md:inline-flex"
         >
-          <span
-            className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
-            aria-hidden="true"
-          >
-            {isOwner ? 'add' : 'lightbulb'}
-          </span>
+          <Icon
+            name={isOwner ? 'add' : 'lightbulb'}
+            className="inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]"
+          />
         </button>
       )}
     </>
@@ -1045,13 +1034,11 @@ export function CuratedAdventures() {
           // A phone has its Map tab instead (#289); a tablet keeps this.
           className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 z-40 hidden -translate-x-1/2 items-center gap-xs rounded-full bg-primary px-md py-sm text-body-sm font-semibold text-on-primary shadow-lg transition-opacity hover:opacity-90 md:inline-flex"
         >
-          <span
-            className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+          <Icon
+            name="map"
+            className="inline-flex shrink-0 items-center justify-center overflow-hidden"
             style={{ fontSize: 20, width: 20, height: 20, marginLeft: glyphBleed('map') }}
-            aria-hidden="true"
-          >
-            map
-          </span>
+          />
           Show map
         </button>
       )}

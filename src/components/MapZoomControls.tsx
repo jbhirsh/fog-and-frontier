@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMap, useMapEvents } from 'react-leaflet';
 import * as L from 'leaflet';
 import { fillZoom } from '../lib/mapFit';
+import { Icon } from './Icon';
 
 // Custom frosted zoom controls, replacing Leaflet's default `zoomControl`. The
 // MapContainer is mounted with `zoomControl={false}` and renders this as a
@@ -58,9 +59,7 @@ export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
         onClick={() => map.zoomIn()}
         className="flex size-9 items-center justify-center text-on-surface hover:bg-white/60 disabled:cursor-not-allowed disabled:text-on-surface/30 disabled:hover:bg-transparent"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-          add
-        </span>
+        <Icon name="add" style={{ fontSize: 20 }} />
       </button>
       <div aria-hidden="true" className="h-px bg-black/10" />
       <button
@@ -70,9 +69,7 @@ export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
         onClick={() => map.zoomOut()}
         className="flex size-9 items-center justify-center text-on-surface hover:bg-white/60 disabled:cursor-not-allowed disabled:text-on-surface/30 disabled:hover:bg-transparent"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-          remove
-        </span>
+        <Icon name="remove" style={{ fontSize: 20 }} />
       </button>
     </div>
   );

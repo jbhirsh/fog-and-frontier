@@ -16,6 +16,8 @@ import { CATEGORY_ICON } from '../lib/mapPins';
 import { usePersonLabel } from '../lib/people';
 import { useSwipe } from '../lib/swipe';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { Icon } from './Icon';
+import type { IconName } from '../lib/iconPaths';
 
 export interface FilterSheetProps {
   values: FilterValues;
@@ -59,7 +61,7 @@ function Tile({
   expanded,
   controls,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   on: boolean;
   onClick: () => void;
@@ -77,12 +79,10 @@ function Tile({
       onClick={onClick}
       className={`${TILE} ${on ? TILE_ON : TILE_OFF}`}
     >
-      <span
-        className="material-symbols-outlined inline-flex size-5.5 shrink-0 items-center justify-center overflow-hidden text-[22px]"
-        aria-hidden="true"
-      >
-        {icon}
-      </span>
+      <Icon
+        name={icon}
+        className="inline-flex size-5.5 shrink-0 items-center justify-center overflow-hidden text-[22px]"
+      />
       {label}
     </button>
   );
@@ -180,7 +180,7 @@ function Switch({
 }
 
 const CHEVRON =
-  'material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]';
+  'inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px]';
 
 /** A row naming a rarer filter and what it's set to, opening its own list. */
 function ListRow({
@@ -199,9 +199,7 @@ function ListRow({
       {label}
       <span className="inline-flex items-center gap-xs text-body-sm text-on-surface-variant">
         {value}
-        <span className={CHEVRON} aria-hidden="true">
-          chevron_right
-        </span>
+        <Icon name="chevron_right" className={CHEVRON} />
       </span>
     </button>
   );
@@ -434,11 +432,7 @@ export function FilterSheet({
             className={`${ROW} ${on ? 'font-semibold text-primary' : ''}`}
           >
             {p === 'Any' ? 'Any' : PARK_TYPE_LABELS[p]}
-            {on && (
-              <span className={CHEVRON} aria-hidden="true">
-                check
-              </span>
-            )}
+            {on && <Icon name="check" className={CHEVRON} />}
           </button>
         );
       })}
@@ -490,9 +484,7 @@ export function FilterSheet({
               onClick={back}
               className="-ml-sm inline-flex size-11 items-center justify-center rounded-full text-on-surface hover:bg-surface-container-low"
             >
-              <span className={CHEVRON} aria-hidden="true">
-                chevron_left
-              </span>
+              <Icon name="chevron_left" className={CHEVRON} />
             </button>
           )}
           <h2 id={titleId} className="flex-1 font-display text-headline-md text-primary">
@@ -504,12 +496,10 @@ export function FilterSheet({
             onClick={onClose}
             className="inline-flex size-11 items-center justify-center rounded-full text-on-surface hover:bg-surface-container-low"
           >
-            <span
-              className="material-symbols-outlined inline-flex size-5.5 shrink-0 items-center justify-center overflow-hidden text-[22px]"
-              aria-hidden="true"
-            >
-              close
-            </span>
+            <Icon
+              name="close"
+              className="inline-flex size-5.5 shrink-0 items-center justify-center overflow-hidden text-[22px]"
+            />
           </button>
         </div>
         <div

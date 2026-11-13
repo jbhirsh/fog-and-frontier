@@ -1,4 +1,6 @@
 import { useRef } from 'react';
+import { Icon } from './Icon';
+import type { IconName } from '../lib/iconPaths';
 
 /**
  * The three layout modes of the combined Curated + Map surface (#4 / #93):
@@ -6,7 +8,7 @@ import { useRef } from 'react';
  */
 export type ViewMode = 'list' | 'split' | 'map';
 
-type Option = { value: ViewMode; label: string; icon: string };
+type Option = { value: ViewMode; label: string; icon: IconName };
 
 // Order matters: the segmented control reads List · Split · Map left-to-right,
 // and left/right arrow navigation walks this array.
@@ -86,19 +88,11 @@ export function ViewModeToggle({ value, onChange }: Props) {
                 : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
-            {/* Fixed-size icon box: Material Symbols renders the glyph via a
-                ligature, so if the icon font fails to load (e.g. the visual
-                tests stub Google Fonts to empty) the raw ligature *name*
-                ("vertical_split", "grid_view") would otherwise render as text and
-                blow out the width of this non-wrapping control. Clipping to a
-                fixed box keeps the layout stable in either case. */}
-            <span
-              className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+            <Icon
+              name={option.icon}
+              className="inline-flex shrink-0 items-center justify-center overflow-hidden"
               style={{ fontSize: 20, width: 20, height: 20 }}
-              aria-hidden="true"
-            >
-              {option.icon}
-            </span>
+            />
           </button>
         );
       })}

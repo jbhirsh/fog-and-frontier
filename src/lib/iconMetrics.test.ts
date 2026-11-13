@@ -10,15 +10,13 @@ describe('glyphBleed', () => {
 
   it('leaves a glyph with no side bearing, or an unmeasured one, in place', () => {
     expect(glyphBleed('forest')).toBe('0');
-    expect(glyphBleed('not_an_icon')).toBe('0');
+    expect(glyphBleed('search')).toBe('0');
   });
 
   it('holds the bearings as measured', () => {
     expect(ICON_SIDE_BEARING).toEqual({
       add: 0.194,
-      category: 0.111,
       check_box: 0.111,
-      check_circle: 0.083,
       close: 0.194,
       expand_less: 0.25,
       expand_more: 0.25,
@@ -27,7 +25,6 @@ describe('glyphBleed', () => {
       map: 0.111,
       payments: 0.042,
       person: 0.167,
-      pets: 0.083,
       schedule: 0.083,
       directions_walk: 0.233,
       explore: 0.067,
@@ -58,7 +55,6 @@ describe('glyphNudge (#291)', () => {
 
   it('leaves a glyph that already looks centred alone', () => {
     expect(glyphNudge('explore')).toBe('');
-    expect(glyphNudge('not_an_icon')).toBe('');
   });
 
   it('keeps every offset small, a nudge rather than a move', () => {

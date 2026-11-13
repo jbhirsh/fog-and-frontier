@@ -5,6 +5,7 @@ import { directionsUrl, isApplePlatform } from '../lib/directions';
 import { formatMiles, useDistanceTo } from '../lib/drivingMiles';
 import { CoverImage } from './CoverImage';
 import { DogIcon } from './DogIcon';
+import { Icon } from './Icon';
 
 interface Props {
   activity: Activity;
@@ -99,13 +100,11 @@ export function PinCard({ activity, onDetails, onClose }: Props) {
               </span>
               {activity.allTrailsRating != null && (
                 <span className="flex items-center gap-0.5">
-                  <span
-                    className="material-symbols-outlined size-4 overflow-hidden text-[16px] text-secondary"
-                    aria-hidden="true"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    star
-                  </span>
+                  <Icon
+                    name="star"
+                    fill
+                    className="size-4 overflow-hidden text-[16px] text-secondary"
+                  />
                   <span className="sr-only">Rated </span>
                   {activity.allTrailsRating.toFixed(1)}
                 </span>
@@ -127,12 +126,7 @@ export function PinCard({ activity, onDetails, onClose }: Props) {
               rel="noopener noreferrer"
               className="inline-flex min-h-10 flex-1 items-center justify-center gap-xs rounded-full border border-outline-variant text-body-sm font-medium whitespace-nowrap text-on-surface hover:bg-surface-variant"
             >
-              <span
-                className="material-symbols-outlined size-4.5 overflow-hidden text-[18px]"
-                aria-hidden="true"
-              >
-                directions
-              </span>
+              <Icon name="directions" className="size-4.5 overflow-hidden text-[18px]" />
               Directions
             </a>
           )}
@@ -150,12 +144,7 @@ export function PinCard({ activity, onDetails, onClose }: Props) {
           onClick={onClose}
           className="absolute top-1 right-1 flex size-9 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant"
         >
-          <span
-            className="material-symbols-outlined size-5 overflow-hidden text-[20px]"
-            aria-hidden="true"
-          >
-            close
-          </span>
+          <Icon name="close" className="size-5 overflow-hidden text-[20px]" />
         </button>
       </div>
     </section>

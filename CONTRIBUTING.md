@@ -52,6 +52,7 @@ Sentry's are set in Vercel:
 | `npm run db:snapshot` / `npm run db:seed-preview`            | production's Turso into `dev-db.sqlite` / the preview database seeded from production                     |
 | `npm run cards -- draft` / `save` (`cards -- dogs draft`...) | card copy (#295) and dog rules (#296) for places saved without them, through a review file                |
 | `npm run regions:gen`                                        | `shared/isoRegions.ts` from ISO 3166 (needs Debian's `iso-codes`)                                         |
+| `npm run icons:gen -- <name>…`                               | `src/lib/iconPaths.ts`: adds icons, or with no names fetches them all again                               |
 | `npm run links:check` / `npm run instagram:check`            | every outbound link in the live catalog (#68) / Instagram's pages as sharing reads them (#6); both weekly |
 
 The git hooks run Prettier on the staged files, ESLint, Stylelint, the layering rules and

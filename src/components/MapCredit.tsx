@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { Icon } from './Icon';
 
 /**
  * The map tiles' credit, which OpenStreetMap's licence and CARTO require, as
@@ -44,12 +45,10 @@ export function MapCredit({ bottom = 8 }: { bottom?: number | string }) {
         onClick={() => setOpen((o) => !o)}
         className="flex size-6 items-center justify-center rounded-full bg-white/80 text-on-surface-variant shadow-sm backdrop-blur-sm"
       >
-        <span
-          className="material-symbols-outlined inline-flex size-4 items-center justify-center overflow-hidden text-[16px]"
-          aria-hidden="true"
-        >
-          info
-        </span>
+        <Icon
+          name="info"
+          className="inline-flex size-4 items-center justify-center overflow-hidden text-[16px]"
+        />
       </button>
     </div>
   );

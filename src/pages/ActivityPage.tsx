@@ -18,6 +18,7 @@ import {
 import { useUserActivities } from '../lib/userActivities';
 import { useFocusTrap, useReturnFocus } from '../lib/focusTrap';
 import type { Activity } from '../data/types';
+import { Icon } from '../components/Icon';
 
 /**
  * An activity's permalink (#86): the detail for /activity/:id, drawn over the
@@ -168,9 +169,7 @@ function Missing({
         aria-labelledby="activity-missing-title"
         className={`relative w-full max-w-2xl rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-lg text-center shadow-xl ${animate ? 'motion-safe:animate-dialog-in' : ''}`}
       >
-        <span className="material-symbols-outlined text-5xl text-on-surface-variant">
-          wrong_location
-        </span>
+        <Icon name="wrong_location" className="text-5xl text-on-surface-variant" />
         <h2
           id="activity-missing-title"
           className="mt-sm font-headline-md text-headline-md text-on-surface"

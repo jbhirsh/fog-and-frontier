@@ -7,6 +7,7 @@ import { ActivityPermalinkRoutes } from '../components/ActivityPermalinkRoutes';
 import type { Activity } from '../data/types';
 import { dogFriendlyTidepools, muirWoods } from '../test/fixtures';
 import { CuratedAdventures } from './CuratedAdventures';
+import { queryIcon } from '../test/icons';
 
 // A park's hikes and stops (#269) sit under its card and open below its row.
 
@@ -210,7 +211,7 @@ describe('a park’s hikes and stops on a phone', () => {
     const count = within(card).getByRole('button', { name: '2 hikes & stops in Test Seashore' });
     expect(count).toHaveTextContent(/2$/);
     expect(count).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('account_tree')).not.toBeInTheDocument();
+    expect(queryIcon('account_tree')).toBeNull();
     await userEvent.click(count);
     const section = screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' });
     expect(count).toHaveAttribute('aria-expanded', 'true');

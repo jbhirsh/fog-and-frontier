@@ -1,3 +1,4 @@
+import { Icon } from './Icon';
 type VoteTally = { up: number; down: number; net: number };
 
 type Props = {
@@ -84,15 +85,7 @@ function ThumbButton({
     >
       {/* The thumb glyphs sit low in their box; a 1px lift centres them on
           the count's digits. */}
-      <span
-        className="material-symbols-outlined relative -top-px"
-        style={{
-          fontSize: 18,
-          fontVariationSettings: active ? "'FILL' 1" : undefined,
-        }}
-      >
-        {icon}
-      </span>
+      <Icon name={icon} fill={active} className="relative -top-px" style={{ fontSize: 18 }} />
       <span>{count}</span>
     </button>
   );

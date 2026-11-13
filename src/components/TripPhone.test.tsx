@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { completedHike, muirWoods } from '../test/fixtures';
 import type { Trip, TripActivity, TripMember } from '../lib/userTrips';
 import { TripPhone } from './TripPhone';
+import { textWithIcons } from '../test/icons';
 
 // A trip's page on a phone (#294).
 
@@ -81,7 +82,7 @@ function show(over: Partial<Parameters<typeof TripPhone>[0]> = {}) {
 const rows = () =>
   within(screen.getByRole('region', { name: 'Plan' }))
     .getAllByRole('listitem')
-    .map((li) => li.textContent);
+    .map((li) => textWithIcons(li));
 
 describe('a trip’s page on a phone (#294)', () => {
   it('heads it with the way back, its name, dates and stage, and its menu', () => {
@@ -179,15 +180,15 @@ describe('a trip’s page on a phone (#294)', () => {
     const sat = days.getByRole('button', { name: 'Sat 11 3 places' });
     expect(sat).toHaveAttribute('aria-pressed', 'true');
     expect(rows()).toEqual([
-      'Morning Place early Hike · Half Daydrag_indicator',
-      'Afternoon (deleted activity) drag_indicator',
-      'Evening Sunset Point Scenic · 2-3 Hoursdrag_indicator',
-      'addAdd a place to Saturday',
+      'Morning Place early Hike · Half Day<drag_indicator>',
+      'Afternoon (deleted activity) <drag_indicator>',
+      'Evening Sunset Point Scenic · 2-3 Hours<drag_indicator>',
+      '<add>Add a place to Saturday',
     ]);
     await userEvent.click(days.getByRole('button', { name: 'Sun 12 1 place' }));
     expect(rows()).toEqual([
-      'Morning Place sunday Hike · Half Daydrag_indicator',
-      'addAdd a place to Sunday',
+      'Morning Place sunday Hike · Half Day<drag_indicator>',
+      '<add>Add a place to Sunday',
     ]);
   });
 

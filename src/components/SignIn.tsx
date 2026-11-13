@@ -6,6 +6,7 @@ import { useOnPageRestore } from '../lib/pageRestore';
 import { passkeysSupported } from '../lib/passkeys';
 import { ModalShell } from './ModalShell';
 import { AppleLogo, GoogleLogo } from './ProviderLogos';
+import { Icon } from './Icon';
 
 const PROVIDER =
   'flex h-11 w-full items-center justify-center gap-sm rounded-lg border border-outline-variant bg-surface-container-lowest px-md font-body-md text-body-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50';
@@ -127,9 +128,7 @@ export function SignInDialog({ onClose }: { onClose: () => void }) {
               disabled={busy}
               className={PROVIDER}
             >
-              <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
-                passkey
-              </span>
+              <Icon name="passkey" className="text-icon-md" />
               Sign in with a passkey
             </button>
           </>
