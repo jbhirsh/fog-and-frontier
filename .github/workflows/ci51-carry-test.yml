@@ -1,0 +1,122 @@
+name: ci51 carry test
+
+# jbhirsh/ci#51 step 1, an experiment deleted with its PR. Labelling the
+# PR `ci51-carry-test` amends its head commit A with a changed baseline
+# PNG (A'), force-pushes A' with the Actions token, and posts A's required
+# check runs and commit statuses onto A', to see what the ruleset, the
+# Actions token's push and Vercel make of it.
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  carry:
+    name: ci51 carry test
+    if: github.event.label.name == 'ci51-carry-test'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      checks: write
+      statuses: write
+      actions: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ github.head_ref }}
+      PNG: tests/visual/pages.desktop.spec.ts-snapshots/curated-desktop-linux.png
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Amend A with a changed baseline and force-push A'
+        id: amend
+        run: |
+          set -euo pipefail
+          A=$(git rev-parse HEAD)
+          echo "a=$A" >> "$GITHUB_OUTPUT"
+          printf 'ci51-carry-test' >> "$PNG"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$PNG"
+          git commit --amend --no-edit
+          CHANGED=$(git diff --name-only "$A" HEAD)
+          if [ "$CHANGED" != "$PNG" ]; then
+            echo "::error::A' differs from A in more than the PNG: $CHANGED"
+            exit 1
+          fi
+          git push --force-with-lease="$BRANCH:$A" origin "HEAD:$BRANCH"
+          B=$(git rev-parse HEAD)
+          echo "b=$B" >> "$GITHUB_OUTPUT"
+          {
+            echo "## ci#51 carry-over test"
+            echo
+            echo "- A: \`$A\`"
+            echo "- A′: \`$B\`"
+            echo "- A′ author|committer: \`$(git log -1 --format='%an|%cn')\`"
+            echo "- changed: \`$CHANGED\`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Carry A's required check runs onto A'
+        env:
+          A: ${{ steps.amend.outputs.a }}
+          B: ${{ steps.amend.outputs.b }}
+        run: |
+          set -euo pipefail
+          R="repos/$GITHUB_REPOSITORY"
+          echo "### Check runs" >> "$GITHUB_STEP_SUMMARY"
+          gh api "$R/rules/branches/main" \
+            --jq '.[] | select(.type=="required_status_checks") | .parameters.required_status_checks[] | [.context, (.integration_id // "null" | tostring)] | @tsv' \
+            > required.tsv
+          cat required.tsv
+          while IFS=$'\t' read -r NAME APP; do
+            if [ "$APP" != 15368 ] && [ "$APP" != null ]; then
+              echo "- \`$NAME\`: tied to app $APP, not a check run here (statuses below)" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            if [ "$NAME" = "ci51 carry test" ]; then continue; fi
+            RUN=$(gh api "$R/commits/$A/check-runs?check_name=$(jq -rn --arg n "$NAME" '$n|@uri')&filter=latest&per_page=100" \
+              --jq '[.check_runs[] | select(.app.id == 15368)] | sort_by(.started_at) | last // empty')
+            if [ -z "$RUN" ]; then
+              echo "- \`$NAME\`: no run on A, nothing carried" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            CONCLUSION=$(jq -r '.conclusion' <<<"$RUN")
+            LINK=$(jq -r '.html_url' <<<"$RUN")
+            jq -n --arg name "$NAME" --arg sha "$B" --arg c "$CONCLUSION" \
+              --arg title "Carried over from ${A:0:7}" \
+              --arg summary "Carried over from [A's run]($LINK) on \`$A\`; A′ differs from A only in a baseline PNG." \
+              '{name: $name, head_sha: $sha, status: "completed", conclusion: $c, output: {title: $title, summary: $summary}}' \
+              > body.json
+            POSTED=$(gh api -X POST "$R/check-runs" --input body.json --jq '.html_url + " (app " + (.app.slug) + ")"')
+            echo "- \`$NAME\`: $CONCLUSION, from $LINK → $POSTED" >> "$GITHUB_STEP_SUMMARY"
+          done < required.tsv
+
+      - name: Carry A's commit statuses onto A' after Vercel's own
+        env:
+          A: ${{ steps.amend.outputs.a }}
+          B: ${{ steps.amend.outputs.b }}
+        run: |
+          set -euo pipefail
+          R="repos/$GITHUB_REPOSITORY"
+          echo "### Commit statuses" >> "$GITHUB_STEP_SUMMARY"
+          gh api "$R/commits/$A/status" --jq '.statuses[] | [.context, .state, (.target_url // "")] | @tsv' > statuses.tsv
+          cat statuses.tsv
+          while IFS=$'\t' read -r CONTEXT STATE URL; do
+            OWN=""
+            DEADLINE=$(( $(date +%s) + 300 ))
+            while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+              OWN=$(gh api "$R/commits/$B/statuses?per_page=100" \
+                --jq "[.[] | select(.context == \"$CONTEXT\")] | first // empty | \"\(.state) | \(.description) | \(.creator.login // \"?\") | \(.target_url)\"")
+              [ -n "$OWN" ] && break
+              sleep 15
+            done
+            echo "- \`$CONTEXT\` on A′ before carrying: ${OWN:-none within 5 minutes}" >> "$GITHUB_STEP_SUMMARY"
+            jq -n --arg s "$STATE" --arg c "$CONTEXT" --arg u "$URL" --arg d "Carried over from ${A:0:7}" \
+              '{state: $s, context: $c, target_url: $u, description: $d}' > status.json
+            gh api -X POST "$R/statuses/$B" --input status.json --jq '"posted " + .state + " by " + .creator.login' \
+              | sed "s/^/- \`$CONTEXT\`: /" >> "$GITHUB_STEP_SUMMARY"
+          done < statuses.tsv
