@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "l=$(git log -1 --format='%an|%cn'); echo \"ci51 an|cn=$l env=$VERCEL_ENV\"; [ \"$VERCEL_ENV\" = preview ] && [ \"${l#*|}\" = 'github-actions[bot]' ] && [ \"${l%|*}\" != 'github-actions[bot]' ]",
   "rewrites": [
     {
       "source": "/api/auth/:path*",
