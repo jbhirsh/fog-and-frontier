@@ -6,11 +6,18 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cachePhotos } from './live-site.ts';
 import { SHOTS, capture, main } from './readme-screenshots';
 
 const fakes = vi.hoisted(() => {
   const failed = new Map<string, string>();
   const pages: { calls: string[]; owner: boolean }[] = [];
+  const screenshotOptions: unknown[] = [];
+  // Takes the context's options, which the test reads from its calls.
+  const newContext = vi.fn<(options: unknown) => Promise<{ newPage: () => Promise<unknown> }>>(() =>
+    Promise.resolve({ newPage: () => Promise.resolve(page()) }),
+  );
+  const close = vi.fn(() => Promise.resolve());
   const page = () => {
     const record = { calls: [] as string[], owner: false };
     pages.push(record);
@@ -27,7 +34,9 @@ const fakes = vi.hoisted(() => {
     });
     return {
       locator: element,
-      getByRole: (role: string) => ({ waitFor: step(`wait role ${role}`) }),
+      getByRole: (role: string, options?: { name?: string }) => ({
+        waitFor: step(options?.name ? `wait role ${role} ${options.name}` : `wait role ${role}`),
+      }),
       waitForTimeout: step('pause'),
       goto: step('goto'),
       evaluate: step('evaluate'),
@@ -36,18 +45,19 @@ const fakes = vi.hoisted(() => {
         script();
         return Promise.resolve();
       },
-      screenshot: () => Promise.resolve(Buffer.from(`png ${pages.length}`)),
+      screenshot: (options: unknown) => {
+        screenshotOptions.push(options);
+        return Promise.resolve(Buffer.from(`png ${pages.length}`));
+      },
     };
   };
   return {
     failed,
     pages,
-    launch: vi.fn(() =>
-      Promise.resolve({
-        newContext: () => Promise.resolve({ newPage: () => Promise.resolve(page()) }),
-        close: vi.fn(() => Promise.resolve()),
-      }),
-    ),
+    screenshotOptions,
+    newContext,
+    close,
+    launch: vi.fn(() => Promise.resolve({ newContext, close })),
     build: vi.fn(),
     serve: vi.fn(() => Promise.resolve('http://localhost:4321')),
     stopServers: vi.fn(() => Promise.resolve()),
@@ -55,7 +65,7 @@ const fakes = vi.hoisted(() => {
   };
 });
 
-vi.mock('@playwright/test', () => ({ chromium: { launch: fakes.launch } }));
+vi.mock('@playwright/test', () => ({ webkit: { launch: fakes.launch } }));
 vi.mock('vite', () => ({
   runnerImport: () => Promise.resolve({ module: { mockApis: fakes.mockApis } }),
 }));
@@ -75,6 +85,7 @@ vi.mock('./live-site.ts', () => ({
 afterEach(() => {
   fakes.failed.clear();
   fakes.pages.length = 0;
+  fakes.screenshotOptions.length = 0;
   vi.clearAllMocks();
   delete (window as { __TEST_FORCE_OWNER__?: boolean }).__TEST_FORCE_OWNER__;
 });
@@ -91,6 +102,32 @@ describe('capture', () => {
     expect(readFileSync(join(out, SHOTS[0].file), 'utf8')).toBe('png 1');
     expect(fakes.mockApis).toHaveBeenCalledTimes(SHOTS.length);
     expect(fakes.stopServers).toHaveBeenCalledTimes(1);
+    expect(fakes.stopServers).toHaveBeenCalledWith([]);
+  });
+
+  it('opens each shot at its size in a fresh browser, with service workers off, and closes it', async () => {
+    await capture(join(mkdtempSync(join(tmpdir(), 'shots-')), 'out'), '/repo');
+    expect(fakes.newContext.mock.calls.map(([options]) => options)).toEqual(
+      SHOTS.map((s) => ({
+        viewport: s.viewport,
+        deviceScaleFactor: s.scale,
+        serviceWorkers: 'block',
+      })),
+    );
+    expect(fakes.close).toHaveBeenCalledTimes(SHOTS.length);
+    expect(fakes.screenshotOptions).toEqual(
+      SHOTS.map(() => ({ animations: 'disabled', caret: 'hide' })),
+    );
+    expect(cachePhotos).toHaveBeenCalledTimes(SHOTS.length);
+    for (const call of vi.mocked(cachePhotos).mock.calls) {
+      expect(call[1]).toEqual({ production: 'https://fog-and-frontier.vercel.app' });
+    }
+  });
+
+  it('makes the folder it writes into, parents included', async () => {
+    const out = join(mkdtempSync(join(tmpdir(), 'shots-')), 'a', 'b');
+    await capture(out, '/repo');
+    expect(readdirSync(out)).toHaveLength(SHOTS.length);
   });
 
   it('opens each page at its path, and waits for what it shows', async () => {
@@ -105,7 +142,7 @@ describe('capture', () => {
     ]);
     expect(byFile.get('activity-detail.png')?.calls).toContain('click [data-activity-id]');
     expect(byFile.get('activity-detail.png')?.calls).toContain('wait role dialog');
-    expect(byFile.get('explore.png')?.calls).toContain('wait role heading');
+    expect(byFile.get('explore.png')?.calls).toContain('wait role heading Explore');
     expect(byFile.get('mobile-list.png')?.calls).toEqual([
       'goto http://localhost:4321/?view=list',
       'evaluate',
