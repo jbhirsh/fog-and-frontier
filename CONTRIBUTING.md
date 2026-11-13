@@ -46,7 +46,7 @@ Sentry's are set in Vercel:
 | `npm test` / `npm run test:watch` / `npm run test:coverage`  | Vitest; only `test:coverage` applies the 80% per-file gate CI runs                                        |
 | `npm run test:mutation`                                      | StrykerJS over the files coverage measures (`stryker.config.json`)                                        |
 | `npm run test:visual` / `npm run test:visual:update`         | Playwright visual regression in WebKit against a `--mode test` build (baselines come from CI: below)      |
-| `npx knip` / `npx jscpd`                                     | the weekly audit's unused-code and duplication checks, expected to report nothing                         |
+| `npx knip` / `npm run jscpd`                                 | the weekly audit's unused-code and duplication checks, expected to report nothing                         |
 | `npm run eval`                                               | the Gemini eval (paid; below)                                                                             |
 | `npm run gif -- <scenario.ts> --dir <PR>`                    | a PR's before/after GIFs, recorded by jbhirsh/ci's `gif` tool (`scripts/gif.mjs`; needs ffmpeg, WebKit)   |
 | `npm run db:snapshot` / `npm run db:seed-preview`            | production's Turso into `dev-db.sqlite` / the preview database seeded from production                     |
