@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MembersStrip } from './MembersStrip';
 import type { TripMember, TripInvite } from '../lib/userTrips';
+import { getIcon } from '../test/icons';
 
 const CREATOR: TripMember = {
   email: 'alice@example.com',
@@ -51,11 +52,8 @@ describe('MembersStrip', () => {
   it("pulls the remove and revoke ✕ out by the glyph's empty side, so the chips' insets match", () => {
     render(<MembersStrip {...defaultProps()} />);
     for (const name of ['Remove bob@example.com', 'Revoke invite for carol@example.com']) {
-      const icon = screen
-        .getByRole('button', { name })
-        .querySelector<HTMLElement>('.material-symbols-outlined');
-      expect(icon).toHaveTextContent('close');
-      expect(icon?.style.marginRight).toBe('-0.194em');
+      const icon = getIcon('close', screen.getByRole('button', { name }));
+      expect(icon.style.marginRight).toBe('-0.194em');
     }
   });
 

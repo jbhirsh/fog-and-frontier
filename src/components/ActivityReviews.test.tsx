@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { ActivityReviews } from './ActivityReviews';
 import type { ReviewSeed } from '../test/render';
+import { FILLED_ICONS } from '../lib/iconPaths';
 
 // Owner reviews (#184). The data layer is stubbed so these assert presentation
 // and the role gate: reviews read for everyone, write affordances rendered for
@@ -67,7 +68,7 @@ function renderReviews(reviews: ReviewSeed[] = []) {
 
 // The stars are the visible rating: a filled glyph per star up to the rating.
 function isFilled(icon: Element): boolean {
-  return (icon as HTMLElement).style.fontVariationSettings === "'FILL' 1";
+  return icon.querySelector('path')?.getAttribute('d') === FILLED_ICONS.star;
 }
 
 // A server call that stays in flight until the test settles it.

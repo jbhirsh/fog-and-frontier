@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { ActivityCard } from './ActivityCard';
 import { completedHike, dogFriendlyTidepools, muirWoods } from '../test/fixtures';
+import { getIcon, queryIcon } from '../test/icons';
 
 describe('ActivityCard', () => {
   it('renders core fields', () => {
@@ -76,15 +77,15 @@ describe('ActivityCard', () => {
 
   it('falls back to the category glyph when the cover fails to load (#120)', () => {
     const { container } = render(<ActivityCard activity={muirWoods} />);
-    expect(screen.queryByText('directions_walk')).not.toBeInTheDocument();
+    expect(queryIcon('directions_walk')).toBeNull();
     fireEvent.error(container.querySelector('img') as HTMLImageElement);
     expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('directions_walk')).toBeInTheDocument();
+    expect(queryIcon('directions_walk')).not.toBeNull();
   });
 
   it('shows the AllTrails rating on the photo, once', () => {
     const { rerender } = render(<ActivityCard activity={muirWoods} />);
-    expect(screen.queryByText('star')).not.toBeInTheDocument();
+    expect(queryIcon('star')).toBeNull();
     rerender(<ActivityCard activity={{ ...muirWoods, allTrailsRating: 4.7 }} />);
     expect(screen.getAllByText('4.7')).toHaveLength(1);
   });
@@ -167,7 +168,7 @@ describe('ActivityCard', () => {
       render(<ActivityCard activity={completedHike} />);
       expect(screen.queryByText('COMPLETED')).not.toBeInTheDocument();
       expect(screen.getByText('Completed')).toHaveClass('sr-only');
-      expect(screen.getByText('check')).toBeInTheDocument();
+      expect(queryIcon('check')).not.toBeNull();
     });
 
     it('sits the dog beside the check, the same size, the check in the corner', () => {
@@ -240,7 +241,7 @@ describe('ActivityCard', () => {
 
     it('puts the selection check at the top left, clear of the facts', () => {
       render(<ActivityCard activity={muirWoods} selectionMode selected />);
-      const check = screen.getByText('check').parentElement;
+      const check = getIcon('check').parentElement;
       expect(check).toHaveClass('top-base', 'left-base');
       expect(check?.className).not.toMatch(/md:/);
     });

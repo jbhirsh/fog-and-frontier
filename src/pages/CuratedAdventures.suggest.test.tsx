@@ -7,6 +7,7 @@ import { muirWoods } from '../test/fixtures';
 import { PENDING_SUGGESTIONS } from '../lib/gqlDocs';
 
 import { CuratedAdventures } from './CuratedAdventures';
+import { textWithIcons } from '../test/icons';
 
 // The catalog's add entry (#73): owners add an activity, any other signed-in
 // account suggests one for them to review, and signed-out visitors see
@@ -82,7 +83,7 @@ describe('Curated Adventures — add or suggest (#73)', () => {
     expect(screen.queryByRole('button', { name: /Add activity/ })).not.toBeInTheDocument();
     // A lightbulb alone, named in a tooltip.
     const button = screen.getByRole('button', { name: /Suggest activity/ });
-    expect(button).toHaveTextContent(/^lightbulb$/);
+    expect(textWithIcons(button)).toBe('<lightbulb>');
     expect(button).toHaveAttribute('title', 'Suggest activity');
     await userEvent.click(screen.getByRole('button', { name: /Suggest activity/ }));
     expect(screen.getByRole('dialog', { name: 'Suggest activity' })).toBeInTheDocument();

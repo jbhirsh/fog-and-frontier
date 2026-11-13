@@ -3,6 +3,7 @@ import { HOME_LOCATION } from '../data/home';
 import { useOwner } from '../lib/useOwner';
 import { apolloClient } from '../lib/apolloClient';
 import { DISCOVER_QUERY } from '../lib/gqlDocs';
+import { Icon } from '../components/Icon';
 
 type Range = 'today' | 'tomorrow' | 'weekend' | 'week';
 
@@ -236,7 +237,7 @@ export function Explore() {
                 disabled={loading}
                 className="inline-flex items-center gap-xs rounded-full bg-primary px-lg py-sm font-body-lg text-on-primary shadow-md transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <span className="material-symbols-outlined">auto_awesome</span>
+                <Icon name="auto_awesome" />
                 {loading ? 'Searching…' : events ? 'Refresh' : 'Discover events'}
               </button>
             </div>
@@ -310,13 +311,13 @@ function EventCard({ event }: { event: DiscoverEvent }) {
       </div>
       <h3 className="mt-xs font-display text-headline-md text-primary">{event.name}</h3>
       <div className="mt-xs flex items-center gap-xs font-body-md text-on-surface-variant">
-        <span className="material-symbols-outlined text-icon-md">location_on</span>
+        <Icon name="location_on" className="text-icon-md" />
         {event.location}
       </div>
       <p className="mt-sm font-body-md text-on-surface">{event.blurb}</p>
       <div className="mt-md flex items-center gap-xs font-body-sm text-primary">
         View source
-        <span className="material-symbols-outlined text-icon-sm">open_in_new</span>
+        <Icon name="open_in_new" className="text-icon-sm" />
       </div>
     </a>
   );
@@ -355,12 +356,11 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 function EmptyHero({ isOwner }: { isOwner: boolean }) {
   return (
     <div className="mx-auto max-w-2xl space-y-sm px-md py-lg text-center text-on-surface-variant md:py-xl">
-      <span
-        className="material-symbols-outlined block text-outline"
+      <Icon
+        name="explore"
+        className="mx-auto block w-fit text-outline"
         style={{ fontSize: 64, lineHeight: 1 }}
-      >
-        explore
-      </span>
+      />
       <p className="font-body-lg text-body-lg">
         {isOwner ? (
           <>

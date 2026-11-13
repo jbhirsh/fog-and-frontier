@@ -3,6 +3,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, type Location } from 'react-router-dom';
 import { PhoneTabBar } from './PhoneTabBar';
+import { getIcon, textWithIcons } from '../test/icons';
 
 const owner = vi.hoisted(() => ({ isOwner: false, email: null as string | null }));
 vi.mock('../lib/useOwner', () => ({
@@ -52,16 +53,11 @@ describe('PhoneTabBar (#289)', () => {
     expect(screen.getByRole('navigation', { name: 'Main' })).toHaveClass('md:hidden', 'fixed');
   });
 
-  it('keeps its tabs equal while the icon font loads', () => {
+  it('keeps its tabs equal, each icon in a set box', () => {
     renderAt('/');
-    // Before the font, each icon is its name in plain text, wide enough to
-    // push the last tab off the screen were it free to grow.
     const places = screen.getByRole('link', { name: /Places/ });
     expect(places).toHaveClass('flex-1', 'min-w-0');
-    expect(places.querySelector('.material-symbols-outlined')).toHaveClass(
-      'size-6',
-      'overflow-hidden',
-    );
+    expect(getIcon('format_list_bulleted', places)).toHaveClass('size-6', 'overflow-hidden');
   });
 
   it('marks the tab of the page it’s on', () => {
@@ -97,11 +93,11 @@ describe('PhoneTabBar (#289)', () => {
     renderAt('/');
     expect(tabs().queryByRole('button')).not.toBeInTheDocument();
     expect(tabs().queryByRole('link', { name: 'Explore' })).not.toBeInTheDocument();
-    expect(
-      tabs()
-        .getAllByRole('link')
-        .map((l) => l.textContent),
-    ).toEqual(['format_list_bulletedPlaces', 'mapMap', 'luggageTrips']);
+    expect(tabs().getAllByRole('link').map(textWithIcons)).toEqual([
+      '<format_list_bulleted>Places',
+      '<map>Map',
+      '<luggage>Trips',
+    ]);
   });
 
   it('offers a signed-in non-owner Suggest, and an owner Add and Explore', () => {

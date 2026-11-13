@@ -52,6 +52,7 @@ import {
   type UserSummary,
 } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
+import { Icon } from '../components/Icon';
 
 // The trip's page loads as its own chunk, only on a trip, so the main bundle
 // carries none of it.
@@ -643,12 +644,7 @@ function VotingView({
             onClick={onAddFromCurated}
             className="inline-flex min-h-11 flex-1 items-center justify-center gap-xs rounded-full border border-outline-variant/40 px-md py-sm font-body-md whitespace-nowrap text-on-surface-variant hover:bg-surface-variant sm:flex-none"
           >
-            <span
-              className="material-symbols-outlined text-icon-md"
-              style={{ marginLeft: glyphBleed('add') }}
-            >
-              add
-            </span>
+            <Icon name="add" className="text-icon-md" style={{ marginLeft: glyphBleed('add') }} />
             Add candidate
           </button>
           <button
@@ -664,7 +660,7 @@ function VotingView({
             }
             className="inline-flex min-h-11 flex-1 items-center justify-center gap-xs rounded-full bg-primary px-md py-sm font-body-md whitespace-nowrap text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
           >
-            <span className="material-symbols-outlined text-icon-md">how_to_vote</span>
+            <Icon name="how_to_vote" className="text-icon-md" />
             Finalize voting
           </button>
         </div>
@@ -735,14 +731,15 @@ function VoteBreakdown({ trip, tripActivityId }: { trip: Trip; tripActivityId: s
           key={r.email}
           className="inline-flex items-center gap-xs rounded-full bg-surface-container-low px-sm py-xs font-body-md text-sm text-on-surface-variant"
         >
-          {/* Lifted 1px, as in VoteControls: the thumbs sit low in their box. */}
-          <span
-            className={`material-symbols-outlined relative -top-px text-icon-sm ${
+          {/* Lifted 1px, as in VoteControls: the thumbs sit low in their box.
+              Named, as the thumb alone says which way they voted. */}
+          <Icon
+            name={r.value === 1 ? 'thumb_up' : 'thumb_down'}
+            label={r.value === 1 ? 'Upvoted' : 'Downvoted'}
+            className={`relative -top-px text-icon-sm ${
               r.value === 1 ? 'text-primary' : 'text-error'
             }`}
-          >
-            {r.value === 1 ? 'thumb_up' : 'thumb_down'}
-          </span>
+          />
           {r.display_name ?? authorLabel(r.email)}
           {r.leftTrip && <span className="italic opacity-70">&nbsp;(left trip)</span>}
         </span>
@@ -929,7 +926,7 @@ export function TripMenu({
         aria-label="More trip actions"
         className="inline-flex size-11 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:bg-surface-variant"
       >
-        <span className="material-symbols-outlined">more_horiz</span>
+        <Icon name="more_horiz" />
       </button>
       {menuOpen && (
         <div className="absolute right-0 z-10 mt-xs w-56 max-w-[calc(100vw-2*var(--spacing-gutter))] overflow-hidden rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg">

@@ -3,24 +3,17 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { catalogHref, currentTab } from '../lib/tabs';
 import { useOwner } from '../lib/useOwner';
 import { useTyping } from '../lib/useTyping';
+import { Icon } from './Icon';
+import type { IconName } from '../lib/iconPaths';
 
 const TAB =
   'flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors';
 const ON = 'font-semibold text-primary';
 const OFF = 'font-medium text-on-surface-variant hover:text-primary';
 
-// A set box, so the tabs stay equal while the icon font loads, when each
-// icon is still its name in plain text.
-function Icon({ name }: { name: string }) {
-  return (
-    <span
-      className="material-symbols-outlined size-6 overflow-hidden"
-      aria-hidden="true"
-      style={{ fontSize: 24 }}
-    >
-      {name}
-    </span>
-  );
+// A set box, so the tabs stay equal.
+function TabIcon({ name }: { name: IconName }) {
+  return <Icon name={name} className="size-6 overflow-hidden" style={{ fontSize: 24 }} />;
 }
 
 /**
@@ -61,21 +54,21 @@ export function PhoneTabBar() {
       className={`fixed inset-x-0 bottom-0 z-45 border-t border-outline-variant/40 bg-surface-container-lowest/95 px-base pb-[env(safe-area-inset-bottom)] backdrop-blur-xl ${typing ? 'hidden' : 'flex md:hidden'}`}
     >
       <Link to={catalogHref(catalogParams, null)} {...link('places')}>
-        <Icon name="format_list_bulleted" />
+        <TabIcon name="format_list_bulleted" />
         Places
       </Link>
       <Link to={catalogHref(catalogParams, 'map')} {...link('map')}>
-        <Icon name="map" />
+        <TabIcon name="map" />
         Map
       </Link>
       {isOwner && (
         <Link to="/explore" {...link('explore')}>
-          <Icon name="explore" />
+          <TabIcon name="explore" />
           Explore
         </Link>
       )}
       <Link to="/trips" {...link('trips')}>
-        <Icon name="luggage" />
+        <TabIcon name="luggage" />
         Trips
       </Link>
       {/* The catalog opens its add or suggest dialog on this (#73). */}
@@ -85,7 +78,7 @@ export function PhoneTabBar() {
           onClick={() => void navigate(catalogHref(catalogParams, null), { state: { add: true } })}
           className={`${TAB} ${OFF}`}
         >
-          <Icon name={isOwner ? 'add_circle' : 'lightbulb'} />
+          <TabIcon name={isOwner ? 'add_circle' : 'lightbulb'} />
           {isOwner ? 'Add' : 'Suggest'}
         </button>
       )}

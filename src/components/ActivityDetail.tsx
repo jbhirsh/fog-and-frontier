@@ -19,6 +19,8 @@ import { InlineError } from './InlineError';
 import { sourceLabel } from '../lib/sharedPlaces';
 import { parkOf, subItemsOf } from '../lib/parks';
 import { activityPath } from '../lib/activityRoute';
+import { Icon } from './Icon';
+import type { IconName } from '../lib/iconPaths';
 
 interface Props {
   activity: Activity;
@@ -298,9 +300,7 @@ export function ActivityDetail({
                   uploading ? 'cursor-wait opacity-60' : 'cursor-pointer hover:opacity-90'
                 }`}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                  {uploading ? 'hourglass_top' : 'add_a_photo'}
-                </span>
+                <Icon name={uploading ? 'hourglass_top' : 'add_a_photo'} style={{ fontSize: 18 }} />
                 {uploading ? 'Uploading…' : 'Add photos'}
                 <input
                   type="file"
@@ -341,9 +341,7 @@ export function ActivityDetail({
                     aria-label="Remove photo"
                     className="absolute top-xs right-xs flex size-11 items-center justify-center rounded-full bg-on-surface/70 text-on-primary opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                      delete
-                    </span>
+                    <Icon name="delete" style={{ fontSize: 18 }} />
                   </button>
                 </div>
               ))}
@@ -364,9 +362,7 @@ export function ActivityDetail({
             onClick={() => setEditing(true)}
             className="inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-on-surface-variant transition-colors hover:bg-surface-variant"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              edit
-            </span>
+            <Icon name="edit" style={{ fontSize: 14 }} />
             EDIT ACTIVITY
           </button>
           <button
@@ -374,9 +370,7 @@ export function ActivityDetail({
             onClick={() => void handleDelete()}
             className="-mr-md inline-flex min-h-11 items-center gap-xs rounded-full px-md py-sm font-label-caps text-label-caps text-error transition-colors hover:bg-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-inset"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              delete
-            </span>
+            <Icon name="delete" style={{ fontSize: 14 }} />
             DELETE ACTIVITY
           </button>
         </div>
@@ -400,7 +394,7 @@ export function ActivityDetail({
           aria-keyshortcuts="ArrowLeft"
           className={STEP_BUTTON}
         >
-          <span className="material-symbols-outlined">chevron_left</span>
+          <Icon name="chevron_left" />
         </button>
         <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
           {sequence.index + 1} of {sequence.total}
@@ -414,7 +408,7 @@ export function ActivityDetail({
           aria-keyshortcuts="ArrowRight"
           className={STEP_BUTTON}
         >
-          <span className="material-symbols-outlined">chevron_right</span>
+          <Icon name="chevron_right" />
         </button>
       </nav>
     );
@@ -444,9 +438,7 @@ export function ActivityDetail({
             <PhoneCover activity={activity}>
               <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
                 <button type="button" onClick={onClose} aria-label="Back" className={OVER_PHOTO}>
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    arrow_back
-                  </span>
+                  <Icon name="arrow_back" />
                 </button>
                 {stepper('')}
                 <button
@@ -455,9 +447,7 @@ export function ActivityDetail({
                   aria-label="Share"
                   className={OVER_PHOTO}
                 >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    ios_share
-                  </span>
+                  <Icon name="ios_share" />
                 </button>
               </div>
             </PhoneCover>
@@ -532,7 +522,7 @@ function Contributors({
   const authorLabel = usePersonLabel();
   return (
     <div className="flex items-center gap-xs">
-      <span className="material-symbols-outlined text-icon-md">person</span>
+      <Icon name="person" className="text-icon-md" />
       <span className="font-body-md">
         Contributed by{' '}
         {emails.map((email, i) => (
@@ -638,9 +628,7 @@ function PlaceBody({
                   className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
                 >
                   Reserve
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                    open_in_new
-                  </span>
+                  <Icon name="open_in_new" style={{ fontSize: 16 }} />
                 </a>
               )}
               {activity.menuUrl && (
@@ -651,9 +639,7 @@ function PlaceBody({
                   className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
                 >
                   Menu / website
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                    open_in_new
-                  </span>
+                  <Icon name="open_in_new" style={{ fontSize: 16 }} />
                 </a>
               )}
             </div>
@@ -686,9 +672,7 @@ function PlaceBody({
           className="inline-flex items-center gap-xs font-medium text-primary-container hover:underline"
         >
           {sourceLabel(activity.sourceUrl)}
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            open_in_new
-          </span>
+          <Icon name="open_in_new" style={{ fontSize: 16 }} />
         </a>
       )}
     </>
@@ -775,13 +759,13 @@ function Peek({
       className={`${where} flex items-center gap-xs rounded-full bg-surface-container-lowest/90 p-xs backdrop-blur-sm`}
     >
       <span className={`${STEP_BUTTON} ${place === 1 ? 'opacity-35' : ''}`}>
-        <span className="material-symbols-outlined">chevron_left</span>
+        <Icon name="chevron_left" />
       </span>
       <span className="px-xs font-body-sm text-on-surface-variant tabular-nums">
         {place} of {total}
       </span>
       <span className={`${STEP_BUTTON} ${place === total ? 'opacity-35' : ''}`}>
-        <span className="material-symbols-outlined">chevron_right</span>
+        <Icon name="chevron_right" />
       </span>
     </div>
   );
@@ -798,11 +782,11 @@ function Peek({
         <PhoneCover activity={activity}>
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-xs p-sm">
             <span className={OVER_PHOTO}>
-              <span className="material-symbols-outlined">arrow_back</span>
+              <Icon name="arrow_back" />
             </span>
             {steps('')}
             <span className={OVER_PHOTO}>
-              <span className="material-symbols-outlined">ios_share</span>
+              <Icon name="ios_share" />
             </span>
           </div>
         </PhoneCover>
@@ -832,20 +816,26 @@ function TrailRow({ activity }: { activity: Activity }) {
   return (
     <a href={activity.allTrailsUrl} target="_blank" rel="noopener noreferrer" className={row}>
       {words}
-      <span
-        className="material-symbols-outlined size-4.5 shrink-0 overflow-hidden text-[18px] text-on-surface-variant"
-        aria-hidden="true"
-      >
-        open_in_new
-      </span>
+      <Icon
+        name="open_in_new"
+        className="size-4.5 shrink-0 overflow-hidden text-[18px] text-on-surface-variant"
+      />
     </a>
   );
 }
 
-function Stat({ icon, label, capitalize }: { icon: string; label: string; capitalize?: boolean }) {
+function Stat({
+  icon,
+  label,
+  capitalize,
+}: {
+  icon: IconName;
+  label: string;
+  capitalize?: boolean;
+}) {
   return (
     <div className="flex items-center gap-xs">
-      <span className="material-symbols-outlined text-icon-md">{icon}</span>
+      <Icon name={icon} className="text-icon-md" />
       <span className={`font-body-md ${capitalize ? 'capitalize' : ''}`}>{label}</span>
     </div>
   );

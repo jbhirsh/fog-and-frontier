@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useFocusTrap, useReturnFocus } from '../lib/focusTrap';
+import { Icon } from './Icon';
 
 /**
  * A centred dialog over a dimmed page, closed from its backdrop or Escape:
@@ -61,9 +62,7 @@ export function ModalShell({
             aria-label="Close"
             className="absolute top-sm right-sm inline-flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-low"
           >
-            <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
-              close
-            </span>
+            <Icon name="close" className="text-icon-md" />
           </button>
         ) : (
           <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>

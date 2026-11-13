@@ -7,6 +7,7 @@ import {
   type TripSuggestion,
 } from '../lib/tripSuggestions';
 import { CoverImage } from './CoverImage';
+import { Icon } from './Icon';
 
 interface Props {
   suggestions: readonly TripSuggestion[];
@@ -91,9 +92,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                       {a.name}
                     </span>
                     <span className="flex items-center gap-xs font-body-sm text-on-surface-variant">
-                      <span aria-hidden="true" className="material-symbols-outlined text-icon-sm">
-                        {CATEGORY_ICON[a.category]}
-                      </span>
+                      <Icon name={CATEGORY_ICON[a.category]} className="text-icon-sm" />
                       <span className="truncate">{a.location.city}</span>
                     </span>
                     <span className="block truncate font-body-sm text-on-surface-variant">
@@ -108,9 +107,7 @@ export function TripSuggestions({ suggestions, busy, onAdd, onOpen }: Props) {
                   aria-label={`Add ${a.name} as a candidate`}
                   className="mx-sm inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-xs self-center rounded-full border border-outline-variant/40 font-body-md text-primary hover:bg-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container disabled:cursor-not-allowed disabled:opacity-60 sm:px-sm"
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-icon-md">
-                    add
-                  </span>
+                  <Icon name="add" className="text-icon-md" />
                   {/* Icon only on phones, leaving the name room; the label above names it. */}
                   <span aria-hidden="true" className="hidden sm:inline">
                     Add

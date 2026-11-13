@@ -4,6 +4,7 @@ import { appliedFilters } from '../lib/catalogFilterOptions';
 import { glyphBleed } from '../lib/iconMetrics';
 import { usePersonLabel } from '../lib/people';
 import { FilterSheet, type FilterSheetProps } from './FilterSheet';
+import { Icon } from './Icon';
 
 /**
  * The catalog filters on a phone: one Filters button, counting the filters
@@ -77,17 +78,15 @@ export function CompactFilters({
           inHeader ? 'relative size-11 justify-center lg:w-auto lg:px-sm' : 'h-9 px-sm'
         }`}
       >
-        <span
-          className="material-symbols-outlined inline-flex shrink-0 items-center justify-center overflow-hidden"
+        <Icon
+          name="tune"
+          className="inline-flex shrink-0 items-center justify-center overflow-hidden"
           style={
             inHeader
               ? { fontSize: 20, width: 20, height: 20 }
               : { fontSize: 18, width: 18, height: 18, marginLeft: glyphBleed('tune') }
           }
-          aria-hidden="true"
-        >
-          tune
-        </span>
+        />
         <span className={inHeader ? 'hidden lg:inline' : undefined}>Filters</span>
         {on.length > 0 && (
           <span
@@ -134,12 +133,10 @@ function FilterChips({
             className="inline-flex h-8 items-center gap-xs rounded-full bg-primary-fixed pr-base pl-sm text-body-sm font-medium text-on-primary-fixed transition-colors hover:bg-primary-fixed-dim"
           >
             {filter.label}
-            <span
-              className="material-symbols-outlined inline-flex size-4 shrink-0 items-center justify-center overflow-hidden text-[16px]"
-              aria-hidden="true"
-            >
-              close
-            </span>
+            <Icon
+              name="close"
+              className="inline-flex size-4 shrink-0 items-center justify-center overflow-hidden text-[16px]"
+            />
           </button>
         </li>
       ))}

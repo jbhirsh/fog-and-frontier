@@ -3,6 +3,7 @@ import { useOwner } from '../lib/useOwner';
 import { useTripsList, type TripListItem, type TripStatus } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
 import { formatDateRange } from '../lib/dateRange';
+import { Icon } from '../components/Icon';
 
 export function Trips() {
   const { isOwner, isLoaded, email } = useOwner();
@@ -43,12 +44,7 @@ export function Trips() {
               to="/trips/new"
               className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
             >
-              <span
-                className="material-symbols-outlined text-icon-md"
-                style={{ marginLeft: glyphBleed('add') }}
-              >
-                add
-              </span>
+              <Icon name="add" className="text-icon-md" style={{ marginLeft: glyphBleed('add') }} />
               New trip
             </Link>
           )}
@@ -74,12 +70,11 @@ export function Trips() {
                 to="/trips/new"
                 className="inline-flex items-center gap-xs rounded-full bg-primary px-md py-sm font-body-md text-on-primary transition-opacity hover:opacity-90"
               >
-                <span
-                  className="material-symbols-outlined text-icon-md"
+                <Icon
+                  name="add"
+                  className="text-icon-md"
                   style={{ marginLeft: glyphBleed('add') }}
-                >
-                  add
-                </span>
+                />
                 New trip
               </Link>
             )}
@@ -112,9 +107,7 @@ function TripCard({ trip }: { trip: TripListItem }) {
           />
         ) : (
           <div className="flex size-full items-center justify-center text-outline">
-            <span className="material-symbols-outlined" style={{ fontSize: 48 }}>
-              landscape
-            </span>
+            <Icon name="landscape" style={{ fontSize: 48 }} />
           </div>
         )}
         <StatusBadge status={trip.status} markedPastAt={trip.marked_past_at} />
@@ -128,11 +121,11 @@ function TripCard({ trip }: { trip: TripListItem }) {
         </p>
         <div className="mt-sm flex flex-wrap items-center gap-md border-t border-outline-variant/20 pt-sm text-sm text-outline">
           <div className="flex items-center gap-xs">
-            <span className="material-symbols-outlined text-icon-sm">event</span>
+            <Icon name="event" className="text-icon-sm" />
             {trip.scheduled_count} scheduled
           </div>
           <div className="flex items-center gap-xs">
-            <span className="material-symbols-outlined text-icon-sm">inbox</span>
+            <Icon name="inbox" className="text-icon-sm" />
             {trip.unscheduled_count} unscheduled
           </div>
         </div>

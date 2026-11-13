@@ -10,6 +10,7 @@ import {
   rejectSuggestion,
   type PendingSuggestion,
 } from '../lib/suggestions';
+import { Icon } from './Icon';
 
 interface Props {
   suggestions: readonly PendingSuggestion[];
@@ -134,13 +135,10 @@ export function PendingSuggestions({ suggestions, onOpenActivity, reveal, onReve
           >
             {/* Pulled left by the glyph's own side bearing, so the chevron's
                 ink lines up with the cards' edge below. */}
-            <span
-              className="material-symbols-outlined"
+            <Icon
+              name={open ? 'expand_less' : 'expand_more'}
               style={{ fontSize: 20, marginLeft: glyphBleed(open ? 'expand_less' : 'expand_more') }}
-              aria-hidden="true"
-            >
-              {open ? 'expand_less' : 'expand_more'}
-            </span>
+            />
             Waiting for review {/* A circle (20px) that only widens for two digits. */}
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-[5px] text-body-sm leading-none text-on-primary tabular-nums">
               {waiting}

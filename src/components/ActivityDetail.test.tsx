@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import type { Activity } from '../data/types';
 import { ActivityDetail } from './ActivityDetail';
 import { completedHike, muirWoods } from '../test/fixtures';
+import { queryIcon, textWithIcons } from '../test/icons';
 // One of the activities the catalog started with, before owners could add
 // their own: delete and edit must work on it the same as on one they added.
 function builtInActivity(): Activity {
@@ -208,7 +209,7 @@ describe('ActivityDetail', () => {
     fireEvent.error(screen.getByRole('img', { name: 'Test Muir Woods' }));
     const hero = screen.getByRole('img', { name: 'Test Muir Woods' });
     expect(hero.tagName).toBe('DIV');
-    expect(hero).toHaveTextContent('directions_walk');
+    expect(queryIcon('directions_walk', hero)).not.toBeNull();
   });
 
   it('credits a Commons cover under the hero (#36)', () => {
@@ -324,10 +325,10 @@ describe('ActivityDetail', () => {
       const nearby = screen.getByRole('region', { name: 'Nearby' });
       expect(within(nearby).getAllByRole('region')).toHaveLength(3);
       // Each heading leads with its category's map-pin glyph (CATEGORY_ICON).
-      expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
-        'restaurantNearby food',
-        'directions_walkNearby hikes',
-        'landscapeNearby scenic spots',
+      expect(screen.getAllByRole('heading', { level: 4 }).map(textWithIcons)).toEqual([
+        '<restaurant>Nearby food',
+        '<directions_walk>Nearby hikes',
+        '<landscape>Nearby scenic spots',
       ]);
 
       const food = screen.getByRole('region', { name: 'Nearby food' });
@@ -370,9 +371,9 @@ describe('ActivityDetail', () => {
       // it was reached from appears, and food no longer leads (the open
       // activity is food), so groups go by nearest member.
       expect(screen.queryByRole('region', { name: 'Nearby food' })).not.toBeInTheDocument();
-      expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
-        'landscapeNearby scenic spots',
-        'directions_walkNearby hikes',
+      expect(screen.getAllByRole('heading', { level: 4 }).map(textWithIcons)).toEqual([
+        '<landscape>Nearby scenic spots',
+        '<directions_walk>Nearby hikes',
       ]);
       expect(
         within(screen.getByRole('region', { name: 'Nearby hikes' })).getByRole('button', {

@@ -8,6 +8,7 @@ import {
   type NearbyGroup,
 } from '../lib/nearbyActivities';
 import { CoverImage } from './CoverImage';
+import { Icon } from './Icon';
 
 /** A Nearby group's heading: its kind's symbol and name, in small capitals. */
 export function NearbyHeading({ id, category }: { id: string; category: Category }) {
@@ -16,13 +17,10 @@ export function NearbyHeading({ id, category }: { id: string; category: Category
       id={id}
       className="flex items-center gap-xs font-label-caps text-label-caps text-on-surface-variant"
     >
-      <span
-        aria-hidden="true"
-        className="material-symbols-outlined"
+      <Icon
+        name={CATEGORY_ICON[category]}
         style={{ fontSize: 16, marginLeft: glyphBleed(CATEGORY_ICON[category]) }}
-      >
-        {CATEGORY_ICON[category]}
-      </span>
+      />
       {NEARBY_GROUP_HEADING[category]}
     </h4>
   );
@@ -63,12 +61,10 @@ export function PlaceRow({
         </span>
         <span className="text-[13px] leading-snug text-on-surface-variant">{children}</span>
       </span>
-      <span
-        className="material-symbols-outlined inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px] text-outline"
-        aria-hidden="true"
-      >
-        chevron_right
-      </span>
+      <Icon
+        name="chevron_right"
+        className="inline-flex size-5 shrink-0 items-center justify-center overflow-hidden text-[20px] text-outline"
+      />
     </button>
   );
 }

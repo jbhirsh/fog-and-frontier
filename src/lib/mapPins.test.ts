@@ -13,6 +13,7 @@ import {
   pinZIndex,
 } from './mapPins';
 import { GROUP_RADIUS_PX } from './pinGroups';
+import { PIN_ICONS } from './iconPaths';
 
 const BASE = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
@@ -38,8 +39,9 @@ describe('glyphPin', () => {
     expect(icon.options.className).toBe('glyph-pin');
     expect(icon.options.iconSize).toEqual([30, 30]);
     expect(icon.options.iconAnchor).toEqual([15, 15]);
-    expect(icon.options.html).toContain('material-symbols-outlined');
-    expect(icon.options.html).toContain('landscape');
+    // The pin's own cut of the glyph: filled, weight 500.
+    expect(icon.options.html).toContain('class="icon" data-icon="landscape" aria-hidden="true"');
+    expect(icon.options.html).toContain(`<path d="${PIN_ICONS.landscape}"/>`);
     expect(icon.options.html).toContain('background:#0ea5e9');
     // Whole pixels, so the glyph lands on the pixel grid (#291): the 26px
     // inside the border leaves 4px around an 18px glyph.
@@ -59,7 +61,7 @@ describe('glyphPin', () => {
     expect(icon.options.iconSize).toEqual([40, 40]);
     expect(icon.options.popupAnchor).toEqual([0, -22]);
     expect(icon.options.html).toContain('>3</span>');
-    expect(icon.options.html).not.toContain('material-symbols-outlined');
+    expect(icon.options.html).not.toContain('class="icon"');
     expect(icon.options.html).toContain('border:3px solid #fff');
     // Set in the app's face, trimmed to the digits so they sit mid-circle.
     expect(icon.options.html).toContain("font-family:'Inter Variable',");
@@ -137,7 +139,7 @@ describe('minorPin', () => {
     const icon = minorPin('#16a34a');
     expect(icon.options.html).toContain('background:#16a34a');
     expect(icon.options.html).toContain('width:10px;height:10px');
-    expect(icon.options.html).not.toContain('material-symbols-outlined');
+    expect(icon.options.html).not.toContain('class="icon"');
     expect(icon.options.className).toBe('glyph-pin');
   });
 
@@ -200,7 +202,8 @@ describe('homePin', () => {
 
   it('badges the house with the count of places beside it, named, the same size', () => {
     const icon = homePin('#dc2626', 3, 'Home, 3 places beside it, zoom in');
-    expect(icon.options.html).toContain('>home</span>');
+    expect(icon.options.html).toContain('data-icon="home"');
+    expect(icon.options.html).toContain(`<path d="${PIN_ICONS.home}"/>`);
     expect(icon.options.html).toContain('background:#dc2626');
     expect(icon.options.html).toMatch(/aria-hidden="true"[^>]*background:#001e37[^>]*>3<\/span>/);
     expect(icon.options.html).toContain('top:-3px;right:-3px');

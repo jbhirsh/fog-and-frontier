@@ -10,6 +10,8 @@ import { useOwner } from '../lib/useOwner';
 import { CoverImage } from './CoverImage';
 import { DogIcon } from './DogIcon';
 import { PlaceRow } from './NearbyList';
+import { Icon } from './Icon';
+import type { IconName } from '../lib/iconPaths';
 
 // A place's page on a phone (#293): the pieces ActivityDetail lays out below
 // md, saying the same as the desktop dialog in less: a shorter photo, the
@@ -100,13 +102,7 @@ export function PhoneHeading({
     </>,
     activity.allTrailsRating != null && (
       <span className="inline-flex items-center gap-0.5">
-        <span
-          className="material-symbols-outlined size-3.5 overflow-hidden text-[14px]"
-          aria-hidden="true"
-          style={{ fontVariationSettings: "'FILL' 1" }}
-        >
-          star
-        </span>
+        <Icon name="star" fill className="size-3.5 overflow-hidden text-[14px]" />
         <span className="sr-only">Rated </span>
         {activity.allTrailsRating.toFixed(1)}
       </span>
@@ -157,15 +153,8 @@ const ACTION =
   'inline-flex h-11.5 min-w-0 items-center justify-center gap-xs rounded-full text-body-sm font-semibold whitespace-nowrap';
 const ACTION_OUTLINE = `${ACTION} border border-outline-variant bg-surface-container-lowest text-primary hover:bg-surface-container-low`;
 
-function ActionIcon({ name }: { name: string }) {
-  return (
-    <span
-      className="material-symbols-outlined size-4.5 shrink-0 overflow-hidden text-[18px]"
-      aria-hidden="true"
-    >
-      {name}
-    </span>
-  );
+function ActionIcon({ name }: { name: IconName }) {
+  return <Icon name={name} className="size-4.5 shrink-0 overflow-hidden text-[18px]" />;
 }
 
 /**
@@ -285,13 +274,10 @@ export function ParkPlaces({
           <li key={a.id}>
             <PlaceRow activity={a} onSelect={onSelect}>
               <span className="inline-flex items-center gap-xs">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined"
+                <Icon
+                  name={CATEGORY_ICON[a.category]}
                   style={{ fontSize: 16, marginLeft: glyphBleed(CATEGORY_ICON[a.category]) }}
-                >
-                  {CATEGORY_ICON[a.category]}
-                </span>
+                />
                 <span className="sr-only">{kindLabel(a.category)}, </span>
                 {a.duration}
               </span>

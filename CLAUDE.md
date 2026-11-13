@@ -12,6 +12,8 @@ does and why: read it before changing the module.
 - `npm run codegen` after changing `api/_schema.ts` or an operation, and commit `src/gql/`.
 - Changing owner-gated presentation changes the visual baselines.
 - `shared/isoRegions.ts` is generated (`npm run regions:gen`): never hand-edit it.
+- `src/lib/iconPaths.ts` is generated too: an icon `<Icon>` doesn't have yet is a type error, and
+  `npm run icons:gen -- <name>` adds it (`scripts/gen-icons.ts` says how).
 - The catalog lives only in Turso, with no static seed.
 
 ## Where names don't tell

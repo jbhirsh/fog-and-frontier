@@ -1,6 +1,7 @@
 import type { TripActivity } from '../lib/userTrips';
 import { VoteControls } from './VoteControls';
 import { TripCardBody } from './TripCardBody';
+import { Icon } from './Icon';
 
 type VoteTally = { up: number; down: number; net: number };
 
@@ -56,9 +57,7 @@ export function VotingCandidateCard({
         {/* Drag handle */}
         {votingOpen && draggable && (
           <div className="flex shrink-0 items-center text-on-surface-variant/50">
-            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-              drag_indicator
-            </span>
+            <Icon name="drag_indicator" style={{ fontSize: 20 }} />
           </div>
         )}
 

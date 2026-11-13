@@ -14,6 +14,7 @@ import {
 import { usePersonLabel } from '../lib/people';
 import { useOwner } from '../lib/useOwner';
 import { InlineError } from './InlineError';
+import { Icon } from './Icon';
 
 // Owner reviews (#184): Jess and Tarun each leave their own rating + note on an
 // activity we've done. Reading is public — a signed-out visitor sees both
@@ -52,9 +53,7 @@ export function ActivityReviews({ activityId }: { activityId: string }) {
             onClick={() => setEditing(true)}
             className="inline-flex min-h-11 items-center gap-xs rounded-full bg-secondary px-md py-sm font-label-caps text-label-caps text-on-secondary transition-opacity hover:opacity-90"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              rate_review
-            </span>
+            <Icon name="rate_review" style={{ fontSize: 14 }} />
             WRITE A REVIEW
           </button>
         )}
@@ -106,9 +105,7 @@ function ReviewCard({
             onClick={onEdit}
             className="inline-flex min-h-11 items-center gap-xs rounded-full px-sm py-xs font-label-caps text-label-caps text-on-surface-variant transition-colors hover:bg-surface-variant"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              edit
-            </span>
+            <Icon name="edit" style={{ fontSize: 14 }} />
             EDIT REVIEW
           </button>
         )}
@@ -132,17 +129,7 @@ function StarDisplay({ rating }: { rating: number }) {
       aria-label={`${rating} out of ${MAX_RATING} stars`}
     >
       {STARS.map((star) => (
-        <span
-          key={star}
-          aria-hidden="true"
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 18,
-            fontVariationSettings: star <= rating ? "'FILL' 1" : "'FILL' 0",
-          }}
-        >
-          star
-        </span>
+        <Icon name="star" fill={star <= rating} key={star} style={{ fontSize: 18 }} />
       ))}
     </span>
   );
@@ -169,15 +156,7 @@ function StarPicker({
             onClick={() => onChange(rating === star ? null : star)}
             className="flex size-11 items-center justify-center rounded-full text-secondary transition-colors hover:bg-surface-variant"
           >
-            <span
-              className="material-symbols-outlined"
-              style={{
-                fontSize: 24,
-                fontVariationSettings: filled ? "'FILL' 1" : "'FILL' 0",
-              }}
-            >
-              star
-            </span>
+            <Icon name="star" fill={filled} style={{ fontSize: 24 }} />
           </button>
         );
       })}

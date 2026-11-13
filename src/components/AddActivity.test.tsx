@@ -75,6 +75,7 @@ vi.mock('../lib/generateActivity', () => ({
 
 import type { GeneratedFields } from '../lib/generateActivity';
 import { AddActivity } from './AddActivity';
+import { getIcon } from '../test/icons';
 
 // The region list scrolls its option into view (#274), which jsdom doesn't do.
 beforeAll(() => {
@@ -1118,7 +1119,7 @@ describe('AddActivity — suggest mode (#73)', () => {
     expect(lookupSpy).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: 'Suggestion sent' })).toBeInTheDocument();
     // The envelope's ink is centred, not its box (its glyph sits right of centre).
-    const envelope = screen.getByText('mark_email_read');
+    const envelope = getIcon('mark_email_read');
     expect(envelope.style).toMatchObject({ fontSize: '48px', transform: 'translateX(-0.028em)' });
     expect(done).toHaveFocus();
     expect(done).toHaveAccessibleDescription(

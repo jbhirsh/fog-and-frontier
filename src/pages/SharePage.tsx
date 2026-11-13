@@ -17,6 +17,7 @@ import {
   type SharedPlaces,
 } from '../lib/sharedPlaces';
 import { useOwner } from '../lib/useOwner';
+import { Icon } from '../components/Icon';
 
 // Share an Instagram post or reel to the app (#6): /share?url=… from the
 // iPhone Shortcut or Android's share sheet, or a link pasted here. The post's
@@ -95,9 +96,7 @@ function PasteLink({
       </label>
       <div className="flex flex-wrap gap-sm">
         <button type="button" onClick={() => void paste()} className={SECONDARY}>
-          <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
-            content_paste
-          </span>
+          <Icon name="content_paste" className="text-icon-md" />
           Paste
         </button>
         <button type="button" onClick={findPasted} disabled={!pasted} className={PRIMARY}>
@@ -248,9 +247,7 @@ function SharedPost({ link }: { link: string }) {
                   </div>
                   {added[key] ? (
                     <span className="inline-flex items-center gap-xs font-body-md text-primary-container">
-                      <span className="material-symbols-outlined text-icon-md" aria-hidden="true">
-                        check
-                      </span>
+                      <Icon name="check" className="text-icon-md" />
                       Added
                     </span>
                   ) : place.saved ? (

@@ -1,6 +1,7 @@
 import type { TripMember, TripInvite } from '../lib/userTrips';
 import { glyphBleed } from '../lib/iconMetrics';
 import { authorLabel } from '../lib/activityReviews';
+import { Icon } from './Icon';
 
 type Props = {
   members: TripMember[];
@@ -65,12 +66,11 @@ export function MembersStrip({
                   {/* Pulled out by the glyph's empty side, so the chip's insets
                     match; the hit area reaches past it up, down and right for
                     a finger, but never left over the name. */}
-                  <span
-                    className="material-symbols-outlined text-icon-sm"
+                  <Icon
+                    name="close"
+                    className="text-icon-sm"
                     style={{ marginRight: glyphBleed('close') }}
-                  >
-                    close
-                  </span>
+                  />
                 </button>
               )}
             </div>
@@ -90,12 +90,11 @@ export function MembersStrip({
               aria-label={`Revoke invite for ${invite.invited_email ?? 'pending invite'}`}
               className="inline-flex shrink-0 items-center justify-center text-on-surface-variant/60 hover:text-on-surface-variant"
             >
-              <span
-                className="material-symbols-outlined text-icon-sm"
+              <Icon
+                name="close"
+                className="text-icon-sm"
                 style={{ marginRight: glyphBleed('close') }}
-              >
-                close
-              </span>
+              />
             </button>
           </div>
         ))}
@@ -123,9 +122,7 @@ export function MembersStrip({
           onClick={onInvite}
           className="inline-flex min-h-11 items-center gap-xs rounded-full bg-primary px-md font-body-md text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
         >
-          <span className="material-symbols-outlined text-icon-sm" aria-hidden="true">
-            person_add
-          </span>
+          <Icon name="person_add" className="text-icon-sm" />
           Invite
         </button>
       </div>

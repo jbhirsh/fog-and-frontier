@@ -23,6 +23,7 @@ vi.mock('../components/ActivityMap', () => ({
 }));
 
 import { CuratedAdventures } from './CuratedAdventures';
+import { textWithIcons } from '../test/icons';
 
 // The review queue's count in the toolbar (#259): owners see how many
 // suggestions wait in every view, and it takes them to the queue, which
@@ -141,7 +142,7 @@ describe('Curated Adventures — the review count (#259)', () => {
       renderAt('/');
       const button = await review(1);
       // A symbol and the count; the name and tooltip say what it counts.
-      expect(button).toHaveTextContent(/^inbox1$/);
+      expect(textWithIcons(button)).toBe('<inbox>1');
       expect(button).toHaveAttribute('title', 'Review suggestions');
       expect(scroll).not.toHaveBeenCalled();
       await userEvent.click(button);
@@ -153,7 +154,7 @@ describe('Curated Adventures — the review count (#259)', () => {
     it('counts more than one', async () => {
       waiting = [suggestion('s1', 'Fort Funston'), suggestion('s2', 'Lands End')];
       renderAt('/');
-      expect(await review(2, 'suggestions')).toHaveTextContent(/^inbox2$/);
+      expect(textWithIcons(await review(2, 'suggestions'))).toBe('<inbox>2');
     });
 
     it('unfolds a queue that was folded away', async () => {

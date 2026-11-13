@@ -4,13 +4,9 @@ import { render, screen } from '@testing-library/react';
 import type { Activity } from '../data/types';
 import { muirWoods } from '../test/fixtures';
 import { ParkSection } from './ParkSection';
+import { getIcon } from '../test/icons';
 
 const PARK: Activity = { ...muirWoods, id: 'test-park', name: 'Test Seashore' };
-
-const icon = (name: string) =>
-  Array.from(document.querySelectorAll<HTMLElement>('.material-symbols-outlined')).find(
-    (el) => el.textContent === name,
-  )!;
 
 describe('ParkSection (#269)', () => {
   it('holds the park’s cards under its heading, with a way to the park and out', async () => {
@@ -25,8 +21,8 @@ describe('ParkSection (#269)', () => {
     expect(section).toHaveAttribute('id', 'park-test-park');
     expect(screen.queryByRole('heading')).not.toBeInTheDocument();
     expect(screen.getByText('a hike').parentElement).toHaveClass('grid', 'grid-cols-4');
-    expect(icon('arrow_forward').style.fontSize).toBe('18px');
-    expect(icon('close').style.fontSize).toBe('22px');
+    expect(getIcon('arrow_forward').style.fontSize).toBe('18px');
+    expect(getIcon('close').style.fontSize).toBe('22px');
 
     await userEvent.click(screen.getByRole('button', { name: /View park/ }));
     expect(onViewPark).toHaveBeenCalledTimes(1);
