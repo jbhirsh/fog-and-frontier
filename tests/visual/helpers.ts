@@ -13,9 +13,10 @@ import {
 } from './fixtures';
 import type { Activity } from '../../src/data/types';
 import { distanceMiles } from '../../src/data/home';
+import { osmTileUrl, tileOf } from '../../scripts/osm-tiles.ts';
 
-// 1x1 transparent PNG, for every outside image but the fixture photos (map
-// tiles, for one), so screenshots don't depend on the network.
+// 1x1 transparent PNG, for every outside image but the fixture photos and
+// map tiles, so screenshots don't depend on the network.
 const BLANK_PNG_BYTES = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=',
   'base64',
@@ -162,6 +163,10 @@ export async function settleTripView(page: Page, view: { ready: string }) {
   await waitForVisualReady(page);
 }
 
+// The map tiles the fixtures' maps show (#338): OpenStreetMap's, at
+// tests/visual/tiles/z/x/y.png (its README says where they come from).
+const TILES = new URL('./tiles/', import.meta.url);
+
 /**
  * Stubs everything the app asks the network for. `refuseOffsite`, which the
  * visual specs pass, aborts any outside request the stub doesn't answer, for
@@ -265,18 +270,34 @@ export async function mockApis(page: Page, { refuseOffsite = false } = {}) {
       body: JSON.stringify({ data }),
     });
   });
-  // The fixture photos come from tests/visual/photos/; any other outside
-  // image (map tiles) is a 1x1 PNG, so the page reaches a stable state
-  // whatever the network does. With refuseOffsite nothing else leaves the
-  // machine: it's refused, and noted for expectNoOffsiteRequests, which the
-  // specs call after each test (the fonts and icons are the build's own, so
-  // nothing should ask). The PR GIFs' scenarios use this stub too, under
-  // scripts/live-site.ts's routes, which take production's data and photos
-  // before a request gets here.
+  // The fixture photos come from tests/visual/photos/ and the map tiles from
+  // tests/visual/tiles/; any other outside image is a 1x1 PNG, so the page
+  // reaches a stable state whatever the network does. With refuseOffsite
+  // nothing else leaves the machine: it's refused, and noted for
+  // expectNoOffsiteRequests, which the specs call after each test (the fonts
+  // and icons are the build's own, so nothing should ask), as is a tile not
+  // committed. The PR GIFs' scenarios use this stub too, under
+  // scripts/live-site.ts's routes, which take production's data, photos and
+  // tiles before a request gets here.
   const offsite: string[] = [];
   if (refuseOffsite) offsiteRequests.set(page, offsite);
   await page.route(/^https?:\/\/(?!localhost)/i, async (route) => {
     const url = new URL(route.request().url());
+    const tile = tileOf(url.href);
+    if (tile) {
+      const file = new URL(`${tile}.png`, TILES);
+      if (existsSync(file)) {
+        await route.fulfill({ status: 200, contentType: 'image/png', body: readFileSync(file) });
+        return;
+      }
+      if (refuseOffsite) {
+        offsite.push(
+          `${url.href}: map tile ${tile} isn't in tests/visual/tiles. Save ${osmTileUrl(tile)} as tests/visual/tiles/${tile}.png and commit it with the change (tests/visual/tiles/README.md)`,
+        );
+        await route.abort();
+        return;
+      }
+    }
     if (url.hostname === PHOTO_HOST) {
       const file = new URL(`./photos/${url.pathname.slice(1)}`, import.meta.url);
       const known = /^\/[a-z0-9]+\.webp$/.test(url.pathname) && existsSync(file);
@@ -307,7 +328,7 @@ const offsiteRequests = new WeakMap<Page, readonly string[]>();
 
 /**
  * Fails the test if the page asked for anything outside that the stub doesn't
- * answer, or if the page's stub wasn't set
+ * answer, a map tile not committed included, or if the page's stub wasn't set
  * to refuse such requests (mockApis(page, { refuseOffsite: true })).
  */
 export function expectNoOffsiteRequests(page: Page) {

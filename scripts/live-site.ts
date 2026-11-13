@@ -4,8 +4,7 @@
 // as production does: the real catalog, road miles and completions, every
 // photo as production's image CDN serves it, and the map's tiles from
 // OpenStreetMap (CARTO's need a key only Vercel has). Never the visual
-// tests' stub alone, whose fixtures have their own few photos and which
-// blanks map tiles and refuses anything else outside
+// tests' stub alone, whose fixtures have their own few photos and map tiles
 // (tests/visual/helpers.ts's mockApis): over it, liveSite sends every read
 // to production's API, a read production refuses (a signed-in one) gets the
 // stub's answer, cachePhotos brings every picture in through production's
@@ -17,6 +16,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
+import { osmTileUrl, tileOf } from './osm-tiles.ts';
 
 /** The live site, whose catalog, road miles and image CDN a recording uses. */
 export const PRODUCTION = 'https://fog-and-frontier.vercel.app';
@@ -30,13 +30,11 @@ export const LIVE_GRAPHQL = `${PRODUCTION}/api/graphql`;
 export const CDN_WIDTH = 1280;
 export const CDN_QUALITY = 75;
 const IMAGE = /\.(png|jpe?g|gif|webp|avif|svg)(\?|$)/i;
-const CARTO_TILE =
-  /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/[^/]+\/(\d+)\/(\d+)\/(\d+)(?:@2x)?\.png/;
 
-/** The OpenStreetMap tile for a CARTO tile's URL, or null if it isn't one. */
+/** The OpenStreetMap tile for a map tile's URL (CARTO's or its own), or null if it isn't one. */
 export function osmTile(url: string): string | null {
-  const match = CARTO_TILE.exec(url);
-  return match ? `https://tile.openstreetmap.org/${match[1]}/${match[2]}/${match[3]}.png` : null;
+  const tile = tileOf(url);
+  return tile ? osmTileUrl(tile) : null;
 }
 
 /**
@@ -79,7 +77,7 @@ export async function liveSite(page: Pick<Page, 'route'>, api = LIVE_GRAPHQL): P
  * routes under it: the build's own assets, and any host under .test, a name
  * that never resolves (the visual fixtures' photos, which a stubbed read,
  * such as a trip's, names):
- *   - a CARTO map tile, from OpenStreetMap, since CARTO's need the site's
+ *   - a map tile (CARTO's or OpenStreetMap's), from OpenStreetMap, since CARTO's need the site's
  *     key, which only Vercel has;
  *   - a request to the image CDN (/_vercel/image, which a local server
  *     doesn't have), from production's;
