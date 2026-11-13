@@ -147,7 +147,8 @@ export async function capture(out: string, root = process.cwd()): Promise<string
     return [...taken.keys()];
   } finally {
     await stopServers(servers);
-    rmSync(work, { recursive: true, force: true });
+    // It always exists: mkdtempSync made it above.
+    rmSync(work, { recursive: true });
   }
 }
 
