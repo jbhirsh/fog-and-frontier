@@ -83,13 +83,19 @@ test.describe('visual regression — mobile', () => {
   });
 
   test('map page — list sheet at half (#96)', async ({ page }) => {
+    // Straight to half, without the 0.3s height transition (BottomSheet
+    // skips it under reduced motion): the sheet is frosted (backdrop-blur),
+    // and the browser kept its contents as last drawn mid-transition, a
+    // pixel apart from run to run. The snapshot is of the sheet at rest.
+    // Before the page loads, so the sheet reads it as it mounts.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/map');
     await waitForVisualReady(page);
     await page.locator('.leaflet-container').waitFor({ state: 'attached' });
     // Tap the grabber: peek → half. The pins under the sheet must not paint
     // through it (the map wrapper's `isolation: isolate`).
     await page.getByRole('button', { name: /Resize list/ }).click();
-    // Let the 0.3s height transition and the tiles settle.
+    // Let the tiles settle.
     await page.waitForTimeout(600);
     await expect(page).toHaveScreenshot('map-sheet-half.png', {
       fullPage: false,
