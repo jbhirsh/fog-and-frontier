@@ -1,0 +1,78 @@
+# A one-off on this throwaway branch, never merged: moves this app's old PR
+# pictures off its picture branch (`screenshots`, and any legacy
+# `pr-screenshots/*`) to GitHub attachments and rewrites every link to them,
+# so the branch can be deleted (jbhirsh/ci#33). How each step works is in
+# jbhirsh/ci's `migrate-pictures/` (on its own `migrate-pictures` branch,
+# PR jbhirsh/ci#47, also never merged).
+#
+# It runs on a push to this branch (a workflow_dispatch would need the file
+# on main), and what the push does is set by DRY_RUN below, as committed:
+#
+#   DRY_RUN: "true"   (as committed) inventory and plan: they bundle the
+#                     picture branches, read every post of the four repos
+#                     sharing jbhirsh/ci, and write the plan (the job's
+#                     summary, and plan.md in the migrate-pictures-state
+#                     artifact). They change nothing on GitHub.
+#   DRY_RUN: "false"  the real run: upload, rewrite and verify, continuing
+#                     FROM_RUN's state (the dry run's run id), so it moves
+#                     what the plan the owner read lists, attaching the
+#                     pictures to HOST_PR (a throwaway PR of the token's
+#                     owner here, whose description is replaced). Lock the
+#                     `screenshots` branch first; one app at a time, as the
+#                     apps' runs share the token's write limits.
+#
+# Every later push reruns what is committed. If a real run stops (out of
+# time, a rate limit), push again with FROM_RUN set to that run; GitHub's
+# Re-run is refused. Once verify says Ready, keep the last run's artifact
+# (pictures.bundle above all) before deleting `screenshots`, then delete
+# this branch.
+#
+# BOT_PR_TOKEN: the dry run only reads. The real run needs Contents, Pull
+# requests and Issues write (Issues for issue bodies and comments); a post
+# the token can't edit is listed, not failed.
+name: Migrate pictures
+
+on:
+  push:
+    branches: [migrate-pictures]
+
+permissions: {}
+
+concurrency:
+  group: migrate-pictures
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Migrate pictures
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read # the earlier run's artifact
+    # The steps stop starting writes after 300 minutes and save their
+    # state, inside the 6 hours a job may take.
+    timeout-minutes: 330
+    env:
+      DRY_RUN: "true"
+      FROM_RUN: ""
+      HOST_PR: ""
+    steps:
+      - name: The token and the run's settings
+        env:
+          TOKEN: ${{ secrets.BOT_PR_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::This repository has no BOT_PR_TOKEN secret."
+            exit 1
+          fi
+          if [ "$DRY_RUN" != true ] && { [ -z "$FROM_RUN" ] || [ -z "$HOST_PR" ]; }; then
+            echo "::error::A real run continues the dry run: set FROM_RUN (the dry run's run id) and HOST_PR."
+            exit 1
+          fi
+
+      - uses: jbhirsh/ci/migrate-pictures@migrate-pictures
+        with:
+          step: ${{ env.DRY_RUN == 'true' && 'inventory plan' || 'upload rewrite verify' }}
+          from-run: ${{ env.DRY_RUN != 'true' && env.FROM_RUN || '' }}
+          host-pr: ${{ env.HOST_PR }}
+          token: ${{ secrets.BOT_PR_TOKEN }}
