@@ -4,8 +4,8 @@
 #
 #   - Pull requests: the lines the PR changed (a new file, or one whose test
 #     changed, whole), gated on stryker.config.json's `break`. Its `mutate`
-#     globs are the files the 80% per-file coverage gate measures, minus the
-#     coverage backlog (src/test/mutationScope.test.ts keeps them in step).
+#     globs are the files the 80% per-file coverage gate measures
+#     (src/test/mutationScope.test.ts keeps them in step).
 #     Each PR starts from its own last results only, and a change to what
 #     every result depends on (`cache.restartOn`) starts it over.
 #     Mutation Tests (Stryker) is a required check: keep the job's name.

@@ -116,6 +116,16 @@ describe('Curated Adventures — the phone’s Filters sheet', () => {
     expect(shown()).toHaveLength(3);
   });
 
+  it('keeps one filter on while another changes', async () => {
+    renderAs(SIGNED_OUT);
+    const sheet = await openSheet();
+    await userEvent.click(sheet.getByRole('switch', { name: 'Dogs welcome' }));
+    await userEvent.click(sheet.getByRole('button', { name: /^Park type/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'National park' }));
+    // Muir Woods is the national park, and dogs aren't welcome there.
+    expect(shown()).toEqual([]);
+  });
+
   it('offers a signed-out visitor no contributors', async () => {
     renderAs(SIGNED_OUT);
     const sheet = await openSheet();

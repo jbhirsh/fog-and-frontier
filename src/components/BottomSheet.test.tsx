@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BottomSheet } from './BottomSheet';
 import type { SheetSnap } from '../lib/bottomSheetSnap';
+import { stubReducedMotion } from '../test/reducedMotion';
 
 // jsdom's window is 768px tall, so the rest heights the drag math uses are
 // peek 72, half 399 and full 691.
@@ -46,19 +47,6 @@ function drag(target: Element, toY: number, end: 'pointerUp' | 'pointerCancel' =
   fireEvent.pointerDown(target, { clientY: 700 });
   fireEvent.pointerMove(window, { clientY: toY });
   fireEvent[end](window, { clientY: toY });
-}
-
-function stubReducedMotion(reduce: boolean) {
-  vi.stubGlobal(
-    'matchMedia',
-    (query: string) =>
-      ({
-        matches: reduce && query === '(prefers-reduced-motion: reduce)',
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }) as unknown as MediaQueryList,
-  );
 }
 
 describe('BottomSheet', () => {

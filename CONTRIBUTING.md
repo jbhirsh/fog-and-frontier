@@ -69,8 +69,7 @@ tests check the built CSS.
 - **Unit tests** sit beside their source (`*.test.ts(x)`, property tests in
   `*.property.test.ts`), run by Vitest in jsdom with React Testing Library.
 - **Coverage** measures `src/`, `api/`, `shared/`, `scripts/` and `eval/` at 80% per file, apart
-  from entry points, generated code and a backlog of files that predate the gate
-  (`vite.config.ts`), which may only shrink: `src/test/coverageBacklog.test.ts` pins it.
+  from entry points, generated code and test support (`vite.config.ts`).
 - **Mutation testing** (`mutation.yml`) mutates the lines a PR changed in the files coverage
   measures, and a monthly sweep (`mutation-sweep.yml`) covers everything.
 - **Visual regression** (`npm run test:visual`, `playwright.config.ts` says what it runs) compares
