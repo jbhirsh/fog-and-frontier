@@ -6,6 +6,7 @@ import {
   settleTripView,
   signIn,
   waitForVisualReady,
+  fitWindowToPage,
   seedPhotos,
   assertNoHorizontalOverflow,
   stubGenerateActivity,
@@ -31,6 +32,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/');
     await waitForVisualReady(page);
     await assertNoHorizontalOverflow(page);
+    await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('curated.png', {
       fullPage: true,
     });
@@ -62,6 +64,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/explore');
     await waitForVisualReady(page);
     await assertNoHorizontalOverflow(page);
+    await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('explore-empty.png', {
       fullPage: true,
     });
@@ -136,6 +139,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('button', { name: /Deliberately Long Activity Name/ }).click();
     await page.getByRole('dialog').waitFor();
     await waitForVisualReady(page);
+    await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('activity-detail.png', {
       fullPage: true,
     });
@@ -147,6 +151,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/activity/fixture-short-food');
     await page.getByRole('dialog').waitFor();
     await waitForVisualReady(page);
+    await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('activity-permalink.png', {
       fullPage: true,
     });
@@ -156,6 +161,7 @@ test.describe('visual regression — mobile', () => {
     await page.goto('/activity/no-such-activity');
     await page.getByRole('dialog', { name: 'Activity not found' }).waitFor();
     await waitForVisualReady(page);
+    await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('activity-not-found.png', {
       fullPage: true,
     });
@@ -200,6 +206,7 @@ test.describe('visual regression — mobile', () => {
     const dialog = page.getByRole('dialog', { name: 'Add activity' });
     await dialog.waitFor();
     await waitForVisualReady(page);
+    await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('add-activity-form.png', {
       fullPage: true,
     });
@@ -224,6 +231,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('heading', { name: 'Review & save' }).waitFor();
     await page.locator('.leaflet-container').waitFor();
     await page.waitForTimeout(500);
+    await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('add-activity-review.png', {
       fullPage: true,
     });
@@ -245,6 +253,7 @@ test.describe('visual regression — trips (mobile)', () => {
       // from the system clock (page.clock can't pin it), so the snapshot
       // would change every day. Mask the fields: their size and place
       // are still checked.
+      await fitWindowToPage(page);
       await expect(page).toHaveScreenshot(`${view.name}.png`, {
         fullPage: true,
         mask: [page.locator('input[type="date"]')],

@@ -390,6 +390,27 @@ export function seedPhotos(page: Page, activityId: string, count = 2) {
   photoSeeds.set(page, { ...photoSeeds.get(page), [activityId]: count });
 }
 
+/**
+ * Grows the window to the whole page's height, for a full-page phone shot.
+ * Playwright's fullPage capture keeps a position:fixed element where the
+ * screen's bottom was, so the phone's tab bar (pinned to the bottom) landed
+ * mid-page, over whatever was there (#350). A window as tall as the page puts
+ * it at the page's foot, as a long phone screen would. Repeats until the page
+ * stops growing with the window (a min-h-dvh layout grows with it).
+ */
+export async function fitWindowToPage(page: Page) {
+  const width = page.viewportSize()?.width ?? 402;
+  for (let i = 0; i < 4; i++) {
+    const { height, inner } = await page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      inner: window.innerHeight,
+    }));
+    if (height <= inner) return;
+    await page.setViewportSize({ width, height });
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => done(null))));
+  }
+}
+
 // Fails the test if anything in the page extends past the viewport on the x
 // axis — the cheapest reliable way to catch the "filter pill row makes the
 // whole page scroll sideways at 402px" class of mobile regression.
