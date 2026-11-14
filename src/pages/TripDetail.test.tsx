@@ -298,12 +298,14 @@ describe('TripDetail: before the trip', () => {
 });
 
 describe('TripDetail: claiming an invite', () => {
-  it('claims once signed in, strips the token in place, then reloads the trip', async () => {
+  it('claims once signed in, reloads the trip, then strips the token in place', async () => {
     const claim = deferred<null>();
     const reload = deferred();
     h.api.claimInvite.mockReturnValue(claim.promise);
     h.owner.isLoaded = false;
-    h.tripState.trip = makeTrip();
+    // Before the claim the invitee isn't a member, so the trip reads as not-found.
+    h.tripState.trip = null;
+    h.tripState.error = 'not-found';
     const firstReload = vi.fn(() => reload.promise);
     h.tripState.reload = firstReload;
     const { rerender } = render(ui('/trips/trip-1?invite=tok&tab=ideas'));
@@ -319,12 +321,30 @@ describe('TripDetail: claiming an invite', () => {
     rerender(ui('/trips/trip-1?invite=tok&tab=ideas'));
     await settle(() => claim.resolve(null));
     expect(h.api.claimInvite).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(location()).toBe('REPLACE /trips/trip-1?tab=ideas null'));
     expect(firstReload).toHaveBeenCalledTimes(1);
+    // The refetch is still out: the page keeps loading, the token in the URL.
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText("We couldn't find that trip.")).not.toBeInTheDocument();
+    expect(location()).toContain('?invite=tok');
 
+    h.tripState.trip = makeTrip();
+    h.tripState.error = null;
     await settle(() => reload.resolve());
+    await waitFor(() => expect(location()).toBe('REPLACE /trips/trip-1?tab=ideas null'));
     expect(await screen.findByTestId('phone')).toBeInTheDocument();
     expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+  });
+
+  it('ends the claim and shows the load error when the refetch fails', async () => {
+    const err = new Error('offline');
+    h.api.claimInvite.mockResolvedValue(null);
+    h.tripState.error = 'network';
+    h.tripState.reload = vi.fn(() => Promise.reject(err));
+    render(ui('/trips/trip-1?invite=tok'));
+    expect(await screen.findByText("Couldn't load this trip.")).toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+    expectLogged(err);
+    await waitFor(() => expect(location()).toBe('REPLACE /trips/trip-1 null'));
   });
 
   it('still strips the token and loads when the claim fails', async () => {
