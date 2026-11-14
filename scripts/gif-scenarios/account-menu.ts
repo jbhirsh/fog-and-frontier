@@ -5,7 +5,7 @@
 // Sign-in shows only in builds Vercel makes, so record with it turned on:
 //
 //   VITE_VERCEL_ENV=preview npm run gif -- \
-//     scripts/gif-scenarios/account-menu.ts --dir <PR>
+//     scripts/gif-scenarios/account-menu.ts
 //
 // (--after-only where main has no account menu to show.)
 //

@@ -1,7 +1,7 @@
 // Sharing an Instagram reel to the app (#6), on a phone: the reel is read,
 // its places listed, and one added through the usual dialog.
 //
-//   npm run gif -- scripts/gif-scenarios/share-instagram.ts --dir <PR number> --after-only
+//   npm run gif -- scripts/gif-scenarios/share-instagram.ts --after-only
 //
 // The post card is a real reel, as the reader reads it, and the draft's
 // cover is the real lookup's (findCoverImage, as generateActivity does it).

@@ -1,6 +1,6 @@
 // An activity's link back to the post it was added from (#6), in its detail.
 //
-//   npm run gif -- scripts/gif-scenarios/source-link.ts --dir <PR number> --after-only
+//   npm run gif -- scripts/gif-scenarios/source-link.ts --after-only
 //
 // Production's catalog, with one activity given a source: no saved activity
 // has one until sharing ships, so it's added for the recording.

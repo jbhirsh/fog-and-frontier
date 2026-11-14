@@ -3,7 +3,7 @@
 // cards to a row with their facts on the photo (#290), and a tab bar at the
 // foot whose Map tab opens the map, its list sheet sitting on the bar (#289).
 //
-//   npm run gif -- scripts/gif-scenarios/phone-tabs.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/phone-tabs.ts
 //
 // Production's catalog, signed out. Until the card copy (#295) is saved,
 // production has none, so each card's line is its short description cut at

@@ -1,6 +1,6 @@
 // A park's hikes and stops (#269): held under its card, opened below its row.
 //
-//   npm run gif -- scripts/gif-scenarios/park-hikes.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/park-hikes.ts
 //
 // Production's catalog, searched to Point Reyes, with three of its hikes
 // given their park: no saved activity has one until the feature ships. On

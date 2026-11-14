@@ -3,7 +3,7 @@
 // overlap grouped into counts (#291), a group's tap flying in to split it,
 // and a tapped pin showing its card above the tab bar.
 //
-//   npm run gif -- scripts/gif-scenarios/map-groups.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/map-groups.ts
 //
 // Production's catalog, signed out.
 

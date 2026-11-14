@@ -2,7 +2,7 @@
 // description longer than one line: cut off before, wrapped to show all of
 // it after.
 //
-//   npm run gif -- scripts/gif-scenarios/review-short-description.ts --dir <PR number>
+//   npm run gif -- scripts/gif-scenarios/review-short-description.ts
 //
 // Gemini's draft is stubbed (its key is only on the deployment), with the
 // cover the real lookup finds (findCoverImage, as generateActivity does).

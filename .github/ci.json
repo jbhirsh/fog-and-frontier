@@ -27,7 +27,8 @@
       "public/**"
     ],
     "notUi": ["**/*.test.tsx", "src/test/**"],
-    "advice": "Add before/after pictures to the description: screenshots for looks, a GIF for motion (drag, animation, open/close, scroll, a multi-step flow). Show the app as production does, never the visual tests' blank fixtures: `npm run gif -- scripts/gif-scenarios/<flow>.ts --dir <PR number>` builds main and this branch for production, reading production's catalog and photos (owner-only screens signed in through the test flags), records the scenario against each with the pointer and keys drawn in, commits the GIFs to the `screenshots` branch under `<PR number>/` and prints the Before/After table to paste. A scenario's play(page, gif) moves with gif.glide, click, drag and scroll, with pauses, never locator.click() or a bare page.mouse (jbhirsh/ci's gif/moves.mjs has the rules), keeps the pointer in frame and ends on a pause; check a few frames, and the long ones, before publishing. Host stills on the `screenshots` branch too, linked at a commit SHA. Or tick \"No visible UI change\" in the template. Editing the description re-runs this check."
+    "advice": "A UI change shows through the visual baselines it changes, which this check puts in a before/after table comment, phone beside desktop: change them with the UI (tests/visual/ holds the scenarios), run Update visual baselines (visual-baselines.yml) on this branch, then push again. For motion (drag, animation, open/close, scroll, a multi-step flow), commit a scenario in scripts/gif-scenarios/ and push: PR GIFs (pr-gif.yml) builds main and this branch for production, reading production's catalog and photos, records the scenario against each with the pointer and keys drawn in, and attaches the GIFs here, labelled GIF:, within minutes (run it by hand for a scenario this PR doesn't change, or a fork's PR; one whose header asks for build variables of its own is recorded with `npm run gif` and dragged in, alt text `GIF: …`). A scenario's play(page, gif) moves with gif.glide, click, drag and scroll, with pauses, never locator.click() or a bare page.mouse (jbhirsh/ci's gif/moves.mjs has the rules), keeps the pointer in frame and ends on a pause; try it first with `npm run gif -- <scenario.ts>`. Only a screen outside the app (Google's or Apple's sign-in page) is dragged in by hand, with alt text `No test draws: <why>`. Or tick \"No visible UI change\" in the template. Editing the description re-runs this check.",
+    "fromBaselines": true
   },
   "audit": {
     "graph": ["src", "api"]
@@ -46,7 +47,15 @@
   },
   "visual-baselines": {
     "folders": ["tests/visual/*-snapshots"],
-    "command": "npx playwright install --with-deps webkit && npm run test:visual:update"
+    "command": "npx playwright install --with-deps webkit && npm run test:visual:update",
+    "columns": [
+      {
+        "label": "Phone",
+        "file": ["{state}-mobile-mobile-linux.png", "{state}-mobile-linux.png"],
+        "width": 200
+      },
+      { "label": "Desktop", "file": "{state}-desktop-linux.png" }
+    ]
   },
   "gif": {
     "setup": "scripts/gif-setup.ts",
@@ -79,7 +88,8 @@
       "`npm audit --omit=dev --audit-level=high`"
     ],
     "exempt": {
-      "PR visuals": "Wants pictures in the PR description, which no code change gives (autofix skips its failure too)."
+      "PR visuals": "Wants new baselines or GIFs, which autofix can't make (autofix skips its failure too).",
+      "PR GIFs": "Records the PR's GIF scenarios; a failed recording is a scenario or the app to look at, not code autofix can fix."
     }
   }
 }
