@@ -1434,15 +1434,19 @@ describe('invites: revoke and claim', () => {
     ['their first name', user, 'Nia'],
     ['no name', { email: user.email, role: user.role }, null],
   ])(
-    'makes the account (%s), adds the member and consumes the invite',
+    'makes the account (%s), adds the member and consumes the invite in one batch',
     async (_label, who, name) => {
       answer([
         [/FROM trip_invites/, [invite]],
         [/SELECT \* FROM trips/, [tripRow]],
       ]);
       expect(await claimInvite('tok', who)).toBe(TRIP_ID);
-      expect(batch).not.toHaveBeenCalled();
-      const [account, membership, consume, ...rest] = writes();
+      // One atomic write: a failure partway can't leave a member added with
+      // the invite still open.
+      expect(writes()).toEqual([]);
+      expect(batch).toHaveBeenCalledTimes(1);
+      expect(batch.mock.calls[0]?.[1]).toBe('write');
+      const [account, membership, consume, ...rest] = batched();
       expect(account?.sql).toMatch(/INSERT INTO users/);
       expect(account?.args.slice(0, 2)).toEqual([user.email, name]);
       expect(membership?.sql).toMatch(/INSERT OR IGNORE INTO trip_members/);
