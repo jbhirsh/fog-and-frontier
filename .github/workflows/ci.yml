@@ -115,6 +115,11 @@ jobs:
       - name: Unit tests + coverage
         run: npm run test:coverage -- --reporter=default --reporter=github-actions --reporter=junit --outputFile.junit=reports/junit.xml
 
+      # Fails a source file the coverage run above didn't measure, unless
+      # .github/ci.json's unmeasured.files gives its reason (jbhirsh/ci#35).
+      - name: Unmeasured source files
+        uses: jbhirsh/ci/unmeasured@main
+
       # GitHub-native coverage: the main ruleset's code coverage rule reads
       # this report (Code Quality must be enabled). The action credits it to
       # the PR's head commit and skips fork PRs on its own.
