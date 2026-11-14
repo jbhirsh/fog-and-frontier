@@ -232,11 +232,15 @@ describe('Curated Adventures — adding to the trip the user came from', () => {
     );
     const { container } = renderPage(TARGET_ENTRY);
     fireEvent.click(cardButton(container, muirWoods.id));
-    fireEvent.click(addButton('Add to "Big Sur"'));
-    expect(addButton('Adding…')).toBeDisabled();
-    // A second press while the first runs adds nothing more.
-    fireEvent.click(addButton('Adding…'));
+    // Two presses before React re-renders: the button isn't disabled yet for
+    // the second, so only the page's own guard stops it adding again.
+    const add = addButton('Add to "Big Sur"');
+    act(() => {
+      add.click();
+      add.click();
+    });
     expect(trips.addActivityToTrip).toHaveBeenCalledTimes(1);
+    expect(addButton('Adding…')).toBeDisabled();
 
     finish({ alreadyOnTrip: false, tripPast: false });
     await settled(() => expect(addButton('Add to "Big Sur"')).toBeEnabled());
