@@ -261,6 +261,9 @@ export function CuratedAdventures() {
     setTargetTrip(acceptTarget ? initialTarget : null);
   }
   const [submittingTarget, setSubmittingTarget] = useState(false);
+  // The guard against a second press: state shows "Adding…", but a press
+  // before the re-render still sees the old value, and would add again.
+  const submittingTargetRef = useRef(false);
   const { activities: all, error: loadError } = useUserActivities();
   const contributorChoices = useMemo(() => contributorOptions(all), [all]);
   const anyCost = useMemo(() => all.some((a) => a.costTier !== undefined), [all]);
@@ -301,7 +304,8 @@ export function CuratedAdventures() {
   }
 
   async function handleAddToTarget() {
-    if (!targetTrip || submittingTarget) return;
+    if (!targetTrip || submittingTargetRef.current) return;
+    submittingTargetRef.current = true;
     setSubmittingTarget(true);
     try {
       let added = 0;
@@ -329,6 +333,7 @@ export function CuratedAdventures() {
       setTripAddedToast(err instanceof Error ? err.message : 'Failed to add to trip.');
       window.setTimeout(() => setTripAddedToast(null), 3000);
     } finally {
+      submittingTargetRef.current = false;
       setSubmittingTarget(false);
     }
   }
