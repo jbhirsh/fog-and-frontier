@@ -103,7 +103,7 @@ export function TripDetail() {
   // claims it (token IS the credential — no email match), becoming a member.
   // Signed-out visitors are handled in render (prompted to sign in; the ?invite
   // token stays in the URL so this fires once they authenticate). Runs once,
-  // strips the param, then refetches so the (previously 404) trip resolves.
+  // refetches so the (previously 404) trip resolves, then strips the param.
   const inviteToken = searchParams.get('invite');
   const claimStartedRef = useRef(false);
   const [claimDone, setClaimDone] = useState(false);
@@ -120,12 +120,18 @@ export function TripDetail() {
       } catch (err) {
         console.error(err);
       } finally {
+        // Refetch before stripping the token or clearing the in-progress gate:
+        // the gate holds only while the token is in the URL, and until the
+        // refetch lands the trip still reads as not-found. A refetch that
+        // fails still ends the gate, so the page shows its load error.
+        try {
+          await reload();
+        } catch (err) {
+          console.error(err);
+        }
         const next = new URLSearchParams(searchParams);
         next.delete('invite');
         setSearchParams(next, { replace: true });
-        // Await the refetch before clearing the in-progress gate so the now-
-        // visible trip is loaded rather than briefly flashing not-found.
-        await reload();
         setClaimDone(true);
       }
     })();
