@@ -157,14 +157,20 @@ function get(path: string): Promise<{ status: number; body: string }> {
 describe('api/graphql.ts express app (real wiring)', () => {
   // A fresh copy of the function, so this test has its cold start (the
   // schema setup is cached per module) wherever it runs in the file.
-  it('sets the schema up once, for requests that arrive together at a cold start', async () => {
+  it('tries a failed schema setup again, then sets it up once for requests that arrive together', async () => {
     vi.resetModules();
     const fresh = await listen((await import('./graphql.js')).default);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     // Only the context calls performance.now() before the schema is set up,
     // right before it waits for the setup: a call per request waiting on it.
     const now = vi.spyOn(performance, 'now');
     try {
       batch.mockClear();
+      batch.mockRejectedValueOnce(new Error('blip'));
+      const failed = await postTo(fresh.url, '{ activities { id } }');
+      expect(failed.status).toBe(500);
+      expect(failed.json.errors?.[0]?.message).toContain('blip');
+
       // Held until both requests are waiting on it.
       let finishSetup!: (results: unknown[]) => void;
       batch.mockImplementationOnce(
@@ -176,16 +182,18 @@ describe('api/graphql.ts express app (real wiring)', () => {
         postTo(fresh.url, '{ activities { id } }'),
       ]);
       await vi.waitFor(() => expect(now).toHaveBeenCalledTimes(2));
-      expect(batch).toHaveBeenCalledTimes(1);
-      expect((batch.mock.calls[0]?.[0] as unknown[]).length).toBeGreaterThan(20);
+      expect(batch).toHaveBeenCalledTimes(2);
+      expect((batch.mock.calls[1]?.[0] as unknown[]).length).toBeGreaterThan(20);
       finishSetup([]);
       const [a, b] = await both;
       expect([a.status, b.status]).toEqual([200, 200]);
+      expect(batch).toHaveBeenCalledTimes(2);
 
       expect((await postTo(fresh.url, '{ activities { id } }')).status).toBe(200);
-      expect(batch).toHaveBeenCalledTimes(1);
+      expect(batch).toHaveBeenCalledTimes(2);
     } finally {
       now.mockRestore();
+      consoleError.mockRestore();
       await new Promise((resolve) => fresh.server.close(resolve));
     }
   });
