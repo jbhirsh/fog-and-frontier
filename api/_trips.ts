@@ -447,17 +447,13 @@ export async function isTripMember(tripId: string, email: string): Promise<boole
   return rs.rows.length > 0;
 }
 
-export async function addTripMember(
-  tripId: string,
-  email: string,
-  addedByEmail: string,
-): Promise<void> {
-  await db().execute({
+function addTripMemberStatement(tripId: string, email: string, addedByEmail: string): InStatement {
+  return {
     sql: `INSERT OR IGNORE INTO trip_members
             (trip_id, member_email, added_by_email, added_at)
           VALUES (?, ?, ?, ?)`,
     args: [tripId, email, addedByEmail, Date.now()],
-  });
+  };
 }
 
 export async function removeTripMember(tripId: string, email: string): Promise<void> {
@@ -483,10 +479,6 @@ export function upsertUserStatement(email: string, firstName: string | null = nu
             display_name = COALESCE(excluded.display_name, users.display_name)`,
     args: [email, firstName, Date.now(), role],
   };
-}
-
-export async function upsertUser(email: string, firstName: string | null = null): Promise<void> {
-  await db().execute(upsertUserStatement(email, firstName));
 }
 
 export type UserSummary = { email: string; display_name: string | null };
@@ -544,11 +536,15 @@ export async function getInviteByToken(token: string): Promise<InviteRow | null>
   };
 }
 
-export async function deleteInviteByToken(tripId: string, token: string): Promise<void> {
-  await db().execute({
+function deleteInviteStatement(tripId: string, token: string): InStatement {
+  return {
     sql: 'DELETE FROM trip_invites WHERE trip_id = ? AND invite_token = ?',
     args: [tripId, token],
-  });
+  };
+}
+
+export async function deleteInviteByToken(tripId: string, token: string): Promise<void> {
+  await db().execute(deleteInviteStatement(tripId, token));
 }
 
 // ===========================================================================
@@ -1247,8 +1243,9 @@ export async function revokeInvite(tripId: string, token: string): Promise<strin
 
 // Claim an invite (token IS the credential, c2 — any authed account). Creates
 // the claimer's account row (an editor account is born here), adds them, and
-// consumes the invite. Returns the trip id, or null when the token/trip is
-// gone (both map to null on the client).
+// consumes the invite, in one write batch, so a failure partway never leaves a
+// member added with the invite still open. Returns the trip id, or null when
+// the token/trip is gone (both map to null on the client).
 export async function claimInvite(token: string, user: CurrentUser): Promise<string | null> {
   const invite = await getInviteByToken(token);
   if (!invite) return null;
@@ -1259,8 +1256,13 @@ export async function claimInvite(token: string, user: CurrentUser): Promise<str
     await deleteInviteByToken(invite.trip_id, token);
     return invite.trip_id;
   }
-  await upsertUser(user.email, user.firstName ?? null);
-  await addTripMember(invite.trip_id, user.email, invite.invited_by_email);
-  await deleteInviteByToken(invite.trip_id, token);
+  await db().batch(
+    [
+      upsertUserStatement(user.email, user.firstName ?? null),
+      addTripMemberStatement(invite.trip_id, user.email, invite.invited_by_email),
+      deleteInviteStatement(invite.trip_id, token),
+    ],
+    'write',
+  );
   return invite.trip_id;
 }

@@ -3795,10 +3795,17 @@ describe('Mutation.claimInvite', () => {
       EDITOR,
     );
     expect(r.data?.claimInvite).toEqual({ tripId: 'trip1' });
-    const sqls = execute.mock.calls.map((c) =>
-      typeof c[0] === 'string' ? c[0] : (c[0] as { sql: string }).sql,
+    // The account, the membership and the consumed invite: one write.
+    const claim = (batch.mock.calls as [{ sql: string }[], string][]).find(([stmts]) =>
+      stmts.some((st) => /INSERT OR IGNORE INTO trip_members/.test(st.sql)),
     );
-    expect(sqls.some((s) => /INSERT OR IGNORE INTO trip_members/.test(s))).toBe(true);
+    expect(claim?.[1]).toBe('write');
+    const sqlWith = (part: string) => ({ sql: expect.stringContaining(part) as unknown });
+    expect(claim?.[0]).toMatchObject([
+      sqlWith('INSERT INTO users'),
+      sqlWith('INSERT OR IGNORE INTO trip_members'),
+      sqlWith('DELETE FROM trip_invites'),
+    ]);
   });
 
   it('names the new account from its first name, or leaves the name it has', async () => {
@@ -3812,9 +3819,9 @@ describe('Mutation.claimInvite', () => {
         { i: { inviteToken: 'tok' } },
         caller,
       );
-      const upsert = execute.mock.calls
-        .map((c) => c[0] as { sql?: string; args?: unknown[] })
-        .findLast((c) => c.sql?.includes('INSERT INTO users'));
+      const upsert = (batch.mock.calls as [{ sql: string; args: unknown[] }[]][])
+        .flatMap(([stmts]) => stmts)
+        .findLast((st) => st.sql.includes('INSERT INTO users'));
       expect(upsert?.args?.slice(0, 2)).toEqual([EDITOR.email, name]);
       expect(upsert?.sql).toContain(
         'display_name = COALESCE(excluded.display_name, users.display_name)',
