@@ -53,7 +53,7 @@ jobs:
     # state, inside the 6 hours a job may take.
     timeout-minutes: 330
     env:
-      DRY_RUN: "false"
+      DRY_RUN: "true"
       FROM_RUN: "43568144518"
       HOST_PR: "347"
     steps:
