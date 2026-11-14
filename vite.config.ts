@@ -61,8 +61,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       // Cobertura is what ci.yml uploads to GitHub for the code coverage rule
-      // on main.
-      reporter: ['text', 'html', 'json-summary', 'cobertura'],
+      // on main; json (coverage-final.json) is what jbhirsh/ci's unmeasured
+      // step compares with the tracked source.
+      reporter: ['text', 'html', 'json-summary', 'cobertura', 'json'],
       include: [
         'src/**/*.{ts,tsx}',
         'api/**/*.ts',
@@ -71,24 +72,21 @@ export default defineConfig({
         'eval/**/*.ts',
       ],
       exclude: [
-        // Entry points / non-executable / test scaffolding.
+        // Tests and type declarations aside, each file left out here has its
+        // reason in .github/ci.json's unmeasured.files, which jbhirsh/ci's
+        // unmeasured step holds it to.
         'src/main.tsx',
         'src/vite-env.d.ts',
         'src/test/**',
         'src/**/*.test.{ts,tsx}',
-        'src/data/types.ts',
         'api/**/*.test.ts',
-        'api/_schema.ts', // SDL string — no executable branches.
+        'api/_schema.ts',
         'scripts/**/*.test.{ts,mjs}',
         'eval/**/*.test.ts',
-        // Recorded flows for npm run gif, run in a browser by jbhirsh/ci's gif
-        // tool, as tests/visual's specs are by Playwright: data, not logic.
         'scripts/gif-scenarios/**',
-        // Generated artifacts (graphql-codegen client-preset), like eslint's
-        // globalIgnores for src/gql.
         'src/gql/**',
-        'shared/isoRegions.ts', // npm run regions:gen writes it from ISO 3166.
-        'src/lib/iconPaths.ts', // npm run icons:gen writes it from Material Symbols.
+        'shared/isoRegions.ts',
+        'src/lib/iconPaths.ts',
       ],
       thresholds: {
         perFile: true,

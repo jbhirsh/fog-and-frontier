@@ -68,8 +68,9 @@ tests check the built CSS.
 
 - **Unit tests** sit beside their source (`*.test.ts(x)`, property tests in
   `*.property.test.ts`), run by Vitest in jsdom with React Testing Library.
-- **Coverage** measures `src/`, `api/`, `shared/`, `scripts/` and `eval/` at 80% per file, apart
-  from entry points, generated code and test support (`vite.config.ts`).
+- **Coverage** measures `src/`, `api/`, `shared/`, `scripts/` and `eval/` at 80% per file,
+  apart from entry points, generated code and test support, each listed with its reason in
+  `.github/ci.json`'s `unmeasured.files`.
 - **Mutation testing** (`mutation.yml`) mutates the lines a PR changed in the files coverage
   measures, and a monthly sweep (`mutation-sweep.yml`) covers everything.
 - **Visual regression** (`npm run test:visual`, `playwright.config.ts` says what it runs) compares
@@ -147,7 +148,7 @@ The golden set's review history, the judge's calibration and past scores are in 
 
 | Check (workflow)                                       | What it runs                                                                                                                                                                                                               |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test` (`ci.yml`)                                      | commit messages, autofix triggers, pins, lint, Prettier, layering, type-check, type coverage, codegen drift, unit tests with coverage, build, bundle budget, `npm audit --omit=dev` (high and up)                          |
+| `test` (`ci.yml`)                                      | commit messages, autofix triggers, pins, lint, Prettier, layering, type-check, type coverage, codegen drift, unit tests with coverage, unmeasured source files, build, bundle budget, `npm audit --omit=dev` (high and up) |
 | `Claude Review` (`claude-review.yml`)                  | jbhirsh/ci's AI review; this repo's guide is `.github/claude-review.md`                                                                                                                                                    |
 | `Mutation Tests (Stryker)` (`mutation.yml`)            | mutation testing of the lines a PR changed                                                                                                                                                                                 |
 | `visual` (`visual.yml`)                                | Playwright visual regression                                                                                                                                                                                               |
