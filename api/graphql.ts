@@ -89,10 +89,15 @@ const started = server.start();
 // Schema init for ALL THREE table groups (trips/members/invites/votes + the `a`
 // activities table + the `c` completed table). Cached so it runs once per
 // instance. Without this, a fresh Preview DB would 500 on activities/completed/
-// saveActivity/setCompleted/transitionTrip(to=past).
+// saveActivity/setCompleted/transitionTrip(to=past). A setup that fails is
+// dropped from the cache, so the next request tries again: kept, one database
+// blip at a cold start would fail every request the instance serves.
 let schemaReady: Promise<void> | null = null;
 function ready(): Promise<void> {
-  if (!schemaReady) schemaReady = ensureAllSchemas();
+  schemaReady ??= ensureAllSchemas().catch((err: unknown) => {
+    schemaReady = null;
+    throw err;
+  });
   return schemaReady;
 }
 
