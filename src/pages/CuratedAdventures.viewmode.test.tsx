@@ -6,6 +6,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthCtx, type AuthState } from '../lib/authShim';
 import type { MapBounds } from '../lib/mapBounds';
 import { muirWoods } from '../test/fixtures';
+import { getIcon } from '../test/icons';
+import { RouteStateProbe } from '../test/RouteStateProbe';
 
 // Mock the map so these layout-shell tests never touch Leaflet (which doesn't
 // render in jsdom). We only care that the page mounts the map in the right
@@ -45,6 +47,7 @@ function renderAt(path: string, opts: { activitiesError?: boolean; email?: strin
     <AuthCtx.Provider value={auth}>
       <MemoryRouter initialEntries={[path]}>
         <CuratedAdventures />
+        <RouteStateProbe />
       </MemoryRouter>
     </AuthCtx.Provider>,
     { activities: [muirWoods], activitiesError: opts.activitiesError },
@@ -252,5 +255,111 @@ describe('Curated Adventures — view modes (#93)', () => {
     expect(showMap()).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Select for trip/ }));
     expect(screen.queryByRole('button', { name: 'Show map' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Curated Adventures — the list’s layout in each view', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const grid = (container: HTMLElement) => container.querySelector('.grid.gap-x-sm')!;
+  // The list's own box: the section (List) or column (Split) holding its grid.
+  const listBox = (container: HTMLElement) => grid(container).closest('.px-margin')!;
+
+  it.each([
+    ['List', '/', false, 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'],
+    ['Split', '/?view=split', true, 'grid-cols-2 xl:grid-cols-3'],
+    ['the mobile map', '/?view=map', false, 'grid-cols-2'],
+  ])('lays %s out in its own columns', (_label, path, isLg, cols) => {
+    stubViewport(isLg);
+    const { container } = renderAt(path);
+    // Its columns end the class list, right after the gap.
+    expect(grid(container).className.split('gap-gutter ')[1]).toBe(cols);
+  });
+
+  it('clears room under the List for the selection bar once something is picked', async () => {
+    const { container } = renderAt('/', { email: 'editor@example.com' });
+    // Room for the floating "Show map" button while browsing.
+    expect(listBox(container)).toHaveClass('md:pb-24');
+    expect(listBox(container)).not.toHaveClass('pb-32');
+    await userEvent.click(screen.getByRole('button', { name: /Select for trip/ }));
+    expect(listBox(container)).not.toHaveClass('pb-32');
+    expect(listBox(container)).not.toHaveClass('md:pb-24');
+    await userEvent.click(container.querySelector('[data-activity-id] button[aria-pressed]')!);
+    expect(listBox(container)).toHaveClass('pb-32');
+  });
+
+  it('clears room under the Split list for the selection bar once something is picked', async () => {
+    stubViewport(true);
+    const { container } = renderAt('/?view=split', { email: 'editor@example.com' });
+    expect(listBox(container)).not.toHaveClass('pb-32');
+    await userEvent.click(screen.getByRole('button', { name: /Select for trip/ }));
+    expect(listBox(container)).not.toHaveClass('pb-32');
+    await userEvent.click(container.querySelector('[data-activity-id] button[aria-pressed]')!);
+    expect(listBox(container)).toHaveClass('pb-32');
+  });
+
+  it('counts a single place in the singular', () => {
+    renderAt('/');
+    expect(screen.getByText(/^1 place near /)).toBeInTheDocument();
+  });
+
+  it('counts a single place on the mobile map in the singular', () => {
+    renderAt('/?view=map');
+    expect(screen.getByRole('button', { name: '1 place, see list' })).toBeInTheDocument();
+  });
+
+  it('sizes the bounds indicator’s icons', async () => {
+    stubViewport(true);
+    renderAt('/?view=split');
+    await userEvent.click(screen.getByRole('button', { name: 'pan empty' }));
+    const status = screen
+      .getAllByRole('status')
+      .find((el) => within(el).queryByRole('button', { name: 'Clear bounds' }))!;
+    expect(getIcon('my_location', status)).toHaveStyle({ fontSize: '18px', width: '18px' });
+    const clear = within(status).getByRole('button', { name: 'Clear bounds' });
+    expect(getIcon('close', clear)).toHaveStyle({ fontSize: '18px', height: '18px' });
+  });
+
+  it('sizes the map buttons’ icons', () => {
+    renderAt('/');
+    expect(getIcon('map', showMap())).toHaveStyle({ fontSize: '20px', width: '20px' });
+  });
+
+  it('sizes the Hide map icon', () => {
+    renderAt('/?view=map');
+    const hide = screen.getByRole('button', { name: 'Hide map' });
+    expect(getIcon('close', hide)).toHaveStyle({ fontSize: '18px', width: '18px' });
+  });
+
+  it('blames the filters, not the map, when nothing matches them at all', async () => {
+    stubViewport(true);
+    // Muir Woods isn't done, so "completed only" leaves nothing to show.
+    renderAt('/?view=split&completed=1');
+    await userEvent.click(screen.getByRole('button', { name: 'pan empty' }));
+    expect(screen.getByText('No activities match those filters.')).toBeInTheDocument();
+  });
+
+  it('blames the map when its area holds none of the matches', async () => {
+    stubViewport(true);
+    renderAt('/?view=split');
+    await userEvent.click(screen.getByRole('button', { name: 'pan empty' }));
+    expect(screen.getByText('No activities in this area.')).toBeInTheDocument();
+  });
+
+  it('switches view and filters in place of the history entry', async () => {
+    renderAt('/?view=map');
+    expect(screen.getByTestId('route-navigation')).toHaveTextContent('POP');
+    await userEvent.click(screen.getByRole('button', { name: 'Hide map' }));
+    expect(screen.getByTestId('route-navigation')).toHaveTextContent('REPLACE');
+  });
+
+  it('turns on a URL-held filter in place of the history entry', async () => {
+    renderAt('/');
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+    await userEvent.click(screen.getByRole('switch', { name: 'Only places we’ve done' }));
+    expect(screen.getByText('No activities match those filters.')).toBeInTheDocument();
+    expect(screen.getByTestId('route-navigation')).toHaveTextContent('REPLACE');
   });
 });

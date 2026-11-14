@@ -3,6 +3,7 @@ import {
   addMinutesToHHMM,
   approxDurationMinutes,
   dayCount,
+  dayLabel,
   defaultStartTimeForDay,
   derivedEndTime,
   formatHHMM,
@@ -63,6 +64,11 @@ describe('parseHHMM', () => {
     expect(parseHHMM('not a time')).toBeNull();
     expect(parseHHMM('')).toBeNull();
   });
+
+  it('rejects a time with anything before or after it', () => {
+    expect(parseHHMM('x09:30')).toBeNull();
+    expect(parseHHMM('09:305')).toBeNull();
+  });
 });
 
 describe('formatHHMM', () => {
@@ -78,6 +84,10 @@ describe('formatHHMM', () => {
     expect(formatHHMM(null)).toBe('');
     expect(formatHHMM(undefined)).toBe('');
   });
+
+  it('returns a time it cannot read as it was', () => {
+    expect(formatHHMM('9am')).toBe('9am');
+  });
 });
 
 describe('addMinutesToHHMM', () => {
@@ -89,6 +99,10 @@ describe('addMinutesToHHMM', () => {
   it('wraps past midnight', () => {
     expect(addMinutesToHHMM('23:30', 60)).toBe('00:30');
   });
+
+  it('returns a time it cannot read as it was', () => {
+    expect(addMinutesToHHMM('9am', 30)).toBe('9am');
+  });
 });
 
 describe('approxDurationMinutes', () => {
@@ -97,6 +111,16 @@ describe('approxDurationMinutes', () => {
     expect(approxDurationMinutes(snapshot({ duration: '2-3 Hours' }))).toBe(150);
     expect(approxDurationMinutes(snapshot({ duration: 'Half Day' }))).toBe(240);
     expect(approxDurationMinutes(snapshot({ duration: 'Full Day' }))).toBe(480);
+    expect(approxDurationMinutes(snapshot({ duration: 'Weekend' }))).toBe(1440);
+    expect(approxDurationMinutes(snapshot({ duration: 'Multi-Day' }))).toBe(1440);
+  });
+
+  it('falls back to 60 for a duration it doesn’t know', () => {
+    expect(
+      approxDurationMinutes(
+        snapshot({ duration: 'Fortnight' as TripActivitySnapshot['duration'] }),
+      ),
+    ).toBe(60);
   });
 
   it('falls back to 60 when snapshot is missing', () => {
@@ -122,12 +146,27 @@ describe('dayCount', () => {
 
   it('falls back to 1 for malformed dates', () => {
     expect(dayCount({ start_date: 'bogus', end_date: 'also bogus' })).toBe(1);
+    expect(dayCount({ start_date: 'bogus', end_date: '2026-03-16' })).toBe(1);
+    expect(dayCount({ start_date: '2026-03-14', end_date: 'bogus' })).toBe(1);
+  });
+
+  it('falls back to 1 when the end is before the start', () => {
+    expect(dayCount({ start_date: '2026-03-16', end_date: '2026-03-14' })).toBe(1);
   });
 });
 
 describe('defaultStartTimeForDay', () => {
   it('defaults to 09:00 when the day is empty', () => {
     expect(defaultStartTimeForDay([])).toBe('09:00');
+  });
+
+  it('skips a start time it cannot read', () => {
+    // Only the 10:00 'Full Day' counts: 18:00 + 30 = 18:30.
+    const existing = [
+      ta({ id: 'x', start_time: '9am' }, { duration: 'Multi-Day' }),
+      ta({ id: 'y', start_time: '10:00' }, { duration: 'Full Day' }),
+    ];
+    expect(defaultStartTimeForDay(existing)).toBe('18:30');
   });
 
   it('defaults to 30 min after the latest derived end, rounded to 15 min', () => {
@@ -197,6 +236,16 @@ function member(
     ...overrides,
   };
 }
+
+describe('dayLabel', () => {
+  it('numbers the day from one and names its date', () => {
+    expect(dayLabel({ start_date: '2026-03-14' }, 2)).toBe('Day 3 · Mon, Mar 16');
+  });
+
+  it('gives only the number when the start date is malformed', () => {
+    expect(dayLabel({ start_date: 'bogus' }, 2)).toBe('Day 3');
+  });
+});
 
 describe('inviteLinkPath', () => {
   it('returns the correct path with encoded params', () => {
@@ -380,6 +429,12 @@ describe('sortByNetScore', () => {
     ];
     const result = sortByNetScore(activities, votes);
     expect(result.map((a) => a.id)).toEqual(['many', 'few']);
+  });
+
+  it('keeps the original order among ties below a winner', () => {
+    const activities = [act('p'), act('q'), act('win'), act('r'), act('s')];
+    const result = sortByNetScore(activities, [vote('win', 'a@x.com', 1)]);
+    expect(result.map((a) => a.id)).toEqual(['win', 'p', 'q', 'r', 's']);
   });
 
   it('preserves original order on full ties (stable sort)', () => {

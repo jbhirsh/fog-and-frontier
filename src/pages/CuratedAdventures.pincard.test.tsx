@@ -117,6 +117,16 @@ describe('Curated Adventures — a tapped pin on the mobile map (#291)', () => {
     delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
   });
 
+  it('puts the card away when the map closes, so reopening it shows none', async () => {
+    renderMap();
+    await userEvent.click(screen.getByRole('button', { name: 'pin Test Muir Woods' }));
+    expect(card()).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Hide map' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show map' }));
+    expect(screen.getByTestId('activity-map')).toBeInTheDocument();
+    expect(card()).not.toBeInTheDocument();
+  });
+
   it('puts the card away once a filter takes its pin off the map', async () => {
     renderMap();
     await userEvent.click(screen.getByRole('button', { name: 'pin Test Muir Woods' }));

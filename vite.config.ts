@@ -63,13 +63,6 @@ export default defineConfig({
       // Cobertura is what ci.yml uploads to GitHub for the code coverage rule
       // on main.
       reporter: ['text', 'html', 'json-summary', 'cobertura'],
-      // The `api/**` serverless code is now measured alongside `src/**`. The
-      // 80% per-file gate below is UNCHANGED; the excludes fall into three
-      // groups: non-code/entry files, generated artifacts, and a documented
-      // "coverage backlog" of files that predate the gate being enforced in CI
-      // (CI used to run `npm test`, which skips coverage, so the gate never
-      // actually held). Shrink the backlog as tests land — do NOT lower the
-      // thresholds and do NOT add newly-written files to it.
       include: [
         'src/**/*.{ts,tsx}',
         'api/**/*.ts',
@@ -96,45 +89,6 @@ export default defineConfig({
         'src/gql/**',
         'shared/isoRegions.ts', // npm run regions:gen writes it from ISO 3166.
         'src/lib/iconPaths.ts', // npm run icons:gen writes it from Material Symbols.
-        // ---- Coverage backlog: pre-existing files below the 80% per-file gate
-        // when it was first enforced in CI. Tracked for follow-up; each removal
-        // must come with real tests, never a threshold change. The list may
-        // only shrink: src/test/coverageBacklog.test.ts pins it. ----
-        // api/ — the rest of api/** IS gated; these are the genuinely-hard ones:
-        'api/_db.ts', //         real libSQL client; mocked in every test, no unit seam.
-        'api/_gqlMap.ts', //     large snapshot/camelCase mapper, many null-coercion branches.
-        'api/_resolvers/gemini.ts', // external Gemini fetch branches.
-        'api/_trips.ts', //      ~1.2k-line module; lines/stmts pass, branch-only miss over many validation paths.
-        'api/graphql.ts', //     express error-middleware + formatError paths need failure injection.
-        // src/components/ (map + dialog UI, largely untested)
-        'src/components/ActivityCard.tsx',
-        'src/components/ActivityDetail.tsx',
-        'src/components/ActivityMap.tsx',
-        'src/components/AddActivity.tsx',
-        'src/components/AddToTripDialog.tsx',
-        'src/components/AddToTripDropdown.tsx',
-        'src/components/InviteModal.tsx',
-        'src/components/Layout.tsx',
-        'src/components/MapZoomControls.tsx',
-        'src/components/TripActivityCard.tsx',
-        'src/components/TripMap.tsx',
-        'src/components/VoteControls.tsx',
-        'src/components/VotingCandidateCard.tsx',
-        // src/lib/
-        'src/lib/alltrails.ts',
-        'src/lib/apolloClient.ts',
-        'src/lib/generateActivity.ts',
-        'src/lib/gqlError.ts',
-        'src/lib/userActivities.ts',
-        'src/lib/userTrips.ts',
-        'src/lib/useTripMembership.ts',
-        'src/lib/useVisibilityInterval.ts',
-        // src/pages/
-        'src/pages/CuratedAdventures.tsx',
-        'src/pages/Explore.tsx',
-        'src/pages/NewTrip.tsx',
-        'src/pages/TripDetail.tsx',
-        'src/pages/Trips.tsx',
       ],
       thresholds: {
         perFile: true,

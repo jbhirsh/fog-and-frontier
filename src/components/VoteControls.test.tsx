@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VoteControls } from './VoteControls';
+import { FILLED_ICONS, ICONS } from '../lib/iconPaths';
+import { getIcon } from '../test/icons';
 
 const baseTally = { up: 3, down: 1, net: 2 };
 
@@ -110,5 +112,54 @@ describe('VoteControls', () => {
       'title',
       'Voting is closed',
     );
+  });
+
+  it('takes a click with no onVote to call without an error', async () => {
+    // A click handler's error reaches the window, not the test.
+    const errors: ErrorEvent[] = [];
+    const onError = (e: ErrorEvent) => {
+      errors.push(e);
+      e.preventDefault();
+    };
+    window.addEventListener('error', onError);
+    try {
+      render(<VoteControls tally={baseTally} myVote={1} />);
+      const up = screen.getByRole('button', { name: 'Upvote' });
+      expect(up).toBeEnabled();
+      await userEvent.click(up);
+      await userEvent.click(screen.getByRole('button', { name: 'Downvote' }));
+      expect(errors).toEqual([]);
+      expect(up).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      window.removeEventListener('error', onError);
+    }
+  });
+
+  it('enabled buttons carry no title', () => {
+    render(<VoteControls tally={baseTally} myVote={0} disabledTooltip="Voting is closed" />);
+    expect(screen.getByRole('button', { name: 'Upvote' })).not.toHaveAttribute('title');
+    expect(screen.getByRole('button', { name: 'Downvote' })).not.toHaveAttribute('title');
+  });
+
+  it('fills and colours the active thumb only', () => {
+    const { rerender } = render(<VoteControls tally={baseTally} myVote={1} />);
+    const up = screen.getByRole('button', { name: 'Upvote' });
+    const down = screen.getByRole('button', { name: 'Downvote' });
+    expect(up).toHaveClass('text-primary', 'font-medium', 'hover:bg-surface-variant');
+    expect(down).toHaveClass('text-on-surface-variant');
+    expect(down).not.toHaveClass('text-error');
+    expect(getIcon('thumb_up', up).querySelector('path')).toHaveAttribute(
+      'd',
+      FILLED_ICONS.thumb_up,
+    );
+    expect(getIcon('thumb_down', down).querySelector('path')).toHaveAttribute(
+      'd',
+      ICONS.thumb_down,
+    );
+
+    rerender(<VoteControls tally={baseTally} myVote={-1} disabled />);
+    expect(down).toHaveClass('text-error', 'font-medium');
+    expect(up).toHaveClass('text-on-surface-variant');
+    expect(up).not.toHaveClass('hover:bg-surface-variant');
   });
 });

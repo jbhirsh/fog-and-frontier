@@ -91,6 +91,30 @@ describe('ensureAllSchemas', () => {
     });
   });
 
+  it('makes each trip’s creator and every owner a member, at the trip’s creation time', async () => {
+    answerBatch(NO_SENTINEL);
+    execute.mockImplementation((q: Stmt) =>
+      Promise.resolve({
+        rows: sqlOf(q).startsWith('SELECT id, creator_email')
+          ? [{ id: 7, creator_email: ' Creator@Example.com ', created_at: 50n }]
+          : [],
+      }),
+    );
+    const ensure = await freshEnsure();
+    process.env.OWNER_EMAILS = 'owner@example.com, creator@example.com';
+    await ensure();
+
+    const writes = execute.mock.calls.map(([q]) => q).filter((q) => typeof q !== 'string');
+    expect(writes.filter((q) => q.sql.includes('INSERT INTO users')).map((q) => q.args[0])).toEqual(
+      ['owner@example.com', 'creator@example.com'],
+    );
+    // The creator is an owner too: one membership each, never two.
+    expect(writes.filter((q) => q.sql.includes('trip_members')).map((q) => q.args)).toEqual([
+      ['7', 'creator@example.com', ' Creator@Example.com ', 50],
+      ['7', 'owner@example.com', ' Creator@Example.com ', 50],
+    ]);
+  });
+
   it('backfills when the batch answers without the sentinel read', async () => {
     batch.mockResolvedValue([]);
     await (

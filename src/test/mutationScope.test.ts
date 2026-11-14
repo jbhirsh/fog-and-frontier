@@ -4,9 +4,7 @@ import { coverageGlobs } from './coverageGlobs';
 
 // Stryker mutates the files the coverage gate measures: the `mutate` globs in
 // stryker.config.json mirror `test.coverage.include` / `exclude` in
-// vite.config.ts, coverage backlog included. A file added to the backlog must
-// leave the mutation scope too (it has no tests to kill mutants with), and one
-// that leaves the backlog must come back in. This keeps the two lists in step.
+// vite.config.ts. This keeps the two lists in step.
 const { mutate } = JSON.parse(strykerConfigSource) as { mutate: string[] };
 
 describe('mutation scope', () => {

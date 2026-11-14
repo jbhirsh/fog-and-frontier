@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ActivityReviews } from './ActivityReviews';
 import type { ReviewSeed } from '../test/render';
 import { FILLED_ICONS } from '../lib/iconPaths';
+import { deferred } from '../test/deferred';
 
 // Owner reviews (#184). The data layer is stubbed so these assert presentation
 // and the role gate: reviews read for everyone, write affordances rendered for
@@ -72,13 +73,6 @@ function isFilled(icon: Element): boolean {
 }
 
 // A server call that stays in flight until the test settles it.
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<undefined>((res) => {
-    resolve = () => res(undefined);
-  });
-  return { promise, resolve };
-}
 
 beforeEach(() => {
   ownerState.isOwner = true;

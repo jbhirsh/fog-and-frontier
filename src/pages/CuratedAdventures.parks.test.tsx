@@ -23,6 +23,7 @@ const LIGHTHOUSE: Activity = {
   name: 'Test Lighthouse',
   category: 'scenic',
   parentId: PARK.id,
+  coverImage: 'https://example.com/lighthouse.jpg',
   location: { city: 'Inverness, CA', coords: { lat: 37.9956, lng: -123.0224 } },
 };
 const CHIMNEY: Activity = {
@@ -30,6 +31,7 @@ const CHIMNEY: Activity = {
   id: 'test-chimney',
   name: 'Test Chimney Rock',
   parentId: PARK.id,
+  coverImage: 'https://example.com/chimney.jpg',
   location: { city: 'Inverness, CA', coords: { lat: 37.9944, lng: -122.9662 } },
 };
 
@@ -212,6 +214,12 @@ describe('a park’s hikes and stops on a phone', () => {
     expect(count).toHaveTextContent(/2$/);
     expect(count).toHaveAttribute('aria-expanded', 'false');
     expect(queryIcon('account_tree')).toBeNull();
+    // The cards fanned out behind it show two of its own places' photos.
+    const behind = card.querySelectorAll('span.w-12[aria-hidden="true"]');
+    expect([...behind].map((edge) => edge.querySelector('img')?.getAttribute('src'))).toEqual([
+      LIGHTHOUSE.coverImage,
+      CHIMNEY.coverImage,
+    ]);
     await userEvent.click(count);
     const section = screen.getByRole('region', { name: 'Hikes & stops in Test Seashore' });
     expect(count).toHaveAttribute('aria-expanded', 'true');

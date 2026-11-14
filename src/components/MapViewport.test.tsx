@@ -4,34 +4,13 @@ import type { Activity } from '../data/types';
 import { createMoveGate, type MapBounds, type MoveGate } from '../lib/mapBounds';
 import { muirWoods } from '../test/fixtures';
 
-// A stand-in Leaflet map: react-leaflet's hooks hand it to the components, and
-// `emit` plays the viewport events Leaflet would fire.
-const fake = vi.hoisted(() => {
-  type Handler = (event: { type: string }) => void;
-  const state = {
-    handlers: {} as Record<string, Handler>,
-    map: {
-      getBounds: vi.fn(),
-      getSize: vi.fn(),
-      flyToBounds: vi.fn(),
-      flyTo: vi.fn(),
-    },
-    emit(type: string) {
-      state.handlers[type]?.({ type });
-    },
-  };
-  return state;
-});
+// The shared stand-in map (src/test/fakeMap.ts): `fake.emit` plays the
+// viewport events Leaflet would fire.
+vi.mock('react-leaflet', () => import('../test/fakeReactLeaflet'));
 
-vi.mock('react-leaflet', () => ({
-  useMap: () => fake.map,
-  useMapEvents: (handlers: Record<string, (e: { type: string }) => void>) => {
-    fake.handlers = handlers;
-    return fake.map;
-  },
-}));
-
+import { fake } from '../test/fakeMap';
 import { BoundsWatcher, FitToActivities, ViewportWatcher, type FitPadding } from './MapViewport';
+import { stubReducedMotion } from '../test/reducedMotion';
 
 // A viewport one world copy west of the Bay Area: the reported bounds come
 // back normalized.
@@ -51,22 +30,9 @@ const at = (id: string, lat: number, lng: number): Activity => ({
   location: { ...muirWoods.location, coords: { lat, lng } },
 });
 
-function stubReducedMotion() {
-  vi.stubGlobal(
-    'matchMedia',
-    (query: string) =>
-      ({
-        matches: query === '(prefers-reduced-motion: reduce)',
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }) as unknown as MediaQueryList,
-  );
-}
-
 beforeEach(() => {
   vi.useFakeTimers();
-  fake.handlers = {};
+  fake.reset();
   fake.map.getBounds.mockReset().mockReturnValue(LEAFLET_BOUNDS);
   // Roomy enough that the fit keeps its full padding.
   fake.map.getSize.mockReset().mockReturnValue({ x: 600, y: 800 });

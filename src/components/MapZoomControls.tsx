@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMap, useMapEvents } from 'react-leaflet';
 import * as L from 'leaflet';
 import { fillZoom } from '../lib/mapFit';
@@ -12,7 +12,6 @@ import { Icon } from './Icon';
 // under the slim mobile app header (the mobile map, #96).
 export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
   const map = useMap();
-  const ref = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(() => map.getZoom());
 
   // Zoomed out, the world stays at least as tall as the map, with no grey
@@ -34,9 +33,9 @@ export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
   const atMin = zoom <= map.getMinZoom();
 
   // Stop clicks/scrolls on the buttons from reaching the map underneath (would
-  // otherwise pan or box-zoom). Leaflet's own helpers handle this cleanly.
-  useEffect(() => {
-    const el = ref.current;
+  // otherwise pan or box-zoom). Leaflet's own helpers handle this cleanly. A
+  // stable ref callback, so it runs once on mount (and gets null on unmount).
+  const stopPropagation = useCallback((el: HTMLDivElement | null) => {
     if (!el) return;
     L.DomEvent.disableClickPropagation(el);
     L.DomEvent.disableScrollPropagation(el);
@@ -44,7 +43,7 @@ export function MapZoomControls({ topInset = 12 }: { topInset?: number }) {
 
   return (
     <div
-      ref={ref}
+      ref={stopPropagation}
       // Top-right, clear of the attribution control Leaflet renders bottom-right.
       // Positioning is inline (not Tailwind utilities) on purpose: Leaflet's
       // stylesheet is imported unlayered, and unlayered rules beat Tailwind v4's

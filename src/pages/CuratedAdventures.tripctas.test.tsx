@@ -147,6 +147,34 @@ describe('Curated Adventures — trip CTAs (#112)', () => {
     expect(screen.getByRole('button', { name: /Select for trip/ })).toBeInTheDocument();
   });
 
+  it('empties the selection when the user signs out and back in', async () => {
+    function Harness() {
+      const [auth, setAuth] = useState(SIGNED_IN);
+      return (
+        <AuthCtx.Provider value={auth}>
+          <button type="button" onClick={() => setAuth(SIGNED_OUT)}>
+            test sign out
+          </button>
+          <button type="button" onClick={() => setAuth(SIGNED_IN)}>
+            test sign in
+          </button>
+          <MemoryRouter initialEntries={[TARGET_ENTRY]}>
+            <CuratedAdventures />
+          </MemoryRouter>
+        </AuthCtx.Provider>
+      );
+    }
+    const { container } = render(<Harness />, { activities: [muirWoods] });
+    const card = () =>
+      container.querySelector<HTMLElement>(`[data-activity-id="${muirWoods.id}"] button`)!;
+    await userEvent.click(card());
+    expect(screen.getByText(/Adding to/)).toHaveTextContent('1 selected');
+    await userEvent.click(screen.getByRole('button', { name: 'test sign out' }));
+    await userEvent.click(screen.getByRole('button', { name: 'test sign in' }));
+    // The trip target comes back with the session, its selection empty.
+    expect(screen.getByText(/Adding to/)).toHaveTextContent('0 selected');
+  });
+
   it('shows the per-card control when arriving with a trip target', () => {
     const { container } = renderAs(SIGNED_IN, TARGET_ENTRY);
     expect(screen.getByText(/Adding to/)).toHaveTextContent('Big Sur');
