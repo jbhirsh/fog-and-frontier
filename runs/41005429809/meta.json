@@ -1,0 +1,12 @@
+{
+  "id": 41005429809,
+  "number": 701,
+  "workflow": "Visual regression",
+  "branch": "claude/brave-ritchie-k055tx",
+  "sha": "1efc45f3ad9dc5cafaeac43eddc34a4f33b04c8d",
+  "created": "2026-10-30T04:54:05Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/41005429809",
+  "jobs": [
+    "visual"
+  ]
+}

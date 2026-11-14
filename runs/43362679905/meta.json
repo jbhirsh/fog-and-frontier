@@ -1,0 +1,12 @@
+{
+  "id": 43362679905,
+  "number": 719,
+  "workflow": "Visual regression",
+  "branch": "claude/charming-maxwell-awz2ey",
+  "sha": "4ff2544e3e51c961ded707622cd515f395e8ec6f",
+  "created": "2026-11-13T04:00:46Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43362679905",
+  "jobs": [
+    "visual"
+  ]
+}

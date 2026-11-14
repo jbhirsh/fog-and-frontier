@@ -1,0 +1,12 @@
+{
+  "id": 43389305156,
+  "number": 731,
+  "workflow": "Visual regression",
+  "branch": "self-hosted-fonts-icons",
+  "sha": "1bf550255e9579aeeffd926b5be42d5f7b457919",
+  "created": "2026-11-13T07:56:02Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43389305156",
+  "jobs": [
+    "visual"
+  ]
+}

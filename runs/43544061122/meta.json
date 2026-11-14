@@ -1,0 +1,12 @@
+{
+  "id": 43544061122,
+  "number": 746,
+  "workflow": "Visual regression",
+  "branch": "thinner-icons-cache",
+  "sha": "78e59ce022a33749e05097edbde5f3eabb51e9e6",
+  "created": "2026-11-14T02:02:42Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43544061122",
+  "jobs": [
+    "visual"
+  ]
+}

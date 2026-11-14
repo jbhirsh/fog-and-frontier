@@ -1,0 +1,12 @@
+{
+  "id": 43382115658,
+  "number": 729,
+  "workflow": "Visual regression",
+  "branch": "claude/unmeasured-coverage",
+  "sha": "a5ddd5f8ec3de359d81a34bc9bfb018706697550",
+  "created": "2026-11-13T06:55:57Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43382115658",
+  "jobs": [
+    "visual"
+  ]
+}

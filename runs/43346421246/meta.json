@@ -1,0 +1,12 @@
+{
+  "id": 43346421246,
+  "number": 718,
+  "workflow": "Visual regression",
+  "branch": "claude/shared-claude-rules",
+  "sha": "b00cd63b52c5e153b4ca9fc3f7a11e7a303dbf19",
+  "created": "2026-11-13T01:38:32Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43346421246",
+  "jobs": [
+    "visual"
+  ]
+}

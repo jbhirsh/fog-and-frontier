@@ -1,0 +1,12 @@
+{
+  "id": 43555741742,
+  "number": 520,
+  "workflow": "CI",
+  "branch": "claude/unmeasured-coverage",
+  "sha": "d9ad90bde484151960518c7cd2a5b2b3c9467858",
+  "created": "2026-11-14T04:15:36Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43555741742",
+  "jobs": [
+    "test"
+  ]
+}

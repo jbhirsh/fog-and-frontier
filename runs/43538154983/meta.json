@@ -1,0 +1,12 @@
+{
+  "id": 43538154983,
+  "number": 741,
+  "workflow": "Visual regression",
+  "branch": "visual-map-tiles-338",
+  "sha": "95582e22604eb0a02993e3ffb64f6a0f24a2c085",
+  "created": "2026-11-14T01:03:01Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43538154983",
+  "jobs": [
+    "visual"
+  ]
+}

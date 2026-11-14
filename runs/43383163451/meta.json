@@ -1,0 +1,12 @@
+{
+  "id": 43383163451,
+  "number": 500,
+  "workflow": "CI",
+  "branch": "knip-no-ignores",
+  "sha": "2eea991776b39018eb2bfdc244e8cce0fa4ddf1e",
+  "created": "2026-11-13T07:04:58Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43383163451",
+  "jobs": [
+    "test"
+  ]
+}

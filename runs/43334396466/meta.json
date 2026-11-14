@@ -1,0 +1,12 @@
+{
+  "id": 43334396466,
+  "number": 486,
+  "workflow": "CI",
+  "branch": "claude/shared-claude-rules",
+  "sha": "4656be589d1aa4923d3d4a09c28b9d0de546e484",
+  "created": "2026-11-13T00:06:42Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43334396466",
+  "jobs": [
+    "test"
+  ]
+}

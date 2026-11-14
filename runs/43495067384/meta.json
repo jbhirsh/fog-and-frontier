@@ -1,0 +1,12 @@
+{
+  "id": 43495067384,
+  "number": 504,
+  "workflow": "CI",
+  "branch": "main",
+  "sha": "374474851413306f1eb6b4c2e87fd65a2323bda8",
+  "created": "2026-11-13T19:44:44Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43495067384",
+  "jobs": [
+    "test"
+  ]
+}

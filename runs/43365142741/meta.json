@@ -1,0 +1,12 @@
+{
+  "id": 43365142741,
+  "number": 724,
+  "workflow": "Visual regression",
+  "branch": "claude/fix-readme-shots-mock",
+  "sha": "f769ae36910f65d81ab0d90fc1f398f6c4ad54bc",
+  "created": "2026-11-13T04:22:54Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43365142741",
+  "jobs": [
+    "visual"
+  ]
+}
