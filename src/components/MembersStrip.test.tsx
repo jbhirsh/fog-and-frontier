@@ -53,7 +53,7 @@ describe('MembersStrip', () => {
     render(<MembersStrip {...defaultProps()} />);
     for (const name of ['Remove bob@example.com', 'Revoke invite for carol@example.com']) {
       const icon = getIcon('close', screen.getByRole('button', { name }));
-      expect(icon.style.marginRight).toBe('-0.194em');
+      expect(icon.style.marginRight).toBe('-0.216em');
     }
   });
 

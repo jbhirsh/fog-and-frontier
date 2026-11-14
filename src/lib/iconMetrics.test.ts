@@ -1,41 +1,25 @@
 import { describe, expect, it } from 'vitest';
+import { opticalOffset, sideBearing } from './iconGeometry';
 import { ICON_OPTICAL_OFFSET, ICON_SIDE_BEARING, glyphBleed, glyphNudge } from './iconMetrics';
+import { ICONS, PIN_ICONS, type IconName, type PinIconName } from './iconPaths';
 import { CATEGORY_ICON } from './mapPins';
 
 describe('glyphBleed', () => {
-  it('pulls an icon out by its measured side bearing, in em', () => {
+  it('pulls an icon out by its side bearing, in em', () => {
     expect(glyphBleed('expand_more')).toBe('-0.25em');
-    expect(glyphBleed('add')).toBe('-0.194em');
+    expect(glyphBleed('add')).toBe('-0.208em');
   });
 
-  it('leaves a glyph with no side bearing, or an unmeasured one, in place', () => {
+  it('leaves a glyph with no side bearing, or one not listed, in place', () => {
     expect(glyphBleed('forest')).toBe('0');
     expect(glyphBleed('search')).toBe('0');
   });
 
-  it('holds the bearings as measured', () => {
-    expect(ICON_SIDE_BEARING).toEqual({
-      add: 0.194,
-      check_box: 0.111,
-      close: 0.194,
-      expand_less: 0.25,
-      expand_more: 0.25,
-      lightbulb: 0.167,
-      location_on: 0.167,
-      map: 0.111,
-      payments: 0.042,
-      person: 0.167,
-      schedule: 0.083,
-      directions_walk: 0.233,
-      explore: 0.067,
-      forest: 0,
-      landscape: 0.033,
-      museum: 0.067,
-      pedal_bike: 0,
-      restaurant: 0.167,
-      terrain: 0.033,
-      water: 0.067,
-    });
+  it('holds each bearing to its icon’s path', () => {
+    for (const [icon, em] of Object.entries(ICON_SIDE_BEARING)) {
+      // On a failure (the icons were regenerated), set the table to the path's.
+      expect([icon, em]).toEqual([icon, sideBearing(ICONS[icon as IconName])]);
+    }
   });
 
   it('covers every category glyph', () => {
@@ -46,11 +30,20 @@ describe('glyphBleed', () => {
 });
 
 describe('glyphNudge (#291)', () => {
-  it('moves a glyph to where it looks centred, by its measured offset', () => {
+  it('moves a glyph to where it looks centred, by its offset', () => {
     // A mountain's wide base sits low: up and a touch left.
-    expect(glyphNudge('landscape')).toBe('transform:translate(-0.012em,-0.068em);');
+    expect(glyphNudge('landscape')).toBe('transform:translate(-0.011em,-0.066em);');
     // The fork and knife's tines sit high: down.
-    expect(glyphNudge('restaurant')).toBe('transform:translate(0em,0.06em);');
+    expect(glyphNudge('restaurant')).toBe('transform:translate(-0.003em,0.064em);');
+  });
+
+  it('lists every pin glyph off the middle, at its path’s offset', () => {
+    for (const icon of Object.keys(PIN_ICONS) as PinIconName[]) {
+      const off = opticalOffset(PIN_ICONS[icon]);
+      const listed = Math.max(Math.abs(off.x), Math.abs(off.y)) >= 0.005;
+      // On a failure (the icons were regenerated), set the table to the path's offset.
+      expect([icon, ICON_OPTICAL_OFFSET[icon]]).toEqual([icon, listed ? off : undefined]);
+    }
   });
 
   it('leaves a glyph that already looks centred alone', () => {

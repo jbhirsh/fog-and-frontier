@@ -46,11 +46,11 @@ function fakeIo(existing: string | null = null) {
 }
 
 describe('svgUrl', () => {
-  it('asks for each cut by Google’s style name, at 24 px', () => {
+  it('asks for each cut by Google’s style name, at the 48 px optical size', () => {
     const base = 'https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined';
-    expect(svgUrl('star', 'outline')).toBe(`${base}/star/default/24px.svg`);
-    expect(svgUrl('star', 'fill')).toBe(`${base}/star/fill1/24px.svg`);
-    expect(svgUrl('home', 'pin')).toBe(`${base}/home/wght500fill1/24px.svg`);
+    expect(svgUrl('star', 'outline')).toBe(`${base}/star/default/48px.svg`);
+    expect(svgUrl('star', 'fill')).toBe(`${base}/star/fill1/48px.svg`);
+    expect(svgUrl('home', 'pin')).toBe(`${base}/home/wght500fill1/48px.svg`);
   });
 });
 

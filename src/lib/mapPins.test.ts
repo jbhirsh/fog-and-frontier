@@ -51,7 +51,7 @@ describe('glyphPin', () => {
 
   it('nudges a glyph whose ink sits off the middle back to it', () => {
     expect(glyphPin('#0ea5e9', { icon: 'restaurant' }).options.html).toContain(
-      'transform:translate(0em,0.06em);',
+      'transform:translate(-0.003em,0.064em);',
     );
     expect(glyphPin('#0ea5e9', { icon: 'explore' }).options.html).not.toContain('transform');
   });
