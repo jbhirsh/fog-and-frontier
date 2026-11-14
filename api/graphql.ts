@@ -124,6 +124,15 @@ async function graphqlMiddleware(): Promise<RequestHandler> {
   return middleware;
 }
 
+// body-parser's errors (express.json()) say whether they're the client's: a
+// 4xx `status` with `expose` set, its message safe to send back.
+function clientError(err: unknown): { status: number; message: string } | null {
+  if (!(err instanceof Error)) return null;
+  const { status, expose } = err as Error & { status?: unknown; expose?: unknown };
+  if (expose !== true || typeof status !== 'number' || status < 400 || status > 499) return null;
+  return { status, message: err.message };
+}
+
 const app = express();
 app.use(cors());
 
@@ -147,8 +156,16 @@ app.use('/api/graphql', (req: Request, res: Response, next: NextFunction) => {
 // Express error-middleware. Lives here (rather than wrapping the handler in the
 // REST-era withErrorLogging) so the export stays the bare app with `.listen`,
 // which is what makes Vercel skip its body parser. Catches anything thrown
-// outside Apollo's GraphQL pipeline.
+// outside Apollo's GraphQL pipeline. A client's mistake that express.json()
+// refuses (a body that isn't JSON, or is too large) carries its own 4xx and a
+// message meant for the client: it's answered with those, and not logged as
+// the server's fault.
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  const client = clientError(err);
+  if (client && !res.headersSent) {
+    res.status(client.status).json({ errors: [{ message: client.message }] });
+    return;
+  }
   logServerError(err, { route: '/api/graphql', method: req.method, status: 500 });
   // If the response already started, we can't write a clean body — hand off to
   // Express's default error handler (which closes the connection).

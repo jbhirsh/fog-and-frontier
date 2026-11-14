@@ -139,6 +139,27 @@ function postTo(
   });
 }
 
+// A raw POST to /api/graphql, its status and body: for a body post() can't
+// write, one that isn't JSON.
+function send(body: string): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      url,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk: Buffer) => (data += chunk.toString()));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));
+      },
+    );
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
 // A GET to a sign-in route (/api/auth/*), its status and body. The path goes
 // out as written (no URL parsing here, which would turn a `\` into a `/`).
 function get(path: string): Promise<{ status: number; body: string }> {
@@ -195,6 +216,61 @@ describe('api/graphql.ts express app (real wiring)', () => {
       now.mockRestore();
       consoleError.mockRestore();
       await new Promise((resolve) => fresh.server.close(resolve));
+    }
+  });
+
+  it('answers a body that isn’t JSON with a 400 it doesn’t log', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const r = await send('{not json');
+      expect(r.status).toBe(400);
+      expect(JSON.parse(r.body)).toEqual({
+        errors: [{ message: expect.stringContaining('JSON') as unknown }],
+      });
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  // Only a 4xx the error marks as the client's (body-parser's `expose`) is
+  // answered as itself; anything else is the server's: logged, a bare 500.
+  it.each([
+    [{ status: 400, expose: true }, 400],
+    [{ status: 499, expose: true }, 499],
+    [{ status: 399, expose: true }, 500],
+    [{ status: 500, expose: true }, 500],
+    [{ status: 413, expose: false }, 500],
+    [{ status: '400', expose: true }, 500],
+  ])('answers an error marked %o with %i', async (fields, expected) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(toNodeHandler).mockImplementationOnce(
+      () => () => Promise.reject(Object.assign(new Error('client said no'), fields)),
+    );
+    try {
+      const r = await get('/api/auth/ok');
+      expect(r.status).toBe(expected);
+      expect(JSON.parse(r.body)).toEqual({
+        errors: [{ message: expected === 500 ? 'internal server error' : 'client said no' }],
+      });
+      expect(consoleError).toHaveBeenCalledTimes(expected === 500 ? 1 : 0);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it('treats a thrown non-Error as the server’s', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(toNodeHandler).mockImplementationOnce(() => () => {
+      // A plain object shaped like a client error: not an Error, so not one.
+      throw JSON.parse('{"status":400,"expose":true,"message":"x"}') as unknown;
+    });
+    try {
+      const r = await get('/api/auth/ok');
+      expect(r.status).toBe(500);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleError.mockRestore();
     }
   });
 
