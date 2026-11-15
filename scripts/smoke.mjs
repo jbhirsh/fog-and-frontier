@@ -8,12 +8,12 @@
  * Exit codes:
  *   0 — all checks passed
  *   1 — regression: build looks real (CSS link present) but some check failed
- *   2 — not-yet-built: the preview Vercel served has no built CSS link AND the
+ *   2 — no-build stub: the preview Vercel served has no built CSS link AND the
  *       GraphQL API 404s (typical "Builds: [0ms]" cached/no-build preview).
  *   3 — usage error
  *
- * Designed to be re-runnable from a polling loop in CI: when exit=2, the workflow
- * keeps waiting; when exit=1, it fails fast.
+ * CI (smoke.yml) runs it once Vercel reports the deployment ready, and fails on
+ * any non-zero exit, saying what an exit 2 means and what to do about it.
  *
  * Single-function migration (#91): every REST endpoint now lives behind one
  * GraphQL function at /api/graphql. The read-only canary POSTs
@@ -76,7 +76,7 @@ export async function main(argv, { env = process.env, fetch = globalThis.fetch }
   let hadFailure = false;
 
   // Build-presence signals. We use these to decide between "regression" and
-  // "not yet built" when something fails. A no-build cached preview returns
+  // "a no-build stub" when something fails. A no-build cached preview returns
   // HTML without a hashed /assets/*.css link and 404s the GraphQL route.
   const signals = {
     cssLinkPresent: false,
@@ -298,7 +298,7 @@ export async function main(argv, { env = process.env, fetch = globalThis.fetch }
     return EXIT_OK;
   }
 
-  // Decide between regression and not-yet-built. Vercel's no-build cached
+  // Decide between regression and a no-build stub. Vercel's no-build cached
   // preview signature: HTML served (so we got past GET /) but no hashed CSS
   // link AND the GraphQL route 404s. If we see that combination, tell the
   // caller this is a stub, not a regression.
@@ -309,7 +309,7 @@ export async function main(argv, { env = process.env, fetch = globalThis.fetch }
     console.log(
       '\n[SMOKE_UNBUILT] preview looks like a Vercel no-build cached stub ' +
         '(no /assets/*.css link in HTML AND /api/graphql 404). ' +
-        'Not treating as a regression yet — caller should retry or escalate.',
+        'Not a regression in the code: the deploy itself needs redoing.',
     );
     return EXIT_NOT_BUILT;
   }
