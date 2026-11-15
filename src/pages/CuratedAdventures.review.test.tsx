@@ -84,6 +84,8 @@ function renderAt(path: string) {
           request: { query: PENDING_SUGGESTIONS },
           result: pendingAnswer,
           maxUsageCount: Number.POSITIVE_INFINITY,
+          // MockLink's default 20-50 ms would answer after a test's one-turn yield.
+          delay: 0,
         },
       ],
     },
@@ -224,7 +226,7 @@ describe('Curated Adventures — the review count (#259)', () => {
       waiting = [];
       renderAt('/');
       await waitFor(() => expect(pendingAnswer).toHaveBeenCalled());
-      await new Promise((r) => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 0));
       expect(screen.queryByRole('button', { name: /^Review/ })).not.toBeInTheDocument();
     });
   });
@@ -233,7 +235,7 @@ describe('Curated Adventures — the review count (#259)', () => {
     stubViewport(true);
     renderAt('/?view=map');
     await screen.findByRole('button', { name: /Suggest activity/ });
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByRole('button', { name: /^Review/ })).not.toBeInTheDocument();
     expect(pendingAnswer).not.toHaveBeenCalled();
   });

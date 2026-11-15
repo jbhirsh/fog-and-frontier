@@ -285,7 +285,7 @@ describe('userCompleted', () => {
     await waitFor(() => expect(result.current.overrides).toEqual(expected));
     // ...and stays there once everything in flight has settled.
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 0));
     });
     expect(result.current.overrides).toEqual(expected);
     expect(result.current.item.completed).toBe(true);

@@ -204,7 +204,7 @@ describe('SharePage — no link yet', () => {
       "That isn't a link to an Instagram post or reel",
     );
     expect(screen.queryByRole('link', { name: 'Open on Instagram' })).not.toBeInTheDocument();
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(found.fn).not.toHaveBeenCalled();
   });
 
@@ -244,7 +244,7 @@ describe('SharePage — signed out', () => {
     expect(screen.getByRole('link', { name: 'Open on Instagram' })).toHaveAttribute('href', REEL);
     // No sign-in in this build, so no sign-in button here.
     expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument();
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(found.fn).not.toHaveBeenCalled();
   });
 
@@ -259,7 +259,7 @@ describe('SharePage — signed out', () => {
     Object.assign(ownerState, { isLoaded: false, email: null });
     found.fn.mockResolvedValue(answer());
     const view = renderAt(shareUrl());
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(found.fn).not.toHaveBeenCalled();
     Object.assign(ownerState, { isLoaded: true, email: 'owner@example.com' });
     view.rerender(
@@ -295,7 +295,7 @@ describe('SharePage — signed out', () => {
   it('waits for sign-in to load before reading', async () => {
     Object.assign(ownerState, { isLoaded: false, email: null });
     renderAt(shareUrl());
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(found.fn).not.toHaveBeenCalled();
     expect(
       screen.queryByRole('heading', { name: 'Sign in to add places' }),
@@ -362,7 +362,7 @@ describe('SharePage — the places in a post', () => {
     found.fn.mockResolvedValue(answer());
     renderAt(shareUrl());
     expect(await screen.findByText('The catalog')).toBeInTheDocument();
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(found.fn).not.toHaveBeenCalled();
   });
 
@@ -496,7 +496,7 @@ describe('SharePage — another share', () => {
     expect(found.fn).toHaveBeenLastCalledWith(OTHER, '');
     // The first post's answer, arriving late, changes nothing.
     answerFirst(answer());
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(screen.getByRole('heading', { name: '1 place in this post' })).toBeInTheDocument();
     expect(screen.getByText('Post · @sfflowers')).toBeInTheDocument();
     expect(screen.queryByText('Carson Falls')).not.toBeInTheDocument();
@@ -555,7 +555,7 @@ describe('SharePage — when reading fails', () => {
     found.fn.mockResolvedValue(answer());
     renderAt(shareUrl());
     await waitFor(() => expect(found.fn).toHaveBeenCalledTimes(1));
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(found.fn).toHaveBeenCalledTimes(1);
   });
 });
