@@ -57,7 +57,7 @@ describe('PeopleProvider', () => {
         </AuthCtx.Provider>
       </MockedProvider>,
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 0));
     expect(screen.getByText('Tarunkhubchandani / Jess Hirsh')).toBeInTheDocument();
   });
 

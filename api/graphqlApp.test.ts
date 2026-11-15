@@ -437,20 +437,24 @@ describe('api/graphql.ts express app (real wiring)', () => {
   });
 
   it('times a signed-in request’s parts within the request', async () => {
-    vi.mocked(buildContext).mockImplementationOnce(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 25));
-      return { caller: { email: 'owner@example.com', role: 'owner' } };
+    // The sign-in check takes 25 ms of the clock, moved on rather than waited out.
+    const realNow = performance.now.bind(performance);
+    let skipped = 0;
+    const now = vi.spyOn(performance, 'now').mockImplementation(() => realNow() + skipped);
+    vi.mocked(buildContext).mockImplementationOnce(() => {
+      skipped += 25;
+      return Promise.resolve({ caller: { email: 'owner@example.com', role: 'owner' } });
     });
     const t0 = performance.now();
-    const r = await post('{ trips { id } }');
-    const elapsed = performance.now() - t0;
+    const r = await post('{ trips { id } }').finally(() => now.mockRestore());
+    const elapsed = realNow() + skipped - t0;
     // The caller reached the resolvers: a signed-in caller's (empty) list.
     expect(r.json).toEqual({ data: { trips: [] } });
     const durs = Object.fromEntries(
       [...String(r.serverTiming).matchAll(/(\w+);dur=([\d.]+)/g)].map((m) => [m[1], Number(m[2])]),
     );
     expect(Object.keys(durs)).toEqual(['schema', 'auth', 'exec']);
-    expect(durs.auth).toBeGreaterThanOrEqual(20);
+    expect(durs.auth).toBeGreaterThanOrEqual(25);
     for (const dur of Object.values(durs)) expect(dur).toBeLessThanOrEqual(elapsed);
   });
 

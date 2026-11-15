@@ -34,7 +34,7 @@ describe('mapPool', () => {
     const out = await mapPool(['a', 'b', 'c'], 0, async (s, i) => {
       running++;
       most = Math.max(most, running);
-      await new Promise((r) => setTimeout(r, 1));
+      await new Promise((r) => setTimeout(r, 0));
       running--;
       return `${s}${i}`;
     });
@@ -56,7 +56,7 @@ describe('mapPool', () => {
     await mapPool([1, 2], 8, async () => {
       running++;
       most = Math.max(most, running);
-      await new Promise((r) => setTimeout(r, 1));
+      await new Promise((r) => setTimeout(r, 0));
       running--;
     });
     expect(most).toBe(2);

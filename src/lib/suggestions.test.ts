@@ -190,7 +190,8 @@ describe('usePendingSuggestions (#73)', () => {
   const answer = vi.fn(() => ({ data: { pendingSuggestions: [ROW] } }));
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(MockedProvider, {
-      mocks: [{ request: { query: PENDING_SUGGESTIONS }, result: answer }],
+      // delay 0: MockLink's default 20-50 ms would answer after the test's one-turn yield.
+      mocks: [{ request: { query: PENDING_SUGGESTIONS }, result: answer, delay: 0 }],
       children,
     });
 
@@ -203,7 +204,7 @@ describe('usePendingSuggestions (#73)', () => {
   it('asks for nothing, and has nothing, for anyone else', async () => {
     answer.mockClear();
     const { result } = renderHook(() => usePendingSuggestions(false), { wrapper });
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
     expect(answer).not.toHaveBeenCalled();
     expect(result.current).toEqual([]);
   });

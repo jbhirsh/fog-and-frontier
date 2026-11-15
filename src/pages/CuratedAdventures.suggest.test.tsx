@@ -58,6 +58,8 @@ const PENDING = {
   request: { query: PENDING_SUGGESTIONS },
   result: pendingAnswer,
   maxUsageCount: Number.POSITIVE_INFINITY,
+  // MockLink's default 20-50 ms would answer after a test's one-turn yield.
+  delay: 0,
 };
 
 function renderAs(auth: AuthState) {
@@ -118,7 +120,7 @@ describe('Curated Adventures — the review queue (#73)', () => {
     pendingAnswer.mockClear();
     renderAs(SIGNED_IN);
     await screen.findByRole('button', { name: /Suggest activity/ });
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByRole('region', { name: /Waiting for review/ })).not.toBeInTheDocument();
     expect(pendingAnswer).not.toHaveBeenCalled();
   });

@@ -55,7 +55,7 @@ describe('catalog reads', () => {
     const later = renderHook(() => useUserActivities(), { wrapper });
     expect(later.result.current.activities.map((a) => a.id)).toEqual([muirWoods.id]);
     expect(later.result.current.loading).toBe(false);
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
     expect(ops.filter((op) => op === 'Activities')).toHaveLength(1);
   });
 
@@ -66,7 +66,7 @@ describe('catalog reads', () => {
 
     const later = renderHook(() => useOverrides(), { wrapper });
     expect(later.result.current).toEqual({ [muirWoods.id]: true });
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
     expect(ops.filter((op) => op === 'Completed')).toHaveLength(1);
   });
 });

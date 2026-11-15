@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '../test/render';
+import { act, fireEvent, render, screen, waitFor } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import type { Activity } from '../data/types';
@@ -1384,9 +1384,16 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     ]);
     await byHand();
     await choose();
-    // Renaming with no pin asks nothing.
-    await userEvent.type(screen.getByLabelText('Name'), ' Park');
-    await new Promise((r) => setTimeout(r, 450));
+    // Renaming with no pin asks nothing: no look-alike check is even pending
+    // once every timer the rename left has run.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const name = screen.getByLabelText<HTMLInputElement>('Name');
+      fireEvent.change(name, { target: { value: `${name.value} Park` } });
+      await act(() => vi.runOnlyPendingTimersAsync());
+    } finally {
+      vi.useRealTimers();
+    }
     expect(dupSpy).not.toHaveBeenCalled();
     dropPin(37.23, -122.1);
     await waitFor(() => expect(dupSpy).toHaveBeenCalledTimes(1), { timeout: 1000 });
@@ -1623,7 +1630,8 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
     render(<AddActivity onClose={() => {}} seed={{ title: '', notes: seed.notes }} />);
     expect(screen.getByLabelText('Title')).toHaveValue('');
     expect(screen.getByLabelText('Notes / links (optional)')).toHaveValue(seed.notes);
-    await act(() => new Promise((r) => setTimeout(r, 10)));
+    // A turn: the draft would start on one (setTimeout 0).
+    await act(() => new Promise((r) => setTimeout(r, 0)));
     expect(generateSpy).not.toHaveBeenCalled();
   });
 
