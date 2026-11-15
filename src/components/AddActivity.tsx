@@ -146,7 +146,8 @@ function slugify(name: string): string {
     name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      // The runs are one dash each by now.
+      .replace(/^-|-$/g, '')
       .slice(0, 48) || `activity-${Math.random().toString(36).slice(2, 8)}`
   );
 }
@@ -778,21 +779,9 @@ function ReviewStep({
   function patch<K extends keyof Activity>(key: K, value: Activity[K]) {
     onChange({ ...draft, [key]: value });
   }
-  function patchLoc(field: 'city' | 'lat' | 'lng', value: string | number) {
-    if (field === 'city') {
-      onChange({
-        ...draft,
-        location: { ...draft.location, city: String(value) },
-      });
-    } else {
-      onChange({
-        ...draft,
-        location: {
-          ...draft.location,
-          coords: { ...draft.location.coords, [field]: Number(value) },
-        },
-      });
-    }
+  // The pin's coordinates are the map's (LocationPicker); only the city is typed.
+  function patchCity(city: string) {
+    onChange({ ...draft, location: { ...draft.location, city } });
   }
 
   return (
@@ -975,7 +964,7 @@ function ReviewStep({
           <input
             type="text"
             value={draft.location.city}
-            onChange={(e) => patchLoc('city', e.target.value)}
+            onChange={(e) => patchCity(e.target.value)}
             className={inputCls}
           />
         </Field>

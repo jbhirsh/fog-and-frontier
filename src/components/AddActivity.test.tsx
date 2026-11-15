@@ -3,33 +3,82 @@ import { act, fireEvent, render, screen, waitFor } from '../test/render';
 import userEvent from '@testing-library/user-event';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import type { Activity } from '../data/types';
+import { deferred } from '../test/deferred';
 
 // react-leaflet imports browser-only Leaflet code that doesn't render under
 // jsdom. Stub the bits the LocationPicker uses with inert React nodes so the
-// review step can mount without booting a real map. Its click handler is
-// kept, so a test can tap the map to drop a pin.
+// review step can mount without booting a real map. The map's click handler
+// and the pin's dragend are kept, so a test can tap the map or drag the pin;
+// the map shows where it was opened, and the pin where it is and its icon.
 const mapEvents = vi.hoisted(() => ({
   click: undefined as undefined | ((e: { latlng: { lat: number; lng: number } }) => void),
+  dragend: undefined as undefined | (() => void),
 }));
-vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="map-container">{children}</div>
-  ),
-  TileLayer: () => null,
-  Marker: () => null,
-  useMap: () => ({
-    getCenter: () => ({ lat: 0, lng: 0 }),
-    setView: () => undefined,
-    getZoom: () => 11,
-  }),
-  useMapEvents: (handlers: typeof mapEvents) => {
-    mapEvents.click = handlers.click;
-    return undefined;
-  },
+// The one map the picker is handed: where it looks (as if panned there), its
+// zoom, each setView, and where the next drag of the pin ends.
+const mapView = vi.hoisted(() => ({
+  center: { lat: 0, lng: 0 },
+  zoom: 11,
+  setView: vi.fn(),
+  dragTo: { lat: 0, lng: 0 },
 }));
+vi.mock('react-leaflet', async () => {
+  const { useImperativeHandle } = await import('react');
+  const map = {
+    getCenter: () => mapView.center,
+    setView: mapView.setView,
+    getZoom: () => mapView.zoom,
+  };
+  return {
+    MapContainer: ({
+      children,
+      center,
+      zoom,
+      style,
+    }: {
+      children?: React.ReactNode;
+      center: [number, number];
+      zoom: number;
+      style?: React.CSSProperties;
+    }) => (
+      <div data-testid="map-container" data-center={center.join()} data-zoom={zoom} style={style}>
+        {children}
+      </div>
+    ),
+    TileLayer: () => null,
+    Marker: ({
+      ref,
+      position,
+      icon,
+      eventHandlers,
+    }: {
+      ref?: React.Ref<unknown>;
+      position: [number, number];
+      icon: { iconSize?: number[]; iconAnchor?: number[] };
+      eventHandlers?: { dragend?: () => void };
+    }) => {
+      useImperativeHandle(ref, () => ({ getLatLng: () => mapView.dragTo }));
+      mapEvents.dragend = eventHandlers?.dragend;
+      return (
+        <div
+          data-testid="map-pin"
+          data-position={position.join()}
+          data-icon-size={icon.iconSize?.join()}
+          data-icon-anchor={icon.iconAnchor?.join()}
+        />
+      );
+    },
+    useMap: () => map,
+    useMapEvents: (handlers: typeof mapEvents) => {
+      mapEvents.click = handlers.click;
+      return undefined;
+    },
+  };
+});
 
+// An icon is the options it was made with.
 vi.mock('leaflet', () => ({
-  divIcon: () => ({}),
+  divIcon: (options: object) => options,
 }));
 
 const ownerState = vi.hoisted(() => ({ isOwner: true }));
@@ -107,7 +156,35 @@ const baseActivity: Activity = {
   allTrailsRating: 4.5,
 };
 
+// Taps the map, as a friend dropping a pin would.
+function dropPin(lat: number, lng: number) {
+  act(() => mapEvents.click?.({ latlng: { lat, lng } }));
+}
+
+// Makes a change to the review, then lets every timer it left run, as the
+// look-alike re-check's wait.
+async function afterTimers(change: () => void) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    change();
+    await act(() => vi.runOnlyPendingTimersAsync());
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
+// Lets a held answer come back, and what waited on it run.
+async function settle<T>(held: ReturnType<typeof deferred<T>>, value: T) {
+  await act(async () => {
+    held.resolve(value);
+    await held.promise;
+  });
+}
+
 beforeEach(() => {
+  mapView.center = { lat: 0, lng: 0 };
+  mapView.zoom = 11;
+  mapView.setView.mockClear();
   ownerState.isOwner = true;
   saveSpy.mockClear();
   lookupSpy.mockReset();
@@ -128,6 +205,11 @@ describe('AddActivity — edit mode', () => {
     render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
     expect(screen.getByRole('heading', { name: 'Edit activity' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Generate/ })).not.toBeInTheDocument();
+    // Nothing searched or checked: no other trails, no look-alike.
+    expect(
+      screen.queryByRole('button', { name: /Not the right trail|Pick from/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('seeds the editable fields from the activity', () => {
@@ -137,6 +219,7 @@ describe('AddActivity — edit mode', () => {
     expect(screen.getByLabelText('Long description')).toHaveValue('Original long description.');
     expect(screen.getByLabelText('Cover image URL')).toHaveValue('https://example.com/orig.jpg');
     expect(screen.getByLabelText('Category')).toHaveValue('hiking');
+    expect(screen.getByLabelText('Difficulty')).toHaveValue('moderate');
     expect(screen.getByLabelText('City')).toHaveValue('Mill Valley, CA');
     expect(screen.getByLabelText('AllTrails URL')).toHaveValue(
       'https://www.alltrails.com/trail/test',
@@ -248,6 +331,18 @@ describe('AddActivity — edit mode', () => {
     });
   });
 
+  it('doesn’t look a saved link up again for a stray space around it', async () => {
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{ ...baseActivity, allTrailsUrl: `${baseActivity.allTrailsUrl} ` }}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect(lookupSpy).not.toHaveBeenCalled();
+  });
+
   it('refreshes rating / distance / elevation from AllTrails when the URL changes', async () => {
     lookupSpy.mockResolvedValue({
       allTrailsRating: 4.9,
@@ -282,6 +377,7 @@ describe('AddActivity — edit mode', () => {
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
     expect(lookupSpy).not.toHaveBeenCalled();
     const saved = (saveSpy.mock.calls[0] as [Activity, string | null])[0];
+    expect(saved).toMatchObject({ id: baseActivity.id, name: baseActivity.name });
     expect(saved.allTrailsUrl).toBeUndefined();
     expect(saved.allTrailsRating).toBeUndefined();
     expect(saved.hikeDistanceMiles).toBeUndefined();
@@ -511,8 +607,53 @@ describe('AddActivity — a trail’s numbers from its search (#6)', () => {
     expect(lookupSpy).toHaveBeenCalledWith(`${T}somewhere-else`);
   });
 
+  it('takes the drafted trail’s numbers, wherever the search listed it', async () => {
+    const BEAR = { ...OTHER, url: `${T}bear-valley`, rating: 4.6, miles: 13.4, feet: 2034 };
+    await draft({ ...generated, allTrailsOptions: [BEAR, PICK] });
+    expect(await saved()).toMatchObject({
+      allTrailsUrl: PICK.url,
+      allTrailsRating: 4.7,
+      hikeDistanceMiles: 8.4,
+      hikeElevationFeet: 1640,
+    });
+    expect(lookupSpy).not.toHaveBeenCalled();
+  });
+
+  it('looks them up when the pick’s page gave no rating', async () => {
+    await draft({ ...generated, allTrailsOptions: [{ ...PICK, rating: undefined }] });
+    expect(await saved()).toMatchObject({ allTrailsRating: 4.1 });
+    expect(lookupSpy).toHaveBeenCalledWith(PICK.url);
+  });
+
+  it.each(['rating', 'miles', 'feet'] as const)(
+    'looks up a trail chosen without its %s',
+    async (missing) => {
+      const BEAR = {
+        ...OTHER,
+        url: `${T}bear-valley`,
+        title: 'Bear Valley',
+        rating: 4.6,
+        miles: 13.4,
+        feet: 2034,
+        [missing]: undefined,
+      };
+      await draft({ ...generated, allTrailsOptions: [PICK, BEAR] });
+      await userEvent.click(screen.getByRole('button', { name: /Not the right trail/ }));
+      await userEvent.click(screen.getByText('Bear Valley'));
+      expect(await saved()).toMatchObject({ allTrailsUrl: BEAR.url, hikeDistanceMiles: 7 });
+      expect(lookupSpy).toHaveBeenCalledWith(BEAR.url);
+    },
+  );
+
+  it('looks up and saves a drafted link without the spaces around it', async () => {
+    await draft({ ...generated, allTrailsUrl: ` ${PICK.url} ` });
+    expect(await saved()).toMatchObject({ allTrailsUrl: PICK.url, hikeDistanceMiles: 7 });
+    expect(lookupSpy).toHaveBeenCalledWith(PICK.url);
+  });
+
   it('looks up as before when there was no search', async () => {
     await draft(generated);
+    expect(screen.queryByRole('button', { name: /Not the right trail/ })).not.toBeInTheDocument();
     expect(await saved()).toMatchObject({ hikeDistanceMiles: 7, hikeElevationFeet: 900 });
     expect(lookupSpy).toHaveBeenCalledWith(PICK.url);
   });
@@ -645,6 +786,30 @@ describe('AddActivity — contributors (#9)', () => {
     expect((await saved()).contributors).toBeUndefined();
   });
 
+  it('credits only whoever is picked on an uncredited activity', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    const picker = await screen.findByRole('combobox', { name: 'Add contributor' });
+    await userEvent.selectOptions(picker, 'tarun@example.com');
+    expect((await saved()).contributors).toEqual(['tarun@example.com']);
+  });
+
+  it('drops accounts that arrive after the review that asked for them has gone', async () => {
+    const late = deferred<{ email: string; display_name: null }[]>();
+    usersSpy.mockReturnValueOnce(late.promise);
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    const picker = await screen.findByRole('combobox', { name: 'Add contributor' });
+    await settle(late, [{ email: 'zed@example.com', display_name: null }]);
+    expect([...picker.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      '+ Add contributor',
+      'Tarun',
+    ]);
+  });
+
   it('still saves when the accounts cannot be loaded', async () => {
     usersSpy.mockRejectedValue(new Error('offline'));
     render(
@@ -771,6 +936,37 @@ describe('AddActivity — card copy (#295)', () => {
     await userEvent.type(screen.getByLabelText('Card line'), 'Ridge loop with bay views.');
     await save();
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+  });
+
+  it('counts a card line of only spaces as none', async () => {
+    await draft({ ...generated, cardLine: undefined });
+    await userEvent.type(screen.getByLabelText('Card line'), '   ');
+    await save();
+    expect(screen.getByText('Add a card line before saving.')).toHaveClass('text-error');
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('shows it saving, with the earlier problem gone, then closes', async () => {
+    const saving = deferred<string>();
+    saveSpy.mockReturnValueOnce(saving.promise);
+    generateSpy.mockResolvedValue({ ...generated, cardLine: undefined });
+    const onClose = vi.fn();
+    // No onSaved: closing is all there is to do.
+    render(<AddActivity onClose={onClose} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await save();
+    expect(screen.getByText('Add a card line before saving.')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Card line'), 'Ridge loop with bay views.');
+    await save();
+    const busy = await screen.findByRole('button', { name: 'Saving' });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled();
+    expect(screen.queryByText('Add a card line before saving.')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    await settle(saving, 'castle-rock');
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('won’t save a card line or a card name past its cap', async () => {
@@ -971,6 +1167,8 @@ describe('AddActivity — duplicates (#17)', () => {
   it('saves when the check itself fails (the server still refuses a real duplicate)', async () => {
     dupSpy.mockRejectedValue(new Error('offline'));
     await review();
+    // Unanswered isn't a match.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     await userEvent.click(saveButton());
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
   });
@@ -996,6 +1194,92 @@ describe('AddActivity — duplicates (#17)', () => {
       'This looks like a duplicate of Castle Rock',
     );
     expect(screen.getByText('looks like a duplicate of Castle Rock')).toBeInTheDocument();
+  });
+
+  it('re-checks when the pin moves either way, not when only something else changes', async () => {
+    await review();
+    await waitFor(() => expect(dupSpy).toHaveBeenCalledTimes(1));
+    await afterTimers(() =>
+      fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Saratoga' } }),
+    );
+    expect(dupSpy).toHaveBeenCalledTimes(1);
+    await afterTimers(() => dropPin(37.3, -122.1));
+    expect(dupSpy).toHaveBeenCalledTimes(2);
+    await afterTimers(() => dropPin(37.3, -122.2));
+    expect(dupSpy).toHaveBeenCalledTimes(3);
+    expect(dupSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        location: { city: 'Saratoga', coords: { lat: 37.3, lng: -122.2 } },
+      }),
+    );
+  });
+
+  it('keeps the newest answer when an older one comes back late', async () => {
+    const first = deferred<ReturnType<typeof match>[]>();
+    dupSpy.mockReturnValueOnce(first.promise).mockResolvedValue([]);
+    await review();
+    await afterTimers(() =>
+      fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Castle Rock Trailhead' },
+      }),
+    );
+    expect(dupSpy).toHaveBeenCalledTimes(2);
+    await settle(first, [match('high')]);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('forgets an answer still on its way once it goes Back', async () => {
+    const first = deferred<ReturnType<typeof match>[]>();
+    const second = deferred<ReturnType<typeof match>[]>();
+    dupSpy.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    await review();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: /Save activity/ });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await settle(first, [match('high')]);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await settle(second, [match('possible')]);
+    expect(screen.getByRole('status')).toHaveTextContent('You may already have Castle Rock');
+  });
+
+  it('drops a re-check still waiting when it goes Back', async () => {
+    await review();
+    await waitFor(() => expect(dupSpy).toHaveBeenCalledTimes(1));
+    await afterTimers(() => {
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Castle Rock Park' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    });
+    expect(dupSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a re-check still waiting when the dialog closes', async () => {
+    generateSpy.mockResolvedValue(generated);
+    const { unmount } = render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await waitFor(() => expect(dupSpy).toHaveBeenCalledTimes(1));
+    await afterTimers(() => {
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Castle Rock Park' } });
+      unmount();
+    });
+    expect(dupSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks again after a failed save only when the server found a look-alike', async () => {
+    saveSpy.mockRejectedValueOnce(new Error('Server down'));
+    await review();
+    await userEvent.click(saveButton());
+    expect(await screen.findByText('Server down')).toHaveClass('text-error');
+    expect(dupSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('checks nothing while an edit is renamed', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    await afterTimers(() =>
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed' } }),
+    );
+    expect(dupSpy).not.toHaveBeenCalled();
   });
 
   it('drops the warning on going back to the form', async () => {
@@ -1195,10 +1479,6 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Fill them in yourself' }));
   }
 
-  function dropPin(lat: number, lng: number) {
-    act(() => mapEvents.click?.({ latlng: { lat, lng } }));
-  }
-
   it("is offered to a friend from the start, but not in the owners' Add", () => {
     openSuggest();
     expect(screen.getByText(/or you can fill it in yourself/)).toBeInTheDocument();
@@ -1228,11 +1508,44 @@ describe('AddActivity — a suggestion filled in by hand (#260)', () => {
     expect(generateSpy).not.toHaveBeenCalled();
     // No pin yet, so nothing to compare with the catalog.
     expect(dupSpy).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('leaves out notes that are only blank', async () => {
     await byHand('Castle Rock', '   ');
     expect(screen.getByLabelText('Notes')).toHaveValue('');
+  });
+
+  it('needs a title that isn’t only spaces, and stops asking once it has one', async () => {
+    await byHand('   ');
+    expect(screen.getByText('Title is required')).toHaveClass('text-error');
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: 'Fill them in yourself' }));
+    expect(screen.getByLabelText('Name')).toHaveValue('Castle Rock');
+    expect(screen.queryByText('Title is required')).not.toBeInTheDocument();
+  });
+
+  it('counts a name of only spaces as missing', async () => {
+    await byHand();
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: '   ' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(screen.getByText(/^Add a name, a short description/)).toBeInTheDocument();
+  });
+
+  it('says what’s still missing, not an earlier failure, once a field is emptied', async () => {
+    suggestSpy.mockRejectedValueOnce(new Error('Network down'));
+    await byHand();
+    await userEvent.type(screen.getByLabelText('Short description'), 'Ridgeline hike');
+    await userEvent.type(screen.getByLabelText('Card line'), 'A line that fits on a card.');
+    await userEvent.type(screen.getByLabelText('City'), 'Los Gatos');
+    await choose();
+    dropPin(37.23, -122.1);
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(await screen.findByText('Network down')).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText('City'));
+    await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
+    expect(screen.getByText('Add a city before sending.')).toBeInTheDocument();
+    expect(screen.queryByText('Network down')).not.toBeInTheDocument();
   });
 
   it('needs a title first, as Generate does', async () => {
@@ -1633,6 +1946,7 @@ describe('AddActivity — seeded from a shared post (#6)', () => {
     // A turn: the draft would start on one (setTimeout 0).
     await act(() => new Promise((r) => setTimeout(r, 0)));
     expect(generateSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText('Title is required')).not.toBeInTheDocument();
   });
 
   it('falls back to the form, seeded, when the draft fails', async () => {
@@ -1686,5 +2000,342 @@ describe('AddActivity — the park it’s part of (#269)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send suggestion' }));
     await waitFor(() => expect(suggestSpy).toHaveBeenCalledTimes(1));
     expect((suggestSpy.mock.calls[0] as [Activity])[0].parentId).toBeUndefined();
+  });
+});
+
+describe('AddActivity — drafting', () => {
+  const generated: GeneratedFields = {
+    name: 'Castle Rock',
+    shortDescription: 'Ridgeline hike',
+    cardLine: 'A line that fits on a card.',
+    category: 'hiking',
+    region: 'south-bay',
+    city: 'Los Gatos',
+    lat: 37.23,
+    lng: -122.1,
+    duration: 'Half Day',
+  };
+
+  async function saved() {
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    return (saveSpy.mock.calls[0] as [Activity])[0];
+  }
+
+  it('says what it’s researching until the draft comes, asking with the title and notes trimmed', async () => {
+    const answer = deferred<GeneratedFields>();
+    generateSpy.mockReturnValue(answer.promise);
+    render(<AddActivity onClose={() => {}} />);
+    expect(screen.queryByText(/Researching/)).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Title'), '  Castle Rock ');
+    await userEvent.type(screen.getByLabelText('Notes / links (optional)'), ' Bring water ');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(screen.getByText(/Researching/)).toHaveTextContent(/Researching\s+Castle Rock/);
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+    expect(generateSpy).toHaveBeenCalledWith('Castle Rock', 'Bring water');
+    await settle(answer, generated);
+    expect(screen.queryByText(/Researching/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Castle Rock');
+    // The review's own notes, for the activity.
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Go early' } });
+    expect((await saved()).notes).toBe('Go early');
+  });
+
+  it('needs a title that isn’t only spaces', async () => {
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), '   ');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(screen.getByText('Title is required')).toHaveClass('text-error');
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  it('drafts on submit without leaving the page', async () => {
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Castle Rock' } });
+    const form = screen.getByLabelText('Title').closest('form');
+    if (!form) throw new Error('no form');
+    // false: the submit was handled here, so the browser doesn't navigate.
+    expect(fireEvent.submit(form)).toBe(false);
+    await screen.findByRole('button', { name: /Save activity/ });
+  });
+
+  it('drafts again after a failure, leaving the failure behind', async () => {
+    generateSpy.mockRejectedValueOnce(new Error('Gemini is busy')).mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    expect(await screen.findByText('Gemini is busy')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: /Save activity/ });
+    expect(screen.queryByText('Gemini is busy')).not.toBeInTheDocument();
+  });
+
+  it('goes Back to the form with the title kept and the review gone', async () => {
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Back' }));
+    expect(screen.getByLabelText('Title')).toHaveValue('Castle Rock');
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Researching/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['  --Castle  Rock!! (Saratoga)--', 'castle-rock-saratoga'],
+    [
+      'Point Reyes National Seashore Lighthouse and Chimney Rock Walk',
+      'point-reyes-national-seashore-lighthouse-and-chi',
+    ],
+  ])('saves “%s” as %s', async (name, id) => {
+    generateSpy.mockResolvedValue({ ...generated, name });
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), 'Castle Rock');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: /Save activity/ });
+    expect((await saved()).id).toBe(id);
+  });
+
+  it('makes up an id for a name with nothing to make one from', async () => {
+    generateSpy.mockResolvedValue({ ...generated, name: '灯台' });
+    render(<AddActivity onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('Title'), '灯台');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByRole('button', { name: /Save activity/ });
+    expect((await saved()).id).toMatch(/^activity-[a-z0-9]+$/);
+  });
+
+  it('sends a suggestion under the drafted name’s id, not the title’s', async () => {
+    ownerState.isOwner = false;
+    generateSpy.mockResolvedValue(generated);
+    render(<AddActivity onClose={() => {}} suggest />);
+    await userEvent.type(screen.getByLabelText('Title'), 'castle');
+    await userEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Send suggestion' }));
+    await waitFor(() => expect(suggestSpy).toHaveBeenCalledTimes(1));
+    expect((suggestSpy.mock.calls[0] as [Activity])[0].id).toBe('castle-rock');
+  });
+});
+
+describe('AddActivity — opening and closing', () => {
+  it('closes on Escape through the onClose it has now, and not once it’s gone', async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender, unmount } = render(<AddActivity onClose={first} />);
+    rerender(<AddActivity onClose={second} />);
+    await userEvent.keyboard('{Escape}');
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+    unmount();
+    await userEvent.keyboard('{Escape}');
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('drafts nothing from a seed when closed before it starts', async () => {
+    const { unmount } = render(
+      <AddActivity onClose={() => {}} seed={{ title: 'Carson Falls', notes: '' }} />,
+    );
+    unmount();
+    // A turn: the draft would start on one (setTimeout 0).
+    await act(() => new Promise((r) => setTimeout(r, 0)));
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('AddActivity — the review’s fields', () => {
+  const PARK: Activity = { ...baseActivity, id: 'test-park', name: 'Test Seashore' };
+
+  async function saved() {
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    return (saveSpy.mock.calls[0] as [Activity])[0];
+  }
+
+  it('saves the rest of the fields as edited', async () => {
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{ ...baseActivity, durationDetail: '~1h drive', parkType: 'state' }}
+      />,
+      { activities: [PARK] },
+    );
+    expect(screen.getByLabelText('Duration detail')).toHaveValue('~1h drive');
+    expect(screen.getByLabelText('Park type (optional)')).toHaveValue('state');
+    expect(screen.getByText(/refreshed from AllTrails when the URL changes/)).toBeInTheDocument();
+    const change = (label: string, value: string) =>
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    change('Long description', 'A longer story.');
+    change('Duration detail', 'Two hours');
+    change('Difficulty', 'advanced');
+    change('Park type (optional)', 'national');
+    change('Part of (optional)', PARK.id);
+    expect(await saved()).toMatchObject({
+      longDescription: 'A longer story.',
+      durationDetail: 'Two hours',
+      difficulty: 'advanced',
+      parkType: 'national',
+      parentId: PARK.id,
+    });
+  });
+
+  it('shows the cover, and hides one that fails to load', () => {
+    render(<AddActivity onClose={() => {}} editActivity={baseActivity} />);
+    const cover = screen.getByRole('img', { name: 'Original Name' });
+    expect(cover).toHaveAttribute('src', baseActivity.coverImage);
+    fireEvent.error(cover);
+    expect(cover).toHaveStyle({ display: 'none' });
+  });
+
+  it('shows no cover without one', () => {
+    render(<AddActivity onClose={() => {}} editActivity={{ ...baseActivity, coverImage: '' }} />);
+    expect(screen.queryByRole('img', { name: 'Original Name' })).not.toBeInTheDocument();
+  });
+
+  it('asks for a restaurant’s details only for food, and saves them as edited', async () => {
+    render(
+      <AddActivity
+        onClose={() => {}}
+        editActivity={{
+          ...baseActivity,
+          category: 'food',
+          cuisine: 'Thai',
+          priceRange: '$$',
+          hours: 'Daily 5–10pm',
+          dietary: ['vegan', 'gluten-free'],
+          reservationUrl: 'https://resy.com/a',
+          menuUrl: 'https://example.com/menu',
+        }}
+      />,
+    );
+    expect(screen.getByText('RESTAURANT DETAILS')).toBeInTheDocument();
+    const field = (label: string) => screen.getByLabelText(label);
+    expect(field('Cuisine')).toHaveValue('Thai');
+    expect(field('Price range')).toHaveValue('$$');
+    expect(field('Hours')).toHaveValue('Daily 5–10pm');
+    expect(field('Dietary options (comma-separated)')).toHaveValue('vegan, gluten-free');
+    expect(field('Reservation URL')).toHaveValue('https://resy.com/a');
+    expect(field('Menu / website URL')).toHaveValue('https://example.com/menu');
+    expect(
+      [...screen.getByLabelText<HTMLSelectElement>('Price range').options].map(
+        (o) => o.textContent,
+      ),
+    ).toEqual(['—', '$', '$$', '$$$', '$$$$']);
+    const change = (label: string, value: string) =>
+      fireEvent.change(field(label), { target: { value } });
+    change('Cuisine', 'Lao');
+    change('Price range', '$$$');
+    change('Hours', 'Thu–Mon 11am–8pm');
+    change('Dietary options (comma-separated)', ' vegetarian , , halal ');
+    change('Reservation URL', 'https://resy.com/b');
+    change('Menu / website URL', 'https://example.com/menu2');
+    expect(await saved()).toMatchObject({
+      cuisine: 'Lao',
+      priceRange: '$$$',
+      hours: 'Thu–Mon 11am–8pm',
+      dietary: ['vegetarian', 'halal'],
+      reservationUrl: 'https://resy.com/b',
+      menuUrl: 'https://example.com/menu2',
+    });
+  });
+
+  it('keeps the restaurant’s details out of the way for anything else', async () => {
+    render(<AddActivity onClose={() => {}} editActivity={{ ...baseActivity, category: 'food' }} />);
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'hiking');
+    expect(screen.queryByText('RESTAURANT DETAILS')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Cuisine')).not.toBeInTheDocument();
+  });
+});
+
+describe('AddActivity — the pin’s map', () => {
+  const at = (lat: number, lng: number): Activity => ({
+    ...baseActivity,
+    location: { ...baseActivity.location, coords: { lat, lng } },
+  });
+  const open = (activity: Activity) =>
+    render(<AddActivity onClose={() => {}} editActivity={activity} />);
+
+  it('opens on the pin, drawn by its tip, in a map with room to show', () => {
+    open(at(37.5, -122.5));
+    const map = screen.getByTestId('map-container');
+    expect(map).toHaveAttribute('data-center', '37.5,-122.5');
+    expect(map).toHaveAttribute('data-zoom', '11');
+    expect(map).toHaveStyle({ height: '100%', width: '100%' });
+    expect(map.parentElement).toHaveStyle({ height: '280px' });
+    const pin = screen.getByTestId('map-pin');
+    expect(pin).toHaveAttribute('data-position', '37.5,-122.5');
+    expect(pin).toHaveAttribute('data-icon-size', '28,28');
+    expect(pin).toHaveAttribute('data-icon-anchor', '14,28');
+    expect(screen.getByText(/^37\.50000, -122\.50000 — drag the pin/)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['no latitude', NaN, -122.5],
+    ['no longitude', 37.5, NaN],
+    ['0, 0', 0, 0],
+  ])('opens on the Bay Area with no pin for coordinates of %s', (_, lat, lng) => {
+    mapView.center = { lat: 10, lng: 10 };
+    open(at(lat, lng));
+    const map = screen.getByTestId('map-container');
+    expect(map).toHaveAttribute('data-center', '37.2872,-121.95');
+    expect(map).toHaveAttribute('data-zoom', '8');
+    expect(screen.queryByTestId('map-pin')).not.toBeInTheDocument();
+    expect(screen.getByText('Tap the map to drop a pin.')).toBeInTheDocument();
+    expect(mapView.setView).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['on the equator', 0, 10.5],
+    ['on the meridian', 45.5, 0],
+  ])('draws a pin %s, and goes to it', (_, lat, lng) => {
+    open(at(lat, lng));
+    expect(screen.getByTestId('map-pin')).toHaveAttribute('data-position', `${lat},${lng}`);
+    expect(mapView.setView).toHaveBeenCalledWith([lat, lng], 11);
+  });
+
+  it('brings a pin outside the view into it, keeping a closer zoom', () => {
+    mapView.zoom = 14;
+    open(at(37.5, -122.5));
+    expect(mapView.setView).toHaveBeenCalledExactlyOnceWith([37.5, -122.5], 14);
+  });
+
+  it.each([
+    ['around it', { lat: 37.2, lng: -122.2 }, 0],
+    ['half a degree south of it', { lat: 37, lng: -122.5 }, 0],
+    ['half a degree east of it', { lat: 37.5, lng: -122 }, 0],
+    ['further south', { lat: 36.9, lng: -122.5 }, 1],
+    ['further east', { lat: 37.5, lng: -121.9 }, 1],
+  ])('with the view centred %s, moves it %i times to the pin', (_, center, times) => {
+    mapView.center = center;
+    open(at(37.5, -122.5));
+    expect(mapView.setView).toHaveBeenCalledTimes(times);
+  });
+
+  it('follows the pin as it moves, but not for a nudge under a millionth of a degree', () => {
+    // Panned well away from it.
+    mapView.center = { lat: 10, lng: 10 };
+    open(at(37.5, -122.5));
+    expect(mapView.setView).toHaveBeenCalledTimes(1);
+    dropPin(37.5 + 1e-7, -122.5 - 1e-7);
+    expect(mapView.setView).toHaveBeenCalledTimes(1);
+    dropPin(37.5 + 1e-7, -122.4);
+    expect(mapView.setView).toHaveBeenCalledTimes(2);
+    dropPin(37.6, -122.4 + 1e-7);
+    expect(mapView.setView).toHaveBeenCalledTimes(3);
+    expect(mapView.setView).toHaveBeenLastCalledWith([37.6, -122.4 + 1e-7], 11);
+  });
+
+  it('moves the pin where it’s dragged to, and saves it there', async () => {
+    open(baseActivity);
+    mapView.dragTo = { lat: 37.9, lng: -122.6 };
+    act(() => mapEvents.dragend?.());
+    expect(screen.getByText(/^37\.90000, -122\.60000 — drag the pin/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Save activity/ }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
+    expect((saveSpy.mock.calls[0] as [Activity])[0].location.coords).toEqual({
+      lat: 37.9,
+      lng: -122.6,
+    });
   });
 });
