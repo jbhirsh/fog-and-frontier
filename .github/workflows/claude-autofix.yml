@@ -16,8 +16,10 @@ on:
     # run on the head is still going, so the last to finish must wake it.
     # CI's "Autofix triggers" step (jbhirsh/ci's autofix/check-triggers)
     # fails a PR that leaves one out or names a workflow that doesn't exist.
-    workflows:
-      ["CI", "Claude Review", "Smoke gate", "Visual regression", "Mutation", "Gitleaks", "Semgrep"]
+    # Not "Smoke gate": it runs on deployment_status, not pull_request, and
+    # autofix acts only on pull_request runs, so a Dependabot PR's red smoke
+    # waits for a person until autofix reads deployment runs (jbhirsh/ci#63).
+    workflows: ["CI", "Claude Review", "Visual regression", "Mutation", "Gitleaks", "Semgrep"]
     types: [completed]
 
 concurrency:
