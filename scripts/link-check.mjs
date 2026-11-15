@@ -9,8 +9,9 @@
  *             that serves a page instead. Fix or remove these.
  *   review  — can't tell from a script: a bot block or challenge (any other
  *             4xx, a 202; every AllTrails page answers a script with 403), a
- *             server error, a timeout, a page that now redirects to the home
- *             page, or a host that kept refusing and wasn't probed further.
+ *             rate limit (429, not checked this run), a server error, a
+ *             timeout, a page that now redirects to the home page, or a host
+ *             that kept refusing and wasn't probed further.
  *             Check these in a browser before calling them dead.
  *
  * An Instagram post (an activity's source, #6) is judged by its embed page,
@@ -104,6 +105,9 @@ export function judge(link, outcome) {
   // Only these say the page is gone. Other 4xx are as often a firewall's
   // answer to a script as a real error.
   if (status === 404 || status === 410) return { verdict: 'dead', reason: `HTTP ${status}` };
+  // Not waited out and tried again (jbhirsh/ci#58): this run couldn't check it.
+  if (status === 429)
+    return { verdict: 'review', reason: 'HTTP 429 (rate limited: not checked this run)' };
   if ((status >= 400 && status < 500) || status === 999) {
     return {
       verdict: 'review',
@@ -135,25 +139,6 @@ export function judge(link, outcome) {
     return { verdict: 'review', reason: 'redirects to the home page' };
   }
   return { verdict: 'ok', reason: `HTTP ${status}` };
-}
-
-/**
- * How long to wait before retrying a 429, from its Retry-After header
- * (seconds or an HTTP date), capped. A missing or unreadable header gets the
- * fallback rather than an instant retry.
- */
-export function retryDelayMs(header, now = Date.now(), { fallback = 5000, cap = 30_000 } = {}) {
-  const value = header?.trim();
-  if (!value) return fallback;
-  // Seconds are digits; an HTTP date has a day and month name. Anything else
-  // (Date.parse reads "-5" as a year) is unreadable.
-  const ms = /^\d+$/.test(value)
-    ? Number(value) * 1000
-    : /[A-Za-z]/.test(value)
-      ? Date.parse(value) - now
-      : Number.NaN;
-  if (!Number.isFinite(ms)) return fallback;
-  return Math.min(Math.max(ms, 0), cap);
 }
 
 /** After this many refusals in a row (429s or timeouts), a host isn't probed further. */

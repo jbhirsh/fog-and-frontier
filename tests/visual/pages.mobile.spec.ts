@@ -11,6 +11,7 @@ import {
   assertNoHorizontalOverflow,
   stubGenerateActivity,
 } from './helpers';
+import { waitForMapTiles, waitForStill } from '../../scripts/page-waits.ts';
 
 // Mobile visual sweep on an iPhone 17 Pro (402x681 under Safari's bars). Each
 // snapshot targets a specific Phase B regression risk — filter wrapping, hero
@@ -51,7 +52,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('button', { name: /^Filters/ }).click();
     await page.getByRole('dialog', { name: 'Filters' }).waitFor();
     // Past the sheet's rise.
-    await page.waitForTimeout(400);
+    await waitForStill(page);
     await expect(page).toHaveScreenshot('curated-filter-sheet.png', { fullPage: false });
   });
 
@@ -73,12 +74,8 @@ test.describe('visual regression — mobile', () => {
   test('map page (full-screen map + list sheet at peek, #96)', async ({ page }) => {
     await page.goto('/map');
     await waitForVisualReady(page);
-    // Leaflet renders its tile layer asynchronously — wait for the container
-    // to mount (the new flex layout keeps it briefly "hidden" by Playwright's
-    // heuristic before layout settles, so wait for attached + give tiles a
-    // moment to fade in).
-    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
-    await page.waitForTimeout(400);
+    // Leaflet's tiles load and fade in after the page.
+    await waitForMapTiles(page);
     // Viewport, not fullPage: the mobile map is a position:fixed full-screen
     // backdrop with a fixed list sheet over it (#96), which fullPage
     // stitching renders unreliably. The viewport is exactly what the user sees.
@@ -98,8 +95,8 @@ test.describe('visual regression — mobile', () => {
     // Tap the grabber: peek → half. The pins under the sheet must not paint
     // through it (the map wrapper's `isolation: isolate`).
     await page.getByRole('button', { name: /Resize list/ }).click();
-    // Let the tiles settle.
-    await page.waitForTimeout(600);
+    // The map's tiles, behind the sheet.
+    await waitForMapTiles(page);
     await expect(page).toHaveScreenshot('map-sheet-half.png', {
       fullPage: false,
     });
@@ -114,8 +111,7 @@ test.describe('visual regression — mobile', () => {
   test.fixme('map popup', async ({ page }) => {
     await page.goto('/map');
     await waitForVisualReady(page);
-    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
-    await page.waitForTimeout(400);
+    await waitForMapTiles(page);
     // Marker order: 0 = HOME, 1+ = activities. Click the first activity marker
     // so the popup has a "View details" link that we want to verify tap-target
     // sizing for.
@@ -125,7 +121,7 @@ test.describe('visual regression — mobile', () => {
     // "non-actionable" even though they're clickable HTML buttons.
     await markers.nth(1).click({ force: true });
     await page.locator('.leaflet-popup').waitFor();
-    await page.waitForTimeout(200);
+    await waitForStill(page);
     await expect(page).toHaveScreenshot('map-popup.png', {
       fullPage: false,
     });
@@ -184,7 +180,6 @@ test.describe('visual regression — mobile', () => {
     // photos have loaded.
     await page.getByAltText('Completed Scenic Drive 2').waitFor();
     await page.getByRole('heading', { name: 'Your Photos' }).scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
     await expect(page).toHaveScreenshot('activity-detail-photos.png', {
       fullPage: false,
     });
@@ -229,8 +224,7 @@ test.describe('visual regression — mobile', () => {
     await page.getByRole('button', { name: /Generate/ }).click();
     // Header changes to "Review & save" once the stub resolves.
     await page.getByRole('heading', { name: 'Review & save' }).waitFor();
-    await page.locator('.leaflet-container').waitFor();
-    await page.waitForTimeout(500);
+    await waitForMapTiles(page);
     await fitWindowToPage(page);
     await expect(page).toHaveScreenshot('add-activity-review.png', {
       fullPage: true,

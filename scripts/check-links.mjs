@@ -22,7 +22,6 @@ import {
   instagramEmbedUrl,
   judge,
   report,
-  retryDelayMs,
 } from './link-check.mjs';
 import { runAsScript } from './run-as-script.ts';
 
@@ -33,18 +32,14 @@ const TIMEOUT_MS = 15_000;
 // other hosts accept.
 const USER_AGENT =
   'Mozilla/5.0 (compatible; FogAndFrontierLinkCheck/1.0; +https://github.com/jbhirsh/fog-and-frontier)';
-// Pace per host, and how often to retry a 429 before calling it "review".
-const HOST_GAP_MS = 750;
-const RATE_LIMIT_RETRIES = 2;
 
 /**
  * The network, which the tests replace.
- * @typedef {{ fetch: typeof fetch, sleep: (ms: number) => Promise<void> }} Net
+ * @typedef {{ fetch: typeof fetch }} Net
  */
 /** @type {Net} */
 const NET = {
   fetch: (...args) => fetch(...args),
-  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
 /**
@@ -110,42 +105,38 @@ async function probeInstagram(embedUrl, fetch) {
 }
 
 // GET, not HEAD: plenty of hosts answer HEAD wrongly. The body is dropped
-// unread once the status and type are in.
+// unread once the status and type are in. One try: a 429 isn't waited out
+// (jbhirsh/ci#58), it's a link this run couldn't check (judge).
 /**
  * One link's response: its status, type and final URL, or why it failed.
  * @param {string} url
  * @param {Net} net
  */
-export async function probe(url, { fetch, sleep } = NET) {
+export async function probe(url, { fetch } = NET) {
   const embedUrl = instagramEmbedUrl(url);
   if (embedUrl) return probeInstagram(embedUrl, fetch);
   try {
-    for (let attempt = 0; ; attempt++) {
-      const res = await fetch(url, {
-        redirect: 'follow',
-        headers: { 'user-agent': USER_AGENT, accept: '*/*' },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      await res.body?.cancel();
-      if (res.status === 429 && attempt < RATE_LIMIT_RETRIES) {
-        await sleep(retryDelayMs(res.headers.get('retry-after')));
-        continue;
-      }
-      return {
-        status: res.status,
-        contentType: res.headers.get('content-type') ?? '',
-        finalUrl: res.url,
-      };
-    }
+    const res = await fetch(url, {
+      redirect: 'follow',
+      headers: { 'user-agent': USER_AGENT, accept: '*/*' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    await res.body?.cancel();
+    return {
+      status: res.status,
+      contentType: res.headers.get('content-type') ?? '',
+      finalUrl: res.url,
+    };
   } catch (err) {
     return failure(err);
   }
 }
 
-// One request at a time per host, so a big host isn't hammered; hosts run
-// side by side. A host that keeps refusing (429s or timeouts in a row) isn't
-// probed further: its remaining links go to review, so one host can't stall
-// the run past its time limit.
+// One request at a time per host, so a big host isn't hammered, with no
+// pause between them (jbhirsh/ci#58); hosts run side by side. A host that
+// keeps refusing (429s or timeouts in a row) isn't probed further: its
+// remaining links go to review, so one host can't stall the run past its time
+// limit.
 /**
  * Every link judged, by activity and field.
  * @param {ReturnType<typeof collectLinks>} links
@@ -161,12 +152,11 @@ export async function checkAll(links, net = NET) {
   await Promise.all(
     [...byHost.values()].map(async (queue) => {
       let strikes = 0;
-      for (const [i, link] of queue.entries()) {
+      for (const link of queue) {
         if (strikes >= HOST_STRIKES) {
           results.push({ ...link, ...judge(link, { skipped: 'host kept refusing; not probed' }) });
           continue;
         }
-        if (i > 0) await net.sleep(HOST_GAP_MS);
         const outcome = URL.canParse(link.url) ? await probe(link.url, net) : { error: 'bad url' };
         strikes = outcome.status === 429 || outcome.error === 'timeout' ? strikes + 1 : 0;
         results.push({ ...link, ...judge(link, outcome) });
