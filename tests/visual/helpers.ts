@@ -380,8 +380,6 @@ export async function waitForVisualReady(page: Page) {
     return due.filter((img) => img.naturalWidth === 0).map((img) => img.currentSrc || img.src);
   });
   expect(broken, "photos that didn't load").toEqual([]);
-  // Let layout settle after the scroll back.
-  await page.waitForTimeout(200);
 }
 
 // Gives an activity owner photos (#19), served by mockApis' `activityPhotos`.

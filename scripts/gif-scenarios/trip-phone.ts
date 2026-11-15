@@ -16,7 +16,7 @@ const scenario: Scenario = {
   name: 'trip-phone',
   ...PHONE,
   ...LIVE_TRIP,
-  ready: (page, gif) => tripReady(page, gif, { x: 200, y: 600 }, 1200),
+  ready: (page, gif) => tripReady(page, gif, { x: 200, y: 600 }),
   async play(page, gif) {
     await page.waitForTimeout(1200);
     const days = page.getByRole('group', { name: 'Day' });

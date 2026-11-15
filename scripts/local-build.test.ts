@@ -9,7 +9,9 @@ import { build, freePort, pngSize, serve, stopServers } from './local-build';
 /**
  * A checkout whose node_modules/vite/bin/vite.js is a stand-in: `build`
  * logs its arguments and VERCEL_ENV, and `preview` serves the port it's
- * given (or, with VITE_FAKE=exit, exits; with VITE_FAKE=hang, listens on
+ * given and says so as vite does, its "Local" coloured unless NO_COLOR is
+ * set (or, with VITE_FAKE=exit, exits; with VITE_FAKE=talk, says its
+ * banner, then exits; with VITE_FAKE=hang, listens on nothing and says
  * nothing).
  */
 function fakeVite() {
@@ -26,11 +28,15 @@ if (command === 'build') {
   fs.writeFileSync(${JSON.stringify(log)}, JSON.stringify({ args: rest, cwd: process.cwd(), env: process.env.VERCEL_ENV }));
 } else if (process.env.VITE_FAKE === 'exit') {
   process.exit(4);
+} else if (process.env.VITE_FAKE === 'talk') {
+  console.log('  VITE v8 preview');
+  process.exit(4);
 } else if (process.env.VITE_FAKE === 'hang') {
   setInterval(() => {}, 1000);
 } else {
   const port = Number(rest[rest.indexOf('--port') + 1]);
-  http.createServer((_, res) => res.end('ok')).listen(port);
+  const local = process.env.NO_COLOR ? 'Local' : '\\x1b[1mLocal\\x1b[22m';
+  http.createServer((_, res) => res.end('ok')).listen(port, () => console.log('  ➜  ' + local + ':   http://localhost:' + port + '/'));
 }
 `,
   );
@@ -67,8 +73,9 @@ describe('freePort', () => {
 describe('build', () => {
   it('runs vite build in the test mode, as Vercel builds production', () => {
     const { root, log } = fakeVite();
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const said = vi.spyOn(console, 'log').mockImplementation(() => {});
     build(root, root, join(root, 'dist'), 'test');
+    expect(said).toHaveBeenCalledWith(`readme-screenshots: building ${root} (test)`);
     expect(JSON.parse(readFileSync(log, 'utf8'))).toEqual({
       args: ['--mode', 'test', '--outDir', join(root, 'dist'), '--emptyOutDir'],
       cwd: root,
@@ -84,7 +91,7 @@ describe('serve and stopServers', () => {
   beforeEach(() => vi.unstubAllGlobals());
   afterEach(() => vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline'))));
 
-  it('serves on a free port, resolves once it answers, and stops it', async () => {
+  it('serves on a free port, resolves once vite says it is listening, and stops it', async () => {
     const { root } = fakeVite();
     const servers: ReturnType<typeof spawn>[] = [];
     try {
@@ -104,6 +111,11 @@ describe('serve and stopServers', () => {
     const servers: ReturnType<typeof spawn>[] = [];
     vi.stubEnv('VITE_FAKE', 'exit');
     try {
+      await expect(serve(root, root, 'dist', servers)).rejects.toThrow(
+        'vite preview for dist exited (4)',
+      );
+      // Its banner isn't the "Local:" line: it still exits unserved.
+      vi.stubEnv('VITE_FAKE', 'talk');
       await expect(serve(root, root, 'dist', servers)).rejects.toThrow(
         'vite preview for dist exited (4)',
       );

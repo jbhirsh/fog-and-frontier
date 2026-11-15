@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { mockApis, signIn, toTripRow } from '../../tests/visual/helpers';
 import type { Gif } from '../gif-types.ts';
 import { fixtureTrips } from '../../tests/visual/fixtures';
-import { LIVE_GRAPHQL } from '../live-site.ts';
+import { LIVE_GRAPHQL, waitForPhotos } from '../live-site.ts';
 
 // What a place's row and card read, as production serves it.
 const PLACES = `query Activities { activities { id name shortDescription category region
@@ -62,15 +62,17 @@ export const LIVE_TRIP = {
   },
 };
 
-/** Ready once the trip's title and fonts are in and its photos have had `settle` ms. */
+/** Ready once the trip's title, fonts and the photos in view are in. */
 export async function tripReady(
   page: Page,
   gif: Gif,
   pointer: { x: number; y: number },
-  settle: number,
 ): Promise<void> {
   await page.getByRole('heading', { name: 'Coast Weekend' }).waitFor();
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(settle);
+  // Its limit only ends a hang: a GIF of blank cards isn't recorded.
+  if (!(await waitForPhotos(page))) {
+    throw new Error("pr-gif: the trip's photos in view didn't load; nothing recorded");
+  }
   await gif.glide(page, pointer, 0);
 }

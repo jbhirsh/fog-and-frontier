@@ -13,13 +13,12 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // No retries, in CI too: a flaky test is a bug, found and fixed rather
+  // than tried again (jbhirsh/ci#58).
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
   // In CI, JUnit too, for the job summary (jbhirsh/ci's job-summary, in
-  // visual.yml): each test named with its project (desktop or mobile), and
-  // with its retries, so a test that passed only on a retry shows as flaky
-  // in the report (each failed try a <flakyFailure>) rather than as a plain
-  // pass.
+  // visual.yml): each test named with its project (desktop or mobile).
   reporter: process.env.CI
     ? [
         ['github'],
@@ -29,7 +28,6 @@ export default defineConfig({
           {
             outputFile: 'test-results/junit.xml',
             includeProjectInTestName: true,
-            includeRetries: true,
           },
         ],
       ]
@@ -55,7 +53,7 @@ export default defineConfig({
   },
   use: {
     baseURL: 'http://localhost:4173',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
   },
   webServer: {
     // Build in --mode test so import.meta.env.MODE === 'test' in the bundle.

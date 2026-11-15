@@ -8,6 +8,7 @@ import {
   stubGenerateActivity,
   waitForVisualReady,
 } from './helpers';
+import { waitForMapTiles } from '../../scripts/page-waits.ts';
 
 // Desktop visual sweep — runs only under the `desktop` project (1280x800).
 // Mobile coverage lives in pages.mobile.spec.ts; each project's testMatch in
@@ -25,11 +26,8 @@ test.describe('visual regression — desktop', () => {
     await page.goto('/');
     await waitForVisualReady(page);
     // On desktop the home view defaults to Split (#93), which mounts a Leaflet
-    // map alongside the list. Leaflet renders its tiles asynchronously, so wait
-    // for the container to attach and let tiles settle before snapshotting —
-    // mirrors the mobile map spec.
-    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
-    await page.waitForTimeout(400);
+    // map alongside the list, whose tiles load and fade in after the page.
+    await waitForMapTiles(page);
     await expect(page).toHaveScreenshot('curated.png', { fullPage: true });
   });
 
@@ -39,8 +37,7 @@ test.describe('visual regression — desktop', () => {
     await page.goto('/activity/fixture-short-food');
     await page.getByRole('dialog').waitFor();
     await waitForVisualReady(page);
-    await page.locator('.leaflet-container').waitFor({ state: 'attached' });
-    await page.waitForTimeout(400);
+    await waitForMapTiles(page);
     await expect(page).toHaveScreenshot('activity-permalink.png', {
       fullPage: true,
     });

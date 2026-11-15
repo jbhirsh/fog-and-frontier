@@ -37,7 +37,10 @@ const fakes = vi.hoisted(() => {
       getByRole: (role: string, options?: { name?: string }) => ({
         waitFor: step(options?.name ? `wait role ${role} ${options.name}` : `wait role ${role}`),
       }),
-      waitForTimeout: step('pause'),
+      waitForFunction: (check: () => boolean) => {
+        record.calls.push(`until ${check.name}`);
+        return Promise.resolve();
+      },
       goto: step('goto'),
       evaluate: step('evaluate'),
       addInitScript: (script: () => void) => {
@@ -137,18 +140,21 @@ describe('capture', () => {
       'goto http://localhost:4321/?view=map',
       'evaluate',
       'wait .leaflet-container',
-      'wait .leaflet-tile-loaded',
-      'pause 1500',
+      'until mapTilesShown',
+      'wait .leaflet-marker-icon',
     ]);
     expect(byFile.get('activity-detail.png')?.calls).toContain('click [data-activity-id]');
-    expect(byFile.get('activity-detail.png')?.calls).toContain('wait role dialog');
+    expect(byFile.get('activity-detail.png')?.calls.slice(-2)).toEqual([
+      'wait role dialog',
+      'until nothingMoving',
+    ]);
     expect(byFile.get('explore.png')?.calls).toContain('wait role heading Explore');
     expect(byFile.get('mobile-list.png')?.calls).toEqual([
       'goto http://localhost:4321/?view=list',
       'evaluate',
       'wait [data-activity-id]',
     ]);
-    expect(byFile.get('home-split.png')?.calls.slice(-1)).toEqual(['pause 1500']);
+    expect(byFile.get('home-split.png')?.calls.slice(-1)).toEqual(['wait .leaflet-marker-icon']);
   });
 
   it('signs in as an owner only for the shots that need it', async () => {

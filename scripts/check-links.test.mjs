@@ -14,14 +14,9 @@ function response(body, { status = 200, type = 'text/html', url = '', headers = 
   return res;
 }
 
-/** A network whose fetch answers by URL, and whose sleep only counts. */
+/** A network whose fetch answers by URL. */
 function fakeNet(answer) {
-  const slept = [];
-  return {
-    slept,
-    fetch: vi.fn(async (url, init) => answer(String(url), init)),
-    sleep: vi.fn(async (ms) => void slept.push(ms)),
-  };
+  return { fetch: vi.fn(async (url, init) => answer(String(url), init)) };
 }
 
 const catalog = (activities) =>
@@ -74,14 +69,21 @@ describe('probe', () => {
       contentType: 'text/html',
       finalUrl: 'https://example.com/final',
     });
-    expect(net.fetch.mock.calls[0][1]).toMatchObject({ redirect: 'follow' });
+    expect(net.fetch.mock.calls[0][1]).toMatchObject({
+      redirect: 'follow',
+      headers: { 'user-agent': expect.stringContaining('FogAndFrontierLinkCheck'), accept: '*/*' },
+    });
   });
 
-  it("retries a 429 after the host's Retry-After, then gives up as rate limited", async () => {
+  it('reads an answer with no body, such as a 204', async () => {
+    const net = fakeNet(() => response(null, { status: 204 }));
+    expect(await probe('https://example.com/empty', net)).toMatchObject({ status: 204 });
+  });
+
+  it('tries a 429 once, without waiting out its Retry-After', async () => {
     const net = fakeNet(() => response('', { status: 429, headers: { 'retry-after': '2' } }));
     expect(await probe('https://example.com/a', net)).toMatchObject({ status: 429 });
-    expect(net.fetch).toHaveBeenCalledTimes(3);
-    expect(net.slept).toEqual([2000, 2000]);
+    expect(net.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('reads an Instagram post through its embed page', async () => {
@@ -112,7 +114,7 @@ describe('probe', () => {
 describe('checkAll', () => {
   const link = (name, url, field = 'menuUrl') => ({ id: name, name, field, url, image: false });
 
-  it('judges every link, paced per host, sorted by place and field', async () => {
+  it('judges every link, one at a time per host, sorted by place and field', async () => {
     const net = fakeNet((url) => response('', { status: url.endsWith('/gone') ? 404 : 200 }));
     const results = await checkAll(
       [
@@ -129,8 +131,6 @@ describe('checkAll', () => {
       ['Bad', 'menuUrl', 'dead'],
       ['Zed', 'menuUrl', 'ok'],
     ]);
-    // One gap between a.example's two links; none for a host's first.
-    expect(net.slept).toEqual([750]);
   });
 
   it('stops probing a host that keeps refusing, and sends the rest to review', async () => {

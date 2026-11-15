@@ -54,8 +54,9 @@ export function build(root: string, cwd: string, outDir: string, mode: string) {
 }
 
 /**
- * Serves `outDir` with `vite preview` on a free port, and resolves once it
- * answers, failing if it hasn't within `timeoutMs`. On localhost:
+ * Serves `outDir` with `vite preview` on a free port, and resolves once vite
+ * says it's listening (its "Local:" line), failing if it exits first, or if
+ * it hasn't said so within `timeoutMs`, a bound on a hang. On localhost:
  * tests/visual/helpers.ts's mockApis lets anything that isn't through to
  * the network.
  */
@@ -78,23 +79,29 @@ export async function serve(
       String(port),
       '--strictPort',
     ],
-    { cwd, stdio: ['ignore', 'ignore', 'inherit'] },
+    // Plain text: vite colours "Local" when CI is set, splitting the match.
+    { cwd, stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, NO_COLOR: '1' } },
   );
   servers.push(server);
   const url = `http://localhost:${port}`;
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    if (server.exitCode !== null)
-      throw new Error(`vite preview for ${outDir} exited (${server.exitCode})`);
-    try {
-      if ((await fetch(url)).ok) return url;
-    } catch {
-      // Not listening yet.
-    }
-    if (Date.now() > deadline)
-      throw new Error(`vite preview for ${outDir} didn't answer at ${url}`);
-    await new Promise((r) => setTimeout(r, 250));
-  }
+  return new Promise((done, failed) => {
+    const hung = setTimeout(
+      () => failed(new Error(`vite preview for ${outDir} didn't answer at ${url}`)),
+      timeoutMs,
+    );
+    // It keeps reading after the line, so a full pipe never stalls the server.
+    let said = '';
+    server.stdout.on('data', (chunk: Buffer) => {
+      said += chunk.toString();
+      if (!/Local:/.test(said)) return;
+      clearTimeout(hung);
+      done(url);
+    });
+    server.once('exit', (code) => {
+      clearTimeout(hung);
+      failed(new Error(`vite preview for ${outDir} exited (${code})`));
+    });
+  });
 }
 
 /** Stops the servers this started, by their PIDs, and waits for them to go. */

@@ -21,6 +21,7 @@ import type { ChildProcess } from 'node:child_process';
 import type { Page } from '@playwright/test';
 import { build, serve, stopServers } from './local-build.ts';
 import { PRODUCTION, cachePhotos, describeFailed, liveSite, waitForPhotos } from './live-site.ts';
+import { waitForMapTiles, waitForStill } from './page-waits.ts';
 import { runAsScript } from './run-as-script.ts';
 
 export const SHOTS_DIR = 'docs/screenshots';
@@ -47,9 +48,8 @@ async function cards(page: Page) {
 
 async function map(page: Page) {
   await page.locator('.leaflet-container').first().waitFor();
-  await page.locator('.leaflet-tile-loaded').first().waitFor();
-  // Tiles fade in, and the pins land after the markers' layout.
-  await page.waitForTimeout(1500);
+  await waitForMapTiles(page);
+  await page.locator('.leaflet-marker-icon').first().waitFor();
 }
 
 /** What the README shows, at the sizes its files have. */
@@ -76,7 +76,7 @@ export const SHOTS: readonly Shot[] = [
       await page.locator('[data-activity-id]').first().click();
       await page.getByRole('dialog').waitFor();
       // The dialog's open transition.
-      await page.waitForTimeout(500);
+      await waitForStill(page);
     },
   },
   {

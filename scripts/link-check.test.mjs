@@ -9,7 +9,6 @@ import {
   instagramEmbedUrl,
   judge,
   report,
-  retryDelayMs,
 } from './link-check.mjs';
 
 const page = { url: 'https://example.com/trail', image: false };
@@ -96,12 +95,19 @@ describe('judge', () => {
     expect(judge(page, { status })).toEqual({ verdict: 'dead', reason: `HTTP ${status}` });
   });
 
-  it.each([400, 401, 403, 405, 406, 429, 451, 499, 999])(
+  it.each([400, 401, 403, 405, 406, 451, 499, 999])(
     'sends %s to review: a block, not proof',
     (status) => {
       expect(judge(page, { status })).toEqual({ verdict: 'review', reason: `HTTP ${status}` });
     },
   );
+
+  it('sends a 429 to review, as a link this run couldn’t check', () => {
+    expect(judge(page, { status: 429 })).toEqual({
+      verdict: 'review',
+      reason: 'HTTP 429 (rate limited: not checked this run)',
+    });
+  });
 
   it.each([201, 202, 204, 299])('sends a %s, likely a challenge page, to review', (status) => {
     expect(judge(image, { status, contentType: 'text/html' })).toEqual({
@@ -277,32 +283,6 @@ describe('report', () => {
     expect(report([row('ok', 'Fine', 'HTTP 200')])).toBe(
       '# Link audit\n\n1 link: 0 dead, 0 to review, 1 ok.\n',
     );
-  });
-});
-
-describe('retryDelayMs', () => {
-  const now = Date.parse('2026-10-09T12:00:00Z');
-
-  it('waits the seconds a 429 asks for, up to the cap', () => {
-    expect(retryDelayMs('7', now)).toBe(7000);
-    expect(retryDelayMs(' 0 ', now)).toBe(0);
-    expect(retryDelayMs('600', now)).toBe(30_000);
-  });
-
-  it('waits until an HTTP date, never less than nothing', () => {
-    expect(retryDelayMs('Fri, 09 Oct 2026 12:00:12 GMT', now)).toBe(12_000);
-    expect(retryDelayMs('Fri, 09 Oct 2026 11:00:00 GMT', now)).toBe(0);
-  });
-
-  it('falls back to a pause, not an instant retry, without a usable header', () => {
-    for (const header of [null, undefined, '', '  ', 'soon', '-5']) {
-      expect(retryDelayMs(header, now)).toBe(5000);
-    }
-  });
-
-  it('takes another fallback and cap', () => {
-    expect(retryDelayMs(null, now, { fallback: 1000 })).toBe(1000);
-    expect(retryDelayMs('60', now, { cap: 10_000 })).toBe(10_000);
   });
 });
 
