@@ -78,10 +78,10 @@ tests check the built CSS.
   uploads them, so a changed screen never fails it, though a broken page still does. Visual
   review compares a PR's screenshots with main's of the commit it's built on, puts a
   before/after table in the PR's description, and sets the `Visual changes` status (CLAUDE.md
-  says what accepts a change). `Visual changes` becomes a required check in a follow-up PR, once
-  a real status has shown (a `workflow_run` workflow runs only from main, so the PR adding it
-  can't get one), and PR visuals' rule moves into it. Until then nothing in CI blocks a changed
-  screen: read the table before merging.
+  says what accepts a change). `Visual changes` is a required check. A changed screen stops
+  only a PR that merges itself, but it also fails when the screenshots are missing and when a UI
+  change shows no picture (PR visuals' rule, already part of it, so `pr-visuals.yml` goes in the
+  removal PR).
 - **The committed baselines** stay until the removal PR: a local `npm run test:visual` compares
   against them (`playwright.config.ts` says what it runs), the `visual` job still fails when
   they're missing, and **Update visual baselines** (`visual-baselines.yml`), run by hand on a
@@ -166,6 +166,7 @@ The golden set's review history, the judge's calibration and past scores are in 
 | `Mutation Tests (Stryker)` (`mutation.yml`)            | mutation testing of the lines a PR changed                                                                                                                                                                                 |
 | `visual` (`visual.yml`)                                | the pages' screenshots, taken for visual review; fails on a page that breaks, never on a changed screen                                                                                                                    |
 | `smoke` (`smoke.yml`)                                  | canary checks against the PR's Vercel preview (real data from `/api/graphql`, an anonymous trips query refused, the HTML linking built CSS), catching Vercel's no-build cached stubs; again against production after merge |
+| `Visual changes` (`visual-review.yml`)                 | the commit status visual review sets (a status, not a check run)                                                                                                                                                           |
 | `Secret scan` (`gitleaks.yml`), `Scan` (`semgrep.yml`) | secrets and static analysis                                                                                                                                                                                                |
 | `Vercel`                                               | the preview deploy                                                                                                                                                                                                         |
 
