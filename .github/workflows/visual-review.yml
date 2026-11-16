@@ -1,0 +1,36 @@
+name: Visual review
+
+# Each PR's screenshots against main's of the commit it's built on, as a
+# before/after table in its description and the `Visual changes` status;
+# a mockup's (visual.yml, run by hand) as a table on its issue. A thin
+# caller of jbhirsh/ci's reusable visual-review.yml, whose header says how
+# it works; its settings are `visual-review` in .github/ci.json.
+#
+# workflow_run and pull_request_target both run main's copy of this file,
+# so a PR can't change it, and the reusable workflow never checks out or
+# runs a PR's code: it reads the shots as bytes from visual.yml's
+# artifacts. It wakes when the shots finish (a PR's, main's or a mockup's)
+# and when a PR's description or auto-merge changes, since the owner
+# accepts a changed screen by turning auto-merge on after the table shows.
+# BOT_PR_TOKEN uploads the table's pictures: GitHub refuses the Actions
+# token for attachments. Exempt from autofix (.github/ci.json says why).
+on:
+  workflow_run:
+    workflows: [Visual regression]
+    types: [completed]
+  pull_request_target:
+    types: [edited, auto_merge_enabled, auto_merge_disabled]
+
+permissions: {}
+
+jobs:
+  review:
+    permissions:
+      actions: read
+      contents: write # jbhirsh/ci's enable.mjs turns Dependabot's auto-merge on
+      statuses: write
+      pull-requests: write
+      issues: write
+    uses: jbhirsh/ci/.github/workflows/visual-review.yml@main
+    secrets:
+      bot-pr-token: ${{ secrets.BOT_PR_TOKEN }}

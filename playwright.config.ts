@@ -34,6 +34,18 @@ export default defineConfig({
         ],
       ]
     : 'list',
+  // Take mode (visual.yml, jbhirsh/ci#64): with VISUAL_SHOTS set, the
+  // screenshots are written, never compared, into tests/visual/shots/,
+  // which git ignores, for jbhirsh/ci's visual-shots to upload; visual
+  // review compares them with main's. The names stay the baselines' so the
+  // two pair alike. Without it, the committed baselines are compared and
+  // written as before (visual-baselines.yml, pr-visuals.yml).
+  ...(process.env.VISUAL_SHOTS
+    ? {
+        snapshotPathTemplate:
+          '{testDir}/shots/{testFilePath}-snapshots/{arg}{-projectName}{-platform}{ext}',
+      }
+    : {}),
   expect: {
     // 1% pixel diff absorbs font-aliasing flake; real regressions blow past this.
     toHaveScreenshot: {

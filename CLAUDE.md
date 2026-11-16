@@ -10,7 +10,13 @@ does and why: read it before changing the module.
 
 - `npm test` skips the 80% per-file coverage gate CI runs; `npm run test:coverage` applies it.
 - `npm run codegen` after changing `api/_schema.ts` or an operation, and commit `src/gql/`.
-- Changing owner-gated presentation changes the visual baselines.
+- Changing owner-gated presentation changes the visual baselines and the screenshots visual
+  review compares; both run until the baselines' removal PR.
+- A plan's mockups (CONTRIBUTING.md, Tests): commit the throwaway change on a branch, then
+  `git fetch origin && git diff --binary "$(git merge-base origin/main HEAD)" | base64 -w0`
+  (about 60 KB of base64 at most, a dispatch's limit) and
+  `gh workflow run visual.yml --ref main -f mockup_patch=<it> -f mockup_issue=<n>`. Its code
+  runs on the runner: jbhirsh/ci's `visual-shots/mockup/action.yml` says what that trusts.
 - `shared/isoRegions.ts` is generated (`npm run regions:gen`): never hand-edit it.
 - `src/lib/iconPaths.ts` is generated too: an icon `<Icon>` doesn't have yet is a type error, and
   `npm run icons:gen -- <name>` adds it (`scripts/gen-icons.ts` says how).
@@ -51,6 +57,13 @@ does and why: read it before changing the module.
   delete it in `package.json`'s `//overrides`.
 - **Tests are pure**: logic or React Testing Library, with no real network, database or browser;
   the browser is the visual tests' (`tests/visual/`).
+
+## Visual review
+
+**Merging accepts a screen change**: main's next run becomes the reference. A PR that merges
+itself (auto-merge on) fails `Visual changes` when a screen changed. On the owner's own PR, turning
+auto-merge on after the table appears accepts it; turning it on before needs off and on again. A
+bot's PR is never accepted that way: a person merges it.
 
 ## The auth model
 

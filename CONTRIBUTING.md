@@ -73,10 +73,23 @@ tests check the built CSS.
   `.github/ci.json`'s `unmeasured.files`.
 - **Mutation testing** (`mutation.yml`) mutates the lines a PR changed in the files coverage
   measures, and a monthly sweep (`mutation-sweep.yml`) covers everything.
-- **Visual regression** (`npm run test:visual`, `playwright.config.ts` says what it runs) compares
-  against Linux baselines that only CI writes: run **Update visual baselines**
-  (`visual-baselines.yml`) by hand on the branch, which commits them there, then approve the
-  checks its push starts on the PR.
+- **Visual review** (jbhirsh/ci#64, `visual-review.yml`): in CI the `visual` job takes every
+  screenshot afresh (take mode, `VISUAL_SHOTS`, into the git-ignored `tests/visual/shots/`) and
+  uploads them, so a changed screen never fails it, though a broken page still does. Visual
+  review compares a PR's screenshots with main's of the commit it's built on, puts a
+  before/after table in the PR's description, and sets the `Visual changes` status (CLAUDE.md
+  says what accepts a change). `Visual changes` becomes a required check in a follow-up PR, once
+  a real status has shown (a `workflow_run` workflow runs only from main, so the PR adding it
+  can't get one), and PR visuals' rule moves into it. Until then nothing in CI blocks a changed
+  screen: read the table before merging.
+- **The committed baselines** stay until the removal PR: a local `npm run test:visual` compares
+  against them (`playwright.config.ts` says what it runs), the `visual` job still fails when
+  they're missing, and **Update visual baselines** (`visual-baselines.yml`), run by hand on a
+  branch, still rewrites and commits them there.
+- **A plan's mockups** come from the same screenshots: **Visual regression** (`visual.yml`) run
+  by hand on main with `mockup_patch`, the throwaway change (CLAUDE.md has the command; only the
+  paths `visual-review.mockupPaths` in `.github/ci.json` allows, never a lockfile), and
+  `mockup_issue`, the plan's issue. Visual review posts its table there.
 
 ### The Gemini eval
 
@@ -151,7 +164,7 @@ The golden set's review history, the judge's calibration and past scores are in 
 | `test` (`ci.yml`)                                      | commit messages, autofix triggers, pins, lint, Prettier, layering, type-check, type coverage, codegen drift, unit tests with coverage, unmeasured source files, build, bundle budget, `npm audit --omit=dev` (high and up) |
 | `Claude Review` (`claude-review.yml`)                  | jbhirsh/ci's AI review; this repo's guide is `.github/claude-review.md`                                                                                                                                                    |
 | `Mutation Tests (Stryker)` (`mutation.yml`)            | mutation testing of the lines a PR changed                                                                                                                                                                                 |
-| `visual` (`visual.yml`)                                | Playwright visual regression                                                                                                                                                                                               |
+| `visual` (`visual.yml`)                                | the pages' screenshots, taken for visual review; fails on a page that breaks, never on a changed screen                                                                                                                    |
 | `smoke` (`smoke.yml`)                                  | canary checks against the PR's Vercel preview (real data from `/api/graphql`, an anonymous trips query refused, the HTML linking built CSS), catching Vercel's no-build cached stubs; again against production after merge |
 | `Secret scan` (`gitleaks.yml`), `Scan` (`semgrep.yml`) | secrets and static analysis                                                                                                                                                                                                |
 | `Vercel`                                               | the preview deploy                                                                                                                                                                                                         |
@@ -176,7 +189,9 @@ Dependabot (`.github/dependabot.yml`, whose header says why) opens one grouped P
 each Monday at 06:00 UTC, majors included, and a security group as soon as an alert fires.
 
 - **npm PRs merge themselves**: `claude-autofix.yml` turns on auto-merge once the first check
-  completes, GitHub merges once every required check is green and every thread resolved, and a
+  completes and `Visual changes` finds no changed screen (a bump that moves one is left for you:
+  read its table and merge it yourself, since auto-merge never accepts a bot's screen change; one
+  built on a main commit with no shots waits for a rebase), GitHub merges once every required check is green and every thread resolved, and a
   red check is handed to autofix on the PR's branch. Nothing to do unless one stays open.
 - **GitHub Actions PRs are merged by hand**, since the Actions token can't merge a change to
   `.github/workflows/`: skim a major's release notes, check CI, merge.
@@ -193,13 +208,15 @@ typescript-eslint and type-coverage take TypeScript 7); their red PRs aren't stu
 - **Actions secrets:** `GEMINI_API_KEY` and `AGENT_SEARCH_API_KEY` (the eval),
   `VERCEL_AUTOMATION_BYPASS_SECRET` (lets the smoke gate through Vercel Authentication on previews),
   `VERCEL_TOKEN` (optional: the smoke gate inspects a failed deployment with it), and
-  `BOT_PR_TOKEN`, a fine-grained token for this repository with Contents and Pull requests read and
-  write and Actions read, and no Workflows permission. Claude autofix pushes its fixes and runs `gh`
-  with it, so its pushes start the PR's workflows (Actions read is for the failed runs' logs). The
-  README screenshot bot opens its PR from `bot/readme-screenshots` with it: a PR the default Actions
+  `BOT_PR_TOKEN`, a fine-grained token for this repository with Contents, Pull requests and Issues
+  read and write and Actions read, and no Workflows permission. Claude autofix pushes its fixes and
+  runs `gh` with it, so its pushes start the PR's workflows (Actions read is for the failed runs'
+  logs). The README screenshot bot opens its PR from `bot/readme-screenshots` with it: a PR the default Actions
   token opens starts no workflows, so its required checks would never report and it would never
   merge. Without it the default token is used, which works at all only with Settings → Actions →
-  General: "Allow GitHub Actions to create and approve pull requests".
+  General: "Allow GitHub Actions to create and approve pull requests". Visual review uploads its
+  tables' pictures with it, as GitHub takes attachments only from a person's token, on a PR or,
+  for a mockup, on its issue (hence Issues write).
 - **Claude Review and autofix** sign in by workload identity federation: the workflows pass the IDs
   of a rule in the Anthropic Console (Workload identity), so there is no Claude secret. The IDs
   aren't secret. Review and autofix run on the Agent SDK (`"engine": "sdk"` in `.github/ci.json`),

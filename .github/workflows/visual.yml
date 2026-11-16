@@ -1,18 +1,48 @@
 name: Visual regression
 
-# The pages' screenshots, compared with their Linux baselines (see the
-# projects in playwright.config.ts). visual-baselines.yml, run by hand,
-# rewrites those baselines and commits them to its branch. It also runs on
-# every push to main, so the job's report (jbhirsh/ci's job-summary) has
-# main's runs to compare a PR's with; nothing in it reads a pull request or
-# writes anything back, and with no concurrency group a push to main never
-# cancels a PR's run.
+# The pages' screenshots (see the projects in playwright.config.ts), taken
+# for visual review (jbhirsh/ci#64): in take mode (VISUAL_SHOTS) they're
+# written, never compared, into the git-ignored tests/visual/shots/, and
+# jbhirsh/ci's visual-shots uploads them. visual-review.yml compares a PR's
+# with main's of the commit it's built on, so every push to main runs here
+# too and is never cancelled. A visual difference never fails this job; a
+# page that breaks (a missing element, a timeout, an error) still does.
+#
+# Run by hand on main with mockup_patch and mockup_issue, it's a mockup: a
+# plan's throwaway patch (git diff --binary | base64 -w0) applied by
+# jbhirsh/ci's visual-shots/mockup, only to the paths
+# `visual-review.mockupPaths` in .github/ci.json allows, and its screenshots
+# go to visual review's table on that issue. The patch is code on no branch,
+# so a mockup run holds no secret, writes no cache, runs in a concurrency
+# group of its own, and skips everything but the screenshots. Its inputs
+# reach the actions as inputs, never spliced into a script, and which steps
+# run is decided from the inputs, never an env value the patch could set.
+# Those limits hold for this file's steps only: the patch's own code (the
+# app's src/ and the specs in tests/visual/) runs as Node on the runner,
+# with the runner's powers, so dispatch only a patch you'd commit.
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      mockup_patch:
+        description: A mockup's patch, base64 (git diff --binary | base64 -w0); empty for a plain run
+        type: string
+        default: ""
+      mockup_issue:
+        description: The issue the mockup's table goes on
+        type: string
+        default: ""
+
+# A PR's newer push cancels its older run. Every other run, a push to main
+# above all (a cancelled one leaves its commit without shots for PRs to be
+# compared with) and a mockup, is a group of its own, never cancelled or
+# replaced while queued.
+concurrency:
+  group: visual-${{ github.event_name == 'pull_request' && github.ref || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   visual:
@@ -24,14 +54,38 @@ jobs:
     steps:
       # The job summary's report charts the machine's CPU across the job:
       # first, so the chart covers every step (jbhirsh/ci's sample-load).
-      - uses: jbhirsh/ci/job-summary/sample-load@main
+      - if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '') }}
+        uses: jbhirsh/ci/job-summary/sample-load@main
 
+      # Depth 2: visual-shots reads a PR's merge commit's parents, the PR's
+      # head and main's.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
 
+      # An issue with no patch would be a plain run whose table goes nowhere.
+      # A patch off main or with no issue, visual-shots/mockup refuses.
+      - name: Refuse a mockup issue with no patch
+        if: github.event_name == 'workflow_dispatch' && inputs.mockup_patch == '' && inputs.mockup_issue != ''
+        run: |
+          echo "::error::mockup_issue needs mockup_patch, the change to screenshot."
+          exit 1
+
+      - name: Apply the mockup
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '' }}
+        uses: jbhirsh/ci/visual-shots/mockup@main
+        with:
+          patch: ${{ inputs.mockup_patch }}
+          issue: ${{ inputs.mockup_issue }}
+
+      # No npm cache for a mockup: one written after its patch ran could
+      # reach every later run.
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
-          cache: "npm"
+          cache: ${{ !(github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '') && 'npm' || '' }}
+          package-manager-cache: ${{ !(github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '') }}
           cache-dependency-path: package-lock.json
 
       - name: Install deps
@@ -47,6 +101,7 @@ jobs:
       # versions (a dry run prints them, without installing anything). Never
       # fails the job: a missing note only leaves the report without it.
       - name: Read the Playwright and browser versions
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '') }}
         id: playwright
         continue-on-error: true
         run: |
@@ -56,6 +111,7 @@ jobs:
       # Shown in the report's Environment, with the machine the first note
       # adds (jbhirsh/ci's job-summary/note).
       - name: Note them for the job summary
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '') }}
         uses: jbhirsh/ci/job-summary/note@main
         with:
           notes: |
@@ -87,8 +143,12 @@ jobs:
           echo "::error::Make them by running visual-baselines.yml on this branch: Actions tab -> Update visual baselines -> Run workflow."
           exit 1
 
-      - name: Run visual tests
-        run: npm run test:visual
+      # Take mode: every screenshot is written afresh, so none fails on a
+      # difference; any other failure still fails the test.
+      - name: Take the screenshots
+        env:
+          VISUAL_SHOTS: "1"
+        run: npm run test:visual -- --update-snapshots=all
 
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -102,11 +162,17 @@ jobs:
       # or mobile) beside its recent runs, published
       # on the repository's Pages by the reports job below.
       - name: Job summary
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !(github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '') }}
         uses: jbhirsh/ci/job-summary@main
         with:
           job: visual
           junit: test-results/junit.xml
+
+      # Last, and only once every page rendered: a failed run uploads no
+      # shots, and visual review reports the job's failure instead.
+      - uses: jbhirsh/ci/visual-shots@main
+        with:
+          mockup-issue: ${{ github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '' && inputs.mockup_issue || '' }}
 
   # Publishes this run's job reports to the repository's Pages and keeps
   # one comment on the PR with every job's summary (jbhirsh/ci's
@@ -115,7 +181,7 @@ jobs:
   # never fails a run for a report.
   reports:
     needs: [visual]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !(github.event_name == 'workflow_dispatch' && inputs.mockup_patch != '') }}
     permissions:
       contents: write
       actions: read
