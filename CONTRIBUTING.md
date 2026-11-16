@@ -219,9 +219,13 @@ typescript-eslint and type-coverage take TypeScript 7); their red PRs aren't stu
   tables' pictures with it, as GitHub takes attachments only from a person's token, on a PR or,
   for a mockup, on its issue (hence Issues write).
 - **Claude Review and autofix** sign in by workload identity federation: the workflows pass the IDs
-  of a rule in the Anthropic Console (Workload identity), so there is no Claude secret. The IDs
-  aren't secret. Review and autofix run on the Agent SDK (`"engine": "sdk"` in `.github/ci.json`),
-  which the Max plan's API credit pays for (jbhirsh/ci#68).
+  of a rule in the Anthropic Console (Workload identity). The IDs aren't secret. Review and
+  autofix run on the Agent SDK (`"engine": "sdk"` in `.github/ci.json`), which the Max plan's API
+  credit pays for (jbhirsh/ci#68).
+- **`CLAUDE_CODE_OAUTH_TOKEN`**, as an Actions secret and as a Dependabot secret (Dependabot's
+  PRs see only Dependabot secrets): the owner's Claude subscription token, from
+  `claude setup-token`. Claude Review retries a pass the API refuses for credit or a limit on it,
+  once; without it, such a stop fails the check (jbhirsh/ci#57).
 - **Pages:** Settings → Pages: Deploy from a branch, `job-reports`, `/ (root)`, for each job's
   report.
 - **The `screenshots` branch** hosts every PR's pictures, in a folder named for the PR
