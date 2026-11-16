@@ -48,7 +48,6 @@
     "workflow": "visual.yml",
     "job": "visual",
     "folders": ["tests/visual/shots/*-snapshots"],
-    "ratio": 0.01,
     "columns": [
       {
         "label": "Mobile",
