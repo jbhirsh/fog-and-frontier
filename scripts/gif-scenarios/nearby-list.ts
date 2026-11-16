@@ -10,7 +10,6 @@
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
 import { PHONE } from './phone.ts';
-import { liveCatalog } from './live-catalog.ts';
 
 const scenario: Scenario = {
   name: 'nearby-list',
@@ -18,8 +17,6 @@ const scenario: Scenario = {
   path: '/activity/lgct-bike-ride',
   async setup(page) {
     await mockApis(page);
-    // Production has no dog rules pages (#296) yet.
-    await liveCatalog(page, { dogRulesUrl: () => null });
   },
   async ready(page, gif) {
     await page.getByRole('dialog', { name: 'Los Gatos Creek Trail Bike Ride' }).waitFor();

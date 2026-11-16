@@ -10,15 +10,12 @@
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
 import { PHONE, catalogReady } from './phone.ts';
-import { liveCatalog } from './live-catalog.ts';
 
 const scenario: Scenario = {
   name: 'park-section',
   ...PHONE,
   async setup(page) {
     await mockApis(page);
-    // Production has no dog rules pages (#296) yet.
-    await liveCatalog(page, { dogRulesUrl: () => null });
   },
   async ready(page, gif) {
     await catalogReady(page, gif);

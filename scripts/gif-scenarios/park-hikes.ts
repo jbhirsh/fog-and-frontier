@@ -2,16 +2,12 @@
 //
 //   npm run gif -- scripts/gif-scenarios/park-hikes.ts --dir <PR number>
 //
-// Production's catalog, searched to Point Reyes, with three of its hikes
-// given their park: no saved activity has one until the feature ships. On
-// main they're cards of their own, with nothing to open.
+// Production's catalog, searched to Point Reyes, whose hikes and stops are
+// held under the park. On main they're cards of their own, with nothing to
+// open.
 
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
-import { liveCatalog } from './live-catalog.ts';
-
-const PARK = 'point-reyes-seashore';
-const HIKES = new Set(['chimney-rock-trail', 'tomales-point-trail', 'coast-trail-point-reyes']);
 
 const scenario: Scenario = {
   name: 'park-hikes',
@@ -22,7 +18,6 @@ const scenario: Scenario = {
   width: 800,
   async setup(page) {
     await mockApis(page);
-    await liveCatalog(page, { parentId: (a) => (HIKES.has(a.id) ? PARK : null) });
   },
   async ready(page, gif) {
     await page.locator('[data-activity-id]').first().waitFor();

@@ -9,7 +9,7 @@
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
-import { draftActivity, stubDraft } from './stub-draft.ts';
+import { addButton, draftActivity, stubDraft } from './stub-draft.ts';
 
 const DRAFT = {
   __typename: 'GeneratedActivity',
@@ -56,7 +56,7 @@ const scenario: Scenario = {
     await stubDraft(page, DRAFT, 800, { cover: false });
   },
   async ready(page, gif) {
-    await page.getByRole('button', { name: 'Add activity' }).first().waitFor();
+    await addButton(page).waitFor();
     await page.evaluate(() => document.fonts.ready);
     await gif.glide(page, { x: 200, y: 420 }, 0);
   },

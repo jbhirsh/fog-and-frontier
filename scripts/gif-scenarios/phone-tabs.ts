@@ -5,34 +5,17 @@
 //
 //   npm run gif -- scripts/gif-scenarios/phone-tabs.ts --dir <PR number>
 //
-// Production's catalog, signed out. Until the card copy (#295) is saved,
-// production has none, so each card's line is its short description cut at
-// a word to fit.
+// Production's catalog, signed out.
 
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
 import { PHONE, catalogReady } from './phone.ts';
-import { liveCatalog } from './live-catalog.ts';
-
-const LINE_MAX = 50;
-
-function cardLine(activity: { id: string }): string | null {
-  const description = (activity as { shortDescription?: string }).shortDescription ?? '';
-  let line = '';
-  for (const word of description.replace(/[.!]+$/, '').split(/\s+/)) {
-    const next = line ? `${line} ${word}` : word;
-    if (next.length > LINE_MAX) break;
-    line = next;
-  }
-  return line.replace(/[,;:]$/, '') || null;
-}
 
 const scenario: Scenario = {
   name: 'phone-tabs',
   ...PHONE,
   async setup(page) {
     await mockApis(page);
-    await liveCatalog(page, { cardLine, cardName: () => null });
   },
   ready: catalogReady,
   async play(page, gif) {
