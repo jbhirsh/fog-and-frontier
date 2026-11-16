@@ -63,9 +63,14 @@
   },
   "review": {
     "instructions": ".github/claude-review.md",
-    "skip": ["src/gql/**", "shared/isoRegions.ts", "src/lib/iconPaths.ts"]
+    "skip": ["src/gql/**", "shared/isoRegions.ts", "src/lib/iconPaths.ts"],
+    "engine": "sdk",
+    "advisor": "opus",
+    "skipBots": ["dependabot[bot]"]
   },
   "autofix": {
+    "engine": "sdk",
+    "advisor": "opus",
     "ciFixChecks": [
       "`npm run lint`",
       "`npm run format:check` (`npm run format` rewrites what it flags)",

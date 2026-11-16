@@ -5,10 +5,8 @@ name: Claude Review
 # repo's other checks). This repo's part is in .github/ci.json ("review")
 # and the guide it names, .github/claude-review.md, both read from main.
 #
-# Its own workflow, not a job in ci.yml: claude-code-action skips (and still
-# reports success on) a PR that edits the workflow file it runs from, so only
-# a PR that edits this stub goes unreviewed. It doesn't wait for CI, so a red
-# PR is reviewed too. claude-autofix.yml reacts to this workflow's completion
+# Its own workflow, not a job in ci.yml, so it doesn't wait for CI: a red PR
+# is reviewed too. claude-autofix.yml reacts to this workflow's completion
 # by `name:`, and the job's `name:` is a required status check, so keep both.
 on:
   pull_request:
@@ -20,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Run the JavaScript actions (claude-code-action et al.) on Node 24.
+  # Run the JavaScript actions on Node 24.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
@@ -36,7 +34,8 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-      # claude-code-action exchanges an OIDC token for the Claude app's token.
+      # The review signs in to Claude with the job's OIDC token (the
+      # federation IDs below).
       id-token: write
     steps:
       - uses: jbhirsh/ci/review@main

@@ -41,9 +41,8 @@ jobs:
       pull-requests: write
       issues: write
       actions: read
-      # claude-code-action exchanges an OIDC token for the Claude GitHub
-      # App's token before it starts; without this every run that has work
-      # to do fails with "Could not fetch an OIDC token".
+      # The fixer signs in to Claude with the job's OIDC token (the
+      # federation IDs below).
       id-token: write
     steps:
       - uses: jbhirsh/ci/autofix@main
@@ -55,3 +54,6 @@ jobs:
           anthropic_organization_id: 22970ab4-b9f2-4f4b-a7d7-d2e0bab4fcac
           anthropic_service_account_id: svac_01UZj2itXNdhewkTjp9Wv6YG
           anthropic_workspace_id: wrkspc_01GbH32ibMELoz7yNtpC8bB6
+          # The fixer pushes and runs gh with it, so its pushes start the
+          # PR's workflows (CONTRIBUTING.md says what it needs).
+          bot_token: ${{ secrets.BOT_PR_TOKEN }}

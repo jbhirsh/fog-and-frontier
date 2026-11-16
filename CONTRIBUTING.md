@@ -191,17 +191,19 @@ typescript-eslint and type-coverage take TypeScript 7); their red PRs aren't stu
 ## One-time setup
 
 - **Actions secrets:** `GEMINI_API_KEY` and `AGENT_SEARCH_API_KEY` (the eval),
-  `VERCEL_AUTOMATION_BYPASS_SECRET` (lets the smoke gate through Vercel Authentication on
-  previews), `VERCEL_TOKEN` (optional: the smoke gate inspects a failed deployment with it), and
-  `BOT_PR_TOKEN`, a fine-grained token for this repository with Contents and Pull requests read
-  and write. The README screenshot bot opens its PR from
-  `bot/readme-screenshots` with it: a PR the default Actions token opens starts no workflows, so
-  its required checks would never report and it would never merge. Without it the default token
-  is used, which works at all only with Settings → Actions → General: "Allow GitHub Actions to
-  create and approve pull requests".
-- **Claude Review and autofix** sign in by workload identity federation: the workflows pass the
-  IDs of a rule in the Anthropic Console (Workload identity), so there is no Claude secret. The
-  IDs aren't secret.
+  `VERCEL_AUTOMATION_BYPASS_SECRET` (lets the smoke gate through Vercel Authentication on previews),
+  `VERCEL_TOKEN` (optional: the smoke gate inspects a failed deployment with it), and
+  `BOT_PR_TOKEN`, a fine-grained token for this repository with Contents and Pull requests read and
+  write and Actions read, and no Workflows permission. Claude autofix pushes its fixes and runs `gh`
+  with it, so its pushes start the PR's workflows (Actions read is for the failed runs' logs). The
+  README screenshot bot opens its PR from `bot/readme-screenshots` with it: a PR the default Actions
+  token opens starts no workflows, so its required checks would never report and it would never
+  merge. Without it the default token is used, which works at all only with Settings → Actions →
+  General: "Allow GitHub Actions to create and approve pull requests".
+- **Claude Review and autofix** sign in by workload identity federation: the workflows pass the IDs
+  of a rule in the Anthropic Console (Workload identity), so there is no Claude secret. The IDs
+  aren't secret. Review and autofix run on the Agent SDK (`"engine": "sdk"` in `.github/ci.json`),
+  which the Max plan's API credit pays for (jbhirsh/ci#68).
 - **Pages:** Settings → Pages: Deploy from a branch, `job-reports`, `/ (root)`, for each job's
   report.
 - **The `screenshots` branch** hosts every PR's pictures, in a folder named for the PR
