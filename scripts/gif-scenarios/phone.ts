@@ -4,7 +4,6 @@
 import type { Page } from '@playwright/test';
 import { mockApis } from '../../tests/visual/helpers';
 import type { Gif } from '../gif-types.ts';
-import { liveCatalog } from './live-catalog.ts';
 
 export const PHONE = {
   path: '/',
@@ -26,8 +25,6 @@ export const PHONE_MAP = {
   path: '/?view=map',
   async setup(page: Page): Promise<void> {
     await mockApis(page);
-    // Production has no dog rules pages (#296) yet.
-    await liveCatalog(page, { dogRulesUrl: () => null });
   },
 };
 

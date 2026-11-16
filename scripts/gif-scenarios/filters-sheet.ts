@@ -13,15 +13,12 @@ import type { Locator } from '@playwright/test';
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
 import { PHONE, catalogReady } from './phone.ts';
-import { liveCatalog } from './live-catalog.ts';
 
 const scenario: Scenario = {
   name: 'filters-sheet',
   ...PHONE,
   async setup(page) {
     await mockApis(page);
-    // Production has no dog rules pages (#296) yet.
-    await liveCatalog(page, { dogRulesUrl: () => null });
   },
   ready: catalogReady,
   async play(page, gif) {

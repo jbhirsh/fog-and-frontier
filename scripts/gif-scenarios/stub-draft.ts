@@ -1,8 +1,10 @@
 // Gemini's draft for a recording, stubbed since its key is only on the
 // deployment, with the cover the real lookup finds (findCoverImage, as
 // generateActivity does). Call from a scenario's setup, after mockApis.
+// Beside it, the catalog's Add at any width (addButton), and the steps
+// that open it and draft an activity, for the scenarios that do.
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { findCoverImage } from '../../api/_coverImage.ts';
 import type { Gif } from '../gif-types.ts';
 
@@ -50,9 +52,25 @@ export async function stubDraft(
   });
 }
 
-/** A scenario's ready(): the page's Add button and fonts in, the pointer mid-page. */
+/**
+ * The catalog's Add for an owner: the toolbar's Add activity on a wider
+ * screen, the tab bar's Add on a phone (#289), where the toolbar's is hidden.
+ */
+export function addButton(page: Page): Locator {
+  return page
+    .getByRole('button', { name: 'Add activity' })
+    .or(
+      page
+        .getByRole('navigation', { name: 'Main' })
+        .getByRole('button', { name: 'Add', exact: true }),
+    )
+    .filter({ visible: true })
+    .first();
+}
+
+/** A wide scenario's ready(): the page's Add button and fonts in, the pointer mid-page. */
 export async function readyToAdd(page: Page, gif: Gif): Promise<void> {
-  await page.getByRole('button', { name: 'Add activity' }).first().waitFor();
+  await addButton(page).waitFor();
   await page.evaluate(() => document.fonts.ready);
   await gif.glide(page, { x: 500, y: 400 }, 0);
 }
@@ -60,7 +78,7 @@ export async function readyToAdd(page: Page, gif: Gif): Promise<void> {
 /** Opens Add activity, types `title` and drafts it, ending on the review. */
 export async function draftActivity(page: Page, gif: Gif, title: string): Promise<void> {
   await page.waitForTimeout(400);
-  await gif.click(page, page.getByRole('button', { name: 'Add activity' }).first(), { ms: 600 });
+  await gif.click(page, addButton(page), { ms: 600 });
   await page.getByLabel('Title').waitFor();
   await gif.click(page, page.getByLabel('Title'), { ms: 400 });
   await page.keyboard.type(title, { delay: 40 });

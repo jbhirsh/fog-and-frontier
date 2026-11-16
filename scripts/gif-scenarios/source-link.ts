@@ -2,15 +2,12 @@
 //
 //   npm run gif -- scripts/gif-scenarios/source-link.ts --dir <PR number> --after-only
 //
-// Production's catalog, with one activity given a source: no saved activity
-// has one until sharing ships, so it's added for the recording.
+// Production's catalog, as it is: Seabright Deli was added from a reel.
 
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
-import { liveCatalog } from './live-catalog.ts';
 
-const ACTIVITY = 'molinari-s-deli';
-const REEL = 'https://www.instagram.com/reel/Ddl9QKSv0D7/';
+const ACTIVITY = 'seabright-deli';
 
 const scenario: Scenario = {
   name: 'source-link',
@@ -20,7 +17,6 @@ const scenario: Scenario = {
   width: 390,
   async setup(page) {
     await mockApis(page);
-    await liveCatalog(page, { sourceUrl: (a) => (a.id === ACTIVITY ? REEL : null) });
   },
   async ready(page, gif) {
     await page.getByRole('link', { name: /Seen on Instagram/ }).waitFor();

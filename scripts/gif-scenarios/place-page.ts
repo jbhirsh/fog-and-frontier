@@ -6,13 +6,11 @@
 //
 //   npm run gif -- scripts/gif-scenarios/place-page.ts --dir <PR number>
 //
-// Production's catalog, signed out. Until the dog rules backfill (#296),
-// production has no rules pages, so the dog shows as the symbol alone.
+// Production's catalog, signed out.
 
 import { mockApis } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
 import { PHONE } from './phone.ts';
-import { liveCatalog } from './live-catalog.ts';
 
 const scenario: Scenario = {
   name: 'place-page',
@@ -21,7 +19,6 @@ const scenario: Scenario = {
   path: '/activity/blue-heron-strawberry-hill',
   async setup(page) {
     await mockApis(page);
-    await liveCatalog(page, { dogRulesUrl: () => null });
   },
   async ready(page, gif) {
     await page.getByRole('dialog', { name: 'Blue Heron Lake and Strawberry Hill Loop' }).waitFor();

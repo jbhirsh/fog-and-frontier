@@ -9,8 +9,7 @@
 
 import { mockApis, signIn } from '../../tests/visual/helpers';
 import type { Scenario } from '../gif-types.ts';
-import { liveCatalog } from './live-catalog.ts';
-import { stubDraft } from './stub-draft.ts';
+import { addButton, draftActivity, stubDraft } from './stub-draft.ts';
 
 const DRAFT = {
   name: 'Castle Rock State Park',
@@ -50,25 +49,15 @@ const scenario: Scenario = {
   async setup(page) {
     await mockApis(page);
     await signIn(page);
-    // Production lacks the branch's sourceUrl: its real catalog, without it.
-    await liveCatalog(page, { sourceUrl: () => null });
     await stubDraft(page, DRAFT, 1200);
   },
   async ready(page, gif) {
-    await page.getByRole('button', { name: 'Add activity' }).first().waitFor();
+    await addButton(page).waitFor();
     await page.evaluate(() => document.fonts.ready);
     await gif.glide(page, { x: 300, y: 400 }, 0);
   },
   async play(page, gif) {
-    await page.waitForTimeout(400);
-    await gif.click(page, page.getByRole('button', { name: 'Add activity' }).first(), { ms: 600 });
-    await page.getByLabel('Title').waitFor();
-    await gif.click(page, page.getByLabel('Title'), { ms: 400 });
-    await page.keyboard.type('Castle Rock State Park', { delay: 40 });
-    await page.waitForTimeout(300);
-    await gif.click(page, page.getByRole('button', { name: /Generate/ }), { ms: 500 });
-    await page.getByLabel('Short description').waitFor({ timeout: 10_000 });
-    await page.waitForTimeout(500);
+    await draftActivity(page, gif, 'Castle Rock State Park');
     const box = (await page.getByLabel('Short description').boundingBox())!;
     await gif.glide(page, { x: box.x + box.width - 40, y: box.y + box.height / 2 }, 600);
     await page.waitForTimeout(2000);
