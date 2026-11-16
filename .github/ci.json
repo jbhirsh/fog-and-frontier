@@ -44,6 +44,28 @@
     "ignore": ["**/*.test.{ts,tsx}", "src/test/**"],
     "source": "a local production build reading production's catalog and photos (scripts/readme-screenshots.ts)"
   },
+  "visual-review": {
+    "workflow": "visual.yml",
+    "job": "visual",
+    "folders": ["tests/visual/shots/*-snapshots"],
+    "ratio": 0.01,
+    "columns": [
+      {
+        "label": "Mobile",
+        "file": "{state}-mobile-linux.png",
+        "width": 200
+      },
+      { "label": "Desktop", "file": "{state}-desktop-linux.png" }
+    ],
+    "mockupPaths": [
+      "src/**",
+      "public/**",
+      "index.html",
+      "tests/visual/*.ts",
+      "tests/visual/photos/**",
+      "tests/visual/tiles/**"
+    ]
+  },
   "visual-baselines": {
     "folders": ["tests/visual/*-snapshots"],
     "command": "npx playwright install --with-deps webkit && npm run test:visual:update"
@@ -84,7 +106,8 @@
       "`npm audit --omit=dev --audit-level=high`"
     ],
     "exempt": {
-      "PR visuals": "Wants pictures in the PR description, which no code change gives (autofix skips its failure too)."
+      "PR visuals": "Wants pictures in the PR description, which no code change gives (autofix skips its failure too).",
+      "Visual review": "Runs on pull_request_target and workflow_run from main's code, comparing screenshots; a changed screen is for the owner to accept, not code autofix can fix."
     }
   },
   "unmeasured": {
