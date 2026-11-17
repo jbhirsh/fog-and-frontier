@@ -95,7 +95,7 @@ The screenshots retake themselves when a change to what they show merges.
 - **`eval/`:** a golden-set harness that grades what Gemini actually returns.
 - **`scripts/`:** the smoke gate, database snapshot and seed helpers, the card-copy and region
   generators, the link and Instagram audits, and the PR GIF and README screenshot recorders.
-- **`tests/visual/`:** the Playwright visual-regression specs and their baselines.
+- **`tests/visual/`:** the Playwright specs that screenshot the pages for visual review.
 
 ## Built to be trusted
 

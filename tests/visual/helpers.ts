@@ -207,7 +207,7 @@ export async function mockApis(page: Page, { refuseOffsite = false } = {}) {
         break;
       case 'ActivityReviews':
         // No fixture reviews: the section is owner-only until one exists, so
-        // the default (non-owner) baselines stay unchanged (#184).
+        // the default (non-owner) screenshots stay unchanged (#184).
         data = { activityReviews: [] };
         break;
       case 'ActivityPhotos': {
@@ -237,7 +237,7 @@ export async function mockApis(page: Page, { refuseOffsite = false } = {}) {
         break;
       case 'PendingSuggestions':
         // No suggestions waiting (#73): the owners' review queue renders
-        // nothing, so the owner baselines stay unchanged.
+        // nothing, so the owner screenshots stay unchanged.
         data = { pendingSuggestions: [] };
         break;
       case 'DrivingMiles': {

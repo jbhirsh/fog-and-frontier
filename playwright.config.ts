@@ -1,8 +1,8 @@
-// Visual regression (npm run test:visual, visual.yml): the desktop pages in
-// Desktop Safari and the mobile ones on an iPhone 17 Pro, both WebKit, each
-// against its own Linux baselines in tests/visual/*-snapshots/. The baselines
-// come from CI, never a laptop, whose fonts render differently: run
-// visual-baselines.yml by hand on the branch, which commits them there. Data
+// Visual screenshots (npm run test:visual, visual.yml): the desktop pages in
+// Desktop Safari and the mobile ones on an iPhone 17 Pro, both WebKit. Every
+// run writes them afresh into tests/visual/shots/, which git ignores, and
+// compares nothing: jbhirsh/ci's visual review compares a PR's with main's
+// (a laptop's differ, for its fonts, so CI's are the ones that count). Data
 // is stubbed: a few fixture photos (tests/visual/photos/), the map tiles the
 // fixtures' maps show (tests/visual/tiles/), and nothing else outside
 // answered (tests/visual/helpers.ts).
@@ -32,18 +32,11 @@ export default defineConfig({
         ],
       ]
     : 'list',
-  // Take mode (visual.yml, jbhirsh/ci#64): with VISUAL_SHOTS set, the
-  // screenshots are written, never compared, into tests/visual/shots/,
-  // which git ignores, for jbhirsh/ci's visual-shots to upload; visual
-  // review compares them with main's. The names stay the baselines' so the
-  // two pair alike. Without it, the committed baselines are compared and
-  // written as before (visual-baselines.yml, pr-visuals.yml).
-  ...(process.env.VISUAL_SHOTS
-    ? {
-        snapshotPathTemplate:
-          '{testDir}/shots/{testFilePath}-snapshots/{arg}{-projectName}{-platform}{ext}',
-      }
-    : {}),
+  // Where the screenshots go, for jbhirsh/ci's visual-shots to upload (visual.yml,
+  // jbhirsh/ci#64). The names are `{state}-{project}-{platform}`, which visual
+  // review's columns pair alike (`visual-review` in .github/ci.json).
+  snapshotPathTemplate:
+    '{testDir}/shots/{testFilePath}-snapshots/{arg}{-projectName}{-platform}{ext}',
   expect: {
     // 1% pixel diff absorbs font-aliasing flake; real regressions blow past this.
     toHaveScreenshot: {
@@ -68,9 +61,8 @@ export default defineConfig({
   },
   // Safari only, as the owner uses (#330): Playwright's own descriptors for
   // Desktop Safari and the iPhone 17 Pro (the iPhone 18 Pro's screen), both
-  // WebKit, each against its own Linux baselines. Linux WebKit is Safari's
-  // engine, not Apple's build: fonts and safe-area insets still differ from
-  // a real iPhone's.
+  // WebKit. Linux WebKit is Safari's engine, not Apple's build: fonts and
+  // safe-area insets still differ from a real iPhone's.
   projects: [
     {
       name: 'desktop',

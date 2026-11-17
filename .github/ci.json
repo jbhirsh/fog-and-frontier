@@ -27,8 +27,7 @@
       "public/**"
     ],
     "notUi": ["**/*.test.tsx", "src/test/**"],
-    "advice": "A UI change shows through the visual baselines it changes, which this check puts in a before/after table comment, phone beside desktop: change them with the UI (tests/visual/ holds the scenarios), run Update visual baselines (visual-baselines.yml) on this branch: it commits them there, and its push re-runs the checks once a maintainer approves them (pull before pushing more). For motion (drag, animation, open/close, scroll, a multi-step flow), commit a scenario in scripts/gif-scenarios/ and push: PR GIFs (pr-gif.yml) builds main and this branch for production, reading production's catalog and photos, records the scenario against each with the pointer and keys drawn in, and PR GIFs attach (pr-gif-attach.yml) adds the GIFs here, labelled GIF:, within minutes (run it by hand for a scenario this PR doesn't change, or a fork's PR; one that needs build variables beyond the GIF build's (gif.build.env) is recorded with `npm run gif` and dragged in, alt text `GIF: …`). A scenario's play(page, gif) moves with gif.glide, click, drag and scroll, with pauses, never locator.click() or a bare page.mouse (jbhirsh/ci's gif/moves.mjs has the rules), keeps the pointer in frame and ends on a pause; try it first with `npm run gif -- <scenario.ts>`. Only a screen outside the app (Google's or Apple's sign-in page) is dragged in by hand, with alt text `No test draws: <why>`. Or tick \"No visible UI change\" in the template. Editing the description re-runs this check.",
-    "fromBaselines": true
+    "sharedTemplate": true
   },
   "audit": {
     "graph": ["src", "api"]
@@ -64,18 +63,6 @@
       "tests/visual/*.ts",
       "tests/visual/photos/**",
       "tests/visual/tiles/**"
-    ]
-  },
-  "visual-baselines": {
-    "folders": ["tests/visual/*-snapshots"],
-    "command": "npx playwright install --with-deps webkit && npm run test:visual:update",
-    "columns": [
-      {
-        "label": "Phone",
-        "file": ["{state}-mobile-mobile-linux.png", "{state}-mobile-linux.png"],
-        "width": 200
-      },
-      { "label": "Desktop", "file": "{state}-desktop-linux.png" }
     ]
   },
   "gif": {
@@ -115,7 +102,7 @@
       "`npm audit --omit=dev --audit-level=high`"
     ],
     "exempt": {
-      "PR visuals": "Wants new baselines or GIFs, which autofix can't make (autofix skips its failure too).",
+      "PR visuals": "Passes every PR while visuals.sharedTemplate is on (visual review decides); a failure would be the workflow, not code autofix can fix.",
       "Visual review": "Runs on pull_request_target and workflow_run from main's code, comparing screenshots; a changed screen is for the owner to accept, not code autofix can fix.",
       "PR GIFs": "Records the PR's GIF scenarios; a failed recording is a scenario or the app to look at, not code autofix can fix."
     }

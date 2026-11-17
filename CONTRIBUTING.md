@@ -45,7 +45,7 @@ Sentry's are set in Vercel:
 | `npm run codegen`                                            | typed GraphQL operations into `src/gql/` from `api/_schema.ts`                                            |
 | `npm test` / `npm run test:watch` / `npm run test:coverage`  | Vitest; only `test:coverage` applies the 80% per-file gate CI runs                                        |
 | `npm run test:mutation`                                      | StrykerJS over the files coverage measures (`stryker.config.json`)                                        |
-| `npm run test:visual` / `npm run test:visual:update`         | Playwright visual regression in WebKit against a `--mode test` build (baselines come from CI: below)      |
+| `npm run test:visual`                                        | Playwright screenshots of a `--mode test` build in WebKit, into `tests/visual/shots/` (below)             |
 | `npx knip` / `npm run jscpd`                                 | the weekly audit's unused-code and duplication checks, expected to report nothing                         |
 | `npm run eval`                                               | the Gemini eval (paid; below)                                                                             |
 | `npm run gif -- <scenario.ts>`                               | a scenario's GIFs into `pr-gif/`, to try it before a push records and attaches it (`pr-gif.yml`)          |
@@ -74,18 +74,15 @@ tests check the built CSS.
 - **Mutation testing** (`mutation.yml`) mutates the lines a PR changed in the files coverage
   measures, and a monthly sweep (`mutation-sweep.yml`) covers everything.
 - **Visual review** (jbhirsh/ci#64, `visual-review.yml`): in CI the `visual` job takes every
-  screenshot afresh (take mode, `VISUAL_SHOTS`, into the git-ignored `tests/visual/shots/`) and
+  screenshot afresh (written, never compared, into the git-ignored `tests/visual/shots/`) and
   uploads them, so a changed screen never fails it, though a broken page still does. Visual
   review compares a PR's screenshots with main's of the commit it's built on, puts a
   before/after table in the PR's description, and sets the `Visual changes` status (CLAUDE.md
   says what accepts a change). `Visual changes` is a required check. A changed screen stops
-  only a PR that merges itself, but it also fails when the screenshots are missing and when a UI
-  change shows no picture (PR visuals' rule, already part of it, so `pr-visuals.yml` goes in the
-  removal PR).
-- **The committed baselines** stay until the removal PR: a local `npm run test:visual` compares
-  against them (`playwright.config.ts` says what it runs), the `visual` job still fails when
-  they're missing, and **Update visual baselines** (`visual-baselines.yml`), run by hand on a
-  branch, still rewrites and commits them there.
+  only a PR that merges itself, but it also fails when the screenshots are missing. Nothing is
+  committed: no baselines, and nothing to update by hand. The PR template is jbhirsh/ci's shared
+  one (`visuals.sharedTemplate`): it has no "No visible UI change" box, since visual review
+  decides whether a screen changed.
 - **A plan's mockups** come from the same screenshots: **Visual regression** (`visual.yml`) run
   by hand on main with `mockup_patch`, the throwaway change (CLAUDE.md has the command; only the
   paths `visual-review.mockupPaths` in `.github/ci.json` allows, never a lockfile), and
@@ -172,8 +169,8 @@ The golden set's review history, the judge's calibration and past scores are in 
 
 The ruleset also asks for a linear history, resolved review threads, CodeQL with no high alerts
 and 80% coverage on GitHub's code coverage rule (the `test` job uploads its report). **PR visuals**
-(`pr-visuals.yml`) fails a UI change that shows none of it (its changed baselines, which it puts in
-a before/after comment, or a GIF), and its message says how to add them; it isn't a required check.
+(`pr-visuals.yml`) passes every PR while `visuals.sharedTemplate` is on, since visual review decides;
+it isn't a required check, and goes with the GIF move.
 
 ## Deployment
 
