@@ -48,7 +48,7 @@ Sentry's are set in Vercel:
 | `npm run test:visual` / `npm run test:visual:update`         | Playwright visual regression in WebKit against a `--mode test` build (baselines come from CI: below)      |
 | `npx knip` / `npm run jscpd`                                 | the weekly audit's unused-code and duplication checks, expected to report nothing                         |
 | `npm run eval`                                               | the Gemini eval (paid; below)                                                                             |
-| `npm run gif -- <scenario.ts> --dir <PR>`                    | a PR's before/after GIFs, recorded by jbhirsh/ci's `gif` tool (`scripts/gif.mjs`; needs ffmpeg, WebKit)   |
+| `npm run gif -- <scenario.ts>`                               | a scenario's GIFs into `pr-gif/<name>/`, to try one before a push records it (needs ffmpeg, WebKit)       |
 | `npm run db:snapshot` / `npm run db:seed-preview`            | production's Turso into `dev-db.sqlite` / the preview database seeded from production                     |
 | `npm run cards -- draft` / `save` (`cards -- dogs draft`...) | card copy (#295) and dog rules (#296) for places saved without them, through a review file                |
 | `npm run regions:gen`                                        | `shared/isoRegions.ts` from ISO 3166 (needs Debian's `iso-codes`)                                         |
@@ -217,7 +217,8 @@ typescript-eslint and type-coverage take TypeScript 7); their red PRs aren't stu
   merge. Without it the default token is used, which works at all only with Settings → Actions →
   General: "Allow GitHub Actions to create and approve pull requests". Visual review uploads its
   tables' pictures with it, as GitHub takes attachments only from a person's token, on a PR or,
-  for a mockup, on its issue (hence Issues write).
+  for a mockup, on its issue (hence Issues write). PR GIFs attach (`pr-gif-attach.yml`), and PR
+  GIFs (`pr-gif.yml`) run by hand, need it too, to attach GIFs.
 - **Claude Review and autofix** sign in by workload identity federation: the workflows pass the IDs
   of a rule in the Anthropic Console (Workload identity). The IDs aren't secret. Review and
   autofix run on the Agent SDK (`"engine": "sdk"` in `.github/ci.json`), which the Max plan's API

@@ -77,7 +77,8 @@
     "build": {
       "mode": "test",
       "env": {
-        "VERCEL_ENV": "production"
+        "VERCEL_ENV": "production",
+        "VITE_APPLE_CLIENT_ID": "app.fogandfrontier.web"
       }
     },
     "cellWidth": 420
@@ -106,7 +107,8 @@
     ],
     "exempt": {
       "PR visuals": "Wants pictures in the PR description, which no code change gives (autofix skips its failure too).",
-      "Visual review": "Runs on pull_request_target and workflow_run from main's code, comparing screenshots; a changed screen is for the owner to accept, not code autofix can fix."
+      "Visual review": "Runs on pull_request_target and workflow_run from main's code, comparing screenshots; a changed screen is for the owner to accept, not code autofix can fix.",
+      "PR GIFs": "Records the PR's GIF scenarios; a failed recording is a scenario or the app to look at, not code autofix can fix."
     }
   },
   "unmeasured": {
