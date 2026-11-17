@@ -39,8 +39,7 @@
     "instagram:check": "node --experimental-strip-types scripts/instagram-check.ts",
     "gif": "node scripts/gif.mjs",
     "cards": "node --experimental-strip-types scripts/card-copy.ts",
-    "test:visual": "playwright test",
-    "test:visual:update": "playwright test --update-snapshots",
+    "test:visual": "playwright test --update-snapshots=all",
     "jscpd": "jscpd",
     "eval": "TZ=America/Los_Angeles tsx eval/run-eval.ts"
   },

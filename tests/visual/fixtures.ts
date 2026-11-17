@@ -5,7 +5,7 @@
 //
 // Editing this file is the explicit way to update what visual tests cover.
 // Do NOT auto-generate from prod — adding an activity in prod must not change
-// visual baselines.
+// the visual screenshots.
 //
 // Photos (#338): small real ones, kept in tests/visual/photos/ (WebP, at most
 // 512 px on the long edge, metadata stripped), so a card shows how a photo

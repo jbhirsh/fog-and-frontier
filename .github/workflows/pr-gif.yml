@@ -1,6 +1,6 @@
 name: PR GIFs
 
-# A PR's before/after GIFs, for motion its baselines can't show: jbhirsh/ci's
+# A PR's before/after GIFs, for motion a still can't show: jbhirsh/ci's
 # reusable pr-gif.yml (its header says how) records each scenario against
 # main and the PR's head, built for production and reading production's
 # catalog and photos (scripts/gif-setup.ts).

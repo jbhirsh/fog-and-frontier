@@ -10,8 +10,7 @@ does and why: read it before changing the module.
 
 - `npm test` skips the 80% per-file coverage gate CI runs; `npm run test:coverage` applies it.
 - `npm run codegen` after changing `api/_schema.ts` or an operation, and commit `src/gql/`.
-- Changing owner-gated presentation changes the visual baselines and the screenshots visual
-  review compares; both run until the baselines' removal PR.
+- Changing owner-gated presentation changes the screenshots visual review compares.
 - A plan's mockups (CONTRIBUTING.md, Tests): commit the throwaway change on a branch, then
   `git fetch origin && git diff --binary "$(git merge-base origin/main HEAD)" | base64 -w0`
   (about 60 KB of base64 at most, a dispatch's limit) and
@@ -58,8 +57,8 @@ does and why: read it before changing the module.
   delete it in `package.json`'s `//overrides`.
 - **Tests are pure**: logic or React Testing Library, with no real network, database or browser;
   the browser is the visual tests' (`tests/visual/`).
-- **PR pictures never go on the `screenshots` branch**: the PR template says where they come
-  from.
+- **PR pictures never go on the `screenshots` branch**: visual review's table and PR GIFs write
+  them into the PR's description (the shared template's marker pairs), from uploads.
 
 ## Visual review
 

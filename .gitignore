@@ -41,8 +41,8 @@ dev-db.sqlite-*
 # Local Turso backups (incident #24). Never commit — may contain prod data.
 backups/
 
-# Playwright transient output. The baselines, tests/visual/pages.*.spec.ts-snapshots/, ARE committed.
-# Take mode's screenshots (VISUAL_SHOTS, playwright.config.ts): uploaded, never committed.
+# Playwright transient output. The visual tests' screenshots (playwright.config.ts): uploaded for
+# visual review, never committed.
 tests/visual/shots/
 test-results/
 playwright-report/
