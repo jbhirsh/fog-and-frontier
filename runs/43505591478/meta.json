@@ -1,0 +1,12 @@
+{
+  "id": 43505591478,
+  "number": 506,
+  "workflow": "CI",
+  "branch": "ci51-carry-test",
+  "sha": "09991e837c0ec54424ca1225e2a22823f47829a6",
+  "created": "2026-11-13T20:52:52Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43505591478",
+  "jobs": [
+    "test"
+  ]
+}

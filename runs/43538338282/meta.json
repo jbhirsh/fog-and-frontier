@@ -1,0 +1,12 @@
+{
+  "id": 43538338282,
+  "number": 512,
+  "workflow": "CI",
+  "branch": "visual-map-tiles-338",
+  "sha": "7d5a307ef4b991c372981b794ec1c71a209e23b1",
+  "created": "2026-11-14T01:04:36Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43538338282",
+  "jobs": [
+    "test"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": 44461413442,
+  "number": 576,
+  "workflow": "CI",
+  "branch": "adopt-pr-changes",
+  "sha": "f9533f26208d9764c1a95bde7cc0b472160514a7",
+  "created": "2026-11-19T04:53:46Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/44461413442",
+  "jobs": [
+    "test"
+  ]
+}

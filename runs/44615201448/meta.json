@@ -1,0 +1,12 @@
+{
+  "id": 44615201448,
+  "number": 578,
+  "workflow": "CI",
+  "branch": "claude/pr-description-workflow",
+  "sha": "ea10f645ea0896404c8c68dbb0e9aec41d10f2a9",
+  "created": "2026-11-19T21:05:17Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/44615201448",
+  "jobs": [
+    "test"
+  ]
+}

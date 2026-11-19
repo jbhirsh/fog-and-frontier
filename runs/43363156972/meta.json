@@ -1,0 +1,12 @@
+{
+  "id": 43363156972,
+  "number": 721,
+  "workflow": "Visual regression",
+  "branch": "bot/readme-screenshots",
+  "sha": "c6f66d7fbf3b0fb94d44ceabfd49ae41448d1dc7",
+  "created": "2026-11-13T04:05:05Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43363156972",
+  "jobs": [
+    "visual"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": 43392623813,
+  "number": 502,
+  "workflow": "CI",
+  "branch": "self-hosted-fonts-icons",
+  "sha": "d12f83d7ecb1d4b5be468d96810e2a13fc8c06a7",
+  "created": "2026-11-13T08:21:46Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43392623813",
+  "jobs": [
+    "test"
+  ]
+}

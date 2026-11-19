@@ -1,0 +1,12 @@
+{
+  "id": 44176658235,
+  "number": 568,
+  "workflow": "CI",
+  "branch": "remove-visual-baselines",
+  "sha": "a326412b55795652401a414ff18ff8de55979b6b",
+  "created": "2026-11-17T21:08:28Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/44176658235",
+  "jobs": [
+    "test"
+  ]
+}

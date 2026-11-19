@@ -1,0 +1,12 @@
+{
+  "id": 43369221652,
+  "number": 726,
+  "workflow": "Visual regression",
+  "branch": "dependabot/npm_and_yarn/all-updates-afe921fc27",
+  "sha": "a5ebd51a1ca3d78366a4391d04ef5e94b21adf86",
+  "created": "2026-11-13T05:01:11Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43369221652",
+  "jobs": [
+    "visual"
+  ]
+}
