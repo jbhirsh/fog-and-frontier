@@ -102,6 +102,7 @@
       "`npm audit --omit=dev --audit-level=critical`"
     ],
     "exempt": {
+      "PR description": "Checks the description's text against the shared shape; a failure is the description to fix, not code autofix can fix.",
       "PR visuals": "Passes every PR while visuals.sharedTemplate is on (visual review decides); a failure would be the workflow, not code autofix can fix.",
       "Visual review": "Runs on pull_request_target and workflow_run from main's code, comparing screenshots; a changed screen is for the owner to accept, not code autofix can fix.",
       "PR GIFs": "Records the PR's GIF scenarios; a failed recording is a scenario or the app to look at, not code autofix can fix.",
