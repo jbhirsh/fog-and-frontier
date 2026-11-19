@@ -81,8 +81,8 @@ tests check the built CSS.
   says what accepts a change). `Visual changes` is a required check. A changed screen stops
   only a PR that merges itself, but it also fails when the screenshots are missing. Nothing is
   committed: no baselines, and nothing to update by hand. The PR template is jbhirsh/ci's shared
-  one (`visuals.sharedTemplate`): it has no "No visible UI change" box, since visual review
-  decides whether a screen changed.
+  one: it has no "No visible UI change" box, since visual review decides whether a screen
+  changed.
 - **A plan's mockups** come from the same screenshots: **Visual regression** (`visual.yml`) run
   by hand on main with `mockup_patch`, the throwaway change (CLAUDE.md has the command; only the
   paths `visual-review.mockupPaths` in `.github/ci.json` allows, never a lockfile), and
@@ -163,14 +163,13 @@ The golden set's review history, the judge's calibration and past scores are in 
 | `Mutation Tests (Stryker)` (`mutation.yml`)            | mutation testing of the lines a PR changed                                                                                                                                                                                 |
 | `visual` (`visual.yml`)                                | the pages' screenshots, taken for visual review; fails on a page that breaks, never on a changed screen                                                                                                                    |
 | `smoke` (`smoke.yml`)                                  | canary checks against the PR's Vercel preview (real data from `/api/graphql`, an anonymous trips query refused, the HTML linking built CSS), catching Vercel's no-build cached stubs; again against production after merge |
+| `PR description` (`pr-description.yml`)                | jbhirsh/ci's description check: the PR's description is in the shared shape (the check's failure message says what to fix)                                                                                                 |
 | `Visual changes` (`visual-review.yml`)                 | the commit status visual review sets (a status, not a check run)                                                                                                                                                           |
 | `Secret scan` (`gitleaks.yml`), `Scan` (`semgrep.yml`) | secrets and static analysis                                                                                                                                                                                                |
 | `Vercel`                                               | the preview deploy                                                                                                                                                                                                         |
 
 The ruleset also asks for a linear history, resolved review threads, CodeQL with no high alerts
-and 80% coverage on GitHub's code coverage rule (the `test` job uploads its report). **PR visuals**
-(`pr-visuals.yml`) passes every PR while `visuals.sharedTemplate` is on, since visual review decides;
-it isn't a required check, and goes with the GIF move.
+and 80% coverage on GitHub's code coverage rule (the `test` job uploads its report).
 
 ## Deployment
 
