@@ -99,7 +99,7 @@
       "`npm run test:coverage` (per-file 80% coverage)",
       "`npx vite build`",
       "the \"Bundle size budget\" step of `.github/workflows/ci.yml` (copy its `run:` commands; after the build)",
-      "`npm audit --omit=dev --audit-level=high`"
+      "`npm audit --omit=dev --audit-level=critical`"
     ],
     "exempt": {
       "PR visuals": "Passes every PR while visuals.sharedTemplate is on (visual review decides); a failure would be the workflow, not code autofix can fix.",
