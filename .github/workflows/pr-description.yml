@@ -1,12 +1,19 @@
 name: PR description
 
-# jbhirsh/ci's description check: the PR's description is in the shared shape
-# (its headings, the goal's issue, the plan table, each change's commit, a
-# Revisions table naming the head). It reads the PR's event as data and runs
-# none of its code, so it needs no checkout and no token. A required check, so
-# it has no `paths:` filter: a filtered-out workflow never reports. An edit
-# supersedes the run before it, which is what makes the check follow the
-# description a push's Revisions row rewrites.
+# jbhirsh/ci's PR description check: holds the PR's description to the shared
+# shape (headings, the goal's issue, the plan table's shading, each change's
+# commit, a Revisions row naming the head). It reads only this event's
+# description, so it checks nothing out and needs no token.
+#
+# Every edit triggers it as well as every push: the tools that write the
+# description (PR changes, PR GIFs) edit it, and the check must see the
+# finished text. A newer run supersedes the older.
+#
+# A required check, so it has no `paths:` filter: a filtered-out workflow never
+# reports, and the PR would wait on it forever.
+#
+# This is the canonical copy every app holds (sync/manifest.json); change it in
+# jbhirsh/ci, never in an app.
 on:
   pull_request:
     branches: [main]
