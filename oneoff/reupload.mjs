@@ -102,22 +102,45 @@ async function signedOut(url) {
   }
 }
 
+/** The description with the temporary block cut out (or itself, when it has none). */
+function cut(/** @type {string} */ body) {
+  const from = body.indexOf(`\n\n${OPEN}\n`);
+  const to = body.indexOf(`${CLOSE}\n`);
+  if (from === -1 || to === -1 || to < from) return body;
+  return body.slice(0, from) + body.slice(to + CLOSE.length + 1);
+}
+
+/** Set from just before edit 1 until edit 2 is written: what a failure takes the description back to. */
+let restoreTo = /** @type {string | null} */ (null);
+let current = /** @type {any} */ ({ log: [] });
+
 /**
- * Refuses: removes only the temporary block (Actions token) when it is
- * there, then fails the run.
+ * Takes the description back to the snapshot by cutting out only the
+ * temporary block; touches nothing when anything else differs.
+ *
+ * @param {any} s
+ */
+async function restoreSnapshot(s) {
+  const snapshot = /** @type {string} */ (restoreTo);
+  restoreTo = null;
+  const now = await readBody();
+  if (now === snapshot) return log(s, 'the description already equals its snapshot');
+  if (cut(now) !== snapshot) return log(s, 'STOP: the description is not its snapshot plus the temporary block; not touched');
+  await writeBody(snapshot);
+  const back = await readBody();
+  log(s, `restored: the temporary block cut out; the description ${back === snapshot ? 'equals' : 'DIFFERS FROM'} its snapshot`);
+}
+
+/**
+ * Refuses: takes the description back to its snapshot when edit 1 has
+ * run, then fails the run.
  *
  * @param {any} s
  * @param {string} why
  */
 async function refuse(s, why) {
   log(s, `REFUSED: ${why}`);
-  const body = await readBody();
-  const from = body.indexOf(`\n\n${OPEN}`);
-  const to = body.indexOf(CLOSE);
-  if (from !== -1 && to !== -1) {
-    await writeBody(body.slice(0, from) + body.slice(to + CLOSE.length).replace(/^\n/, ''));
-    log(s, 'the temporary block was removed; the old links and the comment are as they were');
-  }
+  if (restoreTo !== null) await restoreSnapshot(s);
   save(s);
   process.exit(1);
 }
@@ -126,14 +149,15 @@ const dry = JSON.parse(readFileSync(path.join(ART, 'dry-run.json'), 'utf8'));
 /** Every asset id an upload comment in the dry run holds. */
 const uploadIds = [...new Set(dry.found.flatMap((/** @type {any} */ c) => c.ids))];
 
+try {
 if (cmd === 'phase1') {
   mkdirSync(stateDir, { recursive: true });
-  const s = { pr: PR, comment: COMMENT, log: /** @type {string[]} */ ([]), pictures: /** @type {any} */ ({}) };
+  const s = current = { pr: PR, comment: COMMENT, log: /** @type {string[]} */ ([]), pictures: /** @type {any} */ ({}) };
   const where = `${KIND === 'pr' ? 'PR' : 'issue'} #${PR}'s description`;
   const listed = Object.keys(dry.places)
     .filter((id) => dry.places[id].some((/** @type {any} */ p) => p.where === where))
     .sort();
-  if (JSON.stringify(listed) !== JSON.stringify(EXPECTED)) {
+  if (!cfg.test && JSON.stringify(listed) !== JSON.stringify(EXPECTED)) {
     log(s, `the dry run's ids for #${PR} (${listed}) aren't the approved list (${EXPECTED})`);
     process.exit(1);
   }
@@ -158,7 +182,20 @@ if (cmd === 'phase1') {
     process.exit(1);
   }
   const block = `\n\n${OPEN}\n${EXPECTED.map((id) => `${BANG}[${id}](./reupload/${id}.png)`).join('\n')}\n${CLOSE}\n`;
-  const body1 = snapshot + block;
+  // At the end of the description, or, with `inside`, inside visual
+  // review's own block, so its find skips the edit on an open PR.
+  const endMark = '<!-- /describe:visual-review -->';
+  if (cfg.inside && snapshot.indexOf(endMark) !== snapshot.lastIndexOf(endMark)) {
+    log(s, 'visual review\'s block closes more than once');
+    process.exit(1);
+  }
+  const at = cfg.inside ? snapshot.indexOf(endMark) : snapshot.length;
+  if (at === -1) {
+    log(s, 'no visual-review block to put the temporary block inside');
+    process.exit(1);
+  }
+  const body1 = snapshot.slice(0, at) + block + snapshot.slice(at);
+  if (cut(body1) !== snapshot) throw new Error('cut() does not undo the temporary block');
   if (body1.length + EXPECTED.length * 100 > 65_536 || EXPECTED.length > 50) {
     log(s, `too big for one edit: ${body1.length} characters, ${EXPECTED.length} files`);
     process.exit(1);
@@ -166,21 +203,22 @@ if (cmd === 'phase1') {
   writeFileSync(path.join(stateDir, 'body1.md'), body1);
   log(s, `snapshot: ${snapshot.length} characters, ${snapshot.split('\n').length} lines, ${(snapshot.match(/\r/g) ?? []).length} CR; it links exactly the ${EXPECTED.length} approved ids`);
   s.edit1At = new Date().toISOString();
+  s.snapshot = snapshot;
+  restoreTo = snapshot;
   execFileSync(
     'gh',
     [KIND, 'edit', String(PR), '--repo', REPO, '--body-file', path.join(stateDir, 'body1.md'), ...EXPECTED.flatMap((id) => ['--attach', `./reupload/${id}.png`])],
     { env: { ...env, GH_TOKEN: env.UPLOAD_TOKEN }, stdio: 'inherit' },
   );
   log(s, `edit 1 (BOT_PR_TOKEN) at ${s.edit1At}`);
+  if (cfg.forceReadBackFailure) throw new Error('forced read-back failure (a test of the restore)');
   const after = await readBody();
   writeFileSync(path.join(stateDir, 'edit1.md'), after);
   s.edit1Body = after;
-  s.snapshot = snapshot;
-  if (!after.startsWith(snapshot)) await refuse(s, 'edit 1 changed the description outside the temporary block');
-  const tail = after.slice(snapshot.length);
+  if (cut(after) !== snapshot) await refuse(s, 'edit 1 changed the description outside the temporary block, or gh appended to it');
+  const tail = after.slice(after.indexOf(`\n\n${OPEN}\n`));
   const close = tail.indexOf(CLOSE);
-  if (!tail.startsWith(`\n\n${OPEN}\n`) || close === -1) await refuse(s, 'the temporary block is not where edit 1 put it');
-  s.appended = tail.slice(close + CLOSE.length);
+  s.appended = '';
   s.newLinks = {};
   for (const id of EXPECTED) {
     const m = new RegExp(`${BANG}\\[${id}\\]\\((${ASSET.replaceAll('.', '\\.').replaceAll('/', '\\/')}[0-9a-f-]+)\\)`).exec(tail.slice(0, close));
@@ -190,7 +228,8 @@ if (cmd === 'phase1') {
   log(s, `read back: ${Object.keys(s.newLinks).length} new links; ${JSON.stringify(s.appended)} after the block`);
   save(s);
 } else if (cmd === 'phase2') {
-  const s = load();
+  const s = current = load();
+  restoreTo = s.snapshot;
   const now = await readBody();
   if (now !== s.edit1Body) await refuse(s, 'the description changed since edit 1 (one of its runs, or a person, wrote it)');
   log(s, 'the description is exactly as edit 1 left it, after its runs ended');
@@ -205,7 +244,7 @@ if (cmd === 'phase1') {
   // Edit 2: the snapshot, with only the approved links swapped. Since the
   // description equals edit 1's (the snapshot, then the block, then what gh
   // appended), dropping the block and the appended text gives the snapshot.
-  const base = now.slice(0, now.indexOf(`\n\n${OPEN}`));
+  const base = cut(now);
   if (base !== s.snapshot) await refuse(s, 'what precedes the temporary block is not the snapshot');
   let edit2 = base;
   /** @type {Record<string, number>} */
@@ -219,6 +258,7 @@ if (cmd === 'phase1') {
   if (edit2 !== expected) await refuse(s, 'edit 2 is not the snapshot with only the links swapped');
   if (uploadIds.some((id) => edit2.includes(id))) await refuse(s, 'edit 2 still links an upload-comment id');
   if (Object.values(swaps).some((n) => n < 1)) await refuse(s, `an approved id wasn't in the description: ${JSON.stringify(swaps)}`);
+  restoreTo = null;
   await writeBody(edit2);
   writeFileSync(path.join(stateDir, 'after.md'), edit2);
   s.swaps = swaps;
@@ -353,4 +393,16 @@ if (cmd === 'phase1') {
   if (bad > 0) process.exit(1);
 } else {
   throw new Error(`unknown command ${cmd}`);
+}
+} catch (e) {
+  // Any failure between edit 1 and edit 2 takes the description back to
+  // its snapshot first (the refusal step), then fails the run.
+  log(current, `FAILED: ${e instanceof Error ? e.message : String(e)}`);
+  if (restoreTo !== null) await restoreSnapshot(current);
+  try {
+    save(current);
+  } catch {
+    // no state dir yet
+  }
+  process.exit(1);
 }
