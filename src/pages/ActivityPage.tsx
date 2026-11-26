@@ -96,7 +96,7 @@ export function ActivityPage() {
   ) : (
     <Missing
       title="Activity not found"
-      message="This link may be out of date, or the activity was removed from the catalog."
+      message="This link may be out of date, or the activity has been removed from the catalog."
       onClose={close}
       animate={animate}
     />
