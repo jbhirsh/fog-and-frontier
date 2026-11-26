@@ -1,0 +1,113 @@
+# One-off (jbhirsh/ci#144, the cleanup's step 4: the trial on #374), on this
+# throwaway branch only: never on main. Each push runs the phase that
+# oneoff/phase.json names: 1 is edit 1 (BOT_PR_TOKEN, the pictures re-uploaded
+# into a temporary block), 2 is edit 2 (Actions token, only the links
+# swapped), the comment's delete and the checks. Between them the session
+# waits for the runs edit 1 started to end (`gh run watch`), then pushes
+# phase 2. No timer: every check is a step tied to the one before it.
+name: ci#144 re-upload trial (throwaway)
+
+on:
+  push:
+    branches: [oneoff/ci144-reupload]
+
+permissions: {}
+
+env:
+  REPO: ${{ github.repository }}
+  PR: '374'
+  COMMENT: '7145235994'
+  EXPECTED: >-
+    5c7499e5-01a9-4e04-8403-ac973e7e359f 82c703c7-8027-43e5-aa1b-a0fef2346b85
+    9a2a7a8c-2360-42d8-bb55-1647e15a7c65 fcae9572-c992-4868-ae8d-aed792467b77
+  DRY_RUN: '45847376999'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+    outputs:
+      phase: ${{ steps.phase.outputs.phase }}
+    env:
+      ACTIONS_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - id: phase
+        run: |
+          echo "phase=$(jq -r .phase oneoff/phase.json)" >> "$GITHUB_OUTPUT"
+          echo "phase1=$(jq -r '.phase1Run // ""' oneoff/phase.json)" >> "$GITHUB_OUTPUT"
+      - name: The dry run's artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$DRY_RUN" --repo "$REPO" --name upload-comments-fog-and-frontier --dir "$RUNNER_TEMP/art"
+      - name: Phase 1's state
+        if: steps.phase.outputs.phase == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN1: ${{ steps.phase.outputs.phase1 }}
+        run: gh run download "$RUN1" --repo "$REPO" --name reupload-state --dir "$RUNNER_TEMP/state"
+      - name: Phase 1 (checks, snapshot, edit 1, read back)
+        if: steps.phase.outputs.phase == '1'
+        env:
+          ART: ${{ runner.temp }}/art
+          UPLOAD_TOKEN: ${{ secrets.BOT_PR_TOKEN }}
+        run: node oneoff/reupload.mjs phase1 "$RUNNER_TEMP/state"
+      - name: Phase 2 (checks, edit 2, delete, checks)
+        if: steps.phase.outputs.phase == '2'
+        env:
+          ART: ${{ runner.temp }}/art
+        run: node oneoff/reupload.mjs phase2 "$RUNNER_TEMP/state"
+      - name: Fetch, after the delete
+        if: steps.phase.outputs.phase == '2'
+        env:
+          ART: ${{ runner.temp }}/art
+        run: node oneoff/reupload.mjs fetch "$RUNNER_TEMP/state" after-delete
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: reupload-state${{ steps.phase.outputs.phase == '2' && '-2' || '' }}
+          path: ${{ runner.temp }}/state
+          retention-days: 90
+
+  refetch:
+    needs: run
+    if: needs.run.outputs.phase == '2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$DRY_RUN" --repo "$REPO" --name upload-comments-fog-and-frontier --dir "$RUNNER_TEMP/art"
+      - uses: actions/download-artifact@v7
+        with:
+          name: reupload-state-2
+          path: ${{ runner.temp }}/state
+      - name: Fetch again, on a fresh runner once the delete's job has finished
+        env:
+          ART: ${{ runner.temp }}/art
+        run: node oneoff/reupload.mjs fetch "$RUNNER_TEMP/state" fresh-runner
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: reupload-state-final
+          path: ${{ runner.temp }}/state
+          retention-days: 90
