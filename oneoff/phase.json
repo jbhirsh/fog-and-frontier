@@ -1,1 +1,1 @@
-{"phase": 1, "kind": "pr", "number": 373, "comment": 7144666853, "expected": ["82c703c7-8027-43e5-aa1b-a0fef2346b85", "0076df79-889f-48fe-9296-e57a4a745a2c"], "dryRun": "45847376999"}
+{"phase": 2, "phase1Run": "45870579070", "kind": "pr", "number": 373, "comment": 7144666853, "expected": ["82c703c7-8027-43e5-aa1b-a0fef2346b85", "0076df79-889f-48fe-9296-e57a4a745a2c"], "dryRun": "45847376999"}
