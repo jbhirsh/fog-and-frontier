@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   TRIP_VIEWS,
+  dateFieldsMask,
   expectNoOffsiteRequests,
   mockApis,
   settleTripView,
@@ -113,7 +114,10 @@ test.describe('visual regression — trips (desktop)', () => {
     test(view.name, async ({ page }) => {
       await page.goto(view.path);
       await settleTripView(page, view);
-      await expect(page).toHaveScreenshot(`${view.name}.png`, { fullPage: true });
+      await expect(page).toHaveScreenshot(`${view.name}.png`, {
+        fullPage: true,
+        mask: dateFieldsMask(page),
+      });
     });
   }
 });

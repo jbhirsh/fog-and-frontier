@@ -163,6 +163,17 @@ export async function settleTripView(page: Page, view: { ready: string }) {
   await waitForVisualReady(page);
 }
 
+/**
+ * The date and time fields on screen, for a shot's `mask`. WebKit draws an
+ * empty one with the current date or time in grey, read from the system
+ * clock, which page.clock doesn't reach (it fakes only the page's `Date`), so
+ * unmasked the shot changes every day: New trip's showed the day of each run.
+ * Masked, the fields' size and place are still checked.
+ */
+export function dateFieldsMask(page: Page) {
+  return [page.locator('input[type="date"], input[type="time"], input[type="datetime-local"]')];
+}
+
 // The map tiles the fixtures' maps show (#338): OpenStreetMap's, at
 // tests/visual/tiles/z/x/y.png (its README says where they come from).
 const TILES = new URL('./tiles/', import.meta.url);

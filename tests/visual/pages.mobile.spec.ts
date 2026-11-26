@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   TRIP_VIEWS,
+  dateFieldsMask,
   expectNoOffsiteRequests,
   mockApis,
   settleTripView,
@@ -243,14 +244,10 @@ test.describe('visual regression — trips (mobile)', () => {
     test(view.name, async ({ page }) => {
       await page.goto(view.path);
       await settleTripView(page, view);
-      // WebKit fills an empty date field with today's date in grey, read
-      // from the system clock (page.clock can't pin it), so the snapshot
-      // would change every day. Mask the fields: their size and place
-      // are still checked.
       await fitWindowToPage(page);
       await expect(page).toHaveScreenshot(`${view.name}.png`, {
         fullPage: true,
-        mask: [page.locator('input[type="date"]')],
+        mask: dateFieldsMask(page),
       });
     });
   }
