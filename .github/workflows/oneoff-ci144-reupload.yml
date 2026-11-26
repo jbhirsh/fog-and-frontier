@@ -48,7 +48,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh run download "$(jq -r .dryRun oneoff/phase.json)" --repo "$REPO" --name "$ART_NAME" --dir "$RUNNER_TEMP/art"
       - name: Phase 1's state
-        if: steps.phase.outputs.phase == '2'
+        if: steps.phase.outputs.phase == '2' || steps.phase.outputs.phase == 'restore'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN1: ${{ steps.phase.outputs.phase1 }}
@@ -64,6 +64,11 @@ jobs:
         env:
           ART: ${{ runner.temp }}/art
         run: node oneoff/reupload.mjs phase2 "$RUNNER_TEMP/state"
+      - name: Back to phase 1's snapshot (only the temporary block removed)
+        if: steps.phase.outputs.phase == 'restore'
+        env:
+          ART: ${{ runner.temp }}/art
+        run: node oneoff/reupload.mjs restore "$RUNNER_TEMP/state"
       - name: The comments that back no link (each re-checked, then deleted)
         if: steps.phase.outputs.phase == 'dead'
         env:

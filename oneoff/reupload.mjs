@@ -10,6 +10,7 @@
 //   phase2 <state dir>  checks, edit 2 (Actions token), delete, checks
 //   fetch <state dir> <label>  signed-out fetch of the new and P1's links
 //   dead <state dir>    the comments that back no link, each re-checked
+//   restore <state dir> back to phase 1's snapshot, when phase 1 stopped after edit 1
 //
 // Every check refuses: no retry. A refusal after edit 1 removes only the
 // temporary block, leaving the old links and the comment as they were.
@@ -263,6 +264,24 @@ if (cmd === 'phase1') {
     process.exit(1);
   }
   log(s, 'the description read back after the delete is still edit 2');
+  save(s);
+} else if (cmd === 'restore') {
+  // Phase 1 stopped after edit 1 without its refusal (a dropped connection
+  // on the read-back): take the description back to phase 1's snapshot,
+  // removing only the temporary block. Nothing else may differ.
+  const s = { log: /** @type {string[]} */ ([]) };
+  const before = readFileSync(path.join(stateDir, 'before.md'), 'utf8');
+  const now = await readBody();
+  const tail = now.slice(before.length);
+  if (!now.startsWith(before) || !tail.startsWith(`\n\n${OPEN}\n`) || !tail.trimEnd().endsWith(CLOSE)) {
+    log(s, 'STOP: the description is not the snapshot plus the temporary block; not touched');
+    process.exit(1);
+  }
+  await writeBody(before);
+  const back = await readBody();
+  log(s, `temporary block removed (${tail.length} characters); the description ${back === before ? 'equals' : 'DIFFERS FROM'} phase 1's snapshot`);
+  if (back !== before) process.exit(1);
+  mkdirSync(stateDir, { recursive: true });
   save(s);
 } else if (cmd === 'dead') {
   // The comments that back no link: each re-checked right before its delete.
