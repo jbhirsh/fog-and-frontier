@@ -31,6 +31,6 @@ jobs:
       statuses: write
       pull-requests: write
       issues: write
-    uses: jbhirsh/ci/.github/workflows/visual-review.yml@main
+    uses: jbhirsh/ci/.github/workflows/visual-review.yml@oneoff/vr-v2-fog
     secrets:
       bot-pr-token: ${{ secrets.BOT_PR_TOKEN }}
