@@ -1,0 +1,108 @@
+# One-off (jbhirsh/ci#144, V2 in this app), on this throwaway branch only,
+# never merged: labelling the throwaway PR "ci144-attach" runs visual
+# review's attach (jbhirsh/ci's oneoff/vr-v2-fog) against it and a
+# throwaway issue with this app's BOT_PR_TOKEN; "ci144-fetch" fetches the
+# pictures signed out.
+name: ci#144 attach check (throwaway)
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions: {}
+
+env:
+  REPO: ${{ github.repository }}
+  PR: ${{ github.event.pull_request.number }}
+  HEAD: ${{ github.event.pull_request.head.sha }}
+  RUN: ${{ github.run_id }}
+  ISSUE: "375"
+
+jobs:
+  prep:
+    if: github.event.label.name == 'ci144-attach'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: jbhirsh/ci
+          ref: oneoff/vr-v2-fog
+          path: ci
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+        working-directory: ci
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/oneoff/vr-live.mjs prep "$RUNNER_TEMP/h"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: visual-review-attach-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/h/pr
+      - uses: actions/upload-artifact@v7
+        with:
+          name: visual-review-attach-issue-375-2
+          path: ${{ runner.temp }}/h/issue
+
+  attach-pr:
+    needs: prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+      issues: write
+    concurrency:
+      group: pr-gif-attach-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      - uses: jbhirsh/ci/visual-review/attach@oneoff/vr-v2-fog
+        with:
+          run: ${{ github.run_id }}
+          kind: pr
+          number: ${{ github.event.pull_request.number }}
+          upload-token: ${{ secrets.BOT_PR_TOKEN }}
+
+  attach-issue:
+    needs: prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - uses: jbhirsh/ci/visual-review/attach@oneoff/vr-v2-fog
+        with:
+          run: "2"
+          kind: issue
+          number: "375"
+          upload-token: ${{ secrets.BOT_PR_TOKEN }}
+
+  fetch:
+    if: github.event.label.name == 'ci144-fetch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: jbhirsh/ci
+          ref: oneoff/vr-v2-fog
+          path: ci
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+        working-directory: ci
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/oneoff/vr-live.mjs fetch "$RUNNER_TEMP/f"
