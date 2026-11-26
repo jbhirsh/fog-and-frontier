@@ -1,11 +1,12 @@
-# One-off (jbhirsh/ci#144, the cleanup's step 4: the trial on #374), on this
+# One-off (jbhirsh/ci#144, the cleanup's steps 4 to 7), on this
 # throwaway branch only: never on main. Each push runs the phase that
-# oneoff/phase.json names: 1 is edit 1 (BOT_PR_TOKEN, the pictures re-uploaded
+# oneoff/phase.json names, for the description it names: 1 is edit 1 (BOT_PR_TOKEN, the pictures re-uploaded
 # into a temporary block), 2 is edit 2 (Actions token, only the links
-# swapped), the comment's delete and the checks. Between them the session
+# swapped), the comment's delete and the checks; dead deletes the comments
+# that back no link, each re-checked first. Between them the session
 # waits for the runs edit 1 started to end (`gh run watch`), then pushes
 # phase 2. No timer: every check is a step tied to the one before it.
-name: ci#144 re-upload trial (throwaway)
+name: ci#144 re-upload (throwaway)
 
 on:
   push:
@@ -15,12 +16,7 @@ permissions: {}
 
 env:
   REPO: ${{ github.repository }}
-  PR: '374'
-  COMMENT: '7145235994'
-  EXPECTED: >-
-    5c7499e5-01a9-4e04-8403-ac973e7e359f 82c703c7-8027-43e5-aa1b-a0fef2346b85
-    9a2a7a8c-2360-42d8-bb55-1647e15a7c65 fcae9572-c992-4868-ae8d-aed792467b77
-  DRY_RUN: '45847376999'
+  ART_NAME: upload-comments-${{ github.event.repository.name }}
 
 jobs:
   run:
@@ -46,10 +42,11 @@ jobs:
         run: |
           echo "phase=$(jq -r .phase oneoff/phase.json)" >> "$GITHUB_OUTPUT"
           echo "phase1=$(jq -r '.phase1Run // ""' oneoff/phase.json)" >> "$GITHUB_OUTPUT"
+          echo "dry=$(jq -r .dryRun oneoff/phase.json)" >> "$GITHUB_OUTPUT"
       - name: The dry run's artifact
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run download "$DRY_RUN" --repo "$REPO" --name upload-comments-fog-and-frontier --dir "$RUNNER_TEMP/art"
+        run: gh run download "$(jq -r .dryRun oneoff/phase.json)" --repo "$REPO" --name "$ART_NAME" --dir "$RUNNER_TEMP/art"
       - name: Phase 1's state
         if: steps.phase.outputs.phase == '2'
         env:
@@ -67,6 +64,11 @@ jobs:
         env:
           ART: ${{ runner.temp }}/art
         run: node oneoff/reupload.mjs phase2 "$RUNNER_TEMP/state"
+      - name: The comments that back no link (each re-checked, then deleted)
+        if: steps.phase.outputs.phase == 'dead'
+        env:
+          ART: ${{ runner.temp }}/art
+        run: node oneoff/reupload.mjs dead "$RUNNER_TEMP/state"
       - name: Fetch, after the delete
         if: steps.phase.outputs.phase == '2'
         env:
@@ -96,7 +98,7 @@ jobs:
           node-version: 24
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run download "$DRY_RUN" --repo "$REPO" --name upload-comments-fog-and-frontier --dir "$RUNNER_TEMP/art"
+        run: gh run download "$(jq -r .dryRun oneoff/phase.json)" --repo "$REPO" --name "$ART_NAME" --dir "$RUNNER_TEMP/art"
       - uses: actions/download-artifact@v7
         with:
           name: reupload-state-2

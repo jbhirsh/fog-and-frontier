@@ -1,13 +1,15 @@
-// One-off (jbhirsh/ci#144, the cleanup's step 4: the trial), on this
-// throwaway branch only: never on main. Re-uploads the pictures one
-// description links from old upload comments straight into it, swaps only
-// their links, then deletes one upload comment. Two phases, each started by
-// a push to this branch, so the session can wait for the runs edit 1 starts
+// One-off (jbhirsh/ci#144, the cleanup's steps 4 to 7), on this throwaway
+// branch only: never on main. Re-uploads the pictures one description links
+// from old upload comments straight into it, swaps only their links, then
+// deletes its upload comment; oneoff/phase.json names the description, its
+// approved ids, the comment and the dry run. Two phases, each started by a
+// push to this branch, so the session can wait for the runs edit 1 starts
 // (`gh run watch`) between them; no timer anywhere.
 //
 //   phase1 <state dir>  checks, snapshot, edit 1 (BOT_PR_TOKEN), read back
 //   phase2 <state dir>  checks, edit 2 (Actions token), delete, checks
 //   fetch <state dir> <label>  signed-out fetch of the new and P1's links
+//   dead <state dir>    the comments that back no link, each re-checked
 //
 // Every check refuses: no retry. A refusal after edit 1 removes only the
 // temporary block, leaving the old links and the comment as they were.
@@ -19,9 +21,13 @@ import path from 'node:path';
 
 const env = process.env;
 const REPO = String(env.REPO);
-const PR = Number(env.PR);
-const COMMENT = Number(env.COMMENT);
-const EXPECTED = String(env.EXPECTED).split(/\s+/).filter(Boolean).sort();
+/** What this push runs on: oneoff/phase.json, one description (or the dead comments) at a time. */
+const cfg = JSON.parse(readFileSync('oneoff/phase.json', 'utf8'));
+const KIND = cfg.kind === 'issue' ? 'issue' : 'pr';
+const PR = Number(cfg.number);
+const COMMENT = cfg.comment == null ? null : Number(cfg.comment);
+const EXPECTED = [...(cfg.expected ?? [])].sort();
+const ROUTE = `repos/${REPO}/${KIND === 'pr' ? 'pulls' : 'issues'}/${PR}`;
 const ART = String(env.ART);
 const [cmd, stateDir, label] = process.argv.slice(2);
 const API = 'https://api.github.com';
@@ -69,15 +75,15 @@ async function api(method, route, body) {
 }
 
 async function readBody() {
-  const r = await api('GET', `repos/${REPO}/pulls/${PR}`);
-  if (r.status !== 200) throw new Error(`GET PR ${PR}: ${r.status}`);
+  const r = await api('GET', ROUTE);
+  if (r.status !== 200) throw new Error(`GET ${ROUTE}: ${r.status}`);
   return /** @type {string} */ (r.json.body ?? '');
 }
 
 /** @param {string} body */
 async function writeBody(body) {
-  const r = await api('PATCH', `repos/${REPO}/pulls/${PR}`, { body });
-  if (r.status !== 200) throw new Error(`PATCH PR ${PR}: ${r.status}`);
+  const r = await api('PATCH', ROUTE, { body });
+  if (r.status !== 200) throw new Error(`PATCH ${ROUTE}: ${r.status}`);
 }
 
 /**
@@ -122,7 +128,7 @@ const uploadIds = [...new Set(dry.found.flatMap((/** @type {any} */ c) => c.ids)
 if (cmd === 'phase1') {
   mkdirSync(stateDir, { recursive: true });
   const s = { pr: PR, comment: COMMENT, log: /** @type {string[]} */ ([]), pictures: /** @type {any} */ ({}) };
-  const where = `PR #${PR}'s description`;
+  const where = `${KIND === 'pr' ? 'PR' : 'issue'} #${PR}'s description`;
   const listed = Object.keys(dry.places)
     .filter((id) => dry.places[id].some((/** @type {any} */ p) => p.where === where))
     .sort();
@@ -161,7 +167,7 @@ if (cmd === 'phase1') {
   s.edit1At = new Date().toISOString();
   execFileSync(
     'gh',
-    ['pr', 'edit', String(PR), '--repo', REPO, '--body-file', path.join(stateDir, 'body1.md'), ...EXPECTED.flatMap((id) => ['--attach', `./reupload/${id}.png`])],
+    [KIND, 'edit', String(PR), '--repo', REPO, '--body-file', path.join(stateDir, 'body1.md'), ...EXPECTED.flatMap((id) => ['--attach', `./reupload/${id}.png`])],
     { env: { ...env, GH_TOKEN: env.UPLOAD_TOKEN }, stdio: 'inherit' },
   );
   log(s, `edit 1 (BOT_PR_TOKEN) at ${s.edit1At}`);
@@ -221,6 +227,11 @@ if (cmd === 'phase1') {
     process.exit(1);
   }
   log(s, `edit 2 (Actions token): ${Object.values(swaps).reduce((a, b) => a + b, 0)} links swapped (${JSON.stringify(swaps)}); read back equal`);
+  if (COMMENT === null) {
+    log(s, 'no comment to delete for this description');
+    save(s);
+    process.exit(0);
+  }
   // Never delete a comment while any description still links its old ids.
   const own = dry.found.find((/** @type {any} */ c) => c.id === COMMENT);
   if (!own) await refuse(s, `comment ${COMMENT} isn't in the dry run`);
@@ -252,6 +263,57 @@ if (cmd === 'phase1') {
     process.exit(1);
   }
   log(s, 'the description read back after the delete is still edit 2');
+  save(s);
+} else if (cmd === 'dead') {
+  // The comments that back no link: each re-checked right before its delete.
+  mkdirSync(stateDir, { recursive: true });
+  const s = { log: /** @type {string[]} */ ([]) };
+  /** @type {any[]} */
+  const issues = [];
+  for (let page = 1; ; page++) {
+    const r = await api('GET', `repos/${REPO}/issues?state=all&per_page=100&page=${page}`);
+    if (r.status !== 200) throw new Error(`list issues: ${r.status}`);
+    issues.push(...r.json);
+    if (r.json.length < 100) break;
+  }
+  for (const id of cfg.dead) {
+    const own = dry.found.find((/** @type {any} */ c) => c.id === id);
+    if (!own) {
+      log(s, `STOP: comment ${id} isn't in the dry run`);
+      save(s);
+      process.exit(1);
+    }
+    const now = await api('GET', `repos/${REPO}/issues/comments/${id}`);
+    if (now.status !== 200) {
+      log(s, `STOP: comment ${id} is gone already (${now.status})`);
+      save(s);
+      process.exit(1);
+    }
+    /** @type {any[]} */
+    const comments = [];
+    for (let page = 1; ; page++) {
+      const r = await api('GET', `repos/${REPO}/issues/comments?per_page=100&page=${page}`);
+      if (r.status !== 200) throw new Error(`list comments: ${r.status}`);
+      comments.push(...r.json);
+      if (r.json.length < 100) break;
+    }
+    const linked = [
+      ...issues.filter((i) => own.ids.some((/** @type {string} */ x) => String(i.body ?? '').includes(x))).map((i) => `#${i.number}'s description`),
+      ...comments.filter((c) => c.id !== id && own.ids.some((/** @type {string} */ x) => String(c.body ?? '').includes(x))).map((c) => `comment ${c.id}`),
+    ];
+    if (linked.length > 0) {
+      log(s, `STOP: comment ${id}'s ids are linked from ${linked.join(', ')}; not deleted`);
+      save(s);
+      process.exit(1);
+    }
+    const del = await api('DELETE', `repos/${REPO}/issues/comments/${id}`);
+    const gone = await api('GET', `repos/${REPO}/issues/comments/${id}`);
+    log(s, `comment ${id} (#${own.number}, ${own.ids.length} pictures, linked nowhere among ${issues.length} descriptions and ${comments.length - 1} other comments): delete ${del.status}, now ${gone.status}`);
+    if (del.status !== 204 || gone.status !== 404) {
+      save(s);
+      process.exit(1);
+    }
+  }
   save(s);
 } else if (cmd === 'fetch') {
   const s = load();
