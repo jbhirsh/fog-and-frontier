@@ -55,24 +55,33 @@ const log = (/** @type {any} */ s, /** @type {string} */ line) => {
 };
 
 /**
+ * One GitHub API call with the Actions token, through gh, each in its own
+ * process: a fresh connection every time. (Node's fetch reuses a pooled
+ * connection, which GitHub had closed during edit 1's minute of uploads:
+ * the read-back right after it failed with "other side closed".)
+ *
  * @param {string} method
  * @param {string} route
  * @param {unknown} [body]
  */
 async function api(method, route, body) {
-  const res = await fetch(`${API}/${route}`, {
-    method,
-    headers: {
-      authorization: `Bearer ${env.ACTIONS_TOKEN}`,
-      accept: 'application/vnd.github+json',
-      'x-github-api-version': '2022-11-28',
-      ...(body ? { 'content-type': 'application/json' } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(60_000),
-  });
-  const text = await res.text();
-  return { status: res.status, json: text ? JSON.parse(text) : null };
+  const args = ['api', '-X', method, route, '-i', '-H', 'X-GitHub-Api-Version: 2022-11-28'];
+  let input;
+  if (body) {
+    args.push('--input', '-');
+    input = JSON.stringify(body);
+  }
+  let out;
+  try {
+    out = execFileSync('gh', args, { input, encoding: 'utf8', env: { ...env, GH_TOKEN: env.ACTIONS_TOKEN }, stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
+  } catch (e) {
+    out = String(/** @type {{ stdout?: string }} */ (e).stdout ?? '');
+    if (!/^HTTP\/\S+ \d{3}/.test(out)) throw e;
+  }
+  const status = Number(/^HTTP\/\S+ (\d{3})/.exec(out)?.[1]);
+  const split = out.search(/\r?\n\r?\n/);
+  const text = split === -1 ? '' : out.slice(split).trim();
+  return { status, json: text ? JSON.parse(text) : null };
 }
 
 async function readBody() {
