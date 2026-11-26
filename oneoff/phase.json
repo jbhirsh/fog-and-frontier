@@ -1,1 +1,1 @@
-{"phase": 1, "kind": "issue", "number": 378, "comment": null, "expected": ["6501f20d-ee29-4fd7-be3c-39ed404e0315", "df42ef29-816d-4c8d-8eb3-9faac4c754bc"], "dryRun": "45847376999", "test": true, "inside": true}
+{"phase": 2, "phase1Run": "45887155810", "kind": "issue", "number": 378, "comment": null, "expected": ["6501f20d-ee29-4fd7-be3c-39ed404e0315", "df42ef29-816d-4c8d-8eb3-9faac4c754bc"], "dryRun": "45847376999", "test": true, "inside": true}
