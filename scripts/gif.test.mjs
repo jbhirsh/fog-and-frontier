@@ -16,9 +16,11 @@ afterEach(() => vi.restoreAllMocks());
 /**
  * A checkout beside a folder for ../ci, a fake git on PATH that logs its
  * arguments and exits with GIT_EXIT, and a fake GIF tool that logs its
- * arguments and APP_ROOT.
+ * arguments and APP_ROOT: gif/cli.mjs, the command line ci has today, and
+ * with `ts` gif/cli.ts, the one replacing it, logged as `gif-ts` so a test
+ * sees which ran.
  */
-function setup({ cloned = true, tool = true } = {}) {
+function setup({ cloned = true, tool = true, ts = false } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'gif-'));
   const root = path.join(dir, 'app');
   const ci = path.join(dir, 'ci');
@@ -33,6 +35,18 @@ function setup({ cloned = true, tool = true } = {}) {
       path.join(ci, 'gif', 'cli.mjs'),
       `import { appendFileSync } from 'node:fs';
 appendFileSync(${JSON.stringify(log)}, 'gif ' + process.argv.slice(2).join(' ') + ' ' + process.env.APP_ROOT + '\\n');
+process.exit(Number(process.env.GIF_EXIT ?? 0));
+`,
+    );
+  }
+  if (ts) {
+    mkdirSync(path.join(ci, 'gif'), { recursive: true });
+    // Typed, so the test fails unless Node strips the types as it runs it.
+    writeFileSync(
+      path.join(ci, 'gif', 'cli.ts'),
+      `import { appendFileSync } from 'node:fs';
+const args: string[] = process.argv.slice(2);
+appendFileSync(${JSON.stringify(log)}, 'gif-ts ' + args.join(' ') + ' ' + process.env.APP_ROOT + '\\n');
 process.exit(Number(process.env.GIF_EXIT ?? 0));
 `,
     );
@@ -91,6 +105,21 @@ describe('main', () => {
     expect(error).toHaveBeenCalledWith(
       `gif: ${path.join(none.ci, 'gif', 'cli.mjs')} isn't there: is ${none.ci} a clone of jbhirsh/ci?`,
     );
+  });
+
+  it('runs gif/cli.mjs while ci has it, not the cli.ts beside it', async () => {
+    const { root, ci, env, logged } = setup({ ts: true });
+    expect(await run(['scenario.ts', '--dir', '42'], env, root)).toBe(0);
+    expect(logged()).toEqual([
+      `git -C ${ci} pull --ff-only --quiet`,
+      `gif scenario.ts --dir 42 ${root}`,
+    ]);
+  });
+
+  it("runs gif/cli.ts, types and all, once ci's cli.mjs is gone, with its code", async () => {
+    const { root, ci, env, logged } = setup({ tool: false, ts: true });
+    expect(await run(['s.ts'], { ...env, GIF_EXIT: '3' }, root)).toBe(3);
+    expect(logged()).toEqual([`git -C ${ci} pull --ff-only --quiet`, `gif-ts s.ts ${root}`]);
   });
 
   it('runs for this checkout from main, here with CI_TOOLING_DIR set so ../ci is left alone', async () => {

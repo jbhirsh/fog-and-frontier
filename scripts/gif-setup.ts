@@ -1,5 +1,5 @@
 // What every PR GIF of this app needs around its scenario (the `gif.setup`
-// setting in .github/ci.json; jbhirsh/ci's gif/cli.mjs calls it): pictures
+// setting in .github/ci.json; jbhirsh/ci's GIF tool calls it): pictures
 // show the app exactly as production does (scripts/live-site.ts). The
 // scenario's own setup stubs the API (tests/visual/helpers.ts's mockApis)
 // and signs in through the test flags for screens only a signed-in account

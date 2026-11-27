@@ -1,15 +1,15 @@
 // `npm run gif -- <scenario.ts> [options]`: a PR's before/after GIFs,
 // recorded by the GIF tool in jbhirsh/ci, which this app shares with the
-// owner's other apps (gif/cli.mjs there says what it does and which options
+// owner's other apps (gif/cli.ts there says what it does and which options
 // it takes; this app's settings for it are the `gif` key of
 // .github/ci.json).
 //
 // This only fetches the tool and runs it: it makes sure jbhirsh/ci is cloned
 // beside this checkout, as ../ci (cloned if missing, `git pull --ff-only` if
 // there, so it follows main as CI does; a pull that fails, offline say, runs
-// what's there), then runs ../ci/gif/cli.mjs with APP_ROOT set to this
-// checkout. CI_TOOLING_DIR points it at another clone instead, left as it is
-// (one being changed, say).
+// what's there), then runs ../ci/gif/cli.mjs (cli.ts once that's gone,
+// below) with APP_ROOT set to this checkout. CI_TOOLING_DIR points it at another clone
+// instead, left as it is (one being changed, say).
 //
 // The scenarios (scripts/gif-scenarios/) and the setup module
 // (scripts/gif-setup.ts) are this app's own, typed by scripts/gif-types.ts:
@@ -52,9 +52,18 @@ export function run(argv, env, root) {
       return Promise.resolve(1);
     }
   }
-  const cli = path.join(tooling, 'gif', 'cli.mjs');
-  if (!existsSync(cli)) {
-    console.error(`gif: ${cli} isn't there: is ${tooling} a clone of jbhirsh/ci?`);
+  // ci's command line is moving from gif/cli.mjs to gif/cli.ts
+  // (jbhirsh/ci#155): cli.mjs runs while ci has it, cli.ts once it's gone.
+  // Not cli.ts first: on ci's main today it's the module cli.mjs loads, and
+  // run by itself it does nothing. Drop cli.mjs here once ci has deleted it
+  // (the message below then names cli.ts). Node runs cli.ts by stripping its
+  // types, which takes Node 22.18 or later (`engines` asks for 24) and a
+  // clone outside any node_modules: ../ci is, and so must be a clone
+  // CI_TOOLING_DIR names.
+  const candidates = ['cli.mjs', 'cli.ts'].map((name) => path.join(tooling, 'gif', name));
+  const cli = candidates.find((file) => existsSync(file));
+  if (!cli) {
+    console.error(`gif: ${candidates[0]} isn't there: is ${tooling} a clone of jbhirsh/ci?`);
     return Promise.resolve(1);
   }
   const result = spawnSync(process.execPath, [cli, ...argv], {
