@@ -1,0 +1,12 @@
+{
+  "id": 44436260366,
+  "number": 803,
+  "workflow": "Visual regression",
+  "branch": "claude/amazing-hamilton-lpa4uu",
+  "sha": "4bf2e21c1884688fc82741c4086b979262c1df7e",
+  "created": "2026-11-19T01:21:17Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/44436260366",
+  "jobs": [
+    "visual"
+  ]
+}

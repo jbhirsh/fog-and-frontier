@@ -1,0 +1,12 @@
+{
+  "id": 43928902832,
+  "number": 538,
+  "workflow": "CI",
+  "branch": "fix-gif-scenarios",
+  "sha": "32c31fd794f666c3106b2673bf912c091f1c2ec0",
+  "created": "2026-11-16T18:26:54Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43928902832",
+  "jobs": [
+    "test"
+  ]
+}

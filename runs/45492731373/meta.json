@@ -1,0 +1,12 @@
+{
+  "id": 45492731373,
+  "number": 583,
+  "workflow": "CI",
+  "branch": "fix/visual-frozen-clock",
+  "sha": "6c763847dac62ffc50e1e8f561b2af5128962e8e",
+  "created": "2026-11-24T21:36:00Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/45492731373",
+  "jobs": [
+    "test"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": 43695369477,
+  "number": 526,
+  "workflow": "CI",
+  "branch": "smoke-on-deployment-status",
+  "sha": "ef230b571df953e40a4236ae6d790555f8447976",
+  "created": "2026-11-15T08:37:19Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43695369477",
+  "jobs": [
+    "test"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": 43942119882,
+  "number": 774,
+  "workflow": "Visual regression",
+  "branch": "visual-review-opt-in",
+  "sha": "a55d54e74bee4ab2de5c455f3555dcc10e442348",
+  "created": "2026-11-16T19:42:25Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/43942119882",
+  "jobs": [
+    "visual"
+  ]
+}

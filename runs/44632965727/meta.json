@@ -1,0 +1,12 @@
+{
+  "id": 44632965727,
+  "number": 813,
+  "workflow": "Visual regression",
+  "branch": "dependabot/npm_and_yarn/blocked-graphql-47d5b826a4",
+  "sha": "9b5f613d43fac73f6bc3dfb49369d24a078f8658",
+  "created": "2026-11-19T22:54:45Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/44632965727",
+  "jobs": [
+    "visual"
+  ]
+}

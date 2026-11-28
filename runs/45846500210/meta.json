@@ -1,0 +1,12 @@
+{
+  "id": 45846500210,
+  "number": 819,
+  "workflow": "Visual regression",
+  "branch": "scratch/ci144-proof",
+  "sha": "017f65f56a5c2a2a1c03848c65f0b9a40874ccd2",
+  "created": "2026-11-26T15:11:04Z",
+  "url": "https://github.com/jbhirsh/fog-and-frontier/actions/runs/45846500210",
+  "jobs": [
+    "visual"
+  ]
+}
